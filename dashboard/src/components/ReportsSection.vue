@@ -38,13 +38,13 @@ const filters = { from_date: iso(monthStart), to_date: iso(new Date()) }
 </template>
 
 <style scoped>
-.reports { padding: 14px 32px 16px; border-top: 1px solid var(--line); }
-.head { display: flex; justify-content: space-between; margin-bottom: 10px; }
-.groups { display: flex; flex-wrap: wrap; gap: 8px 32px; }
-.group { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
-.gname { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; }
-.list { list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.item { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.reports { padding: 0.933rem 2.133rem 1.067rem; border-top: 1px solid var(--line); }
+.head { display: flex; justify-content: space-between; margin-bottom: 0.667rem; }
+.groups { display: flex; flex-wrap: wrap; gap: 0.533rem 2.133rem; }
+.group { display: flex; flex-direction: column; gap: 0.267rem; min-width: 10.0rem; }
+.gname { font-size: 0.667rem; font-weight: 800; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; }
+.list { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
+.item { display: flex; justify-content: space-between; gap: 0.667rem; font-size: 0.867rem; }
 .name { color: var(--text); text-decoration: none; }
 .name:hover { color: var(--accent); }
 .csv { color: var(--dim); text-decoration: none; }

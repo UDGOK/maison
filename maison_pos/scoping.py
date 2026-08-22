@@ -191,3 +191,31 @@ def client_signal_query(user: Optional[str] = None) -> str:
 def client_recommendation_query(user: Optional[str] = None) -> str:
 	return _boutique_condition("Maison Client Recommendation", user)
 # --- end v0.4 H ---
+
+
+# --- v0.5 M campaigns ---
+def campaign_attribution_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Campaign Attribution", user)
+# --- end v0.5 M ---
+
+
+# ---------------------------------------------------------------------------
+# v0.5 K — Maison Salon Session
+# ---------------------------------------------------------------------------
+def salon_session_query(user: Optional[str] = None) -> str:
+	"""Guests never list sessions (the token is the secret); scoped roles see their boutique."""
+	user = _user(user)
+	if user == "Guest":
+		return "1=0"
+	return _boutique_condition("Maison Salon Session", user)
+
+
+def salon_session_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	"""Guest: *read* on a specific document only (realtime ``doc_subscribe`` with the token)."""
+	user = _user(user)
+	if user == "Guest":
+		return ptype == "read" and doc is not None and bool(getattr(doc, "name", None))
+	if is_unrestricted(user):
+		return True
+	boutique = get_user_boutique(user)
+	return bool(boutique) and getattr(doc, "boutique", None) == boutique

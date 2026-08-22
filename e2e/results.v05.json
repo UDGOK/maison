@@ -1,0 +1,92 @@
+[
+  {
+    "name": "CHI-OAK live card + ticker update within 1 s of the sale",
+    "ok": true,
+    "detail": "card + ticker updated 43 ms after the POS response (ACC-SINV-2026-01709)"
+  },
+  {
+    "name": "CHI-OAK net increased by the sale amount",
+    "ok": true,
+    "detail": "1648332 → 1648509 (+176.4)"
+  },
+  {
+    "name": "card flashes on the sale",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "drill-in shows the item-level feed for the boutique",
+    "ok": true,
+    "detail": "02:33Silk Pocket Square176"
+  },
+  {
+    "name": "region filter narrows the cards",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "search narrows the cards",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "Trending in stores renders from precomputed trends",
+    "ok": true,
+    "detail": "40 rows · precomputed · 2026-08-22 18:30 · loaded in 54 ms"
+  },
+  {
+    "name": "Products tab loads in < 300 ms",
+    "ok": true,
+    "detail": "54 ms"
+  },
+  {
+    "name": "trend badges present",
+    "ok": true,
+    "detail": "Trending up, Steady, Cooling, New"
+  },
+  {
+    "name": "badge filter works",
+    "ok": true,
+    "detail": "5 cooling"
+  },
+  {
+    "name": "Top products by store renders per-boutique lists + matrix",
+    "ok": true,
+    "detail": "3 boutiques · 15 matrix cells"
+  },
+  {
+    "name": "by-units ranking is descending",
+    "ok": true,
+    "detail": "31 ≥ 26 ≥ 20 ≥ 15"
+  },
+  {
+    "name": "sort by stock value ↓",
+    "ok": true,
+    "detail": "NYC-5AV > MIA-DD > CHI-OAK"
+  },
+  {
+    "name": "sort by stock value ↑ (toggle)",
+    "ok": true,
+    "detail": "CHI-OAK < MIA-DD < NYC-5AV"
+  },
+  {
+    "name": "sort by MTD net ↓",
+    "ok": true,
+    "detail": "CHI-OAK > NYC-5AV > MIA-DD"
+  },
+  {
+    "name": "sort by boutique code ↑",
+    "ok": true,
+    "detail": "CHI-OAK < MIA-DD < NYC-5AV"
+  },
+  {
+    "name": "boutique drill-in page renders top items / associates",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "no page errors",
+    "ok": true,
+    "detail": ""
+  }
+]

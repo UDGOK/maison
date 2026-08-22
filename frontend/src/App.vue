@@ -8,12 +8,15 @@ import EnrolSheet from '@/components/EnrolSheet.vue'
 import { useRecognitionStore } from '@/stores/recognition'
 import { useSessionStore } from '@/stores/session'
 import { useScanStore } from '@/stores/scan'
+import VirtualSalon from '@/components/VirtualSalon.vue' // v0.5 K
+import { IS_MOCK } from '@/api'
 
 const route = useRoute()
 const session = useSessionStore()
 const scan = useScanStore()
 const recognition = useRecognitionStore()
-const showChrome = computed(() => session.unlocked && route.name !== 'unlock')
+const isSalon = computed(() => !!route.meta.salon) // v0.5 K
+const showChrome = computed(() => session.unlocked && route.name !== 'unlock' && !isSalon.value)
 </script>
 
 <template>
@@ -24,7 +27,9 @@ const showChrome = computed(() => session.unlocked && route.name !== 'unlock')
         <component :is="Component" />
       </router-view>
     </main>
-    <NoticeStack class="no-print" />
+    <NoticeStack v-if="!isSalon" class="no-print" />
+    <!-- v0.5 K: dev "virtual salon" pane (mock mode only) -->
+    <VirtualSalon v-if="showChrome && IS_MOCK" class="no-print" />
     <ScannerSheet v-if="scan.sheetOpen && showChrome" class="no-print" />
     <EnrolSheet v-if="recognition.enrolOpen && showChrome" class="no-print" />
   </div>

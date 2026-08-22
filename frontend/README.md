@@ -208,3 +208,12 @@ customers who gave consent through the in-app `ConsentScreen`, and the following
 - **Liveness-lite is not certified** presentation-attack detection; do not market the feature as such.
 
 Until legal sign-off exists for each jurisdiction, keep the boutique switch off.
+
+## v0.5 K — Maison Salon (client-facing screen)
+
+`/salon` runs the same bundle with its own layout for the client-facing iPad (a guest device paired by a 6-digit
+code from Settings → **Client display**). Code lives in `src/salon/` (reducer, masking, pairing helpers, socket +
+polling transport, the "light on metal" canvas, the screens) and `src/stores/salon.ts` (POS side: pairing, the
+debounced mirror, Salon → POS messages). In mock mode Settings offers **Show virtual salon**, an iPad-mini pane
+running the real `/salon` app against the in-memory server shared through `localStorage`. Full notes:
+`docs/salon.md`. Tests: `src/tests/salon.test.ts`; e2e `e2e/salon.e2e.mjs` (two browser contexts).

@@ -1,0 +1,108 @@
+[
+  {
+    "tab": "live",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 15420,
+    "file": "live-1920x1080.png"
+  },
+  {
+    "tab": "boutiques",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 15766,
+    "file": "boutiques-1920x1080.png"
+  },
+  {
+    "tab": "products",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 14910,
+    "file": "products-1920x1080.png"
+  },
+  {
+    "tab": "products/top",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 14726,
+    "file": "products-top-1920x1080.png"
+  },
+  {
+    "tab": "clients",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 14807,
+    "file": "clients-1920x1080.png"
+  },
+  {
+    "tab": "insights",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 14880,
+    "file": "insights-1920x1080.png"
+  },
+  {
+    "tab": "reports",
+    "size": "1920x1080",
+    "ok": true,
+    "ms": 14895,
+    "file": "reports-1920x1080.png"
+  },
+  {
+    "size": "1920x1080",
+    "pageErrors": 0
+  },
+  {
+    "tab": "live",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 15482,
+    "file": "live-3840x2160.png"
+  },
+  {
+    "tab": "boutiques",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 15306,
+    "file": "boutiques-3840x2160.png"
+  },
+  {
+    "tab": "products",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 14716,
+    "file": "products-3840x2160.png"
+  },
+  {
+    "tab": "products/top",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 14827,
+    "file": "products-top-3840x2160.png"
+  },
+  {
+    "tab": "clients",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 14953,
+    "file": "clients-3840x2160.png"
+  },
+  {
+    "tab": "insights",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 15286,
+    "file": "insights-3840x2160.png"
+  },
+  {
+    "tab": "reports",
+    "size": "3840x2160",
+    "ok": true,
+    "ms": 15368,
+    "file": "reports-3840x2160.png"
+  },
+  {
+    "size": "3840x2160",
+    "pageErrors": 0
+  }
+]

@@ -1,12 +1,26 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { fetchLiveSummary, MOCK } from '../api'
-import { addSaleToHours, applySale, computeTotals, deriveStatus, emptyHours, pct, sortByNet } from '../lib/aggregate'
+import { computed, ref, shallowRef, triggerRef } from 'vue'
+import { fetchLiveSummary, fetchPeriodComparison, fetchReports, fetchTicker, MOCK } from '../api'
+import {
+  chainTotals,
+  createAggState,
+  deriveStatus,
+  rankedBoutiques,
+  reduceEvents,
+  seedFromSummary,
+  type AggState,
+  type BoutiqueAgg,
+  type LiveEvent,
+  type LiveSortKey,
+} from '../lib/aggregate'
+import { createBatcher } from '../lib/batch'
 import { connectRealtime } from '../realtime'
-import type { BoutiqueRow, HeartbeatEvent, HourBucket, LowStockBlock, PeriodComparison, ReportLink, SaleEvent } from '../types'
-import { fetchPeriodComparison, fetchReports } from '../api'
+import type { BoutiqueRow, HeartbeatEvent, HourBucket, LowStockBlock, PeriodComparison, ReportLink, SaleEvent, TickerRow } from '../types'
 
 export const FEED_SIZE = 12
+/** Full reconcile with the server (everything else is incremental from socket events). */
+export const RECONCILE_MS = 60_000
+export const FLASH_MS = 1400
 
 /** Frappe returns "YYYY-MM-DD HH:MM:SS.ffffff" (no zone); make it parseable everywhere. */
 function isoish(v: unknown): string {
@@ -16,17 +30,18 @@ function isoish(v: unknown): string {
 
 /**
  * Adapt the backend realtime payload (`maison_pos.utils.invoice_summary`: grand_total,
- * items as objects, customer_name, cash/card) to the dashboard's SaleEvent.
+ * items as objects, customer_name, cash/card, top_item, tier) to the dashboard's SaleEvent.
  * Cancellations arrive as docstatus 2 with the same shape; we negate them.
  */
 export function normalizeSale(raw: unknown): SaleEvent {
   const r = (raw || {}) as Record<string, unknown>
   const sign = Number(r.docstatus) === 2 || r.event === 'maison_sale_cancelled' ? -1 : 1
   const num = (k: string) => (Number.isFinite(Number(r[k])) ? Number(r[k]) : 0)
-  const net = r.net !== undefined ? num('net') : num('grand_total')
+  const net = r.net !== undefined ? num('net') : r.amount !== undefined ? num('amount') : num('grand_total')
   const items = Array.isArray(r.items)
     ? (r.items as unknown[]).map((i) => (typeof i === 'string' ? i : String((i as Record<string, unknown>)?.item_name ?? (i as Record<string, unknown>)?.item_code ?? '')))
     : []
+  const isReturn = Boolean(Number(r.is_return)) || sign * net < 0
   return {
     invoice: String(r.invoice ?? ''),
     boutique: String(r.boutique ?? ''),
@@ -35,6 +50,8 @@ export function normalizeSale(raw: unknown): SaleEvent {
     customer_name: r.customer_name as string | undefined,
     tier: (r.tier as string | undefined) ?? undefined,
     items,
+    top_item: (r.top_item as string | undefined) ?? items[0] ?? null,
+    is_return: isReturn,
     net: sign * net,
     cash: sign * num('cash'),
     card: sign * num('card'),
@@ -52,10 +69,15 @@ function normalizeHeartbeat(raw: unknown): HeartbeatEvent {
   }
 }
 
+export function tickerToSale(t: TickerRow): SaleEvent {
+  return { invoice: t.invoice, boutique: t.boutique, posting_datetime: isoish(t.ts), tier: t.tier ?? undefined, items: t.top_item ? [t.top_item] : [], top_item: t.top_item, is_return: !!t.is_return, net: t.amount, cash: 0, card: t.amount }
+}
+
 export const useDashboard = defineStore('dashboard', () => {
-  const rows = ref<BoutiqueRow[]>([])
-  const hours = ref<HourBucket[]>(emptyHours())
-  const feed = ref<SaleEvent[]>([])
+  /** Incremental aggregates — a shallowRef; `version` bumps trigger re-render once per batch. */
+  const agg = shallowRef<AggState>(createAggState())
+  const version = ref(0)
+  const regions = ref<string[]>([])
   const pendingApprovals = ref(0)
   /** v0.4 D/E/F */
   const lowStock = ref<LowStockBlock>({ open: 0, by_boutique: {}, top: [] })
@@ -66,65 +88,137 @@ export const useDashboard = defineStore('dashboard', () => {
   const loaded = ref(false)
   const error = ref<string | null>(null)
   const now = ref(Date.now())
-  /** boutique code -> timestamp of last sale flash */
-  const flash = ref<Record<string, number>>({})
+  const lastReconcile = ref<number>(0)
+  /** Live tab controls */
+  const region = ref<string | null>(null)
+  const query = ref('')
+  const sort = ref<LiveSortKey>('net')
+  const selected = ref<string | null>(null)
 
-  const totals = computed(() => computeTotals(rows.value))
-  const cardPct = computed(() => pct(totals.value.card, totals.value.net))
-  const cashPct = computed(() => pct(totals.value.cash, totals.value.net))
-  const sorted = computed(() =>
-    sortByNet(
-      rows.value.map((r) => ({
-        ...r,
-        status: deriveStatus(r.last_seen, now.value, r.pending_approvals ?? 0),
-      })),
-    ),
+  // --- derived -------------------------------------------------------------------------
+  const totals = computed(() => {
+    void version.value
+    return chainTotals(agg.value)
+  })
+  const cardPct = computed(() => (totals.value.net > 0 ? (totals.value.card / totals.value.net) * 100 : 0))
+  const cashPct = computed(() => (totals.value.net > 0 ? (totals.value.cash / totals.value.net) * 100 : 0))
+  // NB: the reducer mutates arrays in place; computeds must return fresh references, otherwise
+  // Vue ≥ 3.4 sees an unchanged value and skips notifying the template.
+  const hours = computed<HourBucket[]>(() => {
+    void version.value
+    return agg.value.hours.slice()
+  })
+  const ranked = computed<BoutiqueAgg[]>(() => {
+    void version.value
+    // shallow copies so child components see changed props (the reducer mutates rows in place)
+    return rankedBoutiques(agg.value, { region: region.value, q: query.value, sort: sort.value }).map((b) => ({ ...b }))
+  })
+  const ticker = computed<SaleEvent[]>(() => {
+    void version.value
+    return agg.value.ticker.slice()
+  })
+  const feed = computed<SaleEvent[]>(() => ticker.value.slice(0, FEED_SIZE))
+  const selectedRow = computed<BoutiqueAgg | null>(() => {
+    void version.value
+    const b = selected.value ? agg.value.rows.get(selected.value) : null
+    return b ? { ...b, feed: b.feed.slice(), by_hour: b.by_hour.slice() } : null
+  })
+  /** Legacy shape for components that still take BoutiqueRow[] (Boutiques table, tests). */
+  const rows = computed<BoutiqueRow[]>(() => ranked.value.map(toRow))
+  const sorted = computed<BoutiqueRow[]>(() =>
+    rows.value.map((r) => ({ ...r, status: deriveStatus(r.last_seen, now.value, r.pending_approvals ?? 0, r.queued ?? 0) })),
   )
+  const flash = computed<Record<string, number>>(() => {
+    void version.value
+    void now.value
+    const out: Record<string, number> = {}
+    const t = Date.now()
+    for (const b of agg.value.rows.values()) if (b.flash && t - b.flash < FLASH_MS) out[b.boutique] = b.flash
+    return out
+  })
+  const pendingTotal = computed(() => Math.max(pendingApprovals.value, totals.value.pending_approvals))
+
+  function toRow(b: BoutiqueAgg): BoutiqueRow {
+    return {
+      boutique: b.boutique,
+      name: b.name,
+      region: b.region,
+      net: b.net,
+      cash: b.cash,
+      card: b.card,
+      invoices: b.invoices,
+      returns: b.returns,
+      status: 'offline',
+      last_seen: b.last_seen,
+      queued: b.queued,
+      pending_approvals: b.pending_approvals,
+      last_sale: b.last_sale,
+      vs_last_week_pct: b.vs_last_week_pct,
+      low_stock: b.low_stock,
+      avg_ticket: b.avg_ticket,
+    }
+  }
+
+  function bump() {
+    version.value = agg.value.version
+    triggerRef(agg)
+  }
+
+  // --- realtime: rAF-batched, folded incrementally ------------------------------------------
+  const batcher = createBatcher<LiveEvent>((events) => {
+    const res = reduceEvents(agg.value, events)
+    if (res.applied) {
+      bump()
+      if (res.sales) scheduleFlashClear()
+    }
+  })
+  let flashTimer: number | undefined
+  function scheduleFlashClear() {
+    if (flashTimer) return
+    flashTimer = window.setTimeout(() => {
+      flashTimer = undefined
+      now.value = Date.now()
+    }, FLASH_MS + 50)
+  }
 
   function onSale(raw: SaleEvent) {
     const s = normalizeSale(raw)
-    if (!s.invoice || feed.value.some((f) => f.invoice === s.invoice && f.net === s.net)) return
-    rows.value = applySale(rows.value, s)
-    hours.value = addSaleToHours(hours.value, s)
-    feed.value = [s, ...feed.value].slice(0, FEED_SIZE)
-    flash.value = { ...flash.value, [s.boutique]: Date.now() }
-    window.setTimeout(() => {
-      if (flash.value[s.boutique] && Date.now() - flash.value[s.boutique]! >= 1400) {
-        const { [s.boutique]: _drop, ...rest } = flash.value
-        flash.value = rest
-      }
-    }, 1500)
+    if (!s.invoice || !s.boutique) return
+    batcher.push({ kind: 'sale', sale: s })
   }
 
   function onHeartbeat(raw: HeartbeatEvent) {
     const h = normalizeHeartbeat(raw)
-    const i = rows.value.findIndex((r) => r.boutique === h.boutique)
-    if (i === -1) return
-    const r = rows.value[i]!
-    rows.value = rows.value.map((x, j) =>
-      j === i
-        ? {
-            ...x,
-            last_seen: h.ts ?? new Date().toISOString(),
-            queued: h.queued ?? 0,
-            pending_approvals: h.pending_approvals ?? r.pending_approvals,
-          }
-        : x,
-    )
+    if (!h.boutique) return
+    batcher.push({ kind: 'heartbeat', heartbeat: { boutique: h.boutique, ts: h.ts, queued: h.queued, pending_approvals: h.pending_approvals } })
   }
 
+  /** Push a batch synchronously (tests / mock stream). */
+  function applyNow(events: LiveEvent[]) {
+    const res = reduceEvents(agg.value, events)
+    if (res.applied) bump()
+    return res
+  }
+
+  // --- loading --------------------------------------------------------------------------------
   async function load() {
     try {
-      const s = await fetchLiveSummary()
-      rows.value = s.by_boutique
-      hours.value = s.by_hour.length === 24 ? s.by_hour : emptyHours()
+      const [s, t] = await Promise.all([fetchLiveSummary(), fetchTicker(10).catch(() => [] as TickerRow[])])
+      batcher.flush()
+      seedFromSummary(agg.value, s.by_boutique, s.by_hour.length === 24 ? s.by_hour : undefined)
+      if (!agg.value.ticker.length) {
+        const recent = (s as unknown as { recent?: SaleEvent[] }).recent
+        if (t.length) agg.value.ticker = t.map(tickerToSale)
+        else if (recent) agg.value.ticker = [...recent].reverse().slice(0, 10)
+      }
+      regions.value = s.regions ?? [...new Set(s.by_boutique.map((b) => b.region ?? '—'))].sort()
       pendingApprovals.value = s.pending_approvals
       if (s.low_stock) lowStock.value = s.low_stock
       if (s.returns) returnsToday.value = s.returns
-      const recent = (s as unknown as { recent?: SaleEvent[] }).recent
-      if (recent) feed.value = [...recent].reverse().slice(0, FEED_SIZE)
+      lastReconcile.value = Date.now()
       error.value = null
       loaded.value = true
+      bump()
     } catch (e) {
       error.value = (e as Error).message
     }
@@ -153,29 +247,38 @@ export const useDashboard = defineStore('dashboard', () => {
       stop = startMockStream(onSale, onHeartbeat)
       connected.value = true
     } else {
-      stop = connectRealtime({ onSale, onHeartbeat, onConnection: (c) => (connected.value = c) })
-      refresh = window.setInterval(() => {
-        void load()
-        void loadInsights()
-      }, 5 * 60_000) // reconcile with server periodically
+      let wasConnected = false
+      stop = connectRealtime({
+        onSale,
+        onHeartbeat,
+        onConnection: (c) => {
+          connected.value = c
+          // reconnect → full refetch (events may have been missed while away)
+          if (c && wasConnected) void load()
+          if (c) wasConnected = true
+        },
+      })
+      refresh = window.setInterval(() => void load(), RECONCILE_MS)
     }
   }
 
   function dispose() {
     stop?.()
+    batcher.dispose()
     clearInterval(tick)
     clearInterval(refresh)
+    clearTimeout(flashTimer)
   }
 
-  const pendingTotal = computed(() => {
-    const fromRows = rows.value.reduce((a, r) => a + (r.pending_approvals ?? 0), 0)
-    return Math.max(pendingApprovals.value, fromRows)
-  })
+  function select(code: string | null) {
+    selected.value = selected.value === code ? null : code
+  }
 
   return {
-    rows, hours, feed, connected, loaded, error, now, flash,
-    totals, cardPct, cashPct, sorted, pendingTotal,
+    agg, version, regions, region, query, sort, selected, selectedRow,
+    rows, sorted, ranked, ticker, feed, hours, connected, loaded, error, now, flash, lastReconcile,
+    totals, cardPct, cashPct, pendingTotal,
     lowStock, returnsToday, reports, periods,
-    onSale, onHeartbeat, load, loadInsights, start, dispose,
+    onSale, onHeartbeat, applyNow, load, loadInsights, start, dispose, select,
   }
 })

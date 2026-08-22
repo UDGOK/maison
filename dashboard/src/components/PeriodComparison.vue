@@ -52,23 +52,23 @@ const sub = (b: PeriodBlock) => b.label.replace(/^.*? vs /, 'vs ')
 </template>
 
 <style scoped>
-.periods { padding: 18px 32px 16px; border-bottom: 1px solid var(--line); }
-.head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.periods { padding: 1.2rem 2.133rem 1.067rem; border-bottom: 1px solid var(--line); }
+.head { display: flex; justify-content: space-between; margin-bottom: 0.8rem; }
 .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
-.cell { background: var(--surface); padding: 14px 18px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.short { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); }
-.value { font-size: clamp(20px, 1.5vw, 28px); font-weight: 800; line-height: 1; }
-.deltas { display: flex; align-items: baseline; gap: 12px; }
-.delta { font-family: var(--display); font-weight: 800; font-size: 14px; }
+.cell { background: var(--surface); padding: 0.933rem 1.2rem 0.8rem; display: flex; flex-direction: column; gap: 0.533rem; min-width: 0; }
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.533rem; }
+.short { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); }
+.value { font-size: clamp(1.333rem, 1.5vw, 1.867rem); font-weight: 800; line-height: 1; }
+.deltas { display: flex; align-items: baseline; gap: 0.8rem; }
+.delta { font-family: var(--display); font-weight: 800; font-size: 0.933rem; }
 .good { color: var(--good); }
 .crit { color: var(--crit); }
 .dim { color: var(--dim); }
 .prev { color: var(--dim); }
-.row2 { display: flex; flex-wrap: wrap; gap: 10px 14px; text-transform: none; letter-spacing: 0.02em; font-size: 11px; color: var(--muted); }
-.bar { position: relative; height: 4px; background: var(--ground); margin-top: 2px; }
+.row2 { display: flex; flex-wrap: wrap; gap: 0.667rem 0.933rem; text-transform: none; letter-spacing: 0.02em; font-size: 0.733rem; color: var(--muted); }
+.bar { position: relative; height: 0.267rem; background: var(--ground); margin-top: 2px; }
 .bar span { position: absolute; left: 0; top: 0; height: 100%; }
 .cur { background: var(--accent); z-index: 1; }
 .prevbar { background: var(--line-strong); height: 2px !important; top: 1px !important; }
-@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 73.333rem) { .grid { grid-template-columns: repeat(2, 1fr); } }
 </style>

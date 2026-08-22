@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0B0B0A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Maison Salon" />
+    <title>{{ title }}</title>
+    <script>
+      // v0.5 K — the Salon is a guest page; the token lives in localStorage, not the session
+      window.csrf_token = "{{ csrf_token }}";
+      window.maison_user = "{{ site_user }}";
+      window.maison_salon = true;
+      window.socketio_port = {{ socketio_port }};
+      window.dev_server = {{ dev_server }};
+    </script>
+    {{ head_tags | safe }}
+    <style>
+      html, body { background: #0B0B0A; color: #EFE8DA; margin: 0; height: 100%; font-family: Jost, Helvetica, Arial, sans-serif; }
+      .maison-fallback { padding: 48px; max-width: 640px; }
+      .maison-fallback h1 { font-family: Unbounded, "Arial Black", sans-serif; letter-spacing: .3em; font-weight: 900; }
+      .maison-fallback code { color: #C9A96E; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    {% if built %}
+      {{ body_tags | safe }}
+    {% else %}
+      <div class="maison-fallback"><h1>MAISON</h1><p>{{ build_hint }}</p></div>
+    {% endif %}
+  </body>
+</html>

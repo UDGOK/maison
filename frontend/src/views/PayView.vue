@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { v4 as uuidv4 } from 'uuid'
 import { useCartStore } from '@/stores/cart'
@@ -14,6 +14,7 @@ import type { CardResult, TerminalProgress } from '@/payments/terminal'
 import { usePrinterStore } from '@/stores/printer'
 import { fmtMoney, round } from '@/utils/money'
 import { useLayoutStore } from '@/stores/layout'
+import { useSalonPosStore } from '@/stores/salon' // v0.5 K
 import { useWebOrdersStore } from '@/stores/webOrders' // v0.4 G
 import Keypad from '@/components/Keypad.vue'
 
@@ -27,6 +28,7 @@ const router = useRouter()
 const layout = useLayoutStore()
 
 const mode = ref<'cash' | 'card'>((route.query.mode as 'cash' | 'card') || 'cash')
+
 // --- v0.4 G: collecting a web order — the amount paid online is an advance; only the balance is due ---
 const webOrders = useWebOrdersStore()
 const prepaid = computed(() => (webOrders.active ? Math.min(webOrders.prepaid, cart.totals.grand_total) : 0))
@@ -66,6 +68,18 @@ const terminal = usePrinterStore().terminal()
 const progress = ref<TerminalProgress>({ step: 'idle', message: '' })
 const cardError = ref('')
 const offline_uuid = ref(uuidv4())
+// --- v0.5 K: mirror the payment step to the client display ---
+const salon = useSalonPosStore()
+watch(
+  [mode, () => progress.value.step, total],
+  () => {
+    if (salon.pay?.step === 'approved') return
+    salon.setPay({ mode: mode.value, amount: total.value, step: mode.value === 'card' && ['collecting', 'processing'].includes(String(progress.value.step)) ? 'processing' : 'present' })
+  },
+  { immediate: true, flush: 'post' }
+)
+onBeforeUnmount(() => salon.setPay(null))
+// --- end v0.5 K ---
 const busy = ref(false)
 
 const stepOrder = ['discovering', 'connecting', 'collecting', 'processing', 'done'] as const
@@ -196,6 +210,13 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     currency: session.currency
   }
   if (IS_MOCK && promos.coupon) __mockRedeemCoupon(promos.coupon.code)
+  // --- v0.5 K: "Approved" with a gold pulse on the client display before the thank-you ---
+  if (salon.paired) {
+    salon.setPay({ mode: modeOfPayment === 'Card' ? 'card' : 'cash', amount: total.value, step: 'approved', card_brand: card?.card_brand, last4: card?.last4 })
+    salon.setReceipt({ ...({ customer: cart.customer?.name } as object), points_earned: cart.pointsEarned, points_balance: receipt.points_balance, tier: cart.customer?.tier || null, grand_total: t.grand_total, currency: session.currency })
+    await new Promise((r) => setTimeout(r, 1400))
+  }
+  // --- end v0.5 K ---
   await sync.enqueue(invoice, receipt)
   for (const l of cart.lines) catalog.consume(l.item_code, l.qty, l.serial_no)
   const uuid = offline_uuid.value

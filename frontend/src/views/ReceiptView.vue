@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { liveQuery } from 'dexie'
 import { db, type QueueRow } from '@/db'
@@ -8,6 +8,7 @@ import { usePrinterStore } from '@/stores/printer'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
 import { useLayoutStore } from '@/stores/layout'
+import { useSalonPosStore } from '@/stores/salon' // v0.5 K
 import { receiptQrContent } from '@/printer/epos'
 import { fmtMoney } from '@/utils/money'
 import Receipt80 from '@/components/Receipt80.vue'
@@ -47,6 +48,29 @@ const email = ref('')
 const emailSent = ref(false)
 
 let sub: { unsubscribe(): void } | null = null
+// --- v0.5 K: thank-you on the client display (receipt QR once the server issued the token) ---
+const salon = useSalonPosStore()
+watch(
+  () => [row.value?.receipt_token, row.value?.invoice_name, row.value?.offline_uuid],
+  () => {
+    const r = row.value
+    if (!r) return
+    salon.setReceipt({
+      ...({ customer: r.invoice.customer } as object),
+      receipt_token: r.receipt_token || null,
+      receipt_url: r.receipt_token ? receiptLink.value : null,
+      sales_invoice: r.invoice_name || null,
+      points_earned: r.receipt.points_earned || 0,
+      points_balance: r.receipt.points_balance,
+      tier: r.receipt.customer_tier || null,
+      grand_total: r.receipt.grand_total,
+      currency: r.receipt.currency
+    })
+  },
+  { immediate: true }
+)
+onBeforeUnmount(() => salon.setReceipt(null))
+// --- end v0.5 K ---
 function observe() {
   sub?.unsubscribe()
   sub = liveQuery(() => db.queue.get(props.uuid)).subscribe({ next: (r) => (row.value = r || null) })

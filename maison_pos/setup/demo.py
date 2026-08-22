@@ -932,6 +932,26 @@ def seed(commit: bool = True) -> dict[str, Any]:
 		summary_v04_crm = {"error": "see Error Log"}
 	# --- end v0.4 B/C/I ---
 
+	# --- v0.5 K (salon): curated playlists for the client-facing screen ---
+	try:
+		from maison_pos.setup.demo_v05_salon import seed_salon_v05
+
+		summary_v05_salon = seed_salon_v05()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison demo v0.5 salon seed")
+		summary_v05_salon = {"error": "see Error Log"}
+	# --- end v0.5 K ---
+
+	# --- v0.5 M (campaign attribution): 3 campaigns + touches lined up with history invoices, attribution run ---
+	try:
+		from maison_pos.setup.demo_v05_campaigns import seed_v05_campaigns
+
+		summary_v05_campaigns = seed_v05_campaigns()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison demo v0.5 campaigns seed")
+		summary_v05_campaigns = {"error": "see Error Log"}
+	# --- end v0.5 M ---
+
 	if commit:
 		frappe.db.commit()
 
@@ -945,6 +965,8 @@ def seed(commit: bool = True) -> dict[str, Any]:
 		"loyalty_program": LOYALTY_PROGRAM,
 		"password": DEMO_PASSWORD,
 		"v04_crm_hr": summary_v04_crm,
+		"v05_campaigns": summary_v05_campaigns,  # v0.5 M
+		"v05_salon": summary_v05_salon,
 	}
 	print(frappe.as_json(summary))
 	return summary

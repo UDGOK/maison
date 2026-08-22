@@ -82,13 +82,13 @@ const peak = computed(() => visible.value.reduce((a, b) => (b.net > a.net ? b : 
 .chart {
   display: grid;
   grid-template-rows: auto 1fr;
-  padding: 20px 32px 28px;
+  padding: 1.333rem var(--pad-x) 1.867rem;
   border-bottom: 1px solid var(--line);
   min-height: 0;
 }
 .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .meta { display: inline-flex; gap: 12px; align-items: baseline; }
-.peak { color: var(--muted); font-size: 13px; }
+.peak { color: var(--muted); font-size: var(--fs-small); }
 .plot { position: relative; min-height: 0; }
 .svg { width: 100%; height: 100%; display: block; min-height: 0; }
 .grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
@@ -97,12 +97,12 @@ const peak = computed(() => visible.value.reduce((a, b) => (b.net > a.net ? b : 
 .bar.future { fill: var(--line); }
 .bar.current { fill: var(--accent); }
 .hl { fill: var(--accent-soft); }
-.ylabels { position: absolute; left: 0; top: 0; bottom: 0; width: 48px; pointer-events: none; }
+.ylabels { position: absolute; left: 0; top: 0; bottom: 0; width: 3.2rem; pointer-events: none; }
 .ylabels span {
   position: absolute;
   right: 0;
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--dim);
   letter-spacing: 0.06em;
 }
@@ -110,7 +110,7 @@ const peak = computed(() => visible.value.reduce((a, b) => (b.net > a.net ? b : 
 .xlabels span {
   position: absolute;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--dim);
   letter-spacing: 0.08em;
 }

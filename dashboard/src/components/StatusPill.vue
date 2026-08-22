@@ -22,11 +22,11 @@ const label = computed(() => {
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 24px;
-  padding: 0 10px;
+  gap: 0.533rem;
+  height: 1.6rem;
+  padding: 0 0.667rem;
   border: 1px solid var(--line);
-  font-size: 11px;
+  font-size: 0.733rem;
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -34,8 +34,8 @@ const label = computed(() => {
   white-space: nowrap;
 }
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 0.4rem;
+  height: 0.4rem;
   background: var(--dim);
 }
 .online .dot { background: var(--good); }

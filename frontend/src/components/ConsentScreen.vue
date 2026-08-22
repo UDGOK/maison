@@ -4,12 +4,54 @@
  * hold "Agree" for 600 ms (gold ring fills) or draw a signature and tap Agree. "No thanks"
  * still creates / links the client — without any biometrics.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRecognitionStore } from '@/stores/recognition'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRecognitionStore, type EnrolStep } from '@/stores/recognition'
 import { HoldToAgree, HOLD_MS, signatureValid, type StrokePoint } from '@/recognition/consent'
 import type { ConsentPayload } from '@/api'
 
-const recognition = useRecognitionStore()
+// --- v0.5 K: the Salon reuses this screen with its own controller (no recognition store on a guest device) ---
+export interface ConsentController {
+  enrolStep: EnrolStep
+  captureSamples: { length: number }
+  captureTarget: number
+  clientName: string
+  consentText: string
+  consentVersion: string
+  enrolError: string
+  agree(consent: ConsentPayload): Promise<boolean>
+  decline(): Promise<unknown>
+  closeEnrol(): void
+}
+const props = defineProps<{ controller?: ConsentController }>()
+const store = props.controller ? null : useRecognitionStore()
+const recognition = (props.controller ||
+  reactive({
+    get enrolStep() {
+      return store!.enrolStep
+    },
+    get captureSamples() {
+      return store!.captureSamples
+    },
+    get captureTarget() {
+      return store!.captureTarget
+    },
+    get clientName() {
+      return store!.enrolDraft.customer?.customer_name || store!.enrolDraft.name || ''
+    },
+    get consentText() {
+      return store!.consentText
+    },
+    get consentVersion() {
+      return store!.consentVersion
+    },
+    get enrolError() {
+      return store!.enrolError
+    },
+    agree: (c: ConsentPayload) => store!.agree(c),
+    decline: () => store!.decline(),
+    closeEnrol: () => store!.closeEnrol()
+  })) as ConsentController
+// --- end v0.5 K ---
 const hold = new HoldToAgree(HOLD_MS)
 const progress = ref(0)
 const holding = ref(false)
@@ -27,7 +69,7 @@ const signed = computed(() => signatureValid(strokes.value))
 const step = computed(() => recognition.enrolStep)
 const captured = computed(() => recognition.captureSamples.length)
 const target = computed(() => recognition.captureTarget)
-const clientName = computed(() => recognition.enrolDraft.customer?.customer_name || recognition.enrolDraft.name || '')
+const clientName = computed(() => recognition.clientName)
 
 function now() {
   return performance.now()

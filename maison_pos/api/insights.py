@@ -86,6 +86,8 @@ SIGNAL_FIELDS = [
 	"recommended_item", "recommended_item_name", "churn_risk", "cadence_days", "expected_next_visit", "last_visit",
 	"days_since_last_visit", "visits", "lifetime_spend", "spend_trend", "preferred_department", "preferred_metal",
 	"contacted_by", "contacted_at", "note", "computed_at",
+	# v0.5 M — call owner
+	"assigned_associate", "assigned_at", "call_task", "crm_task",
 ]
 
 
@@ -130,6 +132,91 @@ def mark_signal(signal: str, status: str, note: Optional[str] = None) -> dict[st
 	doc.flags.ignore_permissions = True
 	doc.save()
 	return {"ok": True, "signal": doc.name, "status": doc.status}
+
+
+# --- v0.5 M — "Assign call" on a client signal (VIP lapsing churn list) ---
+@frappe.whitelist()
+def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional[str] = None, note: Optional[str] = None) -> dict[str, Any]:
+	"""One-tap "Assign call": creates a *Call* follow-up (``Maison Client Interaction`` + CRM Task)
+	for the signal's preferred associate (or *associate*) and records the owner on the signal.
+
+	Permissions: any Maison role; scoped users (Manager / Associate) only for signals of their own
+	boutique and may only assign to associates of that boutique. Associates may only assign to
+	themselves. Re-assigning cancels the previous open call follow-up.
+	Returns ``{signal, associate, associate_name, task (interaction), crm_task, due_date}``.
+	"""
+	from maison_pos.api import crm as crm_api
+	from maison_pos.scoping import get_associate, is_manager_or_above
+
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	doc = frappe.get_doc("Maison Client Signal", signal)
+	if doc.boutique:
+		assert_boutique_access(doc.boutique)
+	elif not is_unrestricted():
+		frappe.throw(_("This signal has no boutique; only Head Office may assign it"), frappe.PermissionError)
+	me = get_associate()
+	target = associate or doc.assigned_associate or doc.preferred_associate
+	if not target:
+		from maison_pos.insights.client_signals import signal_owner
+
+		target = signal_owner(None, doc.boutique, "VIP lapsing")
+	if not target:
+		frappe.throw(_("No associate to assign the call to — set a preferred associate on the client profile"), frappe.ValidationError)
+	assoc = frappe.db.get_value("Maison Associate", target, ["name", "boutique", "full_name", "enabled"], as_dict=True)
+	if not assoc or not assoc.enabled:
+		frappe.throw(_("Associate {0} does not exist or is disabled").format(target), frappe.DoesNotExistError)
+	if not is_unrestricted():
+		if not is_manager_or_above() and (not me or me["name"] != assoc.name):
+			frappe.throw(_("Associates may only assign calls to themselves"), frappe.PermissionError)
+		if assoc.boutique != get_user_boutique():
+			frappe.throw(_("You may only assign calls to associates of your boutique"), frappe.PermissionError)
+	due = getdate(due_date) if due_date else frappe.utils.add_days(frappe.utils.nowdate(), 2)
+	# cancel a previous open call follow-up when re-assigning
+	if doc.call_task and frappe.db.exists("Maison Client Interaction", doc.call_task):
+		prev = frappe.get_doc("Maison Client Interaction", doc.call_task)
+		if prev.status == "Open" and prev.associate != assoc.name:
+			prev.status = "Cancelled"
+			prev.flags.ignore_permissions = True
+			prev.save()
+			crm_api._crm_task_upsert(prev)
+	interaction = frappe.get_doc(
+		{
+			"doctype": "Maison Client Interaction",
+			"customer": doc.customer,
+			"customer_name": doc.customer_name,
+			"type": "Call",
+			"note": note or f"{doc.signal_type}: {doc.reason or ''}".strip(": "),
+			"boutique": doc.boutique or assoc.boutique,
+			"associate": assoc.name,
+			"ts": frappe.utils.now_datetime(),
+			"follow_up_date": due,
+			"status": "Open",
+		}
+	)
+	interaction.flags.ignore_permissions = True
+	interaction.insert()
+	crm_task = crm_api._crm_task_upsert(interaction)
+	if crm_task:
+		frappe.db.set_value("Maison Client Interaction", interaction.name, "crm_task", crm_task, update_modified=False)
+	doc.assigned_associate = assoc.name
+	doc.assigned_at = frappe.utils.now_datetime()
+	doc.call_task = interaction.name
+	doc.crm_task = crm_task
+	if not doc.preferred_associate:
+		doc.preferred_associate = assoc.name
+	doc.flags.ignore_permissions = True
+	doc.save()
+	return {
+		"ok": True,
+		"signal": doc.name,
+		"customer": doc.customer,
+		"associate": assoc.name,
+		"associate_name": assoc.full_name,
+		"task": interaction.name,
+		"crm_task": crm_task,
+		"due_date": str(due),
+	}
+# --- end v0.5 M ---
 
 
 # ---------------------------------------------------------------------------

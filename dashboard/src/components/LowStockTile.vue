@@ -38,22 +38,22 @@ const listUrl = '/app/maison-stock-alert?status=%5B%22in%22%2C%5B%22Open%22%2C%2
 </template>
 
 <style scoped>
-.tile { display: grid; grid-template-rows: auto 1fr auto; padding: 16px 20px; border-top: 1px solid var(--line); min-height: 0; }
-.head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.tile { display: grid; grid-template-rows: auto 1fr auto; padding: 1.067rem 1.333rem; border-top: 1px solid var(--line); min-height: 0; }
+.head { display: flex; justify-content: space-between; margin-bottom: 0.533rem; }
 .link { color: var(--accent); text-decoration: none; }
-.body { display: grid; grid-template-columns: 120px 1fr; gap: 16px; min-height: 0; }
-.big { display: flex; flex-direction: column; gap: 4px; }
-.value { font-size: 36px; font-weight: 800; line-height: 1; }
+.body { display: grid; grid-template-columns: 8.0rem 1fr; gap: 1.067rem; min-height: 0; }
+.big { display: flex; flex-direction: column; gap: 0.267rem; }
+.value { font-size: 2.4rem; font-weight: 800; line-height: 1; }
 .tile.warn .value { color: var(--warn); }
-.bb { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.chip { border: 1px solid var(--line-strong); padding: 2px 6px; }
-.code { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; }
-.list { list-style: none; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
-.item { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; font-size: 13px; }
+.bb { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+.chip { border: 1px solid var(--line-strong); padding: 2px 0.4rem; }
+.code { font-size: 0.667rem; font-weight: 800; letter-spacing: 0.04em; }
+.list { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; overflow: hidden; }
+.item { display: grid; grid-template-columns: auto 1fr auto; gap: 0.667rem; align-items: baseline; font-size: 0.867rem; }
 .name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
 .qty { font-weight: 500; }
 .warnc { color: var(--warn); }
 .crit { color: var(--crit); }
 .dim { color: var(--dim); }
-.foot { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.foot { margin-top: 0.667rem; padding-top: 0.533rem; border-top: 1px solid var(--line); }
 </style>

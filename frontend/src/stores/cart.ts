@@ -27,6 +27,17 @@ interface CartState {
 
 let seq = 0
 
+/** v0.5 K — points per currency unit: program-level factor, else the client's tier row, else the base tier. */
+export function collectionFactor(lp: { collection_factor?: number; tiers?: { tier?: string; tier_name?: string; min_spent?: number; collection_factor?: number }[] } | null, tier: string | null | undefined): number {
+  if (!lp) return 0
+  if (lp.collection_factor) return lp.collection_factor
+  const rows = lp.tiers || []
+  const mine = rows.find((r) => (r.tier || r.tier_name) === tier)
+  if (mine?.collection_factor) return mine.collection_factor
+  const base = [...rows].sort((a, b) => (a.min_spent || 0) - (b.min_spent || 0))[0]
+  return base?.collection_factor || 0
+}
+
 /** v0.4 I — promo + coupon discount for a line (whole line), folded into the totals math. */
 function extraDiscount(id: string): number {
   try {
@@ -69,7 +80,9 @@ export const useCartStore = defineStore('cart', {
       const catalog = useCatalogStore()
       if (!s.customer || !catalog.loyalty) return 0
       const t = this.totals as Totals
-      return Math.floor(t.net_total * (catalog.loyalty.collection_factor || 0))
+      // --- v0.5 K: the bench returns the factor per tier (`tiers[].collection_factor`), not at the top level ---
+      return Math.floor(t.net_total * collectionFactor(catalog.loyalty, s.customer.tier))
+      // --- end v0.5 K ---
     },
     usedSerials: (s) => new Set(s.lines.map((l) => l.serial_no).filter(Boolean) as string[])
   },

@@ -6,7 +6,7 @@ A luxury-retail point of sale and head-office platform built as a custom app on 
 |---|---|---|
 | Backend app | `maison_pos/` | Doctypes, REST API (`maison_pos.api.*`), Stripe Terminal, workflows, print formats, Script Reports, insights jobs, demo + history seed, tests |
 | POS PWA | `frontend/` → `maison_pos/public/pos` | Vue 3 offline-first iPad / iPhone point of sale served at `/pos` |
-| Head-office dashboard | `dashboard/` → `maison_pos/public/dashboard` | Live wall + Insights at `/maison-dashboard` over Frappe realtime |
+| Head-office dashboard | `dashboard/` → `maison_pos/public/dashboard` | "Command" wall for 40–100 boutiques at `/maison-dashboard`: Live / Boutiques / Products / Clients / Insights / Reports over Frappe realtime (see `docs/dashboard.md`) |
 | Web shop | `maison_pos/webshop/`, `www/shop/*` | Monolith Gold storefront on Frappe Webshop (`/shop`, click & collect) |
 | Dev environment | `docker/` | docker-compose stack (MariaDB, Redis, Frappe/ERPNext v15, nginx) |
 

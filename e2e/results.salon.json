@@ -1,0 +1,180 @@
+{
+  "base": "http://maison.localhost:8000",
+  "run": "ZSFQV",
+  "passed": 32,
+  "total": 32,
+  "results": [
+    {
+      "step": "demo client exists",
+      "ok": true,
+      "detail": "{\"name\":\"Mei-Lin Chen\",\"mobile_no\":\"+1 312 555 0105\",\"maison_client_number\":\"MC528952\"}"
+    },
+    {
+      "step": "Settings has a \"Client display\" card (not paired)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "pairing code (6 digits) + QR + 10 min countdown on the POS",
+      "ok": true,
+      "detail": "260501 · 10:00"
+    },
+    {
+      "step": "Salon pairs with the code → ambient screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "POS Settings card flips to Paired (poll / realtime)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "server: Maison Salon Session Paired for this POS device",
+      "ok": true,
+      "detail": "86f29521"
+    },
+    {
+      "step": "ambient shows the hour and a playlist piece",
+      "ok": true,
+      "detail": "11:11 PM"
+    },
+    {
+      "step": "first piece without a client → Salon asks \"Are you a client of the house?\"",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "keypad masks the typed number (last 4 visible)",
+      "ok": true,
+      "detail": "••••••0105"
+    },
+    {
+      "step": "Salon: \"Welcome back, Mei-Lin\" with masked contact",
+      "ok": true,
+      "detail": "Client № MC •• 952 · •••• 0105 · m•••@example.com"
+    },
+    {
+      "step": "POS basket shows the client attached from the Salon",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "basket mirror: 3 lines, newest piece large, total matches the POS",
+      "ok": true,
+      "detail": "Diamond Stud Earrings 0.5ct · 65760.27"
+    },
+    {
+      "step": "basket mirror shows points to be earned",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "\"Ask about this piece\" → CRM interaction + POS notice",
+      "ok": true,
+      "detail": "Client asked about Diamond Stud Earrings 0.5ct: Is this one available in rose gold? (ZSFQV)"
+    },
+    {
+      "step": "Salon payment screen shows the amount",
+      "ok": true,
+      "detail": "65760.27"
+    },
+    {
+      "step": "Salon shows \"Approved\" with the gold pulse",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "sale submitted with the Salon-identified client",
+      "ok": true,
+      "detail": "ACC-SINV-2026-01718"
+    },
+    {
+      "step": "thank-you: name, points earned and receipt QR",
+      "ok": true,
+      "detail": "+119,293"
+    },
+    {
+      "step": "feedback reaches HQ (Maison Feedback, status New)",
+      "ok": true,
+      "detail": "{\"rating\":5,\"comment\":\"Exquisite service (ZSFQV)\",\"boutique\":\"CHI-OAK\",\"status\":\"New\"}"
+    },
+    {
+      "step": "HQ feedback summary counts it",
+      "ok": true,
+      "detail": "18 → 19"
+    },
+    {
+      "step": "private-viewing invitation sets the Client Profile flag",
+      "ok": true,
+      "detail": "{\"private_viewing_invite\":1}"
+    },
+    {
+      "step": "Salon returns to ambient after the thank-you flow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "sign-up creates the Customer (client № assigned) and attaches it on the POS",
+      "ok": true,
+      "detail": "{\"name\":\"Salon Newcomer ZSFQV\",\"mobile_no\":\"+1 312 555 7895\",\"maison_client_number\":\"MC545590\"}"
+    },
+    {
+      "step": "sign-up stores marketing preferences + birthday on the Client Profile",
+      "ok": true,
+      "detail": "{\"do_not_email\":0,\"do_not_sms\":1,\"birthday\":\"1990-05-04\"}"
+    },
+    {
+      "step": "Salon offers the optional recognition consent after joining (boutique On)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "hold-to-agree on the Salon (short press rejected) hands the consent to the POS",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "server: consent_agreed message carries the method + version, no biometrics stored by the Salon",
+      "ok": true,
+      "detail": "{\"method\":\"Hold-to-agree\",\"text_version\":\"2026-08-1\",\"captured_at\":\"2026-08-22 19:12:06.221290\",\"customer\":\"Salon Newcomer ZSFQV\"}"
+    },
+    {
+      "step": "POS without a camera → Salon: \"We will finish this at the counter\"",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "concierge answers land in the Client Profile",
+      "ok": true,
+      "detail": "{\"ring_size\":\"7\",\"wrist_size\":\"16 cm\",\"metal_preference\":\"Rose Gold\",\"style_notes\":\"[Salon 2026-08-22] Style: Minimal, Heritage · Occasions: Anniversary\",\"anniversary\":\"2020-09-12\"}"
+    },
+    {
+      "step": "unpair from the POS → Salon returns to the pairing screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "server session Unpaired",
+      "ok": true,
+      "detail": "{\"status\":\"Unpaired\"}"
+    },
+    {
+      "step": "guest cannot list salon sessions",
+      "ok": true,
+      "detail": "{\"data\":[]}"
+    }
+  ],
+  "console": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "salon",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (FORBIDDEN)"
+    }
+  ]
+}

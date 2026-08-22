@@ -20,6 +20,9 @@ website_route_rules = [
 	{"from_route": "/maison-dashboard/<path:app_path>", "to_route": "maison-dashboard"},
 	# public receipt page (token from the QR printed on the receipt)
 	{"from_route": "/r/<token>", "to_route": "r"},
+	# --- v0.5 K (salon): client-facing screen, same PWA bundle, own layout ---
+	{"from_route": "/salon/<path:app_path>", "to_route": "salon"},
+	# --- end v0.5 K ---
 	# --- v0.4 G (webshop): Monolith Gold storefront pages take over webshop's /cart and /all-products ---
 	{"from_route": "/cart", "to_route": "shop/cart"},
 	{"from_route": "/all-products", "to_route": "shop/collection"},
@@ -107,9 +110,16 @@ scheduler_events = {
 		# Monday 06:00: weekly narrative (template / Anthropic) e-mailed to Maison Head Office
 		"0 6 * * 1": ["maison_pos.insights.jobs.weekly_narrative"],
 		# --- end v0.4 H ---
+		# --- v0.5 L: Maison Product Trend refreshed every 15 min (dashboard Products tab reads it) ---
+		"*/15 * * * *": ["maison_pos.insights.trends.compute_trends"],
+		# --- end v0.5 L ---
 	},
 	# v0.4 D — hourly low-stock scan (Item Reorder levels -> Maison Stock Alert, idempotent)
-	"hourly": ["maison_pos.api.inventory.low_stock_scan"],
+	"hourly": [
+		"maison_pos.api.inventory.low_stock_scan",
+		# v0.5 K — salon sessions past 12 h -> Expired
+		"maison_pos.api.salon.expire_sessions",
+	],
 	"daily": [
 		"maison_pos.tasks.purge_old_sync_logs",
 		# BIPA retention policy: destroy face templates of clients with no visit in N months
@@ -118,6 +128,9 @@ scheduler_events = {
 		"maison_pos.api.inventory.low_stock_digest",
 		# v0.4 I — loyalty birthday bonus (no-op when birthday_bonus_points = 0)
 		"maison_pos.api.promotions.birthday_bonus",
+		# --- v0.5 M — nightly campaign attribution (last-touch 14 d + assisted 30 d + item-level) ---
+		"maison_pos.campaigns.attribution.nightly",
+		# --- end v0.5 M ---
 	],
 }
 
@@ -142,10 +155,18 @@ permission_query_conditions = {
 	# v0.4 H — boutique-scoped insight rows for managers / associates
 	"Maison Client Signal": "maison_pos.scoping.client_signal_query",
 	"Maison Client Recommendation": "maison_pos.scoping.client_recommendation_query",
+	# --- v0.5 M — attributed sales scoped to the manager's boutique ---
+	"Maison Campaign Attribution": "maison_pos.scoping.campaign_attribution_query",
+	# --- end v0.5 M ---
+	# --- v0.5 K — a Salon (Guest) may read the one session whose token it holds, never list them ---
+	"Maison Salon Session": "maison_pos.scoping.salon_session_query",
+	# --- end v0.5 K ---
 }
 
 has_permission = {
 	"Maison Price Change Request": "maison_pos.scoping.price_change_request_has_permission",
+	# v0.5 K
+	"Maison Salon Session": "maison_pos.scoping.salon_session_has_permission",
 }
 
 # ---------------------------------------------------------------------------

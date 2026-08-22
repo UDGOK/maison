@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 import frappe
-from frappe.utils import flt, get_datetime, now_datetime
+from frappe.utils import cint, flt, get_datetime, now_datetime
 
 # Frappe's socket.io server only lets clients join the rooms it manages (site, user,
 # doctype, doc, task). A custom room name would never have subscribers, so the dashboard
@@ -72,13 +72,48 @@ def invoice_summary(doc) -> dict[str, Any]:
 		],
 		"docstatus": doc.docstatus,
 		"ts": iso_with_tz(now_datetime()),
+		# --- v0.5 L: fields the Command wall needs without PII (boutique, amount, top item, tier) ---
+		"amount": flt(doc.grand_total),
+		"top_item": top_item_name(doc),
+		"tier": customer_tier(doc.customer),
+		"is_return": cint(doc.get("is_return")),
+		# --- end v0.5 L ---
 	}
+
+
+# --- v0.5 L: helpers for the realtime payload -------------------------------------------
+def top_item_name(doc) -> Optional[str]:
+	"""Name of the highest-value line (what the live card shows: "Sold · Perpetual 41")."""
+	best = None
+	for i in doc.get("items") or []:
+		amount = abs(flt(i.get("amount")) or flt(i.get("rate")) * flt(i.get("qty")))
+		if best is None or amount > best[0]:
+			best = (amount, i.item_name or i.item_code)
+	return best[1] if best else None
+
+
+def customer_tier(customer: Optional[str]) -> Optional[str]:
+	"""Loyalty tier name for *customer* (None for walk-ins / no programme). Never raises."""
+	if not customer:
+		return None
+	try:
+		from maison_pos.api.customers import _loyalty
+
+		return _loyalty(customer)[1]
+	except Exception:
+		return None
+# --- end v0.5 L ---
 
 
 def publish_sale(doc, event: str = "maison_sale") -> None:
 	"""Push a sale (or cancellation) to the head-office dashboard room."""
 	payload = invoice_summary(doc)
 	payload["event"] = event
+	# v0.5 L — the 5 s live_summary cache must not serve stale totals right after a sale
+	try:
+		frappe.cache.delete_keys("maison_live_summary")
+	except Exception:  # pragma: no cover - cache unavailable
+		pass
 	frappe.publish_realtime(event, payload, room=DASHBOARD_ROOM, after_commit=True)
 
 

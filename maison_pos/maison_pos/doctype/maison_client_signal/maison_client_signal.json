@@ -33,6 +33,10 @@
   "section_followup",
   "contacted_by",
   "contacted_at",
+  "assigned_associate",
+  "assigned_at",
+  "call_task",
+  "crm_task",
   "note",
   "computed_at"
  ],
@@ -208,6 +212,32 @@
    "fieldname": "contacted_at",
    "fieldtype": "Datetime",
    "label": "Contacted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "assigned_associate",
+   "fieldtype": "Link",
+   "label": "Assigned associate",
+   "options": "Maison Associate",
+   "description": "Owner of the follow-up call (v0.5 M 'Assign call')"
+  },
+  {
+   "fieldname": "assigned_at",
+   "fieldtype": "Datetime",
+   "label": "Assigned at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "call_task",
+   "fieldtype": "Link",
+   "label": "Call follow-up",
+   "options": "Maison Client Interaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "crm_task",
+   "fieldtype": "Data",
+   "label": "CRM Task",
    "read_only": 1
   },
   {

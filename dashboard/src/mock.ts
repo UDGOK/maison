@@ -1,16 +1,23 @@
-import type { BoutiqueRow, HeartbeatEvent, LiveSummary, PeriodComparison, PeriodTotals, ReportLink, SaleEvent } from './types'
+import type { BoutiqueDetail, BoutiqueFeed, BoutiqueRow, BoutiqueTableRow, ClientsOverview, HeartbeatEvent, LiveSummary, PeriodComparison, PeriodTotals, ProductTrends, ReportLink, SaleEvent, TickerRow, TopProducts, TrendPeriod, TrendRow } from './types'
 import { bucketByHour, computeTotals, deriveStatus } from './lib/aggregate'
 
-export const BOUTIQUES: { code: string; name: string }[] = [
-  { code: 'PAR-VEN', name: 'Paris · Vendôme' },
-  { code: 'LON-BND', name: 'London · Bond St' },
-  { code: 'NYC-MAD', name: 'New York · Madison' },
-  { code: 'GVA-RHN', name: 'Geneva · Rhône' },
-  { code: 'MIL-MNT', name: 'Milan · Montenapoleone' },
-  { code: 'DXB-MAL', name: 'Dubai · Mall' },
-  { code: 'HKG-CNT', name: 'Hong Kong · Central' },
-  { code: 'TYO-GNZ', name: 'Tokyo · Ginza' },
+const BASE_BOUTIQUES: { code: string; name: string; region: string }[] = [
+  { code: 'PAR-VEN', name: 'Paris · Vendôme', region: 'Europe' },
+  { code: 'LON-BND', name: 'London · Bond St', region: 'Europe' },
+  { code: 'NYC-MAD', name: 'New York · Madison', region: 'Americas' },
+  { code: 'GVA-RHN', name: 'Geneva · Rhône', region: 'Europe' },
+  { code: 'MIL-MNT', name: 'Milan · Montenapoleone', region: 'Europe' },
+  { code: 'DXB-MAL', name: 'Dubai · Mall', region: 'Middle East' },
+  { code: 'HKG-CNT', name: 'Hong Kong · Central', region: 'Asia' },
+  { code: 'TYO-GNZ', name: 'Tokyo · Ginza', region: 'Asia' },
 ]
+/** VITE_MOCK_BOUTIQUES=100 renders a 100-store chain to exercise virtualisation. */
+const N_MOCK = Number(import.meta.env.VITE_MOCK_BOUTIQUES || 0)
+const CITIES = ['Lyon', 'Munich', 'Zurich', 'Vienna', 'Madrid', 'Lisbon', 'Osaka', 'Seoul', 'Singapore', 'Sydney', 'Toronto', 'Chicago', 'Miami', 'Dallas', 'Doha', 'Riyadh', 'Shanghai', 'Taipei', 'Mumbai', 'Bangkok']
+const REGIONS = ['Europe', 'Europe', 'Europe', 'Europe', 'Europe', 'Europe', 'Asia', 'Asia', 'Asia', 'Asia', 'Americas', 'Americas', 'Americas', 'Americas', 'Middle East', 'Middle East', 'Asia', 'Asia', 'Asia', 'Asia']
+export const BOUTIQUES: { code: string; name: string; region: string }[] = N_MOCK > BASE_BOUTIQUES.length
+  ? [...BASE_BOUTIQUES, ...Array.from({ length: N_MOCK - BASE_BOUTIQUES.length }, (_, i) => ({ code: `${CITIES[i % CITIES.length]!.slice(0, 3).toUpperCase()}-${String(i + 1).padStart(2, '0')}`, name: `${CITIES[i % CITIES.length]} · ${i + 1}`, region: REGIONS[i % REGIONS.length]! }))]
+  : BASE_BOUTIQUES
 
 const ITEMS = [
   ['Éclat Solitaire 1.2ct', 18400],
@@ -59,6 +66,8 @@ export function mockSale(at = new Date()): SaleEvent {
     customer_name: pick(FIRST),
     tier: pick(TIERS),
     items,
+    top_item: items[0] ?? null,
+    is_return: false,
     net,
     card,
     cash: net - card,
@@ -83,23 +92,39 @@ export function mockLiveSummary(now = new Date()): LiveSummary {
     const ageSec = i === 5 ? 900 : i === 2 ? 30 : 10 + Math.floor(rnd() * 50)
     const last_seen = new Date(now.getTime() - ageSec * 1000).toISOString()
     const pending = i === 2 ? 1 : 0
+    const net = mine.reduce((a, s) => a + s.net, 0)
+    const lw = Math.round(net * (0.7 + rnd() * 0.6))
+    const last = mine[mine.length - 1]
+    const by_hour = new Array<number>(24).fill(0)
+    for (const s of mine) by_hour[new Date(s.posting_datetime).getHours()]! += s.net
     return {
       boutique: b.code,
       name: b.name,
-      net: mine.reduce((a, s) => a + s.net, 0),
+      region: b.region,
+      net,
       cash: mine.reduce((a, s) => a + s.cash, 0),
       card: mine.reduce((a, s) => a + s.card, 0),
       invoices: mine.length,
+      returns: i % 4 === 0 ? 1 : 0,
+      returns_value: i % 4 === 0 ? 2900 : 0,
       status: deriveStatus(last_seen, now, pending),
       last_seen,
       queued: i === 5 ? 3 : 0,
       pending_approvals: pending,
-      last_sale: mine.length ? mine[mine.length - 1]!.posting_datetime : null,
+      low_stock: i % 3 === 0 ? 1 : 0,
+      feedback_open: i === 1 ? 1 : 0,
+      last_week_net: lw,
+      vs_last_week_pct: lw > 0 ? Math.round(((net - lw) / lw) * 1000) / 10 : null,
+      last_sale: last ? { invoice: last.invoice, item: last.top_item ?? null, amount: last.net, ts: last.posting_datetime, is_return: 0 } : null,
+      by_hour,
     }
   })
 
+  const totals = computeTotals(rows)
+  const lwTotal = rows.reduce((a, r) => a + (r.last_week_net ?? 0), 0)
   return {
-    totals: computeTotals(rows),
+    totals: { ...totals, returns: rows.reduce((a, r) => a + (r.returns ?? 0), 0), returns_value: rows.reduce((a, r) => a + (r.returns_value ?? 0), 0), last_week_net: lwTotal, vs_last_week_pct: lwTotal ? ((totals.net - lwTotal) / lwTotal) * 100 : null, low_stock: mockLowStock()!.open, feedback_open: 1, online: rows.filter((r) => r.status !== 'offline').length, boutiques: rows.length },
+    regions: [...new Set(rows.map((r) => r.region!))].sort(),
     by_boutique: rows,
     by_hour: bucketByHour(sales),
     pending_approvals: rows.reduce((a, r) => a + (r.pending_approvals ?? 0), 0),
@@ -193,5 +218,117 @@ export function mockPeriodComparison(): PeriodComparison {
       mtd: mk('Month to date vs last month', periodTotals(2893500, 655, 19), periodTotals(2410200, 560, 23), today.getDate() - 1),
       ytd: mk('Year to date vs last year', periodTotals(21475000, 4890, 142), periodTotals(18620000, 4410, 160), 234),
     },
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// v0.5 L — Command mocks
+// ---------------------------------------------------------------------------
+const GROUPS = ['High Jewellery', 'Timepieces', 'Bridal', 'Accessories', 'Services']
+const today = () => new Date().toISOString().slice(0, 10)
+
+export function mockTicker(limit = 10): TickerRow[] {
+  return Array.from({ length: limit }, (_, i) => {
+    const s = mockSale(new Date(Date.now() - i * 90_000))
+    return { invoice: s.invoice, boutique: s.boutique, amount: s.net, top_item: s.top_item ?? null, items: s.items.length, tier: s.tier ?? null, ts: s.posting_datetime, is_return: 0 }
+  })
+}
+
+export function mockBoutiqueFeed(boutique: string, limit = 30): BoutiqueFeed {
+  const sales = Array.from({ length: Math.min(limit, 14) }, (_, i) => {
+    const s = mockSale(new Date(Date.now() - i * 11 * 60_000))
+    return { invoice: s.invoice, boutique, amount: s.net, posting_datetime: s.posting_datetime, is_return: i === 5 ? 1 : 0, top_item: s.top_item ?? null, items: s.items.map((n, j) => ({ item_code: `IT-${j}`, item_name: n, qty: 1, amount: s.net / s.items.length, serial_no: j === 0 ? `${boutique}-${1000 + i}` : null })) }
+  })
+  return { boutique, date: today(), sales, by_hour: bucketByHour(sales.map((s) => ({ posting_datetime: s.posting_datetime, net: s.amount }))) }
+}
+
+export function mockBoutiquesTable(): { date: string; rows: BoutiqueTableRow[] } {
+  const live = mockLiveSummary()
+  return {
+    date: today(),
+    rows: live.by_boutique.map((r, i) => {
+      const spark = Array.from({ length: 14 }, () => Math.round(20000 + rnd() * 90000))
+      spark[13] = r.net
+      const wtd = spark.slice(8).reduce((a, b) => a + b, 0)
+      const lw = spark.slice(1, 7).reduce((a, b) => a + b, 0)
+      return { ...r, avg_ticket: r.invoices ? r.net / r.invoices : 0, conversion: 0.3 + rnd() * 0.4, wtd_net: wtd, mtd_net: wtd * 3.2, wtd_vs_lw_pct: lw ? Math.round(((wtd - lw) / lw) * 1000) / 10 : null, mtd_tickets: 60 + i * 7, mtd_avg_ticket: 8200 + i * 300, mtd_conversion: 0.35 + (i % 5) * 0.08, returns_pct: (i % 4) * 3.1, stock_value: 900000 + i * 120000, on_shift: 2 + (i % 3), sparkline: spark }
+    }),
+  }
+}
+
+export function mockBoutiqueDetail(boutique: string, days = 28): BoutiqueDetail {
+  const live = mockLiveSummary()
+  const row = live.by_boutique.find((b) => b.boutique === boutique) ?? null
+  const feed = mockBoutiqueFeed(boutique, 20)
+  return {
+    boutique,
+    row,
+    period: { from: new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10), to: today(), days },
+    by_hour: feed.by_hour,
+    recent_sales: feed.sales,
+    top_items: ITEMS.slice(0, 8).map((it, i) => ({ item_code: `IT-${i}`, item_name: it[0], units: 9 - i, net: it[1] * (9 - i) })),
+    associates: FIRST.slice(0, 5).map((n, i) => ({ associate: n, associate_name: n, tickets: 30 - i * 4, net: 420000 - i * 60000, with_customer: 12 - i, avg_ticket: (420000 - i * 60000) / (30 - i * 4), conversion: (12 - i) / (30 - i * 4) })),
+    alerts: mockLowStock()!.top.slice(0, 3).map((a) => ({ ...a, boutique })),
+    feedback: [
+      { name: 'FB-1', rating: 5, comment: 'Wonderful attention from Anaïs.', status: 'New', creation: new Date().toISOString() },
+      { name: 'FB-2', rating: 2, comment: 'Waited twenty minutes at the counter.', status: 'New', creation: new Date(Date.now() - 3600000).toISOString() },
+    ],
+    sparkline: Array.from({ length: 14 }, () => Math.round(20000 + rnd() * 90000)),
+  }
+}
+
+function trendRow(i: number, boutique: string, period: TrendPeriod): TrendRow {
+  const it = ITEMS[i % ITEMS.length]!
+  const units = Math.round(2 + rnd() * 30)
+  const prev = i % 6 === 0 ? 0 : Math.round(1 + rnd() * 30)
+  const base = (units + prev * 3) / 4
+  const delta = prev ? Math.round(((units - prev) / prev) * 1000) / 10 : null
+  const badge = prev === 0 ? 'New' : delta! >= 25 ? 'Trending up' : delta! <= -25 ? 'Cooling' : 'Steady'
+  const on_hand = Math.round(rnd() * 40)
+  return { item_code: `IT-${String(i).padStart(3, '0')}`, item_name: it[0], item_group: GROUPS[i % GROUPS.length]!, boutique, period, badge, rank: i + 1, rank_units: i + 1, store_count: 1 + (i % 7), units, units_prev: prev, units_baseline: base, net: units * it[1], net_prev: prev * it[1], velocity: units / (period === '7d' ? 1 : 4), delta_pct: delta, baseline_delta_pct: base ? Math.round(((units - base) / base) * 1000) / 10 : null, share_pct: Math.round((30 / (i + 2)) * 100) / 100, has_prev: prev ? 1 : 0, on_hand, sell_through: units / (units + on_hand), days_on_hand: units ? Math.round((on_hand / (units / (period === '7d' ? 7 : 28))) * 10) / 10 : null, period_from: today(), period_to: today(), computed_at: new Date().toISOString() }
+}
+
+export function mockProductTrends(args: { period?: TrendPeriod; group?: string | null; badge?: string | null; limit?: number }): ProductTrends {
+  const period = args.period ?? '7d'
+  let rows = Array.from({ length: 40 }, (_, i) => trendRow(i, 'ALL', period))
+  rows.sort((a, b) => (a.delta_pct === null ? 1 : 0) - (b.delta_pct === null ? 1 : 0) || (b.delta_pct ?? 0) - (a.delta_pct ?? 0))
+  const badges: Record<string, number> = {}
+  for (const r of rows) badges[r.badge] = (badges[r.badge] ?? 0) + 1
+  if (args.group) rows = rows.filter((r) => r.item_group === args.group)
+  if (args.badge) rows = rows.filter((r) => r.badge === args.badge)
+  return { scope: 'chain', boutique: 'ALL', period, group: args.group ?? null, rows: rows.slice(0, args.limit ?? 60), total: rows.length, badges, groups: GROUPS, computed_at: new Date().toISOString(), last_run: { computed_at: new Date().toISOString(), rows: 274, seconds: 0.2 } }
+}
+
+export function mockTopProducts(args: { boutique?: string; by?: 'net' | 'units'; period?: TrendPeriod; n?: number }): TopProducts {
+  const period = args.period ?? '7d'
+  const boutiques = args.boutique && args.boutique !== 'all' ? [args.boutique] : BOUTIQUES.slice(0, 4).map((b) => b.code)
+  const top: Record<string, TrendRow[]> = {}
+  const matrix: TopProducts['matrix'] = []
+  const boutique_net: Record<string, number> = {}
+  for (const b of boutiques) {
+    const rows = Array.from({ length: args.n ?? 10 }, (_, i) => trendRow(i, b, period))
+    rows.sort((x, y) => (args.by === 'units' ? y.units - x.units : y.net - x.net))
+    rows.forEach((r, i) => { r.rank = i + 1; r.rank_units = i + 1 })
+    top[b] = rows
+    boutique_net[b] = rows.reduce((a, r) => a + r.net, 0) * 1.6
+    for (const g of GROUPS) matrix.push({ item_group: g, boutique: b, revenue: Math.round(rnd() * 400000), units: Math.round(rnd() * 40), on_hand: Math.round(rnd() * 30), index: Math.round((0.4 + rnd() * 1.4) * 100) / 100 })
+  }
+  return { period, by: args.by ?? 'net', n: args.n ?? 10, boutiques, top, matrix, groups: GROUPS, boutique_net, last_run: { computed_at: new Date().toISOString() } }
+}
+
+export function mockClientsOverview(args: { tiers?: string[] } = {}): ClientsOverview {
+  const tiers = ['Patron', 'Collector', 'Connoisseur']
+  const churn = FIRST.map((n, i) => ({ name: `SIG-${i}`, customer: n, customer_name: n, boutique: BOUTIQUES[i % BOUTIQUES.length]!.code, preferred_associate: null, signal_type: i % 3 === 0 ? 'VIP lapsing' : 'Overdue visit', priority: 100 - i * 8, reason: `Usually visits every ${6 + i} days — last seen ${40 + i * 9} days ago`, churn_risk: 1 - i * 0.08, cadence_days: 6 + i, expected_next_visit: null, last_visit: null, days_since_last_visit: 40 + i * 9, visits: 12 - i, lifetime_spend: 180000 - i * 14000, spend_trend: -0.5, tier: tiers[i % 3]! }))
+  return {
+    boutique: null,
+    tiers: args.tiers ?? [],
+    churn: churn.filter((c) => !args.tiers?.length || args.tiers.includes(c.tier!)),
+    upcoming: churn.slice(0, 4).map((c, i) => ({ ...c, name: `UP-${i}`, signal_type: i % 2 ? 'Birthday' : 'Due this week', reason: i % 2 ? 'Birthday on 28 Aug' : 'Expected back this week', expected_next_visit: today() })),
+    follow_ups: FIRST.slice(0, 6).map((n, i) => ({ associate: n, associate_name: n, boutique: BOUTIQUES[i % 4]!.code, assigned: 14 - i, completed: Math.max(0, 12 - i * 2), rate: Math.max(0, 12 - i * 2) / (14 - i) })),
+    performance: [],
+    campaigns: null,
+    recognition: { matched_today: 4, enrolled_today: 1, declined_today: 0, enrolled_total: 37 },
+    as_of: today(),
   }
 }

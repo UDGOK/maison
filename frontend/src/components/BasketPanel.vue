@@ -12,6 +12,7 @@ import { fmtDate } from '@/utils/device'
 import Modal from './Modal.vue'
 import Keypad from './Keypad.vue'
 import RecognitionTile from './RecognitionTile.vue'
+import SalonBar from './SalonBar.vue' // v0.5 K
 import PromotionsChip from './PromotionsChip.vue'
 import TierProgress from './TierProgress.vue'
 import { usePromosStore } from '@/stores/promos'
@@ -185,6 +186,8 @@ function charge() {
             :compact="layout.phone"
             testid="suggested-for-client"
           />
+          <SalonBar />
+          <!-- ^ v0.5 K -->
         </template>
         <template v-else>
           <div class="between">
@@ -216,6 +219,8 @@ function charge() {
           </div>
           <Keypad v-if="padOpen" class="cn-pad" @key="padKey" />
           <button v-if="padOpen" class="label link hide-pad" @click="padOpen = false">Hide keypad</button>
+          <SalonBar />
+          <!-- ^ v0.5 K -->
         </template>
       </div>
 

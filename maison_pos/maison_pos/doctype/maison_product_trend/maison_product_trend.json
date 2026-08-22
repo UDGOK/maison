@@ -1,0 +1,269 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_name",
+  "item_group",
+  "boutique",
+  "period",
+  "column_break_1",
+  "badge",
+  "rank",
+  "rank_units",
+  "store_count",
+  "section_numbers",
+  "units",
+  "units_prev",
+  "units_baseline",
+  "net",
+  "net_prev",
+  "column_break_2",
+  "velocity",
+  "delta_pct",
+  "baseline_delta_pct",
+  "share_pct",
+  "has_prev",
+  "section_stock",
+  "on_hand",
+  "sell_through",
+  "days_on_hand",
+  "column_break_3",
+  "period_from",
+  "period_to",
+  "computed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "options": "Item Group",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Data",
+   "label": "Boutique (code or ALL)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Select",
+   "label": "Period",
+   "options": "7d\n28d",
+   "default": "7d",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "badge",
+   "fieldtype": "Select",
+   "label": "Badge",
+   "options": "\nTrending up\nNew\nCooling\nSteady",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "rank",
+   "fieldtype": "Int",
+   "label": "Rank (net)"
+  },
+  {
+   "fieldname": "rank_units",
+   "fieldtype": "Int",
+   "label": "Rank (units)"
+  },
+  {
+   "fieldname": "store_count",
+   "fieldtype": "Int",
+   "label": "Stores selling"
+  },
+  {
+   "fieldname": "section_numbers",
+   "fieldtype": "Section Break",
+   "label": "Numbers"
+  },
+  {
+   "fieldname": "units",
+   "fieldtype": "Float",
+   "label": "Units (period)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "units_prev",
+   "fieldtype": "Float",
+   "label": "Units (previous period)"
+  },
+  {
+   "fieldname": "units_baseline",
+   "fieldtype": "Float",
+   "label": "Units baseline (28 d, per period)",
+   "precision": "3"
+  },
+  {
+   "fieldname": "net",
+   "fieldtype": "Currency",
+   "label": "Net (period)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "net_prev",
+   "fieldtype": "Currency",
+   "label": "Net (previous period)"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "velocity",
+   "fieldtype": "Float",
+   "label": "Velocity (units / week)",
+   "precision": "3"
+  },
+  {
+   "fieldname": "delta_pct",
+   "fieldtype": "Float",
+   "label": "\u0394 vs previous period %",
+   "precision": "1"
+  },
+  {
+   "fieldname": "baseline_delta_pct",
+   "fieldtype": "Float",
+   "label": "\u0394 vs 28 d baseline %",
+   "precision": "1"
+  },
+  {
+   "fieldname": "share_pct",
+   "fieldtype": "Float",
+   "label": "Share of boutique net %",
+   "precision": "2"
+  },
+  {
+   "fieldname": "has_prev",
+   "fieldtype": "Check",
+   "label": "Has previous period",
+   "description": "0 = nothing sold in the previous period (delta_pct is undefined)"
+  },
+  {
+   "fieldname": "section_stock",
+   "fieldtype": "Section Break",
+   "label": "Stock"
+  },
+  {
+   "fieldname": "on_hand",
+   "fieldtype": "Float",
+   "label": "On Hand"
+  },
+  {
+   "fieldname": "sell_through",
+   "fieldtype": "Float",
+   "label": "Sell-through",
+   "precision": "4"
+  },
+  {
+   "fieldname": "days_on_hand",
+   "fieldtype": "Float",
+   "label": "Days on Hand",
+   "precision": "1"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "period_from",
+   "fieldtype": "Date",
+   "label": "Period From"
+  },
+  {
+   "fieldname": "period_to",
+   "fieldtype": "Date",
+   "label": "Period To"
+  },
+  {
+   "fieldname": "computed_at",
+   "fieldtype": "Datetime",
+   "label": "Computed At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison Product Trend",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Maison Head Office",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "role": "Maison Regional"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Maison Manager"
+  },
+  {
+   "read": 1,
+   "role": "Maison Associate"
+  }
+ ],
+ "sort_field": "net",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "item_name"
+}

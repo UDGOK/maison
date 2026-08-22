@@ -13,11 +13,21 @@ import { useScanStore } from './stores/scan'
 import { useRecognitionStore } from './stores/recognition'
 import { usePromosStore } from './stores/promos'
 import { useLoyaltyStore } from './stores/loyalty'
+import { useSalonPosStore } from './stores/salon' // v0.5 K
 
 async function boot() {
   const app = createApp(App)
   const pinia = createPinia()
   app.use(pinia)
+
+  // --- v0.5 K: the Salon is a guest device — no session, catalog, scanner or sync; just the router ---
+  if (/^\/salon(\/|$)/.test(location.pathname)) {
+    app.use(router)
+    await router.isReady()
+    app.mount('#app')
+    return
+  }
+  // --- end v0.5 K ---
 
   // Restore offline state before the router guards run.
   const session = useSessionStore()
@@ -37,6 +47,7 @@ async function boot() {
   await scan.loadScannerConfig() // v0.4 J — prefix / suffix / terminator
   scan.startWedge()
   void useSyncStore().start()
+  void useSalonPosStore().restore() // v0.5 K — client display pairing + mirror
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) void registerServiceWorker()
 }

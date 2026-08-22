@@ -25,6 +25,8 @@
   "do_not_email",
   "do_not_sms",
   "do_not_phone",
+  "private_viewing_invite",
+  "private_viewing_invite_on",
   "column_break_contact",
   "crm_contact",
   "section_wishlist",
@@ -152,6 +154,19 @@
    "fieldtype": "Check",
    "label": "Do Not Phone",
    "default": "0"
+  },
+  {
+   "fieldname": "private_viewing_invite",
+   "fieldtype": "Check",
+   "label": "Private viewing invitation requested",
+   "default": "0",
+   "description": "v0.5 K \u2014 set from the Maison Salon thank-you screen"
+  },
+  {
+   "fieldname": "private_viewing_invite_on",
+   "fieldtype": "Datetime",
+   "label": "Invitation requested on",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_contact",

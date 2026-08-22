@@ -15,6 +15,7 @@ import { useScanStore } from '@/stores/scan'
 import { useRecognitionStore } from '@/stores/recognition'
 import RecognitionTile from '@/components/RecognitionTile.vue'
 import ScannerSettings from '@/components/ScannerSettings.vue'
+import SalonSettingsCard from '@/components/SalonSettingsCard.vue' // v0.5 K
 import { useInventoryStore } from '@/stores/inventory' // v0.4 D
 import { buildReceiptLayout } from '@/printer/canvas' // v0.4 A
 
@@ -155,6 +156,10 @@ async function resetDevice() {
             <button class="btn btn-ghost" @click="session.forgetBoutique().then(() => router.push({ name: 'unlock' }))">Change boutique</button>
           </div>
         </div>
+
+        <!-- v0.5 K — client-facing Salon pairing -->
+        <SalonSettingsCard />
+        <!-- end v0.5 K -->
 
         <!-- v0.4 A — reader registry / print route -->
         <div class="card block" data-testid="reader-settings">

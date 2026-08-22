@@ -35,26 +35,26 @@ const date = computed(() => fmtDate(now.value))
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 72px;
-  padding: 0 32px;
+  height: 4.8rem;
+  padding: 0 var(--pad-x);
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 20px; }
-.wordmark { font-size: 26px; letter-spacing: 0.02em; line-height: 1; }
+.wordmark { font-size: 1.733rem; letter-spacing: 0.02em; line-height: 1; }
 .sep { width: 1px; height: 24px; background: var(--line); }
-.scope { font-size: 15px; font-weight: 300; color: var(--muted); letter-spacing: 0.04em; }
+.scope { font-size: var(--fs-body); font-weight: 300; color: var(--muted); letter-spacing: 0.04em; }
 .right { display: flex; align-items: center; gap: 28px; }
 .date { color: var(--muted); }
-.clock { font-size: 20px; font-weight: 800; letter-spacing: 0; }
+.clock { font-size: 1.333rem; font-weight: 800; letter-spacing: 0; }
 .live {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  height: 28px;
-  padding: 0 12px;
+  height: 1.867rem;
+  padding: 0 0.8rem;
   border: 1px solid var(--accent);
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.25em;
   text-transform: uppercase;

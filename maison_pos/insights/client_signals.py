@@ -85,6 +85,22 @@ def days_until(occasion: Optional[_dt.date], today: _dt.date) -> Optional[int]:
 	return (nxt - today).days
 
 
+# --- v0.5 M ---
+def signal_owner(preferred_associate: Optional[str], boutique: Optional[str], signal_type: str) -> Optional[str]:
+	"""Owner of a signal: the preferred associate when it exists; for *VIP lapsing* fall back to the
+	boutique's manager (then any enabled associate of the boutique) so the churn list always has a name."""
+	if preferred_associate and frappe.db.exists("Maison Associate", {"name": preferred_associate, "enabled": 1}):
+		return preferred_associate
+	if signal_type != "VIP lapsing" or not boutique:
+		return None
+	for role in ("Manager", "Associate"):
+		owner = frappe.db.get_value("Maison Associate", {"boutique": boutique, "role": role, "enabled": 1}, "name", order_by="name")
+		if owner:
+			return owner
+	return None
+# --- end v0.5 M ---
+
+
 def classify(stats: dict[str, Any], today: _dt.date) -> Optional[dict[str, Any]]:
 	"""Pick the single most urgent signal for a client; None when nothing is worth a call."""
 	cad = flt(stats["cadence_days"])
@@ -286,7 +302,9 @@ def compute_client_signals(today: Optional[_dt.date] = None) -> dict[str, Any]:
 				"customer": customer,
 				"customer_name": s["customer_name"],
 				"boutique": s.get("preferred_boutique"),
-				"preferred_associate": s.get("preferred_associate") if frappe.db.exists("Maison Associate", s.get("preferred_associate") or "") else None,
+				# --- v0.5 M: every VIP-lapsing signal has an owner (preferred associate, else the boutique manager) ---
+				"preferred_associate": signal_owner(s.get("preferred_associate"), s.get("preferred_boutique"), sig["signal_type"]),
+				# --- end v0.5 M ---
 				"signal_type": sig["signal_type"],
 				"priority": sig["priority"],
 				"reason": sig["reason"],

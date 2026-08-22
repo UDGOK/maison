@@ -1,0 +1,252 @@
+{
+ "actions": [],
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "boutique",
+  "pos_device_id",
+  "salon_device_id",
+  "status",
+  "column_break_a",
+  "pairing_code",
+  "code_expires_at",
+  "paired_by",
+  "paired_at",
+  "expires_at",
+  "last_pos_seen",
+  "last_salon_seen",
+  "section_state",
+  "screen",
+  "state_seq",
+  "state",
+  "column_break_b",
+  "inbox_seq",
+  "inbox",
+  "pending_consent",
+  "section_links",
+  "customer",
+  "sales_invoice",
+  "unpaired_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "label": "Boutique",
+   "options": "Maison Boutique",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "pos_device_id",
+   "fieldtype": "Data",
+   "label": "POS Device",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "salon_device_id",
+   "fieldtype": "Data",
+   "label": "Salon Device",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nPaired\nUnpaired\nExpired",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pairing_code",
+   "fieldtype": "Data",
+   "label": "Pairing Code",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "code_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Code Expires At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "paired_by",
+   "fieldtype": "Link",
+   "label": "Paired By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "paired_at",
+   "fieldtype": "Datetime",
+   "label": "Paired At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Expires At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_pos_seen",
+   "fieldtype": "Datetime",
+   "label": "Last POS Seen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_salon_seen",
+   "fieldtype": "Datetime",
+   "label": "Last Salon Seen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_state",
+   "fieldtype": "Section Break",
+   "label": "Mirror"
+  },
+  {
+   "fieldname": "screen",
+   "fieldtype": "Data",
+   "label": "Screen",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "state_seq",
+   "fieldtype": "Int",
+   "label": "State Seq",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Long Text",
+   "label": "State (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "inbox_seq",
+   "fieldtype": "Int",
+   "label": "Inbox Seq",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "inbox",
+   "fieldtype": "Long Text",
+   "label": "Inbox (JSON)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pending_consent",
+   "fieldtype": "Long Text",
+   "label": "Pending Consent (JSON)",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "section_links",
+   "fieldtype": "Section Break",
+   "label": "Last"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unpaired_at",
+   "fieldtype": "Datetime",
+   "label": "Unpaired At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison Salon Session",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Head Office",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Regional",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Maison Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Maison Associate",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0,
+ "autoname": "hash",
+ "naming_rule": "Random"
+}

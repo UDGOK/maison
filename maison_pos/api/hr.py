@@ -421,8 +421,17 @@ def commission_statement(
 
 
 @frappe.whitelist()
-def employee_performance(boutique: Optional[str] = None, from_date: Optional[str] = None, to_date: Optional[str] = None) -> list[dict[str, Any]]:
-	"""Dashboard tile: per associate — sales, tickets, avg ticket, conversion, follow-ups done, commission."""
+def employee_performance(boutique: Optional[str] = None, from_date: Optional[str] = None, to_date: Optional[str] = None, follow_up_days: int = 30) -> list[dict[str, Any]]:
+	"""Dashboard tile (SPEC v0.4 §C, finalised in v0.5 §M): per associate —
+
+	``sales`` (net, returns netted), ``tickets``, ``avg_ticket``, ``boutique_avg_ticket``,
+	``avg_ticket_vs_boutique`` (ratio, 1.0 = boutique average), ``with_client`` /
+	``clients_identified_per_sale`` (= ``conversion``), ``returns`` / ``returns_amount`` /
+	``returns_rate`` (returns ÷ tickets), ``follow_ups_assigned`` / ``follow_ups_done`` /
+	``follow_up_rate`` (CRM follow-ups completed ÷ assigned in the last *follow_up_days*, default 30),
+	``recognition_enrolments`` (biometric consents captured by the associate in the period),
+	``commission``. Sorted by sales desc.
+	"""
 	assert_roles("Maison Manager", "Maison Regional", "Maison Head Office", "System Manager")
 	from_date, to_date = _period(from_date, to_date)
 	if boutique or not is_unrestricted():
@@ -430,30 +439,61 @@ def employee_performance(boutique: Optional[str] = None, from_date: Optional[str
 	filters: dict[str, Any] = {"docstatus": 1, "is_pos": 1, "posting_date": ("between", (from_date, to_date))}
 	if boutique:
 		filters["maison_boutique"] = boutique
-	invoices = frappe.get_all("Sales Invoice", filters=filters, fields=["name", "maison_associate", "customer", "base_net_total", "is_return", "maison_boutique"])
+	invoices = frappe.get_all("Sales Invoice", filters=filters, fields=["name", "maison_associate", "customer", "base_net_total", "is_return", "maison_boutique", "return_against"])
 	walk_ins = set(frappe.get_all("POS Profile", fields=["customer"], pluck="customer"))
+	# a return counts against the associate who made the original sale (not whoever processed it)
+	originals = [i.return_against for i in invoices if i.is_return and i.return_against]
+	seller_of = {r.name: r.maison_associate for r in frappe.get_all("Sales Invoice", filters={"name": ("in", originals)}, fields=["name", "maison_associate"])} if originals else {}
 	stats: dict[str, dict[str, Any]] = {}
+	boutique_totals: dict[str, dict[str, float]] = {}
 	for inv in invoices:
+		if inv.is_return and seller_of.get(inv.return_against):
+			inv.maison_associate = seller_of[inv.return_against]
+		bt = boutique_totals.setdefault(inv.maison_boutique or "", {"sales": 0.0, "tickets": 0})
+		if inv.is_return:
+			bt["sales"] += flt(inv.base_net_total)
+		else:
+			bt["sales"] += flt(inv.base_net_total)
+			bt["tickets"] += 1
 		if not inv.maison_associate:
 			continue
-		s = stats.setdefault(inv.maison_associate, {"associate": inv.maison_associate, "boutique": inv.maison_boutique, "sales": 0.0, "tickets": 0, "returns": 0, "with_client": 0, "follow_ups_done": 0, "commission": 0.0})
+		s = stats.setdefault(
+			inv.maison_associate,
+			{"associate": inv.maison_associate, "boutique": inv.maison_boutique, "sales": 0.0, "gross_sales": 0.0, "tickets": 0, "returns": 0, "returns_amount": 0.0, "with_client": 0, "follow_ups_done": 0, "follow_ups_assigned": 0, "recognition_enrolments": 0, "commission": 0.0},
+		)
 		s["sales"] = flt(s["sales"] + flt(inv.base_net_total), 2)
 		if inv.is_return:
 			s["returns"] += 1
+			s["returns_amount"] = flt(s["returns_amount"] + abs(flt(inv.base_net_total)), 2)
 		else:
+			s["gross_sales"] = flt(s["gross_sales"] + flt(inv.base_net_total), 2)
 			s["tickets"] += 1
 			if inv.customer and inv.customer not in walk_ins:
 				s["with_client"] += 1
+	# --- v0.5 M: clienteling follow-up rate, avg ticket vs boutique, returns rate, recognition enrolments ---
+	fu_from = add_days(nowdate(), -(cint(follow_up_days) or 30))
+	fu_filters_base: dict[str, Any] = {"follow_up_date": ("is", "set"), "creation": (">=", f"{fu_from} 00:00:00")}
 	for name, s in stats.items():
 		s["associate_name"] = frappe.db.get_value("Maison Associate", name, "full_name")
-		s["avg_ticket"] = flt(s["sales"] / s["tickets"], 2) if s["tickets"] else 0.0
+		s["avg_ticket"] = flt(s["gross_sales"] / s["tickets"], 2) if s["tickets"] else 0.0
+		bt = boutique_totals.get(s["boutique"] or "", {"sales": 0.0, "tickets": 0})
+		s["boutique_avg_ticket"] = flt(bt["sales"] / bt["tickets"], 2) if bt["tickets"] else 0.0
+		s["avg_ticket_vs_boutique"] = flt(s["avg_ticket"] / s["boutique_avg_ticket"], 3) if s["boutique_avg_ticket"] else None
 		s["conversion"] = flt(s["with_client"] / s["tickets"], 3) if s["tickets"] else 0.0
+		s["clients_identified_per_sale"] = s["conversion"]
+		s["returns_rate"] = flt(s["returns"] / s["tickets"], 3) if s["tickets"] else 0.0
 		s["commission"] = flt(
 			frappe.db.get_value("Maison Commission Entry", {"associate": name, "posting_date": ("between", (from_date, to_date))}, "sum(commission_amount)") or 0, 2
 		)
-		s["follow_ups_done"] = frappe.db.count(
-			"Maison Client Interaction", {"associate": name, "status": "Done", "done_on": ("between", (f"{from_date} 00:00:00", f"{to_date} 23:59:59"))}
+		s["follow_ups_assigned"] = frappe.db.count("Maison Client Interaction", {**fu_filters_base, "associate": name, "status": ("!=", "Cancelled")})
+		s["follow_ups_done"] = frappe.db.count("Maison Client Interaction", {**fu_filters_base, "associate": name, "status": "Done"})
+		s["follow_up_rate"] = flt(s["follow_ups_done"] / s["follow_ups_assigned"], 3) if s["follow_ups_assigned"] else None
+		s["recognition_enrolments"] = (
+			frappe.db.count("Maison Biometric Consent", {"associate": name, "captured_at": ("between", (f"{from_date} 00:00:00", f"{to_date} 23:59:59"))})
+			if frappe.db.exists("DocType", "Maison Biometric Consent")
+			else 0
 		)
+	# --- end v0.5 M ---
 	return sorted(stats.values(), key=lambda x: -x["sales"])
 
 

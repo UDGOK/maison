@@ -477,3 +477,35 @@ Nothing had to be fixed for the fresh install: the seed's headless ERPNext setup
 6. **Web shop domain**: Site → Domains → add `shop.brand.com` (CNAME to the site); storefront lives at `/shop`
    (`docs/webshop.md`). Outgoing e-mail account for digests / narrative / feedback alerts.
 7. **Devices**: open `/pos`, pick the boutique, Settings → Reader (V660p) and print route; `/maison-dashboard` for Head Office.
+
+<!-- v0.5 K — Maison Salon -->
+## v0.5 K — Maison Salon, client-facing screen (2026-08-22)
+
+New: doctypes `Maison Salon Session`, `Maison Salon Playlist` (+ `Maison Salon Playlist Item`), `Maison Client Profile.private_viewing_invite[_on]`,
+`api/salon.py`, `www/salon.{py,html}` (+ route `/salon/<path>`), hooks (hourly `salon.expire_sessions`, `permission_query_conditions` /
+`has_permission` for the session doctype), `setup/demo_v05_salon.py` (called from `seed()`), `tests/test_v0_5_salon.py` (23);
+frontend `src/salon/**`, `src/stores/salon.ts`, `src/api/salon.ts`, `SalonSettingsCard` / `SalonBar` / `VirtualSalon`, `ConsentScreen`
+`controller` prop, `socket.io-client` dependency, Unbounded 300/400 added to the font link; `e2e/salon.e2e.mjs`; `docs/salon.md`.
+
+```bash
+bench --site maison.localhost migrate && bench --site maison.localhost execute maison_pos.setup.demo_v05_salon.seed_salon_v05
+bench --site maison.localhost run-tests --module maison_pos.tests.test_v0_5_salon     # Ran 23 tests — OK
+cd frontend && npm i && npm run lint && npm test && npm run build                        # 16 files, 164 tests
+bench build --app maison_pos; pkill -u claude -f honcho; setsid nohup bench start > logs/bench-start.log 2>&1 &
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/salon.e2e.mjs   # 32/32
+```
+
+| # | Symptom | Fix |
+|---|---|---|
+| 1 | Pairing codes kept in `frappe.cache` vanished mid-pairing: saving a Maison Boutique (the e2e flips `face_recognition_enabled`) clears the cache | codes live on a *Pending* `Maison Salon Session` row (`pairing_code`, `code_expires_at`); `pair` promotes it |
+| 2 | POS countdown showed 0:00 and the card fell back to "Not paired": `expires_at` is site-local, the device clock is not | the POS counts down from `ttl_seconds` on its own clock |
+| 3 | `hooks.py` edit lost to a concurrent agent's write (permission_query_conditions entry) → Guest could list sessions | re-applied inside a `v0.5 K` block; covered by `test_guest_cannot_list_sessions_but_can_read_its_own` and the e2e |
+| 4 | `frappe.get_all` does not accept `ifnull(...)` keys in dict filters (playlist validity window) | filtered in Python |
+| 5 | `expire_sessions` committed inside tests → `SAVEPOINT does not exist` | no explicit commit (scheduler commits) |
+| 6 | The real bench returns the loyalty collection factor per tier (`tiers[].collection_factor`), never at the top level → `cart.pointsEarned` (POS receipt + Salon) showed 0 | `cart.collectionFactor()` reads the client's tier row, else the base tier |
+| 7 | Headless screenshots rendered Unbounded Black for the Salon's light numerals (only 800/900 installed locally) | Unbounded 300/400 installed in `/root/.fonts` for the e2e; the page links them from Google Fonts |
+| 8 | Guest socket: Frappe's socket.io joins every socket to its user room only; custom rooms cannot be joined | events are published to the **document room** (`doctype`/`docname`), Guest gets read on that one document via `has_permission`, never list (`1=0`) |
+
+Known outside this section: `test_insights.test_basket_recommendations` asserts the demo affinity (AC-005 ↔ AC-011) and fails on a site
+where e2e runs sold AC-005 together with other pieces; `test_v0_5_campaigns` webhook tests belong to stream M.
+<!-- end v0.5 K -->
