@@ -1,0 +1,80 @@
+{
+  "results": [
+    {
+      "step": "login",
+      "ok": true,
+      "detail": "as chi.oak.a1@maison.example"
+    },
+    {
+      "step": "open /pos",
+      "ok": true,
+      "detail": "https://maison-demo.frappe.cloud/pos/unlock?next=/sell"
+    },
+    {
+      "step": "unlock with PIN + catalog loaded",
+      "ok": true,
+      "detail": "42 tiles visible, rail: 42 items, associate Ines Calder · Associate"
+    },
+    {
+      "step": "add serialized watch + accessory",
+      "ok": true,
+      "detail": "serial TP-007-CHI-001"
+    },
+    {
+      "step": "attach client via search",
+      "ok": true,
+      "detail": "Mei-Lin Chen"
+    },
+    {
+      "step": "CASH sale synced + server invoice verified",
+      "ok": true,
+      "detail": "Synced ACC-SINV-2026-00001 total 204138.9 "
+    },
+    {
+      "step": "CARD sale (simulated reader) synced + verified",
+      "ok": true,
+      "detail": "Synced ACC-SINV-2026-00002 ref pi_sim_89fd7a598a27599f "
+    },
+    {
+      "step": "offline cash sale queued",
+      "ok": true,
+      "detail": "pill \"Queued offline\", topbar \"Offline · 1 queued\""
+    },
+    {
+      "step": "queue drained after reconnect + invoice server-side",
+      "ok": true,
+      "detail": "Synced ACC-SINV-2026-00003 topbar \"Online\" "
+    },
+    {
+      "step": "dashboard opens as Administrator",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "Google Fonts: Unbounded loaded (POS)",
+      "ok": true,
+      "detail": "faces [\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:loaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:loaded\"] usedInComputedStyle=true links=[\"https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap\"]"
+    },
+    {
+      "step": "Google Fonts: Unbounded loaded (dashboard)",
+      "ok": true,
+      "detail": "faces [\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:loaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:loaded\"] usedInComputedStyle=false"
+    },
+    {
+      "step": "service worker registered (POS)",
+      "ok": true,
+      "detail": "{\"supported\":true,\"regs\":[{\"scope\":\"https://maison-demo.frappe.cloud/pos/\",\"state\":\"activated\",\"script\":\"https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker\"}],\"controller\":null}"
+    },
+    {
+      "step": "dashboard updates live within 5s",
+      "ok": true,
+      "detail": "ACC-SINV-2026-00004 seen=true after 3 ms; server invoices 3→4; ws: [{\"url\":\"wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=OnN1UwtRCSageqekAAAA\"},{\"out\":\"2probe\"},{\"in\":\"3probe\"},{\"out\":\"5\"}]"
+    },
+    {
+      "step": "dashboard receives realtime (socket.io) events",
+      "ok": true,
+      "detail": "ws url wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=OnN1UwtRCSageqekAAAA; 5 frames in, 3 maison/doc frames; sample [{\"in\":\"42/maison-demo.frappe.cloud,[\\\"maison_heartbeat\\\",{\\\"app_version\\\":null,\\\"boutique\\\":\\\"CHI-OAK\\\",\\\"device_id\\\":\\\"dev-41418fe5\\\",\\\"last_seen\\\":\\\"2026-08-22T03:26:31.779016-05:00\\\",\\\"name\\\":\\\"CHI-OAK-dev-41418fe5\\\",\\\"queued\"},{\"in\":\"42/maison-demo.frappe.cloud,[\\\"list_update\\\",{\\\"doctype\\\":\\\"Sales Invoice\\\",\\\"name\\\":\\\"ACC-SINV-2026-00004\\\",\\\"user\\\":\\\"chi.oak.a1@maison.example\\\"}]\"}]"
+    }
+  ],
+  "console": []
+}

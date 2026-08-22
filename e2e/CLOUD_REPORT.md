@@ -119,3 +119,53 @@ America/Chicago; not a failure, but worth deciding which clock the head office s
 - `/pos` 301-redirects to `/pos/`, then the PWA routes to `/pos/unlock?next=/sell`.
 - Realtime: socket.io upgraded from polling to websocket normally (`2probe`/`3probe`); the site namespace is
   `/maison-demo.frappe.cloud`.
+
+## Run 2 — after the two product fixes were deployed (2026-08-22, 08:24–08:27 UTC = 03:24–03:27 America/Chicago)
+
+Same script and invocation as above (`pos.cloud.e2e.mjs`, `BRIDGE=1`), plus a dedicated offline-reload check in
+`/home/claude/maison/e2e/pos.cloud.offline-reload.mjs` (new test script; no app source touched).
+Screenshots: `/home/claude/maison/e2e/cloud-shots-2/`. Raw results: `results.cloud-2.json`,
+`results.cloud-2.offline-reload.json`; log: `cloud-run-2.log`. Exit code 0 for both scripts.
+
+```bash
+cd /home/claude/maison/e2e
+BRIDGE=1 NODE_USE_ENV_PROXY=1 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 \
+BASE=https://maison-demo.frappe.cloud ADMIN_SID=$(cat /tmp/sid) SHOTS_DIR=cloud-shots-2 RESULTS=results.cloud-2.json \
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node pos.cloud.e2e.mjs
+BRIDGE=1 NODE_USE_ENV_PROXY=1 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 \
+BASE=https://maison-demo.frappe.cloud SHOTS_DIR=cloud-shots-2 \
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node pos.cloud.offline-reload.mjs
+```
+
+| # | Step | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Associate `POST /api/method/login` | PASS | `as chi.oak.a1@maison.example` |
+| 2 | Open `/pos` → `/pos/unlock?next=/sell` | PASS | `cloud-shots-2/01-pos-landing.png` |
+| 3 | Unlock CHI-OAK, PIN 2580, catalog loaded | PASS | 42 tiles, Ines Calder · Associate — `02-sell-after-unlock.png` |
+| 4 | Add serialized watch + Silk Pocket Square | PASS | serial `TP-007-CHI-001` — `03-basket-watch-accessory.png` |
+| 5 | Attach client via search "chen" | PASS | Mei-Lin Chen — `04-client-attached.png` |
+| 6 | CASH sale → synced + server invoice verified | PASS | **`ACC-SINV-2026-00001`**, grand_total 204,138.90, docstatus 1, is_pos, Cash payment, serial on row, customer = Mei-Lin Chen — `05-pay-cash.png`, `06-receipt-cash-initial.png`, `07-receipt-cash-synced.png` |
+| 7 | CARD sale (simulated reader) → synced + verified | PASS | **`ACC-SINV-2026-00002`**, `maison_terminal_ref=pi_sim_89fd7a598a27599f` — `08-pay-card-ready.png`, `09-pay-card-progress.png`, `10-receipt-card-synced.png` |
+| 8 | Offline: cash sale queued | PASS | pill `Queued offline`, topbar `Offline · 1 queued` — `11-pay-cash.png`, `12-offline-queued.png` |
+| 9 | Reconnect → queue drained, invoice server-side | PASS | **`ACC-SINV-2026-00003`**, topbar `Online` (0 queued) — `13-online-drained.png` |
+| 10 | Dashboard `/maison-dashboard` opens as Administrator (sid cookie) | PASS | `14-dashboard-initial.png` |
+| 11 | Google Fonts: Unbounded (POS) | PASS | 800 + 900 `loaded`, used in computed style |
+| 12 | Google Fonts: Unbounded (dashboard) | PASS | 800 + 900 `loaded` (selector-sample artefact as in run 1) |
+| 13 | Service worker registered on `/pos` | PASS | `getRegistrations()` → exactly one: `scope=https://maison-demo.frappe.cloud/pos/`, `state=activated`, script `https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker` (worker now served from a same-scope route, no `Service-Worker-Allowed` needed). `controller=null` on the first load only (expected: page wasn't yet controlled). Dashboard: no registration (expected) |
+| 14 | Dashboard updates live within 5 s after a sale | PASS | **`ACC-SINV-2026-00004`** (Cufflinks Onyx and Gold) seen on the dashboard 3 ms after the receipt synced; `live_summary.totals.invoices` 3→4 — `15-pay-cash.png`, `16-dashboard-after-sale.png` |
+| 15 | Dashboard receives realtime (socket.io) events | PASS | `wss://maison-demo.frappe.cloud/socket.io/…`; frames `maison_heartbeat {boutique: CHI-OAK, device_id: dev-41418fe5 …}` and `list_update {doctype: "Sales Invoice", name: "ACC-SINV-2026-00004"}` |
+| 16 | SW controls the page after an online reload of `/pos/sell` | PASS | `controller=…/maison_pos.api.pwa.service_worker`; cache `workbox-precache-v2-https://maison-demo.frappe.cloud/pos/` holds 26 entries — `17-online-before-offline-reload.png` |
+| 17 | **Offline reload**: context offline → `page.goto('/pos/sell')` | PASS | No navigation error, no Chromium error page. Shell served from the precache: `title=Maison POS`, app routes to `/pos/unlock?next=/sell`, unlock screen with boutique select + `NO NETWORK` badge ("Load the boutique catalog to unlock. Once loaded, unlock works offline.") — `18-offline-reload-sell.png` |
+
+Invoices created in this run (all CHI-OAK, associate chi.oak.a1@maison.example): `ACC-SINV-2026-00001` (cash,
+watch TP-007-CHI-001 + pocket square, Mei-Lin Chen), `ACC-SINV-2026-00002` (card, watch), `ACC-SINV-2026-00003`
+(cash, Travel Jewellery Case, queued offline then drained), `ACC-SINV-2026-00004` (cash, Cufflinks Onyx and Gold).
+Note the numbering restarted at 00001, i.e. the rejected drafts from run 1 were rolled back and the series is fresh.
+
+Console errors/warnings: main run 0 (the run-1 `Service-Worker-Allowed` scope error is gone). Offline-reload
+script: 2 `Failed to load resource` (`net::ERR_FAILED` / `net::ERR_INTERNET_DISCONNECTED`) — these are the expected
+network fetches while offline (fonts/API), not shell failures.
+
+Status of run-1 findings: Finding 1 (future-dated stock) — fixed, all four sales accepted. Finding 2 (SW scope) —
+fixed, registration + offline shell verified. Finding 3 (raw HTML in rejection panel) — not exercised this run (no
+rejections). Finding 4 (dashboard clock in browser-local time) — unchanged, cosmetic.

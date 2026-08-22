@@ -1,0 +1,44 @@
+(node:22908) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  login — as chi.oak.a1@maison.example
+  shot 01-pos-landing.png
+PASS  open /pos — https://maison-demo.frappe.cloud/pos/unlock?next=/sell
+  shot 02-sell-after-unlock.png
+PASS  unlock with PIN + catalog loaded — 42 tiles visible, rail: 42 items, associate Ines Calder · Associate
+  shot 03-basket-watch-accessory.png
+PASS  add serialized watch + accessory — serial TP-007-CHI-001
+  shot 04-client-attached.png
+PASS  attach client via search — Mei-Lin Chen
+  shot 05-pay-cash.png
+  shot 06-receipt-cash-initial.png
+  shot 07-receipt-cash-synced.png
+PASS  CASH sale synced + server invoice verified — Synced ACC-SINV-2026-00001 total 204138.9 
+  shot 08-pay-card-ready.png
+  shot 09-pay-card-progress.png
+  shot 10-receipt-card-synced.png
+PASS  CARD sale (simulated reader) synced + verified — Synced ACC-SINV-2026-00002 ref pi_sim_89fd7a598a27599f 
+  shot 11-pay-cash.png
+  shot 12-offline-queued.png
+PASS  offline cash sale queued — pill "Queued offline", topbar "Offline · 1 queued"
+  shot 13-online-drained.png
+PASS  queue drained after reconnect + invoice server-side — Synced ACC-SINV-2026-00003 topbar "Online" 
+  shot 14-dashboard-initial.png
+PASS  dashboard opens as Administrator
+PASS  Google Fonts: Unbounded loaded (POS) — faces ["800:unloaded","800:unloaded","800:unloaded","800:unloaded","800:loaded","900:unloaded","900:unloaded","900:unloaded","900:unloaded","900:loaded"] usedInComputedStyle=true links=["https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap"]
+PASS  Google Fonts: Unbounded loaded (dashboard) — faces ["800:unloaded","800:unloaded","800:unloaded","800:unloaded","800:loaded","900:unloaded","900:unloaded","900:unloaded","900:unloaded","900:loaded"] usedInComputedStyle=false
+PASS  service worker registered (POS) — {"supported":true,"regs":[{"scope":"https://maison-demo.frappe.cloud/pos/","state":"activated","script":"https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker"}],"controller":null}
+  dashboard SW: {"supported":true,"regs":[],"controller":null}
+  shot 15-pay-cash.png
+  shot 16-dashboard-after-sale.png
+PASS  dashboard updates live within 5s — ACC-SINV-2026-00004 seen=true after 3 ms; server invoices 3→4; ws: [{"url":"wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=OnN1UwtRCSageqekAAAA"},{"out":"2probe"},{"in":"3probe"},{"out":"5"}]
+PASS  dashboard receives realtime (socket.io) events — ws url wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=OnN1UwtRCSageqekAAAA; 5 frames in, 3 maison/doc frames; sample [{"in":"42/maison-demo.frappe.cloud,[\"maison_heartbeat\",{\"app_version\":null,\"boutique\":\"CHI-OAK\",\"device_id\":\"dev-41418fe5\",\"last_seen\":\"2026-08-22T03:26:31.779016-05:00\",\"name\":\"CHI-OAK-dev-41418fe5\",\"queued"},{"in":"42/maison-demo.frappe.cloud,[\"list_update\",{\"doctype\":\"Sales Invoice\",\"name\":\"ACC-SINV-2026-00004\",\"user\":\"chi.oak.a1@maison.example\"}]"}]
+
+Console errors/warnings: 0
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  login — chi.oak.a1@maison.example
+PASS  SW registered + controlling page after reload (online) — {"regs":[{"scope":"https://maison-demo.frappe.cloud/pos/","state":"activated","script":"https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker"}],"controller":"https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker","caches":{"workbox-precache-v2-https://maison-demo.frappe.cloud/pos/":26}}
+PASS  offline reload of /pos/sell renders the shell (served by SW) — navErr=null {"url":"https://maison-demo.frappe.cloud/pos/unlock?next=/sell","title":"Maison POS","hasApp":true,"unlock":true,"topbar":false,"status":null,"bodyStart":"MAISON POINT OF SALE NO NETWORK BOUTIQUE Maison Oak Street — Chicago, IL 60611 LOAD Load the boutique catalog to unlock. Once loaded, unlock works offline.","isChromeError":false}
+
+Console errors/warnings: 2
+  Failed to load resource: net::ERR_FAILED
+  Failed to load resource: net::ERR_INTERNET_DISCONNECTED

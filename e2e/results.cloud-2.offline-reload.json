@@ -1,0 +1,23 @@
+{
+  "results": [
+    {
+      "step": "login",
+      "ok": true,
+      "detail": "chi.oak.a1@maison.example"
+    },
+    {
+      "step": "SW registered + controlling page after reload (online)",
+      "ok": true,
+      "detail": "{\"regs\":[{\"scope\":\"https://maison-demo.frappe.cloud/pos/\",\"state\":\"activated\",\"script\":\"https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker\"}],\"controller\":\"https://maison-demo.frappe.cloud/api/method/maison_pos.api.pwa.service_worker\",\"caches\":{\"workbox-precache-v2-https://maison-demo.frappe.cloud/pos/\":26}}"
+    },
+    {
+      "step": "offline reload of /pos/sell renders the shell (served by SW)",
+      "ok": true,
+      "detail": "navErr=null {\"url\":\"https://maison-demo.frappe.cloud/pos/unlock?next=/sell\",\"title\":\"Maison POS\",\"hasApp\":true,\"unlock\":true,\"topbar\":false,\"status\":null,\"bodyStart\":\"MAISON POINT OF SALE NO NETWORK BOUTIQUE Maison Oak Street — Chicago, IL 60611 LOAD Load the boutique catalog to unlock. Once loaded, unlock works offline.\",\"isChromeError\":false}"
+    }
+  ],
+  "console": [
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+  ]
+}
