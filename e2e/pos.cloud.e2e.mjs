@@ -120,7 +120,7 @@ async function addItem(page, name) {
   const modal = page.locator('.serials .serial-btn')
   let serial = null
   if (await modal.count().then((n) => n > 0).catch(() => false)) {
-    serial = (await modal.first().locator('.num').textContent()).trim()
+    serial = (await modal.first().locator('.num-sn, .num').textContent()).trim()
     await modal.first().click()
   }
   await page.waitForFunction((n) => document.querySelectorAll('.basket .line').length > n, before, { timeout: 5000 })
@@ -131,7 +131,7 @@ async function addItem(page, name) {
 }
 
 async function attachClient(page, q) {
-  await page.click('.basket .client')
+  await page.click('.basket .client .client-name')
   await page.waitForSelector('.client-view input[type=search]')
   await page.fill('.client-view input[type=search]', q)
   // debounce 200 ms + server search; wait until the list is filtered to the query

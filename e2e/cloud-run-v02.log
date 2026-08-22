@@ -1,0 +1,40 @@
+(node:24118) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  manager login (POST /api/method/login) + CSRF token scraped from /pos — user=chi.oak.manager@maison.example csrf=72b2319a…
+PASS  manager uploads item image via catalog.upload_item_image — 200 {"item_code":"AC-012","image":"https://maison-demo.frappe.cloud/files/AC-012-f1db14.png","file_url":"/files/AC-012-f1db14.png","file_name":"AC-012-00092e.png"}
+PASS  uploaded image URL is served — 200 image/png
+PASS  bootstrap has settings/barcodes/images — settings={"show_product_images":0,"show_product_images_default":0,"scan_enabled":1,"receipt_qr_enabled":1,"receipt_qr_base_url":"https://maison-demo.frappe.cloud","loyalty_lookup_enabled":1,"face_recognition_enabled":0} ean=2004103867421→BR-006 serial=BR-002-CHI-002 image=https://maison-demo.frappe.cloud/files/AC-012-f1db14.png
+PASS  customers.search rows carry client_number / loyalty_points / points_value / tier — William Ashcroft MC906714 pts=0 value=0 tier=Collector
+PASS  associate login — chi.oak.a1@maison.example
+PASS  gold palette live: computed body background ~ #0B0B0A — body=rgb(11, 11, 10) --ground=#0b0b0a
+  shot 01-sell-images-on.png
+PASS  images toggle shows tile photo for item with image — src=https://maison-demo.frappe.cloud/files/AC-012-f1db14.png naturalWidth=64
+PASS  images toggle off hides photos — tiles with photo: 0
+PASS  wedge scan EAN adds item — 2004103867421 → Classic Wedding Band 2mm Platinum; basket: Classic Wedding Band 2mm Platinum
+  shot 02-sell-after-scans.png
+PASS  wedge scan serial adds that exact serial — BR-002-CHI-002 (Eternal Solitaire 1.5ct Platinum); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Eternal Solitaire 1.5ct PlatinumBR-002-CHI-002$26,800.00×
+  shot 03-sell-client-attached.png
+PASS  client № keypad lookup attaches client with points — William AshcroftCollectorClient №MC906714Points 0 ($0.00) Redeem points nothing to redeemDetach
+  shot 04-receipt-qr.png
+PASS  receipt screen shows QR and receipt link — Synced qr=data:image/png;base64,iVBORw0K link=https://maison-demo.frappe.cloud/r/a5qWqqGWbdb29Wyd
+PASS  GET /r/<token> as guest returns 200 with boutique name — 200 len=335816
+PASS  guest sales.receipt JSON has boutique, lines, totals and no PII — 200 client={"present":true,"client_number_masked":"MC•••714","tier":"Connoisseur","points_earned":21131,"points_balance":21131}
+PASS  GET /r/<bad token> is 404 — 404
+  shot 05-guest-receipt-desktop.png
+PASS  GET /r/<token> renders as guest (desktop) with QR image — 200 user=Guest qr={"src":"data:image/svg+xml;base64,PHN2ZyB4bWxucz","w":175,"h":175,"complete":true} boutique=true body=rgb(11, 11, 10)
+  shot 06-guest-receipt-phone.png
+PASS  GET /r/<token> renders as guest (phone) with QR image — 200 user=Guest qr={"src":"data:image/svg+xml;base64,PHN2ZyB4bWxucz","w":175,"h":175,"complete":true} boutique=true body=rgb(11, 11, 10)
+  shot 07-phone-unlock.png
+  shot 08-phone-sell.png
+PASS  iPhone: phone layout with bottom-sheet summary bar — basket.phone=true summary-bar=1
+PASS  iPhone: no horizontal overflow — scrollWidth-clientWidth=0
+  shot 09-phone-item-added.png
+  shot 10-phone-sheet-expanded.png
+PASS  iPhone: add item via tile, bottom sheet expands with the line — Silk Pocket Square
+PASS  iPhone: sheet controls ≥48px tall — all ok
+  shot 11-phone-pay-cash.png
+  shot 12-phone-receipt.png
+PASS  iPhone: cash pay → receipt synced with QR + link — Synced link=https://maison-demo.frappe.cloud/r/Iqks-x_JLNWKR4rH
+PASS  iPhone: receipt screen has no horizontal overflow — scrollWidth-clientWidth=0
+
+24/24 passed

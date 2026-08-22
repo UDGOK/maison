@@ -169,3 +169,106 @@ network fetches while offline (fonts/API), not shell failures.
 Status of run-1 findings: Finding 1 (future-dated stock) — fixed, all four sales accepted. Finding 2 (SW scope) —
 fixed, registration + offline shell verified. Finding 3 (raw HTML in rejection panel) — not exercised this run (no
 rejections). Finding 4 (dashboard clock in browser-local time) — unchanged, cosmetic.
+
+## v0.2 cloud run (2026-08-22, 14:23–14:30 UTC = 09:23–09:30 America/Chicago)
+
+Site: `https://maison-demo.frappe.cloud` (v0.2 build live: Monolith Gold palette, images, scanning, client №, receipt QR).
+Scripts: `pos.cloud.e2e.mjs` (v0.1 flow) and the new `/home/claude/maison/e2e/pos.v02.cloud.e2e.mjs` (v0.2 flow, adapted
+from `pos.v02.e2e.mjs`). No app source touched. Screenshots: `/home/claude/maison/e2e/cloud-shots-v02/` (v0.2) and
+`/home/claude/maison/e2e/cloud-shots-v02/v01/` (v0.1 flow). Raw results: `results.cloud-v02run.v01.json`,
+`results.v02.cloud.json`; logs: `cloud-run-v02.v01.log`, `cloud-run-v02.log`. Exit code 0 for both.
+
+```bash
+cd /home/claude/maison/e2e
+BRIDGE=1 NODE_USE_ENV_PROXY=1 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 \
+BASE=https://maison-demo.frappe.cloud ADMIN_SID=$(cat /tmp/sid) SHOTS_DIR=cloud-shots-v02/v01 RESULTS=results.cloud-v02run.v01.json \
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node pos.cloud.e2e.mjs
+BRIDGE=1 NODE_USE_ENV_PROXY=1 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 \
+BASE=https://maison-demo.frappe.cloud ADMIN_SID=$(cat /tmp/sid) \
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node pos.v02.cloud.e2e.mjs
+```
+
+### What `pos.v02.cloud.e2e.mjs` changes vs. the bench v0.2 script
+
+- Administrator: `ADMIN_SID` cookie via `storageState` (validated with `frappe.auth.get_logged_user`), GETs only
+  (`catalog.bootstrap`, `customers.search`).
+- Manager image upload: `chi.oak.manager@maison.example` / `maison123` via `POST /api/method/login` in its own request
+  context, CSRF token scraped from `window.csrf_token` on `/pos/`, then the multipart POST to
+  `maison_pos.api.catalog.upload_item_image` with `X-Frappe-CSRF-Token`.
+- New checks: gold palette (computed `body` background on `/pos/sell` + `--ground` token), and `GET /r/<token>`
+  rendered in a cookie-less browser context (desktop 1366x1024 and iPhone 390x844) asserting `sid=Guest`/`user_id=Guest`
+  response cookies, one `.mg-qr img` that is `complete` with `naturalWidth>0`, and the boutique name.
+- `BRIDGE=1` (`cloud-bridge.mjs`) on every browser context; `SHOTS_DIR` default `cloud-shots-v02`, `RESULTS` default
+  `results.v02.cloud.json`.
+- Two selector updates in the **v0.1** cloud script for the v0.2 frontend (test code only): the serial picker label is now
+  `.serial-btn .num-sn` (was `.num`), and the basket client card opens the client view from the `.client-name` button
+  (clicking the `.client` container no longer navigates). Both were harness staleness, not product bugs.
+
+### v0.1 flow on the v0.2 site (`pos.cloud.e2e.mjs`) — 15/15 PASS
+
+| # | Step | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Associate login | PASS | `chi.oak.a1@maison.example` |
+| 2 | `/pos` → `/pos/unlock?next=/sell` | PASS | `v01/01-pos-landing.png` |
+| 3 | Unlock CHI-OAK, PIN 2580, catalog | PASS | 42 tiles, Ines Calder — `v01/02-sell-after-unlock.png` |
+| 4 | Serialized watch + Silk Pocket Square | PASS | `TP-006-CHI-002` — `v01/03-basket-watch-accessory.png` |
+| 5 | Attach client "chen" | PASS | Mei-Lin Chen — `v01/04-client-attached.png` |
+| 6 | CASH sale synced + verified | PASS | **`ACC-SINV-2026-00008`** 10,539.90 — `v01/05…07` |
+| 7 | CARD sale synced + verified | PASS | **`ACC-SINV-2026-00009`** `pi_sim_8853ab2b7a8f8571` — `v01/08…10` |
+| 8 | Offline cash sale queued | PASS | `Queued offline`, `Offline · 1 queued` — `v01/11…12` |
+| 9 | Reconnect → drained + server invoice | PASS | **`ACC-SINV-2026-00010`** — `v01/13-online-drained.png` |
+| 10 | Dashboard as Administrator | PASS | `v01/14-dashboard-initial.png` |
+| 11–12 | Google Fonts Unbounded (POS / dashboard) | PASS | 800 + 900 loaded |
+| 13 | Service worker registered | PASS | scope `/pos/`, `activated`, script `…/maison_pos.api.pwa.service_worker` |
+| 14 | Dashboard live update ≤5 s | PASS | **`ACC-SINV-2026-00011`** seen after 8 ms; invoices 10→11 — `v01/15…16` |
+| 15 | socket.io realtime frames | PASS | `maison_heartbeat` + `list_update ACC-SINV-2026-00011` |
+
+Console errors/warnings: 0.
+
+### v0.2 flow (`pos.v02.cloud.e2e.mjs`) — 24/24 PASS
+
+| # | Step | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Manager login + CSRF token from `/pos` | PASS | `chi.oak.manager@maison.example`, token present |
+| 2 | Manager uploads item image (`upload_item_image`, multipart) | PASS | 200, `AC-012` → `/files/AC-012-f1db14.png` (`image` absolute `https://maison-demo.frappe.cloud/files/…`) |
+| 3 | Uploaded image URL served | PASS | 200 `image/png` |
+| 4 | `catalog.bootstrap` has settings / barcodes / serials / image | PASS | `scan_enabled=1 receipt_qr_enabled=1 receipt_qr_base_url=https://maison-demo.frappe.cloud loyalty_lookup_enabled=1 show_product_images=0 face_recognition_enabled=0`; EAN `2004103867421→BR-006`; serial `BR-002-CHI-002`; `AC-012.image` = uploaded URL |
+| 5 | `customers.search` rows carry `client_number / loyalty_points / points_value / tier` | PASS | William Ashcroft `MC906714`, tier Collector |
+| 6 | Associate login | PASS | |
+| 7 | **Gold palette live** | PASS | computed `body` background `rgb(11, 11, 10)` = `#0B0B0A`, `--ground: #0b0b0a` (also `rgb(11, 11, 10)` on the guest `/r/` page) |
+| 8 | Images toggle shows tile photo | PASS | `src=…/files/AC-012-f1db14.png naturalWidth=64` — `01-sell-images-on.png` |
+| 9 | Images toggle off hides photos | PASS | 0 `.tile.img` |
+| 10 | Wedge scan EAN adds item | PASS | `2004103867421` → Classic Wedding Band 2mm Platinum |
+| 11 | Wedge scan serial adds that exact serial | PASS | `BR-002-CHI-002` (Eternal Solitaire 1.5ct Platinum) — `02-sell-after-scans.png` |
+| 12 | Client № keypad lookup attaches client with points | PASS | `MC906714` William Ashcroft · Collector · Points 0 — `03-sell-client-attached.png` |
+| 13 | Cash sale → receipt with QR (PNG data URI) + `/r/` link | PASS | Synced, `https://maison-demo.frappe.cloud/r/a5qWqqGWbdb29Wyd` — `04-receipt-qr.png` |
+| 14 | `GET /r/<token>` (request ctx, guest) 200 + boutique name | PASS | 200, "Maison Oak Street" |
+| 15 | Guest `sales.receipt` JSON: boutique, lines, totals, no PII | PASS | `client={"present":true,"client_number_masked":"MC•••714","tier":"Connoisseur","points_earned":21131,"points_balance":21131}`; no `customer_name`/`client_number` |
+| 16 | `GET /r/<bad token>` → 404 | PASS | 404 |
+| 17 | **`/r/<token>` renders as guest (desktop) with QR image** | PASS | cookies `sid=Guest user_id=Guest`; `.mg-qr img` SVG data URI 175x175 complete; `ACC-SINV-2026-00014`, PAID, client `MC···714 · Connoisseur` — `05-guest-receipt-desktop.png` |
+| 18 | **`/r/<token>` renders as guest (iPhone 390x844)** | PASS | same assertions; QR sits below the first fold in the viewport shot — `06-guest-receipt-phone.png` |
+| 19 | iPhone: phone layout + bottom-sheet summary bar | PASS | `07-phone-unlock.png`, `08-phone-sell.png` |
+| 20 | iPhone: no horizontal overflow (sell) | PASS | 0 px |
+| 21 | iPhone: tile tap → sheet expands with the line | PASS | Silk Pocket Square — `09-phone-item-added.png`, `10-phone-sheet-expanded.png` |
+| 22 | iPhone: sheet controls ≥48 px | PASS | all ok |
+| 23 | iPhone: cash pay → receipt synced with QR + link | PASS | `https://maison-demo.frappe.cloud/r/Iqks-x_JLNWKR4rH` — `11-phone-pay-cash.png`, `12-phone-receipt.png` |
+| 24 | iPhone: receipt screen no horizontal overflow | PASS | 0 px |
+
+Console errors/warnings (non-font): 0.
+
+Invoices created this run (all CHI-OAK, associate chi.oak.a1@maison.example): v0.1 flow `ACC-SINV-2026-00008`
+(cash, TP-006-CHI-002 + pocket square, Mei-Lin Chen), `00009` (card), `00010` (cash, queued offline → drained),
+`00011` (cash, dashboard-live check); v0.2 flow `ACC-SINV-2026-00014` (cash, 31,696.88, William Ashcroft, token
+`a5qWqqGWbdb29Wyd`) and `ACC-SINV-2026-00015` (iPhone cash, 176.40, walk-in, token `Iqks-x_JLNWKR4rH`).
+`ACC-SINV-2026-00012`/`00013` (Elena Volkova, walk-in) come from a first pass of the v0.2 script that ended 22/24 only
+because my guest-identity probe called `frappe.auth.get_logged_user` (403 for guests); the page itself rendered
+correctly — the probe was replaced by the response-cookie assertion and the script re-run clean.
+
+Observations (no product bugs found this run):
+- Dashboard clock still browser-local (Finding 4 from run 1) — cosmetic, unchanged.
+- The `/r/` page's QR is an SVG data URI (`qr_svg_data_uri`, gold `#C9A96E`), while the in-POS receipt QR is a PNG data
+  URI; both render. On a 390x844 viewport the QR is below the first screen — fine for a scroll, but if the intent is
+  "QR visible on open" on phones it would need to move up.
+- Image upload returns `file_name` `AC-012-00092e.png` but `file_url` `/files/AC-012-f1db14.png` on the second upload
+  (the first upload's name): the API appears to de-duplicate by content hash and reuse the existing File — harmless, but the
+  two fields are inconsistent in that case.

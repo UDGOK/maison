@@ -1,0 +1,125 @@
+{
+  "results": [
+    {
+      "step": "manager login (POST /api/method/login) + CSRF token scraped from /pos",
+      "ok": true,
+      "detail": "user=chi.oak.manager@maison.example csrf=72b2319a…"
+    },
+    {
+      "step": "manager uploads item image via catalog.upload_item_image",
+      "ok": true,
+      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"https://maison-demo.frappe.cloud/files/AC-012-f1db14.png\",\"file_url\":\"/files/AC-012-f1db14.png\",\"file_name\":\"AC-012-00092e.png\"}"
+    },
+    {
+      "step": "uploaded image URL is served",
+      "ok": true,
+      "detail": "200 image/png"
+    },
+    {
+      "step": "bootstrap has settings/barcodes/images",
+      "ok": true,
+      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"https://maison-demo.frappe.cloud\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0} ean=2004103867421→BR-006 serial=BR-002-CHI-002 image=https://maison-demo.frappe.cloud/files/AC-012-f1db14.png"
+    },
+    {
+      "step": "customers.search rows carry client_number / loyalty_points / points_value / tier",
+      "ok": true,
+      "detail": "William Ashcroft MC906714 pts=0 value=0 tier=Collector"
+    },
+    {
+      "step": "associate login",
+      "ok": true,
+      "detail": "chi.oak.a1@maison.example"
+    },
+    {
+      "step": "gold palette live: computed body background ~ #0B0B0A",
+      "ok": true,
+      "detail": "body=rgb(11, 11, 10) --ground=#0b0b0a"
+    },
+    {
+      "step": "images toggle shows tile photo for item with image",
+      "ok": true,
+      "detail": "src=https://maison-demo.frappe.cloud/files/AC-012-f1db14.png naturalWidth=64"
+    },
+    {
+      "step": "images toggle off hides photos",
+      "ok": true,
+      "detail": "tiles with photo: 0"
+    },
+    {
+      "step": "wedge scan EAN adds item",
+      "ok": true,
+      "detail": "2004103867421 → Classic Wedding Band 2mm Platinum; basket: Classic Wedding Band 2mm Platinum"
+    },
+    {
+      "step": "wedge scan serial adds that exact serial",
+      "ok": true,
+      "detail": "BR-002-CHI-002 (Eternal Solitaire 1.5ct Platinum); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Eternal Solitaire 1.5ct PlatinumBR-002-CHI-002$26,800.00×"
+    },
+    {
+      "step": "client № keypad lookup attaches client with points",
+      "ok": true,
+      "detail": "William AshcroftCollectorClient №MC906714Points 0 ($0.00) Redeem points nothing to redeemDetach"
+    },
+    {
+      "step": "receipt screen shows QR and receipt link",
+      "ok": true,
+      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=https://maison-demo.frappe.cloud/r/a5qWqqGWbdb29Wyd"
+    },
+    {
+      "step": "GET /r/<token> as guest returns 200 with boutique name",
+      "ok": true,
+      "detail": "200 len=335816"
+    },
+    {
+      "step": "guest sales.receipt JSON has boutique, lines, totals and no PII",
+      "ok": true,
+      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••714\",\"tier\":\"Connoisseur\",\"points_earned\":21131,\"points_balance\":21131}"
+    },
+    {
+      "step": "GET /r/<bad token> is 404",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "step": "GET /r/<token> renders as guest (desktop) with QR image",
+      "ok": true,
+      "detail": "200 user=Guest qr={\"src\":\"data:image/svg+xml;base64,PHN2ZyB4bWxucz\",\"w\":175,\"h\":175,\"complete\":true} boutique=true body=rgb(11, 11, 10)"
+    },
+    {
+      "step": "GET /r/<token> renders as guest (phone) with QR image",
+      "ok": true,
+      "detail": "200 user=Guest qr={\"src\":\"data:image/svg+xml;base64,PHN2ZyB4bWxucz\",\"w\":175,\"h\":175,\"complete\":true} boutique=true body=rgb(11, 11, 10)"
+    },
+    {
+      "step": "iPhone: phone layout with bottom-sheet summary bar",
+      "ok": true,
+      "detail": "basket.phone=true summary-bar=1"
+    },
+    {
+      "step": "iPhone: no horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth-clientWidth=0"
+    },
+    {
+      "step": "iPhone: add item via tile, bottom sheet expands with the line",
+      "ok": true,
+      "detail": "Silk Pocket Square"
+    },
+    {
+      "step": "iPhone: sheet controls ≥48px tall",
+      "ok": true,
+      "detail": "all ok"
+    },
+    {
+      "step": "iPhone: cash pay → receipt synced with QR + link",
+      "ok": true,
+      "detail": "Synced link=https://maison-demo.frappe.cloud/r/Iqks-x_JLNWKR4rH"
+    },
+    {
+      "step": "iPhone: receipt screen has no horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth-clientWidth=0"
+    }
+  ],
+  "console": []
+}
