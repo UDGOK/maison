@@ -592,6 +592,18 @@ def ensure_users() -> None:
 # ---------------------------------------------------------------------------
 # entry point
 # ---------------------------------------------------------------------------
+@frappe.whitelist()
+def seed_remote() -> dict[str, Any]:
+	"""Run the demo seed over the API (System Manager only).
+
+	Lets managed hosts such as Frappe Cloud be seeded without shell access:
+	POST /api/method/maison_pos.setup.demo.seed_remote
+	"""
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw("Only System Managers may seed demo data", frappe.PermissionError)
+	return seed()
+
+
 def seed(commit: bool = True) -> dict[str, Any]:
 	"""Create all demo data. Safe to run repeatedly."""
 	random.seed(42)
