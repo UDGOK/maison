@@ -1,0 +1,72 @@
+(node:30770) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  recognition enabled for CHI-OAK on the cloud site (Administrator sid + CSRF) — face_recognition_enabled=1 global=1 threshold=0.6 model=face-api/faceRecognitionNet@1 consent v2026-08-1
+PASS  no pre-existing consented clients on the site — consented=0
+PASS  dashboard live_summary exposes recognition counters — {"matched_today":0,"enrolled_today":0,"nomatch_today":0,"declined_today":0,"undone_today":0}
+PASS  model weights served by Frappe Cloud (/assets/maison_pos/pos/models/*, HTTP 200) — tiny_face_detector_model-weights_manifest.json=200/3219 tiny_face_detector_model.bin=200/193321 face_landmark_68_tiny_model-weights_manifest.json=200/4806 face_landmark_68_tiny_model.bin=200/77224 face_recognition_model-weights_manifest.json=200/19615 face_recognition_model.bin=200/6444032
+PASS  service-worker precache manifest lists the model files + wasm backends — sw.js 27374 bytes
+PASS  tile reaches Looking (camera + models loaded from the cloud) — tile=looking cached=0
+  shot 01-tile-looking.png
+PASS  model weights fetched by the browser with HTTP 200 from /assets/maison_pos/pos/models/ — wasm/tfjs-backend-wasm-simd.wasm:200 wasm/tfjs-backend-wasm-simd.wasm:200 tiny_face_detector_model-weights_manifest.json:200 face_landmark_68_tiny_model-weights_manifest.json:200 face_recognition_model-weights_manifest.json:200 face_landmark_68_tiny_model.bin:200 tiny_face_detector_model.bin:200 face_recognition_model.bin:200 backend=null
+PASS  first verdict is New client (no consented templates) — REAL detector — real on-device detection · chip "New client" · last={"source":"none","threshold":0.6}
+  shot 02-tile-new-client.png
+  shot 03-consent-screen.png
+PASS  short press (200 ms) does not agree
+PASS  hold-to-agree 800 ms → capture step
+  shot 04-capture.png
+PASS  enrolment completed and client attached to the sale — REAL captures — 3 real captures · attached "Nadia Okafor L60YN"
+  shot 05-enrolled-attached.png
+PASS  server: Customer created by phone — Nadia Okafor L60YN MC675179 consent=1
+PASS  server: Active consent (Hold-to-agree, current text version) — {"name":"MBC-2026-00001","captured_at":"2026-08-22 11:22:10.947954","consent_text_version":"2026-08-1","method":"Hold-to-agree","boutique":"CHI-OAK"}
+PASS  server: 3 face templates (128-d raw descriptors, no images) — status.templates=3 rows=3 ‖d‖=1.58/1.58/1.58
+PASS  server: Recognition Event Enrolled logged — avnu5bdagv device=dev-230ff77d
+PASS  same face after reload → Recognised (euclidean distance < threshold) — REAL detector — real detection · Nadia Okafor L60YN d=0.144 score=0.880047 threshold=0.6 source=server local d=0.144 server d=0.144
+PASS  score is the display mapping 1 − d/1.2 (rounded) — score=0.880047 expected=0.880
+PASS  chip shows "Recognised · nn %" — Recognised · 88%
+  shot 06-tile-recognised.png
+PASS  SW registered on the cloud and its precache holds all model weights — regs=[{"scope":"https://maison-demo.frappe.cloud/pos/","state":"activated"}] precache=workbox-precache-v2-https://maison-demo.frappe.cloud/pos/ entries=39 models cached=6/6 wasm=0; reload fetches: wasm/tfjs-backend-wasm-simd.wasm:200(sw) wasm/tfjs-backend-wasm-simd.wasm:200(sw) tiny_face_detector_model-weights_manifest.json:200(sw) face_landmark_68_tiny_model-weights_manifest.json:200(sw) face_recognition_model-weights_manifest.json:200(sw) tiny_face_detector_model.bin:200(sw) face_landmark_68_tiny_model.bin:200(sw) face_recognition_model.bin:200(sw)
+PASS  Undo offered within 5 s
+PASS  Undo detaches the client — Walk-in
+  shot 07-after-undo.png
+PASS  server: Matched + Undone events logged — matched=1 (score 0.88) undone=1
+PASS  different face (B) against A's templates → New client (no false match) — REAL detector — real detection · cached=3 · local d=undefined server d=undefined threshold=0.6
+  shot 08-faceB-new-client.png
+PASS  decline: client created + attached WITHOUT biometrics — attached "Theo Brandt L60YN" · Theo Brandt L60YN consent=0 templates=0 consents=0
+PASS  server: Recognition Event Declined logged — cvuemqh8r1
+  shot 09-declined-attached.png
+PASS  client screen shows "Face recognition: enrolled <date>" with manager Delete — Face recognition: enrolled Aug 22, 2026Consent on file · templates only, no imagesDelete
+  shot 10-client-biometric-status.png
+  shot 11-client-revoke-modal.png
+PASS  after revoke the client screen shows not enrolled — Face recognition: not enrolledEnrol
+PASS  server: templates purged, consent Revoked, flags cleared, Revoked event — templates=0 face_consent=0 consents=Revoked/chi.oak.manager@maison.example revoked_events=1
+PASS  server: recognition.templates no longer lists the client — rows=0
+PASS  local template cache emptied after revoke — cached=0
+  shot 12-client-revoked.png
+PASS  offline: detector still runs and reports New client (local cache only) — real detection · source=none
+PASS  offline: enrolment queued in pending_enrolments, provisional client attached — real captures · pending=1 attached "Offline Client L60YN"
+  shot 13-offline-enrolment-queued.png
+PASS  server: nothing created while offline — no customer
+PASS  reconnect: queue replayed → Customer + consent + 3 templates server-side; real client swapped onto the basket — pending=0 Offline Client L60YN templates=3 consent=MBC-2026-00002 attached "Offline Client L60YN" after 3s
+  shot 14-offline-enrolment-replayed.png
+PASS  dashboard live_summary.recognition counters incremented — delta {"matched_today":2,"enrolled_today":2,"nomatch_today":2,"declined_today":1,"undone_today":1} · now {"matched_today":2,"enrolled_today":2,"nomatch_today":2,"declined_today":1,"undone_today":1}
+PASS  all verdicts/captures came from the real detector (hook never used) — hook fallbacks=0
+PASS  cleanup: manager revoked every test enrolment; no consented clients / templates remain — revoked=Offline Client L60YN remaining=0 templates=0
+PASS  recognition switched off again on the cloud site — {"face_recognition_enabled":0,"global":0}
+
+38/38 checks passed; console issues: 20; customers created: Nadia Okafor L60YN, Theo Brandt L60YN, Offline Client L60YN
+  console faceA warning Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request.
+  console faceA warning Initialization of backend webgl failed
+  console faceA warning Error: WebGL is not supported on this device
+    at new FT (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)
+    at Object.factory (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)
+    at om.initializeB
+  console faceA warning wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'.
+  console faceA warning falling back to ArrayBuffer instantiation
+  console faceA warning Initialization of backend webgl failed
+  console faceA warning Error: WebGL is not supported on this device
+    at new FT (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)
+    at Object.factory (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)
+    at om.initializeB
+  console faceA warning wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'.
+  console faceA warning falling back to ArrayBuffer instantiation
+  console faceB warning Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request.

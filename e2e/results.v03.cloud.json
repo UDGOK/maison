@@ -1,0 +1,303 @@
+{
+  "base": "https://maison-demo.frappe.cloud",
+  "run": "L60YN",
+  "created": [
+    "Nadia Okafor L60YN",
+    "Theo Brandt L60YN",
+    "Offline Client L60YN"
+  ],
+  "results": [
+    {
+      "step": "recognition enabled for CHI-OAK on the cloud site (Administrator sid + CSRF)",
+      "ok": true,
+      "detail": "face_recognition_enabled=1 global=1 threshold=0.6 model=face-api/faceRecognitionNet@1 consent v2026-08-1"
+    },
+    {
+      "step": "no pre-existing consented clients on the site",
+      "ok": true,
+      "detail": "consented=0"
+    },
+    {
+      "step": "dashboard live_summary exposes recognition counters",
+      "ok": true,
+      "detail": "{\"matched_today\":0,\"enrolled_today\":0,\"nomatch_today\":0,\"declined_today\":0,\"undone_today\":0}"
+    },
+    {
+      "step": "model weights served by Frappe Cloud (/assets/maison_pos/pos/models/*, HTTP 200)",
+      "ok": true,
+      "detail": "tiny_face_detector_model-weights_manifest.json=200/3219 tiny_face_detector_model.bin=200/193321 face_landmark_68_tiny_model-weights_manifest.json=200/4806 face_landmark_68_tiny_model.bin=200/77224 face_recognition_model-weights_manifest.json=200/19615 face_recognition_model.bin=200/6444032"
+    },
+    {
+      "step": "service-worker precache manifest lists the model files + wasm backends",
+      "ok": true,
+      "detail": "sw.js 27374 bytes"
+    },
+    {
+      "step": "tile reaches Looking (camera + models loaded from the cloud)",
+      "ok": true,
+      "detail": "tile=looking cached=0"
+    },
+    {
+      "step": "model weights fetched by the browser with HTTP 200 from /assets/maison_pos/pos/models/",
+      "ok": true,
+      "detail": "wasm/tfjs-backend-wasm-simd.wasm:200 wasm/tfjs-backend-wasm-simd.wasm:200 tiny_face_detector_model-weights_manifest.json:200 face_landmark_68_tiny_model-weights_manifest.json:200 face_recognition_model-weights_manifest.json:200 face_landmark_68_tiny_model.bin:200 tiny_face_detector_model.bin:200 face_recognition_model.bin:200 backend=null"
+    },
+    {
+      "step": "first verdict is New client (no consented templates) — REAL detector",
+      "ok": true,
+      "detail": "real on-device detection · chip \"New client\" · last={\"source\":\"none\",\"threshold\":0.6}"
+    },
+    {
+      "step": "short press (200 ms) does not agree",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "hold-to-agree 800 ms → capture step",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "enrolment completed and client attached to the sale — REAL captures",
+      "ok": true,
+      "detail": "3 real captures · attached \"Nadia Okafor L60YN\""
+    },
+    {
+      "step": "server: Customer created by phone",
+      "ok": true,
+      "detail": "Nadia Okafor L60YN MC675179 consent=1"
+    },
+    {
+      "step": "server: Active consent (Hold-to-agree, current text version)",
+      "ok": true,
+      "detail": "{\"name\":\"MBC-2026-00001\",\"captured_at\":\"2026-08-22 11:22:10.947954\",\"consent_text_version\":\"2026-08-1\",\"method\":\"Hold-to-agree\",\"boutique\":\"CHI-OAK\"}"
+    },
+    {
+      "step": "server: 3 face templates (128-d raw descriptors, no images)",
+      "ok": true,
+      "detail": "status.templates=3 rows=3 ‖d‖=1.58/1.58/1.58"
+    },
+    {
+      "step": "server: Recognition Event Enrolled logged",
+      "ok": true,
+      "detail": "avnu5bdagv device=dev-230ff77d"
+    },
+    {
+      "step": "same face after reload → Recognised (euclidean distance < threshold) — REAL detector",
+      "ok": true,
+      "detail": "real detection · Nadia Okafor L60YN d=0.144 score=0.880047 threshold=0.6 source=server local d=0.144 server d=0.144"
+    },
+    {
+      "step": "score is the display mapping 1 − d/1.2 (rounded)",
+      "ok": true,
+      "detail": "score=0.880047 expected=0.880"
+    },
+    {
+      "step": "chip shows \"Recognised · nn %\"",
+      "ok": true,
+      "detail": "Recognised · 88%"
+    },
+    {
+      "step": "SW registered on the cloud and its precache holds all model weights",
+      "ok": true,
+      "detail": "regs=[{\"scope\":\"https://maison-demo.frappe.cloud/pos/\",\"state\":\"activated\"}] precache=workbox-precache-v2-https://maison-demo.frappe.cloud/pos/ entries=39 models cached=6/6 wasm=0; reload fetches: wasm/tfjs-backend-wasm-simd.wasm:200(sw) wasm/tfjs-backend-wasm-simd.wasm:200(sw) tiny_face_detector_model-weights_manifest.json:200(sw) face_landmark_68_tiny_model-weights_manifest.json:200(sw) face_recognition_model-weights_manifest.json:200(sw) tiny_face_detector_model.bin:200(sw) face_landmark_68_tiny_model.bin:200(sw) face_recognition_model.bin:200(sw)"
+    },
+    {
+      "step": "Undo offered within 5 s",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "Undo detaches the client",
+      "ok": true,
+      "detail": "Walk-in"
+    },
+    {
+      "step": "server: Matched + Undone events logged",
+      "ok": true,
+      "detail": "matched=1 (score 0.88) undone=1"
+    },
+    {
+      "step": "different face (B) against A's templates → New client (no false match) — REAL detector",
+      "ok": true,
+      "detail": "real detection · cached=3 · local d=undefined server d=undefined threshold=0.6"
+    },
+    {
+      "step": "decline: client created + attached WITHOUT biometrics",
+      "ok": true,
+      "detail": "attached \"Theo Brandt L60YN\" · Theo Brandt L60YN consent=0 templates=0 consents=0"
+    },
+    {
+      "step": "server: Recognition Event Declined logged",
+      "ok": true,
+      "detail": "cvuemqh8r1"
+    },
+    {
+      "step": "client screen shows \"Face recognition: enrolled <date>\" with manager Delete",
+      "ok": true,
+      "detail": "Face recognition: enrolled Aug 22, 2026Consent on file · templates only, no imagesDelete"
+    },
+    {
+      "step": "after revoke the client screen shows not enrolled",
+      "ok": true,
+      "detail": "Face recognition: not enrolledEnrol"
+    },
+    {
+      "step": "server: templates purged, consent Revoked, flags cleared, Revoked event",
+      "ok": true,
+      "detail": "templates=0 face_consent=0 consents=Revoked/chi.oak.manager@maison.example revoked_events=1"
+    },
+    {
+      "step": "server: recognition.templates no longer lists the client",
+      "ok": true,
+      "detail": "rows=0"
+    },
+    {
+      "step": "local template cache emptied after revoke",
+      "ok": true,
+      "detail": "cached=0"
+    },
+    {
+      "step": "offline: detector still runs and reports New client (local cache only)",
+      "ok": true,
+      "detail": "real detection · source=none"
+    },
+    {
+      "step": "offline: enrolment queued in pending_enrolments, provisional client attached",
+      "ok": true,
+      "detail": "real captures · pending=1 attached \"Offline Client L60YN\""
+    },
+    {
+      "step": "server: nothing created while offline",
+      "ok": true,
+      "detail": "no customer"
+    },
+    {
+      "step": "reconnect: queue replayed → Customer + consent + 3 templates server-side; real client swapped onto the basket",
+      "ok": true,
+      "detail": "pending=0 Offline Client L60YN templates=3 consent=MBC-2026-00002 attached \"Offline Client L60YN\" after 3s"
+    },
+    {
+      "step": "dashboard live_summary.recognition counters incremented",
+      "ok": true,
+      "detail": "delta {\"matched_today\":2,\"enrolled_today\":2,\"nomatch_today\":2,\"declined_today\":1,\"undone_today\":1} · now {\"matched_today\":2,\"enrolled_today\":2,\"nomatch_today\":2,\"declined_today\":1,\"undone_today\":1}"
+    },
+    {
+      "step": "all verdicts/captures came from the real detector (hook never used)",
+      "ok": true,
+      "detail": "hook fallbacks=0"
+    },
+    {
+      "step": "cleanup: manager revoked every test enrolment; no consented clients / templates remain",
+      "ok": true,
+      "detail": "revoked=Offline Client L60YN remaining=0 templates=0"
+    },
+    {
+      "step": "recognition switched off again on the cloud site",
+      "ok": true,
+      "detail": "{\"face_recognition_enabled\":0,\"global\":0}"
+    }
+  ],
+  "console": [
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "Initialization of backend webgl failed"
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "Error: WebGL is not supported on this device\n    at new FT (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)\n    at Object.factory (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)\n    at om.initializeB"
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'."
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "falling back to ArrayBuffer instantiation"
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "Initialization of backend webgl failed"
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "Error: WebGL is not supported on this device\n    at new FT (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)\n    at Object.factory (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)\n    at om.initializeB"
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'."
+    },
+    {
+      "tag": "faceA",
+      "type": "warning",
+      "text": "falling back to ArrayBuffer instantiation"
+    },
+    {
+      "tag": "faceB",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "faceB",
+      "type": "warning",
+      "text": "Initialization of backend webgl failed"
+    },
+    {
+      "tag": "faceB",
+      "type": "warning",
+      "text": "Error: WebGL is not supported on this device\n    at new FT (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)\n    at Object.factory (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)\n    at om.initializeB"
+    },
+    {
+      "tag": "faceB",
+      "type": "warning",
+      "text": "wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'."
+    },
+    {
+      "tag": "faceB",
+      "type": "warning",
+      "text": "falling back to ArrayBuffer instantiation"
+    },
+    {
+      "tag": "manager",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "offline",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "offline",
+      "type": "warning",
+      "text": "Initialization of backend webgl failed"
+    },
+    {
+      "tag": "offline",
+      "type": "warning",
+      "text": "Error: WebGL is not supported on this device\n    at new FT (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)\n    at Object.factory (https://maison-demo.frappe.cloud/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)\n    at om.initializeB"
+    },
+    {
+      "tag": "offline",
+      "type": "warning",
+      "text": "wasm streaming compile failed: TypeError: Failed to execute 'compile' on 'WebAssembly': Incorrect response MIME type. Expected 'application/wasm'."
+    },
+    {
+      "tag": "offline",
+      "type": "warning",
+      "text": "falling back to ArrayBuffer instantiation"
+    }
+  ]
+}

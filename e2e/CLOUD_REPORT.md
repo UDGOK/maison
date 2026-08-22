@@ -272,3 +272,109 @@ Observations (no product bugs found this run):
 - Image upload returns `file_name` `AC-012-00092e.png` but `file_url` `/files/AC-012-f1db14.png` on the second upload
   (the first upload's name): the API appears to de-duplicate by content hash and reuse the existing File — harmless, but the
   two fields are inconsistent in that case.
+
+## v0.3 cloud run (2026-08-22, 16:19–16:26 UTC = 11:19–11:26 America/Chicago)
+
+Site: `https://maison-demo.frappe.cloud` (v0.3 build live: `catalog.bootstrap.settings` carries `face_recognition_*`,
+`recognition_model=face-api/faceRecognitionNet@1`, `match_distance_threshold=0.6`, consent text `2026-08-1`).
+Script: new `/home/claude/maison/e2e/pos.v03.cloud.e2e.mjs` (adapted from `pos.v03.e2e.mjs`; no app source touched).
+Screenshots: `/home/claude/maison/e2e/cloud-shots-v03/` (14). Raw results: `results.v03.cloud.json`; log: `cloud-run-v03.log`.
+**Exit code 0 — 38/38 checks passed; the `__maisonRecognitionTest` hook was never needed (0 fallbacks): every verdict
+and every enrolment capture came from the real on-device detector in Chromium fed the fake-camera videos.**
+
+```bash
+# fresh Administrator sid via press.api.site.login → /tmp/sid; CSRF token scraped from /app/home → /tmp/csrf
+cd /home/claude/maison/e2e
+BRIDGE=1 NODE_USE_ENV_PROXY=1 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 \
+BASE=https://maison-demo.frappe.cloud ADMIN_SID=$(cat /tmp/sid) ADMIN_CSRF=$(cat /tmp/csrf) \
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node pos.v03.cloud.e2e.mjs
+```
+
+### What `pos.v03.cloud.e2e.mjs` changes vs. the bench v0.3 script
+
+- Administrator via the `sid` cookie (`storageState`, validated with `frappe.auth.get_logged_user`); the two
+  `frappe.client.set_value` POSTs on `Maison POS Settings.face_recognition_enabled` (1 before, 0 after) carry the CSRF
+  token scraped from `/app/home` (`ADMIN_CSRF`, or scraped by the script when unset).
+- Test enrolments are revoked/purged by the **manager** (`chi.oak.manager@maison.example`, `/api/method/login` + CSRF from
+  `/pos/`, `maison_pos.api.recognition.revoke`) — once through the UI (Client screen → Delete) and once as the final cleanup.
+- `cloud-bridge.mjs` installed on every browser context, including the fake-camera contexts (`--use-fake-device-for-media-stream`,
+  `--use-file-for-fake-video-capture=frontend/e2e-assets/face_{a,b}.mjpeg`); the offline step flips the bridge's `isOffline`
+  together with `context.setOffline(true)`.
+- Three cloud-specific checks: (a) every model weight fetched by the browser from `/assets/maison_pos/pos/models/*` returns
+  HTTP 200 (`page.on('response')`, incl. `fromServiceWorker`), (b) the SW precache (`caches` API inside the page) holds all six
+  model files, (c) "REAL detector" is asserted on the New-client / Recognised / no-false-match verdicts and on the captures.
+- Fonts are not blocked (they load through the bridge); `SHOTS_DIR` default `cloud-shots-v03`, `RESULTS` default
+  `results.v03.cloud.json`, `KEEP_ENABLED=1` skips switching recognition off at the end.
+
+### Results — 38/38 PASS
+
+| # | Step | Result | Evidence |
+|---|------|--------|----------|
+| 1 | Recognition enabled on the cloud (Administrator sid + CSRF, `set_value` on the single) | PASS | `face_recognition_enabled=1 global=1 threshold=0.6 model=face-api/faceRecognitionNet@1 consent v2026-08-1`; CHI-OAK = `Inherit` |
+| 2 | No pre-existing consented clients | PASS | 0 |
+| 3 | `live_summary.recognition` counters present | PASS | all five = 0 before the run |
+| 4 | **Model weights served by Frappe Cloud** (request context) | PASS | all six `/assets/maison_pos/pos/models/*` → 200: `tiny_face_detector` 3,219 B + 193,321 B, `face_landmark_68_tiny` 4,806 B + 77,224 B, `face_recognition` 19,615 B + 6,444,032 B |
+| 5 | **SW script precache manifest lists models + wasm** | PASS | `maison_pos.api.pwa.service_worker` (27,374 B) contains the 6 model entries and `models/wasm/tfjs-backend-wasm{,-simd,-threaded-simd}.wasm` |
+| 6 | Tile reaches Looking (camera + models loaded from the cloud) | PASS | `tile=looking cached=0` — `01-tile-looking.png` |
+| 7 | **Browser fetched the weights with HTTP 200** | PASS | 6/6 model files + `wasm/tfjs-backend-wasm-simd.wasm` all `200` from the network on first load |
+| 8 | First verdict New client — real detector | PASS | chip "New client", `last.source=none` — `02-tile-new-client.png` |
+| 9 | Short press (200 ms) does not agree | PASS | `03-consent-screen.png` |
+| 10 | Hold-to-agree 800 ms → capture step | PASS | `04-capture.png` |
+| 11 | Enrolment completed, client attached — 3 real captures | PASS | "Nadia Okafor L60YN" — `05-enrolled-attached.png` |
+| 12 | Server: Customer by phone | PASS | `MC675179`, consent=1 |
+| 13 | Server: Active consent (Hold-to-agree, v2026-08-1, CHI-OAK) | PASS | `MBC-2026-00001` |
+| 14 | Server: 3 templates, 128-d raw descriptors, no images | PASS | ‖d‖ = 1.58/1.58/1.58 |
+| 15 | Server: Enrolled event | PASS | device `dev-230ff77d` |
+| 16 | **Reload → Recognised (real detector, d < 0.6)** | PASS | `d=0.144 score=0.880047 threshold=0.6 source=server` (local d = server d = 0.144) — `06-tile-recognised.png` |
+| 17 | Score = 1 − d/1.2 | PASS | 0.880 |
+| 18 | Chip "Recognised · 88%" | PASS | |
+| 19 | **SW registered + precache holds all model weights** | PASS | one registration, scope `https://maison-demo.frappe.cloud/pos/`, `activated`; `workbox-precache-v2-https://maison-demo.frappe.cloud/pos/` = 39 entries, **6/6 model files cached**; on the reload all model + wasm requests were answered `200` **from the service worker** (`fromServiceWorker=true`) |
+| 20–21 | Undo offered ≤5 s, Undo detaches → Walk-in | PASS | `07-after-undo.png` |
+| 22 | Server: Matched + Undone events | PASS | matched=1 (score 0.88), undone=1 |
+| 23 | **Face B vs A's templates → New client, no false match — real detector** | PASS | `cached=3` templates on the device — `08-faceB-new-client.png` |
+| 24 | Decline: client created + attached WITHOUT biometrics | PASS | "Theo Brandt L60YN", consent=0, templates=0, consents=0 — `09-declined-attached.png` |
+| 25 | Server: Declined event | PASS | |
+| 26 | Manager Client screen: "Face recognition: enrolled Aug 22, 2026 · Consent on file · templates only, no images" + Delete | PASS | `10-client-biometric-status.png`, `11-client-revoke-modal.png` |
+| 27 | After revoke: "not enrolled" | PASS | `12-client-revoked.png` |
+| 28 | Server: templates purged, consent Revoked by `chi.oak.manager@maison.example`, flags cleared, Revoked event | PASS | |
+| 29 | `recognition.templates` no longer lists the client | PASS | rows=0 |
+| 30 | Local template cache emptied after revoke | PASS | cached=0 |
+| 31 | Offline (bridge + `setOffline`): detector still reports New client | PASS | real detection, `source=none` |
+| 32 | Offline enrolment queued (pending=1), provisional client attached | PASS | real captures — `13-offline-enrolment-queued.png` |
+| 33 | Server: nothing created while offline | PASS | |
+| 34 | Reconnect: queue replayed → Customer + consent `MBC-2026-00002` + 3 templates, basket swapped to the real client | PASS | 3 s — `14-offline-enrolment-replayed.png` |
+| 35 | Dashboard `live_summary.recognition` deltas | PASS | `matched 2, enrolled 2, nomatch 2, declined 1, undone 1` |
+| 36 | Hook never used | PASS | 0 fallbacks |
+| 37 | **Cleanup: manager revoked every remaining enrolment** | PASS | `Offline Client L60YN` revoked; consented clients 0, `recognition.templates` rows 0 |
+| 38 | **Recognition switched off again** | PASS | `face_recognition_enabled=0 global=0` (re-verified with curl after the run) |
+
+Backend actually used by the detector in this headless sandbox: WebGL is unavailable (SwiftShader not exposed), so
+face-api fell back to the **WASM SIMD** backend (`models/wasm/tfjs-backend-wasm-simd.wasm`), i.e. the cloud run exercised
+the WASM path end to end (the WebGL path is not covered by this sandbox).
+
+### Site state after the run (left clean)
+
+- `Maison POS Settings.face_recognition_enabled = 0`, `Maison Boutique CHI-OAK.face_recognition_enabled = Inherit` (untouched).
+- Customers with `maison_face_consent=1`: none. `recognition.templates` for CHI-OAK: 0 rows.
+- Records that remain, by design of the purge (audit trail, no biometric data): three test Customers `Nadia Okafor L60YN`
+  (`MC675179`), `Theo Brandt L60YN` (`theo.l60yn@example.com`, never enrolled), `Offline Client L60YN`; two
+  `Maison Biometric Consent` rows `MBC-2026-00001/00002` with `status=Revoked`; Recognition Events (Enrolled/Matched/Undone/
+  NoMatch/Declined/Revoked) for today. Nothing else was created (no invoices this run).
+
+### Observations / product notes (no functional bugs found)
+
+1. **`.wasm` served as `application/octet-stream`** (`curl -I …/models/wasm/tfjs-backend-wasm-simd.wasm` →
+   `content-type: application/octet-stream`, `x-content-type-options: nosniff`). Chromium logs
+   `wasm streaming compile failed: TypeError: … Incorrect response MIME type. Expected 'application/wasm'` → `falling back to
+   ArrayBuffer instantiation`. Functionally fine (TF.js falls back automatically), but the streaming compile is lost and the
+   warning appears on every cold start. Frappe Cloud's nginx does not know the `.wasm` extension; the app cannot set the header
+   for `/assets/…`, so the only in-app fix would be serving the wasm files from a route (as already done for the service
+   worker) or accepting the fallback. Same class as run-1 Finding 2.
+2. `Initialization of backend webgl failed / WebGL is not supported on this device` warnings: environment (headless sandbox
+   without GPU), not the site; on an iPad/desktop the WebGL path is taken first.
+3. `Another connection wants to delete database 'maison_pos'` warning: caused by the harness's `freshDevice()` wiping
+   IndexedDB while the app holds it open; test artefact.
+4. The capture step (`04-capture.png`) shows no camera preview — identical to the bench screenshot, so by design
+   ("No photograph is stored"); noting it only because an associate may wonder whether the camera is on.
+5. `state.backend` is not exposed by the `__maisonRecognitionTest` hook (the script prints `backend=null`); cosmetic for the
+   harness only.
