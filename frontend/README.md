@@ -72,11 +72,18 @@ src/
 tags and injects them into `pos.html` along with `window.csrf_token`. After `npm run build` run
 `bench build --app maison_pos` (or just restart in dev) and open `https://<site>/pos`.
 
-Service worker scope is `/pos` while `sw.js` is served from `/assets/maison_pos/pos/`; add to nginx:
-
-```
-location = /assets/maison_pos/pos/sw.js { add_header Service-Worker-Allowed /; }
-```
+Service worker scope is `/pos/` while the built `sw.js` lives under `/assets/maison_pos/pos/`.
+Browsers only accept that scope if the script response carries `Service-Worker-Allowed`, which
+managed hosts (Frappe Cloud) do not add for `/assets`. The app therefore registers
+`/api/method/maison_pos.api.pwa.service_worker` (`maison_pos/api/pwa.py`), a guest-readable
+endpoint that returns the built `sw.js` with `Service-Worker-Allowed: /pos/` and
+`Cache-Control: no-cache`; no nginx configuration is needed. `sw.js` is built with the workbox
+runtime inlined and absolute `/assets/maison_pos/pos/` precache URLs (`vite.config.ts`), so it
+does not depend on the URL it is served from. Navigations to `/pos` and `/pos/*` are cached
+NetworkFirst (`maison-shell`, single cache key) and fall back to the precached Vite
+`index.html`, so reloading any `/pos/*` route offline still renders the shell.
+The legacy nginx rule (`docker/`) `location = /assets/maison_pos/pos/sw.js { add_header
+Service-Worker-Allowed /; }` is harmless but no longer required.
 
 For `npm run dev` against a bench, add a proxy in `vite.config.ts`:
 

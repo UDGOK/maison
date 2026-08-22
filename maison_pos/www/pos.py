@@ -11,8 +11,11 @@ API client (``frontend/src/api/frappe.ts``).
 Notes
 -----
 * The page is login-only: anonymous visitors are redirected to ``/login?redirect-to=/pos``.
-* PWA scope is ``/pos`` while the service worker lives under ``/assets/...``; nginx must add
-  ``Service-Worker-Allowed: /`` for ``/assets/maison_pos/pos/sw.js`` (see ``docker/``).
+* PWA scope is ``/pos/`` while the built ``sw.js`` lives under ``/assets/...``. The app registers
+  the worker via ``/api/method/maison_pos.api.pwa.service_worker`` (``maison_pos/api/pwa.py``),
+  which serves the built file with ``Service-Worker-Allowed: /pos/`` so no nginx configuration
+  is required (works on Frappe Cloud). The ``docker/`` nginx header for
+  ``/assets/maison_pos/pos/sw.js`` is kept but no longer needed.
 """
 
 from __future__ import annotations

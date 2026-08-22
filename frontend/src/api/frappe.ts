@@ -3,6 +3,7 @@
  * with the session cookie (credentials: include) and the CSRF token Frappe injects
  * into the page as `window.csrf_token` (see maison_pos/www/pos.py).
  */
+import { stripHtml } from '@/utils/text'
 import { ApiError, type MaisonApi } from './types'
 
 declare global {
@@ -61,11 +62,11 @@ async function call<T>(method: string, args: Record<string, unknown> = {}, opts:
     if (body?._server_messages) {
       try {
         const msgs = JSON.parse(body._server_messages) as string[]
-        message = msgs.map((m) => JSON.parse(m).message).join('\n')
+        message = stripHtml(msgs.map((m) => JSON.parse(m).message).join('\n'))
       } catch {
         /* ignore */
       }
-    } else if (body?.exception) message = String(body.exception).split('\n').pop() || message
+    } else if (body?.exception) message = stripHtml(String(body.exception).split('\n').pop()) || message
     if (body?.exc_type) code = body.exc_type
     if (res.status === 401 || res.status === 403) code = 'AUTH'
     throw new ApiError(message, code, res.status, body)

@@ -1,0 +1,37 @@
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  login — as chi.oak.a1@maison.example
+  shot 01-pos-landing.png
+PASS  open /pos — https://maison-demo.frappe.cloud/pos/unlock?next=/sell
+  shot 02-sell-after-unlock.png
+PASS  unlock with PIN + catalog loaded — 42 tiles visible, rail: 42 items, associate Ines Calder · Associate
+  shot 03-basket-watch-accessory.png
+PASS  add serialized watch + accessory — serial TP-007-CHI-001
+  shot 04-client-attached.png
+PASS  attach client via search — Mei-Lin Chen
+  shot 05-pay-cash.png
+  shot 06-receipt-cash-initial.png
+  shot 07-receipt-cash-synced.png
+FAIL  CASH sale synced + server invoice verified — Rejected undefined total undefined invoice not found; customer undefined is not Mei-Lin Chen
+  shot 08-pay-card-ready.png
+  shot 09-pay-card-progress.png
+  shot 10-receipt-card-synced.png
+FAIL  CARD sale (simulated reader) synced + verified — Rejected undefined ref undefined invoice not found
+  shot 11-pay-cash.png
+  shot 12-offline-queued.png
+PASS  offline cash sale queued — pill "Queued offline", topbar "Offline · 1 queued"
+  shot 13-online-drained.png
+FAIL  queue drained after reconnect + invoice server-side — Rejected undefined topbar "Online" invoice not found
+  shot 14-dashboard-initial.png
+PASS  dashboard opens as Administrator
+PASS  Google Fonts: Unbounded loaded (POS) — faces ["800:unloaded","800:unloaded","800:unloaded","800:unloaded","800:loaded","900:unloaded","900:unloaded","900:unloaded","900:unloaded","900:loaded"] usedInComputedStyle=true links=["https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap"]
+PASS  Google Fonts: Unbounded loaded (dashboard) — faces ["800:unloaded","800:unloaded","800:unloaded","800:unloaded","800:loaded","900:unloaded","900:unloaded","900:unloaded","900:unloaded","900:loaded"] usedInComputedStyle=false
+FAIL  service worker registered (POS) — {"supported":true,"regs":[],"controller":null}
+  dashboard SW: {"supported":true,"regs":[],"controller":null}
+  shot 15-pay-cash.png
+  sale 4 not synced: Rejected 
+  shot 16-dashboard-after-sale.png
+FAIL  dashboard updates live within 5s —  seen=true after 2 ms; server invoices 0→0; ws: [{"url":"wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=TCG3Uk6hIW0S1l57AAAH"},{"out":"2probe"},{"in":"3probe"},{"out":"5"}]
+PASS  dashboard receives realtime (socket.io) events — ws url wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=TCG3Uk6hIW0S1l57AAAH; 6 frames in, 2 maison/doc frames; sample [{"in":"42/maison-demo.frappe.cloud,[\"list_update\",{\"doctype\":\"Sales Invoice\",\"name\":\"ACC-SINV-2026-00001\",\"user\":\"chi.oak.a1@maison.example\"}]"},{"in":"42/maison-demo.frappe.cloud,[\"maison_heartbeat\",{\"app_version\":null,\"boutique\":\"CHI-OAK\",\"device_id\":\"dev-0049e9ef\",\"last_seen\":\"2026-08-22T02:48:53.072138-05:00\",\"name\":\"CHI-OAK-dev-0049e9ef\",\"queued"}]
+
+Console errors/warnings: 1
+  pos error The path of the provided scope ('/pos') is not under the max scope allowed ('/assets/maison_pos/pos/'). Adjust the scope, move the Service Worker script, or use the Service-Worker-Allowed HTTP header to allow the scope.

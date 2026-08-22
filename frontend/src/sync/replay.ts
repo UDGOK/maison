@@ -2,6 +2,7 @@
  * FIFO queue replay with exponential backoff. Pure logic (no Pinia) so it is unit-testable
  * against fake-indexeddb and a stubbed API.
  */
+import { stripHtml } from '@/utils/text'
 import type { MaisonDB, QueueRow, ReceiptSnapshot } from '@/db'
 import { ApiError, type MaisonApi, type POSInvoice, type SubmitResult } from '@/api/types'
 
@@ -88,7 +89,7 @@ export class QueueReplayer {
           await this.db.queue.update(r.offline_uuid, {
             status: transient ? 'pending' : 'error',
             next_attempt_at: this.now() + backoffMs(attempts),
-            error: err.message,
+            error: stripHtml(err.message),
             error_code: err instanceof ApiError ? err.code : 'UNKNOWN'
           })
         }
@@ -120,7 +121,7 @@ export class QueueReplayer {
         } else {
           await this.db.queue.update(r.offline_uuid, {
             status: 'error',
-            error: res.error || 'Rejected by server',
+            error: stripHtml(res.error) || 'Rejected by server',
             error_code: res.error_code || 'SERVER_ERROR'
           })
           out.errors++

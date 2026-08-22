@@ -21,13 +21,27 @@ import random
 from typing import Any, Optional
 
 import frappe
-from frappe.utils import add_days, flt, nowdate
+import datetime as _dt
+
+from frappe.utils import add_days, flt, get_time, getdate, nowdate
 
 from maison_pos.setup.install import after_install
 
 COMPANY = "Maison"
 ABBR = "MSN"
 CURRENCY = "USD"
+
+# Opening stock is always back-dated so that POS sales (posted "now" in the site timezone)
+# can never land before the receipt — even when the site timezone is changed after seeding
+# (see rebase_stock() for repairing a site seeded before this was the case).
+DEMO_STOCK_REMARK = "Maison demo opening stock"
+DEMO_STOCK_DAYS_BACK = 7
+DEMO_STOCK_POSTING_TIME = "09:00:00"
+
+
+def demo_stock_posting() -> tuple[str, str]:
+	"""(posting_date, posting_time) used for demo stock receipts."""
+	return add_days(nowdate(), -DEMO_STOCK_DAYS_BACK), DEMO_STOCK_POSTING_TIME
 COUNTRY = "United States"
 PRICE_LIST = "Standard Selling"
 DEMO_PASSWORD = "maison123"
@@ -469,8 +483,29 @@ def _serials_for(code: str, boutique: str, n: int) -> list[str]:
 	return [f"{code}-{short}-{i:03d}" for i in range(1, n + 1)]
 
 
+def _stock_entry_doc(warehouse: str, rows: list[dict[str, Any]], posting_date: str, posting_time: str) -> "frappe.model.document.Document":
+	"""Build an (unsaved) back-dated demo Material Receipt into ``warehouse``."""
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"purpose": "Material Receipt",
+			"company": COMPANY,
+			"to_warehouse": warehouse,
+			"set_posting_time": 1,
+			"posting_date": posting_date,
+			"posting_time": posting_time,
+			"remarks": DEMO_STOCK_REMARK,
+			"items": rows,
+		}
+	)
+	se.flags.ignore_permissions = True
+	return se
+
+
 def ensure_stock() -> None:
-	"""Opening stock per boutique via Material Receipt (skipped when the bin already holds qty)."""
+	"""Opening stock per boutique via a back-dated Material Receipt (skipped when the bin already holds qty)."""
+	posting_date, posting_time = demo_stock_posting()
 	for spec in BOUTIQUES:
 		warehouse = f"{spec['code']} - {ABBR}"
 		rows = []
@@ -496,19 +531,193 @@ def ensure_stock() -> None:
 			rows.append(row)
 		if not rows:
 			continue
-		se = frappe.get_doc(
-			{
-				"doctype": "Stock Entry",
-				"stock_entry_type": "Material Receipt",
-				"purpose": "Material Receipt",
-				"company": COMPANY,
-				"to_warehouse": warehouse,
-				"items": rows,
-			}
-		)
-		se.flags.ignore_permissions = True
+		se = _stock_entry_doc(warehouse, rows, posting_date, posting_time)
 		se.insert()
 		se.submit()
+
+
+# ---------------------------------------------------------------------------
+# repair: re-date demo stock on an already seeded site
+# ---------------------------------------------------------------------------
+def demo_stock_entries(include_unmarked: bool = True) -> list[str]:
+	"""Names of submitted demo opening-stock receipts, oldest first.
+
+	Entries seeded by this module carry ``remarks = DEMO_STOCK_REMARK``. Sites seeded before
+	the marker existed are matched structurally: a Material Receipt for the demo company
+	into a boutique warehouse whose items are all demo items.
+	"""
+	warehouses = [f"{b['code']} - {ABBR}" for b in BOUTIQUES]
+	demo_items = {i[0] for i in ITEMS}
+	names: list[str] = []
+	for se in frappe.get_all(
+		"Stock Entry",
+		filters={"docstatus": 1, "company": COMPANY, "purpose": "Material Receipt"},
+		fields=["name", "remarks", "to_warehouse"],
+		order_by="posting_date, posting_time, creation",
+	):
+		if (se.remarks or "").strip() == DEMO_STOCK_REMARK:
+			names.append(se.name)
+		elif include_unmarked and se.to_warehouse in warehouses:
+			items = {r.item_code for r in frappe.get_all("Stock Entry Detail", {"parent": se.name}, ["item_code"])}
+			if items and items <= demo_items:
+				names.append(se.name)
+	return names
+
+
+def _serial_in_stock(serial_no: str, warehouse: str) -> bool:
+	row = frappe.db.get_value("Serial No", serial_no, ["status", "warehouse"], as_dict=True)
+	return bool(row) and row.status == "Active" and row.warehouse == warehouse
+
+
+def _replacement_rows(se: "frappe.model.document.Document") -> list[dict[str, Any]]:
+	"""Rows for the back-dated replacement of ``se`` (only serials still in stock)."""
+	rows: list[dict[str, Any]] = []
+	for r in se.items:
+		row: dict[str, Any] = {
+			"item_code": r.item_code,
+			"qty": r.qty,
+			"t_warehouse": r.t_warehouse,
+			"basic_rate": r.basic_rate,
+			"allow_zero_valuation_rate": r.allow_zero_valuation_rate,
+		}
+		serials = _serials_of_row(r)
+		if serials:
+			keep = [s for s in serials if _serial_in_stock(s, r.t_warehouse)]
+			if not keep:
+				continue
+			row["qty"] = len(keep)
+			row["use_serial_batch_fields"] = 1
+			row["serial_no"] = "\n".join(keep)
+		rows.append(row)
+	return rows
+
+
+def _serials_of_row(row: Any) -> list[str]:
+	if row.get("serial_no"):
+		return [s.strip() for s in str(row.serial_no).splitlines() if s.strip()]
+	if row.get("serial_and_batch_bundle"):
+		return [
+			e.serial_no
+			for e in frappe.get_all("Serial and Batch Entry", {"parent": row.serial_and_batch_bundle}, ["serial_no"])
+			if e.serial_no
+		]
+	return []
+
+
+def _redate_in_place(name: str, posting_date: str, posting_time: str) -> None:
+	"""Move a submitted Stock Entry and its ledgers to ``posting_date posting_time``.
+
+	Used when ERPNext refuses to cancel the receipt (serials already delivered by a later
+	Sales Invoice -> ``SerialNoExistsInFutureTransactionError``). Moving an inward entry
+	*earlier* in time never makes a balance negative, so the stock ledger stays consistent;
+	a Repost Item Valuation is run afterwards to recompute running balances / valuation.
+	"""
+	from erpnext.accounts.utils import get_fiscal_year
+
+	posting_datetime = _dt.datetime.combine(getdate(posting_date), get_time(posting_time))
+	fiscal_year = get_fiscal_year(posting_date, company=COMPANY)[0]
+	se = frappe.get_doc("Stock Entry", name)
+	old_datetime = _dt.datetime.combine(getdate(se.posting_date), get_time(se.posting_time))
+	frappe.db.set_value(
+		"Stock Entry",
+		name,
+		{"set_posting_time": 1, "posting_date": posting_date, "posting_time": posting_time},
+		update_modified=False,
+	)
+	frappe.db.sql(
+		"""update `tabStock Ledger Entry`
+		set posting_date=%s, posting_time=%s, posting_datetime=%s
+		where voucher_type='Stock Entry' and voucher_no=%s""",
+		(posting_date, posting_time, posting_datetime, name),
+	)
+	frappe.db.sql(
+		"""update `tabSerial and Batch Bundle` set posting_datetime=%s
+		where voucher_type='Stock Entry' and voucher_no=%s""",
+		(posting_datetime, name),
+	)
+	frappe.db.sql(
+		"""update `tabGL Entry` set posting_date=%s, fiscal_year=%s
+		where voucher_type='Stock Entry' and voucher_no=%s""",
+		(posting_date, fiscal_year, name),
+	)
+	# Recompute running balances / valuation for every affected item from whichever datetime
+	# is earlier (synchronously; moving an inward entry earlier cannot create negative stock).
+	from erpnext.stock.stock_ledger import update_entries_after
+
+	repost_from = min(old_datetime, posting_datetime)
+	for item_code, warehouse in {(r.item_code, r.t_warehouse) for r in se.items}:
+		update_entries_after(
+			{
+				"item_code": item_code,
+				"warehouse": warehouse,
+				"posting_date": repost_from.strftime("%Y-%m-%d"),
+				"posting_time": repost_from.strftime("%H:%M:%S"),
+			},
+			allow_negative_stock=True,
+		)
+
+
+@frappe.whitelist()
+def rebase_stock(days_back: int = DEMO_STOCK_DAYS_BACK, posting_time: str = DEMO_STOCK_POSTING_TIME, commit: bool = False) -> dict[str, Any]:
+	"""Back-date the demo opening-stock receipts on an already seeded site (System Manager only).
+
+	Why: the seed used to post stock at "now"; if the site timezone is changed afterwards the
+	receipts can end up *after* the current wall-clock time, and every POS sale is then
+	rejected (``NegativeStockError`` / ``SerialNoExistsInFutureTransactionError``).
+
+	For each demo receipt dated later than ``today - days_back posting_time``:
+
+	* cancel it and re-create it back-dated (non-serialized rows keep their full quantity so
+	  later sales stay covered; serialized rows keep only the serials still in stock); or
+	* if ERPNext refuses the cancellation because serials from it were already sold, re-date
+	  the existing entry and its ledgers in place and repost valuation.
+
+	Idempotent: receipts already dated on/before the target are left alone. Returns a summary.
+	Callable over the API: ``POST /api/method/maison_pos.setup.demo.rebase_stock``.
+	"""
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw("Only System Managers may rebase demo stock", frappe.PermissionError)
+
+	days_back = int(days_back)
+	posting_date = add_days(nowdate(), -days_back)
+	target = _dt.datetime.combine(getdate(posting_date), get_time(posting_time))
+	result: dict[str, Any] = {"posting_date": posting_date, "posting_time": posting_time, "recreated": [], "redated": [], "skipped": []}
+
+	allow_negative = frappe.db.get_single_value("Stock Settings", "allow_negative_stock")
+	try:
+		for name in demo_stock_entries():
+			se = frappe.get_doc("Stock Entry", name)
+			if _dt.datetime.combine(getdate(se.posting_date), get_time(se.posting_time)) <= target:
+				result["skipped"].append(name)
+				continue
+			savepoint = "maison_rebase"
+			frappe.db.savepoint(savepoint)
+			try:
+				# Allow the intermediate negative window between cancel and the back-dated re-receipt.
+				frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
+				frappe.clear_cache(doctype="Stock Settings")
+				rows = _replacement_rows(se)
+				se.flags.ignore_permissions = True
+				se.cancel()
+				new_name = None
+				if rows:
+					new = _stock_entry_doc(se.to_warehouse, rows, posting_date, posting_time)
+					new.insert()
+					new.submit()
+					new_name = new.name
+				result["recreated"].append({"old": name, "new": new_name, "rows": len(rows)})
+			except Exception as e:
+				frappe.db.rollback(save_point=savepoint)
+				frappe.clear_messages()
+				_redate_in_place(name, posting_date, posting_time)
+				result["redated"].append({"name": name, "reason": f"{type(e).__name__}: {frappe.utils.strip_html(str(e))[:200]}"})
+	finally:
+		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", allow_negative or 0)
+		frappe.clear_cache(doctype="Stock Settings")
+
+	if commit:
+		frappe.db.commit()
+	return result
 
 
 def ensure_customers() -> None:

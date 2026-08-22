@@ -24,9 +24,33 @@ async function boot() {
   app.mount('#app')
   void useSyncStore().start()
 
-  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-    const { registerSW } = await import('virtual:pwa-register')
-    registerSW({ immediate: true })
+  if (import.meta.env.PROD && 'serviceWorker' in navigator) void registerServiceWorker()
+}
+
+/**
+ * Register the service worker with scope `/pos/`.
+ *
+ * The built `sw.js` lives under `/assets/maison_pos/pos/`; browsers only let a worker
+ * control `/pos/` if its script response carries `Service-Worker-Allowed`, which managed
+ * hosts (Frappe Cloud) do not add for `/assets`. `maison_pos.api.pwa.service_worker`
+ * returns the same file with that header, so we register it from there.
+ * The worker uses `skipWaiting` + `clientsClaim` (vite-plugin-pwa `autoUpdate`), so an
+ * `update()` on every focus is all that is needed to roll out a new build.
+ */
+export const SW_URL = '/api/method/maison_pos.api.pwa.service_worker'
+export const SW_SCOPE = '/pos/'
+
+async function registerServiceWorker() {
+  try {
+    const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE, updateViaCache: 'none' })
+    const update = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) void reg.update().catch(() => undefined)
+    }
+    document.addEventListener('visibilitychange', update)
+    window.addEventListener('online', update)
+    setInterval(update, 60 * 60 * 1000)
+  } catch (err) {
+    console.warn('[maison] service worker registration failed', err)
   }
 }
 
