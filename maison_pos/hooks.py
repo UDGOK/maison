@@ -51,6 +51,7 @@ doc_events = {
 	"Customer": {
 		"before_insert": "maison_pos.events.customer.before_insert",
 		"validate": "maison_pos.events.customer.validate",
+		"on_update": "maison_pos.events.customer.on_update",
 	},
 }
 
@@ -62,7 +63,11 @@ scheduler_events = {
 		# every 2 minutes: flag devices whose heartbeat is stale and notify the live wall
 		"*/2 * * * *": ["maison_pos.tasks.check_heartbeat_staleness"],
 	},
-	"daily": ["maison_pos.tasks.purge_old_sync_logs"],
+	"daily": [
+		"maison_pos.tasks.purge_old_sync_logs",
+		# BIPA retention policy: destroy face templates of clients with no visit in N months
+		"maison_pos.tasks.purge_expired_biometrics",
+	],
 }
 
 # ---------------------------------------------------------------------------
@@ -72,6 +77,8 @@ permission_query_conditions = {
 	"Maison Price Change Request": "maison_pos.scoping.price_change_request_query",
 	"Maison Device Heartbeat": "maison_pos.scoping.heartbeat_query",
 	"Maison Sync Log": "maison_pos.scoping.sync_log_query",
+	"Maison Biometric Consent": "maison_pos.scoping.biometric_consent_query",
+	"Maison Recognition Event": "maison_pos.scoping.recognition_event_query",
 }
 
 has_permission = {

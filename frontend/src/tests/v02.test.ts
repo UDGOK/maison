@@ -114,7 +114,7 @@ describe('settings coercion (backend sends Check fields as 0/1)', () => {
   it('normalizeSettings turns ints into booleans and strips trailing slashes', async () => {
     const { normalizeSettings } = await import('@/api/types')
     const s = normalizeSettings({ show_product_images: 1, scan_enabled: 0, receipt_qr_enabled: 0, receipt_qr_base_url: 'https://x.example/', loyalty_lookup_enabled: '1' } as any)
-    expect(s).toEqual({ show_product_images: true, scan_enabled: false, receipt_qr_enabled: false, receipt_qr_base_url: 'https://x.example', loyalty_lookup_enabled: true })
+    expect(s).toMatchObject({ show_product_images: true, scan_enabled: false, receipt_qr_enabled: false, receipt_qr_base_url: 'https://x.example', loyalty_lookup_enabled: true })
     expect(normalizeSettings(null).receipt_qr_enabled).toBe(true)
   })
 })

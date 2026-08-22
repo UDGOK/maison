@@ -11,6 +11,14 @@ import {
   type Customer,
   type CustomerHistoryRow,
   type Delta,
+  type EnrollRequest,
+  type EnrollResult,
+  type MatchResult,
+  type RecognitionOutcome,
+  type TemplateRow,
+  type TemplatesResult,
+  DEFAULT_CONSENT_TEXT,
+  RECOGNITION_MODEL,
   type LiveSummary,
   type MaisonApi,
   type POSInvoice,
@@ -39,6 +47,56 @@ import {
 } from './seed'
 import { computeTotals } from '@/utils/totals'
 import { sha256Hex } from '@/utils/hash'
+import { DEFAULT_DISTANCE_THRESHOLD, rankMatches } from '@/recognition/math'
+
+/** v0.3 — server-side face template (embedding only, never an image). */
+interface MockTemplate {
+  name: string
+  customer: string
+  embedding: number[]
+  model: string
+  dims: number
+  quality: number
+  captured_at: string
+  boutique: string
+  device_id: string
+  consent: string
+}
+interface MockConsent {
+  name: string
+  customer: string
+  status: 'Active' | 'Revoked'
+  consent_text_version: string
+  method: string
+  boutique: string
+  device_id: string
+  captured_at: string
+  revoked_at?: string
+  revoked_by?: string
+  has_signature: boolean
+}
+interface MockEvent {
+  customer?: string
+  boutique: string
+  device_id: string
+  score?: number
+  outcome: RecognitionOutcome
+  sales_invoice?: string
+  ts: string
+}
+
+/** Mock `Maison POS Settings` recognition block; `match_threshold` is the maximum euclidean distance between RAW descriptors (face-api rule: < 0.6). */
+export const RECOGNITION_SETTINGS = {
+  face_recognition_enabled: true,
+  recognition_model: RECOGNITION_MODEL,
+  match_threshold: DEFAULT_DISTANCE_THRESHOLD,
+  biometric_retention_months: 36,
+  consent_text: DEFAULT_CONSENT_TEXT,
+  consent_text_version: '2026-08-1',
+  recognition_offline_cache: true
+}
+/** Per-boutique override (Maison Boutique `face_recognition_enabled`: Inherit/On/Off). */
+export const BOUTIQUE_RECOGNITION: Record<string, 'Inherit' | 'On' | 'Off'> = { 'CHI-OAK': 'On', 'NYC-MAD': 'Inherit', 'LA-RODEO': 'Off' }
 
 const state = {
   customers: CUSTOMERS.map((c) => ({ ...c })),
@@ -52,7 +110,11 @@ const state = {
   /** v0.2: Item.image overrides uploaded from the POS */
   images: {} as Record<string, string>,
   /** v0.2: receipt token → public receipt */
-  receipts: {} as Record<string, PublicReceipt>
+  receipts: {} as Record<string, PublicReceipt>,
+  /** v0.3: in-memory face templates / consents / recognition events */
+  templates: [] as MockTemplate[],
+  consents: [] as MockConsent[],
+  events: [] as MockEvent[]
 }
 
 // --- persistence: keep the "server" alive across page reloads in dev (localStorage) ---
@@ -71,6 +133,9 @@ function load() {
     state.seq = j.seq || 1
     state.images = j.images || {}
     state.receipts = j.receipts || {}
+    state.templates = j.templates || []
+    state.consents = j.consents || []
+    state.events = j.events || []
   } catch {
     /* ignore corrupt state */
   }
@@ -89,7 +154,10 @@ function save() {
         history: Object.fromEntries(state.history),
         seq: state.seq,
         images: state.images,
-        receipts: state.receipts
+        receipts: state.receipts,
+        templates: state.templates,
+        consents: state.consents,
+        events: state.events
       })
     )
   } catch {
@@ -129,8 +197,15 @@ function settingsFor(boutique: string) {
     scan_enabled: SETTINGS_GLOBAL.scan_enabled,
     receipt_qr_enabled: SETTINGS_GLOBAL.receipt_qr_enabled,
     receipt_qr_base_url: SETTINGS_GLOBAL.receipt_qr_base_url,
-    loyalty_lookup_enabled: SETTINGS_GLOBAL.loyalty_lookup_enabled
+    loyalty_lookup_enabled: SETTINGS_GLOBAL.loyalty_lookup_enabled,
+    ...RECOGNITION_SETTINGS,
+    face_recognition_enabled: recognitionEnabledFor(boutique)
   }
+}
+
+function recognitionEnabledFor(boutique: string): boolean {
+  const o = BOUTIQUE_RECOGNITION[boutique] || 'Inherit'
+  return o === 'Inherit' ? RECOGNITION_SETTINGS.face_recognition_enabled : o === 'On'
 }
 
 function bootstrapFor(boutique: string): Bootstrap {
@@ -315,6 +390,116 @@ export const mockApi: MaisonApi = {
       }
     }
   },
+  recognition: {
+    async match(embedding, model, boutique): Promise<MatchResult> {
+      await guard()
+      if (!Array.isArray(embedding) || !embedding.length) throw new ApiError('embedding is required', 'ValidationError', 417)
+      if (!recognitionEnabledFor(boutique)) throw new ApiError('Recognition is off for this boutique', 'PermissionError', 403)
+      const threshold = RECOGNITION_SETTINGS.match_threshold
+      const ranked = rankMatches(embedding, activeTemplates(), threshold, model)
+      const matches = ranked.map((r) => {
+        const c = state.customers.find((x) => x.name === r.template.customer)
+        return {
+          customer: r.template.customer,
+          customer_name: c?.customer_name || r.template.customer,
+          client_number: c?.client_number,
+          distance: Math.round(r.distance * 1e6) / 1e6,
+          score: Math.round(r.score * 1000) / 1000,
+          tier: c?.tier ?? null,
+          loyalty_points: c?.loyalty_points ?? 0
+        }
+      })
+      logEvent({ boutique, device_id: 'mock', customer: matches[0]?.customer, score: matches[0]?.score, outcome: matches[0] ? 'Matched' : 'NoMatch' })
+      const best = ranked[0] ?? null
+      return { matches, threshold_distance: threshold, threshold, best_distance: best ? matches[0].distance : null, best_score: best ? matches[0].score : 0 }
+    },
+    async enroll(req: EnrollRequest): Promise<EnrollResult> {
+      await guard()
+      if (!req.consent || !req.consent.method) throw new ApiError('Consent is required to enrol', 'ValidationError', 417)
+      if (!req.embeddings?.length) throw new ApiError('At least one embedding is required', 'ValidationError', 417)
+      const dims = req.embeddings[0].length
+      if (req.embeddings.some((e) => !Array.isArray(e) || e.length !== dims || e.some((x) => typeof x !== 'number' || !Number.isFinite(x))))
+        throw new ApiError('Embeddings must be equal-length numeric arrays', 'ValidationError', 417)
+      const before = state.customers.length
+      const cust = findOrCreateCustomer(req)
+      const created = state.customers.length > before
+      // one Active consent per customer: a re-enrolment revokes the previous one
+      for (const c of state.consents) if (c.customer === cust.name && c.status === 'Active') Object.assign(c, { status: 'Revoked', revoked_at: new Date().toISOString(), revoked_by: 'system' })
+      state.templates = state.templates.filter((t) => t.customer !== cust.name)
+      const consent: MockConsent = {
+        name: `MBC-${String(state.consents.length + 1).padStart(5, '0')}`,
+        customer: cust.name,
+        status: 'Active',
+        consent_text_version: req.consent.text_version,
+        method: req.consent.method,
+        boutique: req.boutique,
+        device_id: req.device_id,
+        captured_at: new Date().toISOString(),
+        has_signature: !!req.consent.signature_data_url
+      }
+      state.consents.push(consent)
+      req.embeddings.forEach((embedding, i) =>
+        state.templates.push({
+          name: `MFT-${cust.name}-${i}`,
+          customer: cust.name,
+          embedding: [...embedding],
+          model: req.model || RECOGNITION_MODEL,
+          dims,
+          quality: req.quality?.[i] ?? 0,
+          captured_at: consent.captured_at,
+          boutique: req.boutique,
+          device_id: req.device_id,
+          consent: consent.name
+        })
+      )
+      cust.maison_face_consent = 1
+      cust.maison_face_consent_at = consent.captured_at
+      cust.face_templates = req.embeddings.length
+      logEvent({ boutique: req.boutique, device_id: req.device_id, customer: cust.name, outcome: 'Enrolled' })
+      save()
+      return { customer: cust.name, client_number: cust.client_number, customer_name: cust.customer_name, consent: consent.name, template_count: req.embeddings.length, created }
+    },
+    async decline(args) {
+      await guard()
+      const cust = findOrCreateCustomer(args)
+      logEvent({ boutique: args.boutique, device_id: args.device_id, customer: cust.name, outcome: 'Declined' })
+      save()
+      return { customer: cust.name, client_number: cust.client_number, customer_name: cust.customer_name }
+    },
+    async templates(boutique, since): Promise<TemplatesResult> {
+      await guard()
+      if (!RECOGNITION_SETTINGS.recognition_offline_cache) throw new ApiError('Offline cache is disabled', 'PermissionError', 403)
+      const rows: TemplateRow[] = activeTemplates()
+        .filter((t) => !since || t.captured_at > since)
+        .map((t) => {
+          const c = state.customers.find((x) => x.name === t.customer)
+          return { customer: t.customer, customer_name: c?.customer_name || t.customer, client_number: c?.client_number, embedding: [...t.embedding], model: t.model }
+        })
+      const deleted = state.consents.filter((c) => c.status === 'Revoked' && (!since || (c.revoked_at || '') > since)).map((c) => c.customer)
+      return { templates: rows, deleted: [...new Set(deleted)].filter((c) => !rows.some((r) => r.customer === c)), version: new Date().toISOString() }
+    },
+    async revoke(customer, reason) {
+      await guard()
+      if (!reason?.trim()) throw new ApiError('Reason is required', 'ValidationError', 417)
+      const cust = state.customers.find((c) => c.name === customer)
+      if (!cust) throw new ApiError(`Customer ${customer} not found`, 'NotFound', 404)
+      state.templates = state.templates.filter((t) => t.customer !== customer)
+      const now = new Date().toISOString()
+      for (const c of state.consents) if (c.customer === customer && c.status === 'Active') Object.assign(c, { status: 'Revoked', revoked_at: now, revoked_by: 'manager' })
+      cust.maison_face_consent = 0
+      cust.maison_face_consent_at = undefined
+      cust.face_templates = 0
+      logEvent({ boutique: cust.last_boutique || 'CHI-OAK', device_id: 'mock', customer, outcome: 'Declined' })
+      save()
+      return { ok: true }
+    },
+    async log_event(args) {
+      await guard()
+      logEvent({ boutique: args.boutique || 'CHI-OAK', device_id: args.device_id || 'mock', customer: args.customer, score: args.score, outcome: args.outcome, sales_invoice: args.sales_invoice })
+      save()
+      return { ok: true }
+    }
+  },
   dashboard: {
     async live_summary(): Promise<LiveSummary> {
       await guard()
@@ -331,7 +516,11 @@ export const mockApi: MaisonApi = {
           last_seen: new Date().toISOString()
         })),
         by_hour: [],
-        pending_approvals: 2
+        pending_approvals: 2,
+        recognition: {
+          matched_today: state.events.filter((e) => e.outcome === 'Matched' && e.ts.slice(0, 10) === new Date().toISOString().slice(0, 10)).length,
+          enrolled_today: state.events.filter((e) => e.outcome === 'Enrolled' && e.ts.slice(0, 10) === new Date().toISOString().slice(0, 10)).length
+        }
       }
     },
     async heartbeat() {
@@ -349,6 +538,75 @@ export const mockApi: MaisonApi = {
     if (!a) throw new ApiError('Associate not found', 'NOT_FOUND', 404)
     const ok = a.pin_hash === (await sha256Hex(pin))
     return { ok, associate: a.name, full_name: a.full_name, boutique: a.boutique, role: a.role }
+  }
+}
+
+// ---- v0.3 recognition helpers ----
+function activeTemplates(): MockTemplate[] {
+  const active = new Set(state.consents.filter((c) => c.status === 'Active').map((c) => c.customer))
+  return state.templates.filter((t) => active.has(t.customer))
+}
+
+function logEvent(e: Omit<MockEvent, 'ts'>) {
+  state.events.push({ ...e, ts: new Date().toISOString() })
+  if (state.events.length > 500) state.events.splice(0, state.events.length - 500)
+}
+
+/** Same resolution order as the backend: explicit customer → phone digits → email → create. */
+function findOrCreateCustomer(args: { customer?: string; phone?: string; email?: string; name?: string }): Customer {
+  if (args.customer) {
+    const c = state.customers.find((x) => x.name === args.customer)
+    if (!c) throw new ApiError(`Customer ${args.customer} not found`, 'NotFound', 404)
+    return c
+  }
+  const digits = (args.phone || '').replace(/\D/g, '')
+  const email = (args.email || '').trim().toLowerCase()
+  if (!digits && !email) throw new ApiError('Phone or email is required', 'ValidationError', 417)
+  const found = state.customers.find(
+    (x) => (digits.length >= 7 && (x.mobile_no || '').replace(/\D/g, '').endsWith(digits.slice(-10))) || (email && (x.email_id || '').toLowerCase() === email)
+  )
+  if (found) {
+    if (args.name?.trim() && !found.customer_name) found.customer_name = args.name.trim()
+    return found
+  }
+  const idx = state.customers.length + 1
+  const c: Customer = {
+    name: `CUST-${String(idx).padStart(4, '0')}`,
+    customer_name: args.name?.trim() || (email ? email.split('@')[0] : `Client ${digits.slice(-4)}`),
+    mobile_no: args.phone?.trim() || undefined,
+    email_id: email || undefined,
+    loyalty_points: 0,
+    tier: 'Member',
+    client_number: clientNumberFor(idx - 1),
+    maison_face_consent: 0
+  }
+  state.customers.unshift(c)
+  return c
+}
+
+/** Test hook: inspect / seed the mock "server" (enrolment e2e, screenshots). */
+export const __mockRecognition = {
+  templates: () => state.templates.map((t) => ({ ...t })),
+  consents: () => state.consents.map((c) => ({ ...c })),
+  events: () => state.events.map((e) => ({ ...e })),
+  customers: () => state.customers.map((c) => ({ ...c })),
+  /** Seed consented templates directly (as if enrolled elsewhere). */
+  setTemplates(list: { customer: string; embedding: number[]; model?: string }[]) {
+    const now = new Date().toISOString()
+    state.templates = state.templates.filter((t) => !list.some((l) => l.customer === t.customer))
+    for (const l of list) {
+      if (!state.consents.some((c) => c.customer === l.customer && c.status === 'Active'))
+        state.consents.push({ name: `MBC-T-${l.customer}`, customer: l.customer, status: 'Active', consent_text_version: RECOGNITION_SETTINGS.consent_text_version, method: 'Hold-to-agree', boutique: 'CHI-OAK', device_id: 'test', captured_at: now, has_signature: false })
+      const i = state.templates.filter((t) => t.customer === l.customer).length
+      state.templates.push({ name: `MFT-${l.customer}-${i}`, customer: l.customer, embedding: [...l.embedding], model: l.model || RECOGNITION_MODEL, dims: l.embedding.length, quality: 1, captured_at: now, boutique: 'CHI-OAK', device_id: 'test', consent: `MBC-T-${l.customer}` })
+      const c = state.customers.find((x) => x.name === l.customer)
+      if (c) {
+        c.maison_face_consent = 1
+        c.maison_face_consent_at = now
+        c.face_templates = i + 1
+      }
+    }
+    save()
   }
 }
 
@@ -487,6 +745,9 @@ export function __resetMock() {
   state.seq = 1
   state.images = {}
   state.receipts = {}
+  state.templates = []
+  state.consents = []
+  state.events = []
   try {
     localStorage.removeItem(LS_KEY)
   } catch {

@@ -2,3 +2,5 @@
 
 [post_model_sync]
 maison_pos.patches.v0_2.backfill_client_numbers
+maison_pos.patches.v0_3.biometrics_fields
+maison_pos.patches.v0_3.match_threshold_distance

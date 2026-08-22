@@ -26,7 +26,8 @@
   "printer_ip",
   "printer_model",
   "section_pos",
-  "show_product_images"
+  "show_product_images",
+  "face_recognition_enabled"
  ],
  "fields": [
   {
@@ -159,6 +160,14 @@
    "fieldname": "show_product_images",
    "fieldtype": "Check",
    "label": "Show product images on tiles"
+  },
+  {
+   "default": "Inherit",
+   "description": "Client recognition (camera) at this boutique. Inherit follows Maison POS Settings; On/Off override it. Head Office only.",
+   "fieldname": "face_recognition_enabled",
+   "fieldtype": "Select",
+   "label": "Client recognition (camera)",
+   "options": "Inherit\nOn\nOff"
   }
  ],
  "index_web_pages_for_search": 0,
@@ -173,6 +182,14 @@
   },
   {
    "link_doctype": "Maison Price Change Request",
+   "link_fieldname": "boutique"
+  },
+  {
+   "link_doctype": "Maison Biometric Consent",
+   "link_fieldname": "boutique"
+  },
+  {
+   "link_doctype": "Maison Recognition Event",
    "link_fieldname": "boutique"
   }
  ],

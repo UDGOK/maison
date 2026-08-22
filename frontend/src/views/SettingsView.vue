@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
@@ -12,7 +12,8 @@ import { fmtDateTime } from '@/utils/device'
 import { buildReceiptXml } from '@/printer/epos'
 import { sendToPrinter } from '@/printer/epos'
 import { useScanStore } from '@/stores/scan'
-import { recognitionProvider } from '@/recognition/provider'
+import { useRecognitionStore } from '@/stores/recognition'
+import RecognitionTile from '@/components/RecognitionTile.vue'
 
 const session = useSessionStore()
 const catalog = useCatalogStore()
@@ -21,7 +22,33 @@ const sync = useSyncStore()
 const cart = useCartStore()
 const router = useRouter()
 const scan = useScanStore()
-const recognition = recognitionProvider()
+const recognition = useRecognitionStore()
+
+// ---- client recognition (v0.3)
+const cameras = ref<{ deviceId: string; label: string }[]>([])
+const deviceMode = computed({
+  get: () => (recognition.deviceEnabled === null ? 'boutique' : recognition.deviceEnabled ? 'on' : 'off'),
+  set: (v: string) => void recognition.setDeviceEnabled(v === 'boutique' ? null : v === 'on')
+})
+/** Slider works in hundredths of the maximum euclidean distance (face-api rule: < 0.60). Lower = stricter. */
+const thresholdHundredths = computed({
+  get: () => Math.round(recognition.threshold * 100),
+  set: (v: number) => void recognition.setThreshold(v / 100)
+})
+const boutiqueThresholdHundredths = computed(() => Math.round(catalog.settings.match_threshold * 100))
+async function listCameras() {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices()
+    cameras.value = devs.filter((d) => d.kind === 'videoinput').map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Camera ${i + 1}` }))
+  } catch {
+    cameras.value = []
+  }
+}
+onMounted(() => void listCameras())
+onBeforeUnmount(() => recognition.setTestMode(false))
+async function refreshTemplates() {
+  await recognition.syncTemplates(true)
+}
 const imagesMode = computed({
   get: () => (catalog.imagesOverride === null ? 'boutique' : catalog.imagesOverride ? 'on' : 'off'),
   set: (v: string) => void catalog.setImagesOverride(v === 'boutique' ? null : v === 'on')
@@ -146,13 +173,70 @@ async function resetDevice() {
           <div class="row">
             <button class="btn" :disabled="!catalog.settings.scan_enabled" @click="scan.openSheet('any')">Open scanner</button>
           </div>
-          <label class="check soon" title="Coming soon">
-            <button class="switch" disabled aria-disabled="true" aria-label="Client recognition (camera) — coming soon"></button>
-            <span>
-              Client recognition (camera) — <span class="dim">coming soon</span>
-              <span class="dim block-note">Opt-in per client with stored consent only. Provider: {{ recognition.id }} (unavailable). See README “Facial recognition: legal notice”.</span>
-            </span>
+        </div>
+
+        <div class="card block rec-block">
+          <div class="between">
+            <div class="section-title">Client recognition (camera)</div>
+            <span class="pill" :class="recognition.boutiqueEnabled ? 'pill-accent' : ''">{{ recognition.boutiqueEnabled ? 'On for boutique' : 'Off by Head Office' }}</span>
+          </div>
+          <div class="muted small">
+            On-device face matching for clients who gave written consent. Embeddings only — the POS never stores or uploads images. Recognition is off per boutique until Head Office switches it on; see README “Facial recognition: legal notice”.
+          </div>
+          <div class="field">
+            <label class="label">This device</label>
+            <select v-model="deviceMode" class="input" :disabled="!recognition.boutiqueEnabled" data-testid="recognition-device-mode">
+              <option value="boutique">Follow boutique ({{ recognition.boutiqueEnabled ? 'on' : 'off' }})</option>
+              <option value="on">On</option>
+              <option value="off">Off on this device</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label">Camera</label>
+            <select class="input" :value="recognition.cameraId" :disabled="!recognition.boutiqueEnabled" @change="recognition.setCamera(($event.target as HTMLSelectElement).value)" @focus="listCameras">
+              <option value="">Default (front)</option>
+              <option v-for="c in cameras" :key="c.deviceId" :value="c.deviceId">{{ c.label }}</option>
+            </select>
+          </div>
+          <label class="check">
+            <input :checked="recognition.showPreview" type="checkbox" :disabled="!recognition.boutiqueEnabled" @change="recognition.setShowPreview(($event.target as HTMLInputElement).checked)" />
+            <span>Show camera preview on the Sell screen <span class="dim">(off = blurred, detection still runs)</span></span>
           </label>
+          <div v-if="session.isManager" class="field">
+            <div class="between">
+              <label class="label">Match threshold <span class="dim">(manager)</span></label>
+              <span class="num accent">{{ recognition.threshold.toFixed(2) }}</span>
+            </div>
+            <input v-model.number="thresholdHundredths" class="range" type="range" min="20" :max="boutiqueThresholdHundredths" step="1" :disabled="!recognition.boutiqueEnabled" data-testid="recognition-threshold" />
+            <div class="between small muted">
+              <span>Max distance · boutique {{ catalog.settings.match_threshold.toFixed(2) }} · lower = stricter (device can only tighten)</span>
+              <button v-if="recognition.thresholdOverride !== null" class="label link" @click="recognition.setThreshold(null)">Reset</button>
+            </div>
+          </div>
+          <div class="kv"><span class="label">Model</span><span>{{ recognition.model }}{{ recognition.providerStatus.backend ? ' · ' + recognition.providerStatus.backend : '' }}</span></div>
+          <div class="kv"><span class="label">Offline cache</span><span>{{ recognition.offlineCache ? recognition.cachedTemplates + ' templates' : 'Disabled' }}</span></div>
+          <div class="kv"><span class="label">Queued enrolments</span><span>{{ recognition.pendingEnrolments }}</span></div>
+          <div class="kv"><span class="label">Consent text</span><span>v{{ recognition.consentVersion }} · retention {{ catalog.settings.biometric_retention_months }} months</span></div>
+          <div class="row">
+            <button class="btn" :class="{ 'btn-primary': recognition.testMode }" :disabled="!recognition.boutiqueEnabled" data-testid="recognition-test" @click="recognition.setTestMode(!recognition.testMode)">
+              {{ recognition.testMode ? 'Stop test' : 'Test recognition' }}
+            </button>
+            <button class="btn btn-ghost" :disabled="!sync.online || !recognition.offlineCache" @click="refreshTemplates">Refresh cache</button>
+          </div>
+          <div v-if="recognition.testMode" class="test" data-testid="recognition-test-panel">
+            <RecognitionTile />
+            <div class="test-status">
+              <div class="kv"><span class="label">Phase</span><span>{{ recognition.providerStatus.phase }} · tracker {{ recognition.providerStatus.tracker }}</span></div>
+              <div class="kv"><span class="label">Detection</span><span>{{ recognition.providerStatus.face ? 'face' : 'no face' }} · {{ recognition.providerStatus.lastMs }} ms · {{ recognition.providerStatus.fps }} fps</span></div>
+              <div class="kv"><span class="label">Quality</span><span>{{ recognition.providerStatus.quality ? (recognition.providerStatus.quality.ok ? 'ok' : recognition.providerStatus.quality.reasons.join(', ')) + ' · q ' + recognition.providerStatus.quality.quality.toFixed(2) + ' · ' + Math.round(recognition.providerStatus.quality.faceWidth) + 'px' : '—' }}</span></div>
+              <div class="kv"><span class="label">Hint</span><span>{{ recognition.providerStatus.hint || '—' }}</span></div>
+            </div>
+            <div class="test-log">
+              <div class="label label-dim">Candidates (not attached to the sale in test mode)</div>
+              <div v-if="!recognition.testLog.length" class="dim small">Waiting for a stable face with a blink or head motion…</div>
+              <div v-for="(l, i) in recognition.testLog.slice(0, 8)" :key="i" class="small">{{ l }}</div>
+            </div>
+          </div>
         </div>
 
         <div class="card block">
@@ -214,20 +298,46 @@ async function resetDevice() {
   height: 20px;
   accent-color: var(--accent);
 }
-.check.soon {
-  cursor: not-allowed;
-  align-items: flex-start;
-  padding-top: 6px;
-}
-.check.soon .switch {
-  min-width: 44px;
-  min-height: 24px;
-  margin-top: 2px;
-}
-.block-note {
-  display: block;
+.small {
   font-size: 12px;
-  margin-top: 2px;
+}
+.range {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 32px;
+}
+.link {
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 4px;
+  color: var(--accent);
+}
+.test {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  padding-top: 4px;
+}
+.test-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.test-log {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: var(--line-w) solid var(--line);
+  background: var(--ground);
+  max-height: 180px;
+  overflow: auto;
+}
+@media (max-width: 767px) {
+  .test {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 767px) {
   .grid {

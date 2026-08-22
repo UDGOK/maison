@@ -14,7 +14,14 @@
   "receipt_qr_base_url",
   "section_recognition",
   "face_recognition_enabled",
-  "face_recognition_note"
+  "recognition_model",
+  "column_break_recognition",
+  "match_threshold",
+  "biometric_retention_months",
+  "recognition_offline_cache",
+  "section_consent",
+  "consent_text_version",
+  "consent_text"
  ],
  "fields": [
   {
@@ -71,16 +78,62 @@
   },
   {
    "default": "0",
-   "description": "Coming soon. Requires per-client opt-in consent (Customer.maison_face_consent). See README: Facial recognition legal notice.",
+   "description": "Master switch. Off by default; Head Office switches it on. Maison Boutique.face_recognition_enabled (Inherit / On / Off) overrides per store.",
    "fieldname": "face_recognition_enabled",
    "fieldtype": "Check",
-   "label": "Client recognition (camera) — coming soon",
-   "read_only": 1
+   "label": "Client recognition (camera)"
   },
   {
-   "fieldname": "face_recognition_note",
-   "fieldtype": "HTML",
-   "options": "<p class=\"text-muted\">Facial recognition is not implemented. The toggle is reserved; any future provider must be opt-in per client with stored consent (BIPA / CCPA).</p>"
+   "default": "face-api/faceRecognitionNet@1",
+   "description": "Embedding model the POS ships. Templates are only matched against embeddings of the same model.",
+   "fieldname": "recognition_model",
+   "fieldtype": "Data",
+   "label": "Recognition model"
+  },
+  {
+   "fieldname": "column_break_recognition",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0.6",
+   "description": "Maximum euclidean distance between RAW face-api descriptors for a match (face-api rule: < 0.6 = same person). Lower = stricter. Devices may only tighten it. The API reports distance plus a display score = 1 − distance/1.2.",
+   "fieldname": "match_threshold",
+   "fieldtype": "Float",
+   "label": "Match threshold (distance)",
+   "precision": "3"
+  },
+  {
+   "default": "36",
+   "description": "Templates of clients with no visit for this many months are destroyed by the daily purge (BIPA retention policy).",
+   "fieldname": "biometric_retention_months",
+   "fieldtype": "Int",
+   "label": "Biometric retention (months)"
+  },
+  {
+   "default": "1",
+   "description": "Allow POS devices to cache consented templates for offline matching (recognition.templates).",
+   "fieldname": "recognition_offline_cache",
+   "fieldtype": "Check",
+   "label": "Offline template cache"
+  },
+  {
+   "fieldname": "section_consent",
+   "fieldtype": "Section Break",
+   "label": "Biometric consent"
+  },
+  {
+   "default": "2026-08-1",
+   "description": "Bump whenever the consent text changes; every consent record stores the version and a snapshot of the text.",
+   "fieldname": "consent_text_version",
+   "fieldtype": "Data",
+   "label": "Consent text version"
+  },
+  {
+   "default": "I agree that Maison may create and store a mathematical template of my facial features (a \"face template\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.",
+   "description": "Shown to the client on the enrolment consent screen (large type). See docs/biometrics-policy.md for EN/ES versions.",
+   "fieldname": "consent_text",
+   "fieldtype": "Text",
+   "label": "Consent text (EN)"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -92,11 +145,36 @@
  "name": "Maison POS Settings",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "email": 1, "print": 1, "read": 1, "role": "System Manager", "share": 1, "write": 1},
-  {"create": 1, "email": 1, "print": 1, "read": 1, "role": "Maison Head Office", "share": 1, "write": 1},
-  {"read": 1, "role": "Maison Regional"},
-  {"read": 1, "role": "Maison Manager"},
-  {"read": 1, "role": "Maison Associate"}
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Maison Head Office",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Maison Regional"
+  },
+  {
+   "read": 1,
+   "role": "Maison Manager"
+  },
+  {
+   "read": 1,
+   "role": "Maison Associate"
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

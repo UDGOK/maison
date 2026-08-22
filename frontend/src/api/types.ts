@@ -1,5 +1,7 @@
 /** Shared API types — mirrors SPEC.md "API CONTRACT". */
 
+import { DEFAULT_DISTANCE_THRESHOLD, clampThreshold } from '@/recognition/math'
+
 export interface Boutique {
   name: string
   boutique_name: string
@@ -67,6 +69,21 @@ export interface PosSettings {
   /** Absolute site URL; QR content is `${receipt_qr_base_url}/r/${token}`. */
   receipt_qr_base_url: string
   loyalty_lookup_enabled: boolean
+  /** v0.3 — client recognition (camera). Off by default per boutique; Head Office switches it on. */
+  face_recognition_enabled: boolean
+  /** v0.3 — model id templates are tagged with, e.g. "face-api/faceRecognitionNet@1" */
+  recognition_model: string
+  /**
+   * v0.3 — **maximum euclidean distance between RAW face-api descriptors** (lower = stricter;
+   * face-api's rule: `distance < 0.6` = same person). The same rule runs on the server
+   * (`maison_pos/biometrics.py`). Descriptors are not unit vectors (‖d‖ ≈ 1.5), so cosine would
+   * false-match different people (0.85–0.90). A device may only tighten (lower) this value.
+   */
+  match_threshold: number
+  biometric_retention_months: number
+  consent_text: string
+  consent_text_version: string
+  recognition_offline_cache: boolean
 }
 
 /** Backend `catalog.upload_item_image` result: `image` is the absolute URL now on `Item.image`. */
@@ -89,21 +106,51 @@ export function normalizeSettings(raw?: Partial<Record<keyof PosSettings, unknow
     if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true'
     return !!v
   }
+  const num = (k: 'match_threshold' | 'biometric_retention_months'): number => {
+    const v = Number(r[k])
+    return Number.isFinite(v) && v > 0 ? v : DEFAULT_SETTINGS[k]
+  }
   return {
     show_product_images: flag('show_product_images'),
     scan_enabled: flag('scan_enabled'),
     receipt_qr_enabled: flag('receipt_qr_enabled'),
     receipt_qr_base_url: String(r.receipt_qr_base_url || DEFAULT_SETTINGS.receipt_qr_base_url).replace(/\/+$/, ''),
-    loyalty_lookup_enabled: flag('loyalty_lookup_enabled')
+    loyalty_lookup_enabled: flag('loyalty_lookup_enabled'),
+    face_recognition_enabled: flag('face_recognition_enabled'),
+    recognition_model: String(r.recognition_model || DEFAULT_SETTINGS.recognition_model),
+    match_threshold: clampThreshold(r.match_threshold, DEFAULT_SETTINGS.match_threshold),
+    biometric_retention_months: Math.round(num('biometric_retention_months')),
+    consent_text: String(r.consent_text || DEFAULT_SETTINGS.consent_text),
+    consent_text_version: String(r.consent_text_version || DEFAULT_SETTINGS.consent_text_version),
+    recognition_offline_cache: flag('recognition_offline_cache')
   }
 }
+
+/** Default consent text (EN). The backend ships its own; this is the offline / mock fallback. */
+export const DEFAULT_CONSENT_TEXT =
+  'I agree that Maison may create and store a mathematical template of my facial geometry from a camera image, ' +
+  'and use it only to recognise me in Maison boutiques so that my client profile and loyalty benefits can be ' +
+  'offered to me at the point of sale. No photograph of my face is kept. Maison will not sell, lease or share this ' +
+  'template, will protect it with reasonable security, and will permanently destroy it when I ask, when I have not ' +
+  'visited for 36 months, or when it is no longer needed — whichever comes first. I can withdraw this consent at any ' +
+  'time by asking any Maison associate, and withdrawing never affects my purchases or loyalty balance.'
+
+export const RECOGNITION_MODEL = 'face-api/faceRecognitionNet@1'
+export const RECOGNITION_DIMS = 128
 
 export const DEFAULT_SETTINGS: PosSettings = {
   show_product_images: false,
   scan_enabled: true,
   receipt_qr_enabled: true,
   receipt_qr_base_url: '',
-  loyalty_lookup_enabled: true
+  loyalty_lookup_enabled: true,
+  face_recognition_enabled: false,
+  recognition_model: RECOGNITION_MODEL,
+  match_threshold: DEFAULT_DISTANCE_THRESHOLD,
+  biometric_retention_months: 36,
+  consent_text: DEFAULT_CONSENT_TEXT,
+  consent_text_version: '2026-08-1',
+  recognition_offline_cache: true
 }
 
 export interface PricingRule {
@@ -165,11 +212,96 @@ export interface Customer {
   last_boutique?: string
   /** v0.2 — printed loyalty number `maison_client_number` (e.g. MC482910), unique. */
   client_number?: string
-  /** v0.2 — reserved for recognition; never populated by the POS. */
+  /** v0.2 — reserved; never populated by the POS. */
   maison_face_id?: string
+  /** v0.3 — biometric consent flag (kept in sync with the Active Maison Biometric Consent). */
   maison_face_consent?: 0 | 1
+  /** v0.3 — datetime of the active consent (`maison_face_consent_at`; `_on` is the v0.2 alias). */
+  maison_face_consent_at?: string
   maison_face_consent_on?: string
+  /** v0.3 — number of stored face templates (0 when none / revoked). */
+  face_templates?: number
 }
+
+// ---------------------------------------------------------------------------------------------
+// v0.3 — client recognition (`maison_pos.api.recognition`)
+// ---------------------------------------------------------------------------------------------
+
+export interface RecognitionMatch {
+  customer: string
+  customer_name: string
+  client_number?: string
+  /** euclidean distance on the raw descriptors (lower is better); the match rule is `distance < threshold`. */
+  distance?: number
+  /** display only: clamp(1 − distance / 1.2, 0, 1) */
+  score: number
+  tier?: string | null
+  loyalty_points?: number
+}
+
+export interface MatchResult {
+  matches: RecognitionMatch[]
+  /** maximum distance used by the server (authoritative) */
+  threshold_distance?: number
+  /** alias of `threshold_distance` */
+  threshold: number
+  best_distance?: number | null
+  best_score?: number
+}
+
+export type ConsentMethod = 'Hold-to-agree' | 'Signature'
+
+export interface ConsentPayload {
+  method: ConsentMethod
+  text_version: string
+  /** PNG data URL of the signature stroke when `method === 'Signature'` */
+  signature_data_url?: string
+}
+
+export interface EnrollRequest {
+  embeddings: number[][]
+  model: string
+  quality: number[]
+  boutique: string
+  device_id: string
+  consent: ConsentPayload
+  customer?: string
+  phone?: string
+  email?: string
+  name?: string
+  /** replay idempotency key (queued enrolments) */
+  offline_uuid?: string
+}
+
+export interface EnrollResult {
+  customer: string
+  client_number?: string
+  customer_name?: string
+  consent: string
+  /** row names of the stored templates */
+  templates?: string[]
+  /** number of stored templates */
+  template_count: number
+  created?: boolean
+  duplicate?: boolean
+}
+
+export interface TemplateRow {
+  customer: string
+  customer_name: string
+  client_number?: string
+  embedding: number[]
+  model: string
+}
+
+export interface TemplatesResult {
+  templates: TemplateRow[]
+  deleted: string[]
+  /** server time of this snapshot, pass back as `since` */
+  version?: string
+}
+
+export type RecognitionOutcome = 'Matched' | 'NoMatch' | 'Enrolled' | 'Undone' | 'Declined'
 
 export interface CustomerHistoryRow {
   invoice: string
@@ -268,6 +400,8 @@ export interface LiveSummary {
   }[]
   by_hour: { hour: number; net: number; invoices: number }[]
   pending_approvals: number
+  /** v0.3 */
+  recognition?: { matched_today: number; enrolled_today: number }
 }
 
 /** Structured error thrown by the API client. */
@@ -314,6 +448,16 @@ export interface MaisonApi {
       customer?: string
     ): Promise<{ id: string; client_secret: string }>
     capture(payment_intent_id: string): Promise<{ status: string; charge_id: string; card_brand: string; last4: string }>
+  }
+  /** v0.3 — on-device embeddings in, customers out. Never sends frames. */
+  recognition: {
+    match(embedding: number[], model: string, boutique: string): Promise<MatchResult>
+    enroll(req: EnrollRequest): Promise<EnrollResult>
+    decline(args: { boutique: string; device_id: string; customer?: string; phone?: string; email?: string; name?: string }): Promise<{ customer: string; client_number?: string; customer_name?: string; created?: boolean }>
+    templates(boutique: string, since?: string): Promise<TemplatesResult>
+    /** Maison Manager+: purges templates, revokes consent, logs. */
+    revoke(customer: string, reason: string): Promise<{ ok: boolean }>
+    log_event(args: { customer?: string; outcome: RecognitionOutcome; score?: number; sales_invoice?: string; boutique?: string; device_id?: string }): Promise<{ ok: boolean }>
   }
   dashboard: {
     live_summary(date?: string): Promise<LiveSummary>

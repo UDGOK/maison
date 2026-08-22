@@ -10,6 +10,7 @@ from frappe.query_builder import DocType
 from frappe.query_builder.functions import Count, Max, Sum
 from frappe.utils import add_to_date, cint, flt, get_datetime, getdate, now_datetime, nowdate
 
+from maison_pos.api.recognition import recognition_counts
 from maison_pos.maison_pos.doctype.maison_device_heartbeat.maison_device_heartbeat import upsert_heartbeat
 from maison_pos.scoping import assert_boutique_access, get_allowed_boutiques, is_unrestricted, assert_roles, ALL_MAISON_ROLES
 from maison_pos.tasks import STALE_AFTER_SECONDS
@@ -200,6 +201,7 @@ def live_summary(date: Optional[str] = None) -> dict[str, Any]:
 		"by_hour": [by_hour[h] for h in range(24)],
 		"pending_approvals": pending_total,
 		"pending_approvals_list": _pending_list(boutiques) if is_unrestricted() else [],
+		"recognition": recognition_counts(boutiques, day),
 	}
 
 

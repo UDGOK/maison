@@ -10,10 +10,13 @@
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src --ext .ts,.vue",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "models": "node scripts/copy-models.mjs",
+    "shots:v03": "node scripts/shots-v03.mjs"
   },
   "dependencies": {
     "@stripe/terminal-js": "^0.22.0",
+    "@vladmandic/face-api": "^1.7.15",
     "@zxing/browser": "^0.2.1",
     "dexie": "^4.0.10",
     "pinia": "^2.3.0",
@@ -23,6 +26,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
     "@types/qrcode": "^1.5.6",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-vue": "^5.2.1",

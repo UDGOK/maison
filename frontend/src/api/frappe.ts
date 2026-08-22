@@ -127,6 +127,14 @@ export const frappeApi: MaisonApi = {
       call('stripe_terminal.create_payment_intent', { amount, currency, offline_uuid, customer }),
     capture: (payment_intent_id) => call('stripe_terminal.capture', { payment_intent_id })
   },
+  recognition: {
+    match: (embedding, model, boutique) => call('recognition.match', { embedding, model, boutique }),
+    enroll: (req) => call('recognition.enroll', { ...req }),
+    decline: (args) => call('recognition.decline', { ...args }),
+    templates: (boutique, since) => call('recognition.templates', { boutique, since }, { get: true }),
+    revoke: (customer, reason) => call('recognition.revoke', { customer, reason }),
+    log_event: (args) => call('recognition.log_event', { ...args })
+  },
   dashboard: {
     live_summary: (date) => call('dashboard.live_summary', { date }),
     heartbeat: (boutique, device_id, queued) => call('dashboard.heartbeat', { boutique, device_id, queued })

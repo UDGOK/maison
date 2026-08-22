@@ -102,3 +102,128 @@ curl -s -o receipt.pdf -w "%{http_code} %{content_type}\n" -b $J -H "$H" "$B/api
 - On a fresh site the seed now bootstraps ERPNext itself (company, fiscal year, chart of accounts). Running the interactive setup wizard first is also fine — the seed only runs the headless wizard when no Company exists.
 - `allow_tests` is set in `site_config.json` for the dev site.
 - The PWA needs `X-Frappe-CSRF-Token` on POSTs once a session has a token (`www/pos.py` injects it as `window.csrf_token`).
+
+## v0.3 — Client recognition backend (2026-08-22)
+
+Changes: doctypes `Maison Face Template` (child of Customer, `maison_face_templates`),
+`Maison Biometric Consent`, `Maison Recognition Event`; settings fields (`recognition_model`,
+`match_threshold`, `biometric_retention_months`, `recognition_offline_cache`, `consent_text`,
+`consent_text_version`; `face_recognition_enabled` is now writable); `Maison Boutique.face_recognition_enabled`
+(Inherit/On/Off); Customer `maison_face_consent_at` (+ hidden legacy `_on` mirror); `maison_pos/api/recognition.py`;
+`maison_pos/biometrics.py` (cosine math, threshold conversion, consent text); daily
+`maison_pos.tasks.purge_expired_biometrics`; `dashboard.live_summary.recognition`; patch
+`maison_pos.patches.v0_3.biometrics_fields`; `docs/biometrics-policy.md`; `tests/test_recognition.py` (23 tests).
+
+```bash
+bench --site maison.localhost migrate                     # clean; runs patches.v0_3.biometrics_fields
+bench --site maison.localhost run-tests --app maison_pos   # Ran 72 tests — OK (3 consecutive runs)
+pkill -f honcho; setsid nohup bench start > logs/bench-start.log 2>&1 &   # restart after python changes
+```
+
+Notes / gotchas found while integrating:
+
+| # | Symptom | Fix |
+|---|---------|-----|
+| 1 | numpy is **not** installed in the bench env | `maison_pos/biometrics.py` uses pure-python cosine (numpy is picked up automatically if present). |
+| 2 | `bootstrap.settings.scan_enabled / receipt_qr_enabled / loyalty_lookup_enabled` came back `0` after the Single was saved once from the desk: Frappe does not apply field defaults to an existing Single row, so unsaved Check fields load as 0 and get persisted as 0 on the next save | `get_pos_settings` now reads the stored row (`get_singles_dict`) and applies defaults for missing keys; `ensure_settings_defaults` (after_install / after_migrate / v0.3 patch) persists the v0.2 defaults (=1) and the v0.3 recognition defaults when absent. The dev site row was repaired by hand (`set_single_value` → 1). |
+| 3 | `templates(since=…)` returned `deleted: []` when `since` was a UTC timestamp | All API timestamps are site-local (like every other endpoint). Use the `version` returned by the previous `templates` call as `since`. |
+| 4 | MariaDB and the bench were not running at the start of the session | `service mariadb start`, then `bench start` as user claude. |
+
+### Smoke tests (live bench, Administrator)
+
+```bash
+J=cj.txt; H="Host: maison.localhost"; B=http://localhost:8000
+curl -s -c $J -H "$H" -X POST $B/api/method/login -H 'Content-Type: application/json' -d '{"usr":"Administrator","pwd":"admin"}'
+CSRF=$(curl -s -b $J -H "$H" $B/pos | grep -o 'window.csrf_token = "[^"]*"' | cut -d'"' -f2)
+POST() { curl -s -b $J -H "$H" -H "X-Frappe-CSRF-Token: $CSRF" -H 'Content-Type: application/json' -X POST "$B/api/method/$1" -d "$2"; echo; }
+# E = JSON list of 3 x 128 floats, P = a jittered copy of E[0], O = an unrelated vector (see scratch vecs.json)
+
+POST frappe.client.set_value '{"doctype":"Maison POS Settings","name":"Maison POS Settings","fieldname":"face_recognition_enabled","value":1}'
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.catalog.bootstrap?boutique=CHI-OAK"   # settings now include:
+# {"face_recognition_enabled":1,"face_recognition_global":1,"recognition_model":"face-api/faceRecognitionNet@1",
+#  "match_threshold":0.84875,"match_distance_threshold":0.55,"biometric_retention_months":36,"recognition_offline_cache":1,
+#  "consent_text":"I agree that Maison may create and store …","consent_text_version":"2026-08-1"}
+
+POST maison_pos.api.recognition.match "{\"embedding\":$P,\"model\":\"face-api/faceRecognitionNet@1\",\"boutique\":\"CHI-OAK\",\"device_id\":\"SMOKE-1\"}"
+# -> {"matches":[],"threshold":0.84875,"best_score":0.0,"model":"face-api/faceRecognitionNet@1","candidates":0,"event":"mvh19r8tdr"}
+
+POST maison_pos.api.recognition.enroll "{\"embeddings\":$E,\"model\":\"face-api/faceRecognitionNet@1\",\"quality\":[0.91,0.93,0.9],\"boutique\":\"CHI-OAK\",\"device_id\":\"SMOKE-1\",\"consent\":{\"method\":\"Hold-to-agree\",\"text_version\":\"2026-08-1\"},\"phone\":\"+1 312 555 0199\",\"name\":\"Smoke Client\",\"offline_uuid\":\"smoke-enrol-0001\"}"
+# -> {"customer":"Smoke Client","customer_name":"Smoke Client","client_number":"MC595284","tier":"Collector","loyalty_points":0.0,
+#     "points_value":0.0,"face_consent":1,"face_consent_at":"2026-08-22 11:12:37.802490","consent":"MBC-2026-00001",
+#     "templates":["mvq4tni1ka","mvqr2qk9nn","mvqiqrmgar"],"created":true,"consent_text_version":"2026-08-1","event":"mvqtul8mfq"}
+
+POST maison_pos.api.recognition.match "{\"embedding\":$P,...}"
+# -> {"matches":[{"customer":"Smoke Client",...,"score":0.998543}],"threshold":0.84875,"best_score":0.998543,"candidates":3,"event":"…"}
+POST maison_pos.api.recognition.match "{\"embedding\":$O,...}"
+# -> {"matches":[],"threshold":0.84875,"best_score":0.039206,"candidates":3,"event":"…"}
+
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.recognition.templates?boutique=CHI-OAK"
+# -> {"templates":[{"template":"mvq4tni1ka","customer":"Smoke Client","customer_name":"Smoke Client","client_number":"MC595284",
+#     "embedding":[-0.0524,…128 unit-normalised floats],"model":"face-api/faceRecognitionNet@1","dims":128,"captured_at":"2026-08-22 11:12:37.802490"}, …3 rows],
+#     "deleted":[],"enabled":1,"model":"face-api/faceRecognitionNet@1","threshold":0.84875,"version":"2026-08-22T11:12:38.030701"}
+# delta: ...templates?boutique=CHI-OAK&since=<version>  -> 3 new rows after a re-enrol; after revoke -> {"templates":[],"deleted":["Smoke Client"],…}
+
+POST maison_pos.api.recognition.log_event '{"outcome":"Undone","customer":"Smoke Client","score":0.93,"boutique":"CHI-OAK","device_id":"SMOKE-1"}'
+# -> {"ok":true,"event":"mvsu18snsc"}
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.recognition.status?customer=Smoke%20Client"
+# -> {"customer":"Smoke Client",…,"face_consent":1,"consent":{"name":"MBC-2026-00001","captured_at":"…","consent_text_version":"2026-08-1","method":"Hold-to-agree","boutique":"CHI-OAK"},"templates":3,"can_revoke":true}
+
+POST maison_pos.api.recognition.decline '{"boutique":"CHI-OAK","device_id":"SMOKE-1","email":"smoke.decline@example.com","name":"Smoke Decliner"}'
+# -> {"customer":"Smoke Decliner","customer_name":"Smoke Decliner","client_number":"MC521818",…,"face_consent":0,"face_consent_at":null,"created":true,"event":"mvubqvlqat"}
+
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.dashboard.live_summary" | jq .message.recognition
+# -> {"matched_today":1,"enrolled_today":1,"nomatch_today":2,"declined_today":1,"undone_today":1}
+
+POST maison_pos.api.recognition.revoke '{"customer":"Smoke Client","reason":"smoke test"}'
+# -> {"ok":true,"customer":"Smoke Client","purged_templates":3,"revoked_consents":["MBC-2026-00001"],"event":"mvvjpoad8v"}
+
+# Associate (chi.oak.a1@maison.example / maison123) calling revoke -> HTTP 403 (PermissionError)
+bench --site maison.localhost execute maison_pos.tasks.purge_expired_biometrics     # -> {"checked": 0, "purged": []}
+POST frappe.client.set_value '{"doctype":"Maison POS Settings","name":"Maison POS Settings","fieldname":"face_recognition_enabled","value":0}'   # back to default off
+```
+
+## v0.3 — Full integration + match-threshold contract fix (2026-08-22)
+
+**Contract fix.** face-api 128-d descriptors are not unit vectors (‖d‖ ≈ 1.4–1.6; the e2e run measured
+1.57–1.59), so the earlier backend rule — cosine ≥ 0.849 (0.55 converted as if vectors were unit) — false-matched
+different people (cross-person cosine 0.85–0.90). Both sides now share ONE rule, face-api's published one:
+**euclidean distance between the RAW descriptors `< match_threshold`, default 0.6**.
+
+| Where | Change |
+|---|---|
+| `maison_pos/biometrics.py` | `euclidean`, `is_match`, `best_distances`; `distance_to_score(d) = clamp(1 − d/1.2, 0, 1)` (display only); `DEFAULT_DISTANCE_THRESHOLD = 0.6`, `MAX_DISTANCE_THRESHOLD = 1.5`. Cached/stored vectors stay raw. |
+| `api/recognition.py` | `match` → `matches[].distance` + `score`, `threshold_distance` (+ `threshold` alias), `best_distance`, `best_score`; `templates` returns **raw** embeddings + `threshold_distance`; `enroll` returns `templates` (row names) **and** `template_count`; `find_or_create_customer` tolerates a concurrent duplicate insert (links instead of 409). |
+| `Maison POS Settings` | `match_threshold` = max distance (0.6); validate 0 < d ≤ 1.5; invalid stored value → default. Patch `patches.v0_3.match_threshold_distance` moves sites still on the old default 0.55 to 0.6. |
+| `api/customers.py` | `search` / `lookup` now emit the contract fields the POS reads: `maison_face_consent`, `maison_face_consent_at`, `face_templates` (kept `face_consent` as alias). Before this the Client screen never showed "enrolled · Delete" on the real bench. |
+| frontend `recognition/math.ts` | `euclidean`, `distanceToScore`, `isMatch`, `clampThreshold`, `effectiveThreshold` (device may only **tighten**); `rankMatches` sorts by distance; `reconcile` picks the smaller distance. `DEFAULT_SETTINGS.match_threshold = 0.6`. |
+| frontend `matcher.ts` / store / Settings | effective threshold = `min(server, device)`; server rows without `distance` are ignored; slider is a max-distance (0.20 … boutique value); test-mode log prints distances. Stability tracker uses distance < 0.5 between frames. |
+| frontend bugs | `pending_enrolments.add` threw `DataCloneError` (reactive proxies) → queue stores plain arrays; replay is re-entrant-safe and sends `offline_uuid` (the `online` event + heartbeat raced and enrolled twice → 409); 409 is retried; decline of an existing client used `log_event('Declined')` (rejected by the server) → uses `recognition.decline({customer})`; declined clients were cached with `maison_face_consent: 1` → fixed. |
+| tests | backend `tests/test_recognition.py` uses realistic non-unit synthetic descriptors (shared "mean face" + deviation: ‖v‖ ≈ 1.6, cross-person cosine ≈ 0.87, distance ≈ 0.78) incl. `test_cross_person_false_match_regression` (cosine > 0.85, distance > 0.6 → NoMatch) and `test_customer_search_exposes_biometric_status`. Frontend `src/tests/recognition.test.ts` mirrors it (euclidean rule, threshold helpers, cross-person regression, 409/offline_uuid replay). |
+
+```bash
+cd frontend && npm run models && npm run build        # 7.55 MB of weights/WASM copied; vite build + sw.js (39 precache entries)
+bench --site maison.localhost migrate                 # runs patches.v0_3.match_threshold_distance (0.55 → 0.6 on the dev site)
+bench build --app maison_pos; pkill -u claude -f honcho; setsid nohup bench start > logs/bench-start.log 2>&1 &
+bench --site maison.localhost run-tests --app maison_pos   # Ran 75 tests — OK
+cd frontend && npm test                                     # 9 files, 92 tests passed; npm run lint clean
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/pos.e2e.mjs       # 11/11
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/pos.v02.e2e.mjs   # 20/20
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/pos.v03.e2e.mjs   # 31/31
+```
+
+`e2e/pos.v03.e2e.mjs` (screenshots `e2e/shots-v03/`, results `e2e/results.v03.json`) runs real on-device detection in
+headless Chromium (`--use-fake-device-for-media-stream --use-file-for-fake-video-capture=frontend/e2e-assets/face_a|b.mjpeg`,
+WASM backend — WebGL is unavailable headless, the warning is expected): enables recognition as Administrator, revokes
+stale consents from earlier runs, then as `chi.oak.a1` Looking → New client → enrol with phone (hold-to-agree; 200 ms
+press rejected) → server Customer + Active consent + 3 raw 128-d templates + `Enrolled` event → reload → Recognised
+(**d = 0.115–0.127, score 0.89–0.90, threshold 0.6**, local and server agree) → Undo (`Matched` + `Undone` events) →
+face B against A's templates → New client → decline creates the client without consent/templates (`Declined` event) →
+`chi.oak.manager` Client screen "enrolled <date>" → Delete → templates 0, consent Revoked, `Revoked` event, cache 0 →
+offline (`context.setOffline`) enrolment queued (pending 1, provisional client) → reconnect replays in ~3 s (Customer +
+consent + 3 templates, real client swapped onto the basket) → `live_summary.recognition` deltas
+`{matched 2, enrolled 2, nomatch 2, declined 1, undone 1}` → `face_recognition_enabled` set back to 0 (boutique Inherit).
+
+Operator notes: `maison.localhost` must resolve (`127.0.0.1 maison.localhost` in `/etc/hosts`, re-added this session);
+`frappe.client.get_list` cannot list the child table `Maison Face Template` — use `recognition.status(customer).templates`
+or `recognition.templates`. Devices with an old cached threshold override (0.5–0.99 "score") are clamped: any override
+≥ the boutique distance is ignored, so no device ends up looser than the server. Recognition remains **off** on the dev site.

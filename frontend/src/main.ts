@@ -9,6 +9,7 @@ import { usePrinterStore } from './stores/printer'
 import { useSyncStore } from './stores/sync'
 import { useLayoutStore } from './stores/layout'
 import { useScanStore } from './stores/scan'
+import { useRecognitionStore } from './stores/recognition'
 
 async function boot() {
   const app = createApp(App)
@@ -20,6 +21,7 @@ async function boot() {
   await session.restore()
   await useCatalogStore().restore()
   await usePrinterStore().restore()
+  await useRecognitionStore().restore()
 
   app.use(router)
   await router.isReady()

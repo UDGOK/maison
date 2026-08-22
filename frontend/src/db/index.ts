@@ -2,7 +2,7 @@
  * Dexie (IndexedDB) schema. Everything the POS needs to sell while offline lives here.
  */
 import Dexie, { type EntityTable } from 'dexie'
-import type { Customer, Item, POSInvoice, PricingRule } from '@/api/types'
+import type { ConsentPayload, Customer, Item, POSInvoice, PricingRule } from '@/api/types'
 
 export type QueueStatus = 'pending' | 'sending' | 'ok' | 'error'
 
@@ -93,6 +93,39 @@ export interface UploadRow {
   error?: string
 }
 
+/** v0.3 — cached face template of a consented client (offline matching). Never an image. */
+export interface FaceTemplateRow {
+  /** `${customer}#${index}` — a customer may have several templates */
+  id: string
+  customer: string
+  customer_name: string
+  client_number?: string
+  model: string
+  embedding: number[]
+  synced_at: string
+}
+/** v0.3 — enrolment (or decline) captured while offline, replayed by sync. */
+export interface PendingEnrolmentRow {
+  id?: number
+  kind: 'enroll' | 'decline'
+  boutique: string
+  device_id: string
+  associate: string
+  customer?: string
+  phone?: string
+  email?: string
+  name?: string
+  model: string
+  embeddings: number[][]
+  quality: number[]
+  consent?: ConsentPayload
+  /** idempotency key sent as `offline_uuid` so a replay that raced / timed out never enrols twice */
+  offline_uuid?: string
+  created_at: string
+  attempts: number
+  error?: string
+}
+
 export class MaisonDB extends Dexie {
   catalog!: EntityTable<Item, 'item_code'>
   prices!: EntityTable<PriceRow, 'item_code'>
@@ -104,6 +137,8 @@ export class MaisonDB extends Dexie {
   settings!: EntityTable<SettingRow, 'key'>
   barcodes!: EntityTable<BarcodeRow, 'code'>
   uploads!: EntityTable<UploadRow, 'id'>
+  face_templates!: EntityTable<FaceTemplateRow, 'id'>
+  pending_enrolments!: EntityTable<PendingEnrolmentRow, 'id'>
 
   constructor(name = 'maison_pos') {
     super(name)
@@ -128,6 +163,20 @@ export class MaisonDB extends Dexie {
       settings: 'key',
       barcodes: 'code, item_code',
       uploads: '++id, item_code, created_at'
+    })
+    this.version(3).stores({
+      catalog: 'item_code, item_group, maison_department, item_name, maison_barcode',
+      prices: 'item_code',
+      pricing_rules: 'name, item_code',
+      serials: 'item_code',
+      stock: 'item_code',
+      customers: 'name, customer_name, mobile_no, email_id, client_number',
+      queue: 'offline_uuid, seq, status, created_at',
+      settings: 'key',
+      barcodes: 'code, item_code',
+      uploads: '++id, item_code, created_at',
+      face_templates: 'id, customer, model',
+      pending_enrolments: '++id, kind, created_at'
     })
   }
 }

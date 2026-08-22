@@ -72,7 +72,10 @@ export default defineConfig(({ command }) => ({
         // possible). navigateFallback stays off; the precached index.html is the last resort.
         navigateFallback: null,
         navigateFallbackDenylist: [/^\/api\//, /^\/app\//],
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg}'],
+        // v0.3: face-api weights (~6.5 MB) + TF.js WASM binaries are precached so recognition
+        // works offline; the recognition net alone is 6.4 MB, above workbox's 2 MB default cap.
+        globPatterns: ['**/*.{js,css,html,woff2,png,svg}', 'models/**/*.{json,bin,wasm}'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
           {
             // app shell: /pos and /pos/* navigations. NetworkFirst keeps the server-rendered

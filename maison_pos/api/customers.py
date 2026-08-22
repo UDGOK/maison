@@ -25,6 +25,7 @@ CUSTOMER_FIELDS = [
 	"loyalty_program",
 	"maison_client_number",
 	"maison_face_consent",
+	"maison_face_consent_at",
 	"modified",
 ]
 UPSERT_ALLOWED = {
@@ -84,12 +85,27 @@ def _last_visits(customers: list[str]) -> dict[str, dict[str, Any]]:
 	return out
 
 
+def _template_counts(customers: list[str]) -> dict[str, int]:
+	"""customer -> number of stored face templates (v0.3 Client screen status line)."""
+	if not customers or not frappe.db.exists("DocType", "Maison Face Template"):
+		return {}
+	rows = frappe.get_all(
+		"Maison Face Template",
+		filters={"parent": ("in", customers), "parenttype": "Customer"},
+		fields=["parent", "count(name) as n"],
+		group_by="parent",
+	)
+	return {r.parent: cint(r.n) for r in rows}
+
+
 def _serialize(rows: list[dict[str, Any]], company: Optional[str] = None) -> list[dict[str, Any]]:
 	visits = _last_visits([r["name"] for r in rows])
+	templates = _template_counts([r["name"] for r in rows])
 	result = []
 	for r in rows:
 		points, tier, points_value = _loyalty(r["name"], company)
 		v = visits.get(r["name"], {})
+		consent_at = r.get("maison_face_consent_at")
 		result.append(
 			{
 				"name": r["name"],
@@ -99,7 +115,11 @@ def _serialize(rows: list[dict[str, Any]], company: Optional[str] = None) -> lis
 				"customer_group": r.get("customer_group"),
 				"loyalty_program": r.get("loyalty_program"),
 				"client_number": r.get("maison_client_number"),
-				"face_consent": cint(r.get("maison_face_consent")),
+				# v0.3 contract fields read by the POS (`Customer.maison_face_consent*`, `face_templates`)
+				"maison_face_consent": cint(r.get("maison_face_consent")),
+				"maison_face_consent_at": str(consent_at) if consent_at else None,
+				"face_templates": templates.get(r["name"], 0),
+				"face_consent": cint(r.get("maison_face_consent")),  # legacy alias
 				"loyalty_points": points,
 				"points_value": points_value,
 				"tier": tier,

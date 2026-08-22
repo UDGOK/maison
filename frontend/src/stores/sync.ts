@@ -5,6 +5,7 @@ import { QueueReplayer } from '@/sync/replay'
 import { useSessionStore } from './session'
 import { useCatalogStore } from './catalog'
 import { replayUploads } from '@/images/uploads'
+import { useRecognitionStore } from './recognition'
 
 export interface SyncNotice {
   id: number
@@ -12,8 +13,8 @@ export interface SyncNotice {
   title: string
   detail?: string
   offline_uuid?: string
-  /** optional action button (v0.2: "Search" on unknown scans) */
-  action?: { label: string; action: 'search' | 'queue' }
+  /** optional action button (v0.2: "Search" on unknown scans; v0.3: "Undo" on a recognition) */
+  action?: { label: string; action: 'search' | 'queue' | 'undo-recognition' }
 }
 
 interface SyncState {
@@ -105,6 +106,7 @@ export const useSyncStore = defineStore('sync', {
           void useCatalogStore().refresh()
         }
         void this.replayUploads()
+        void this.replayRecognition(wasOffline)
       } catch {
         this.serverReachable = false
       }
@@ -163,6 +165,17 @@ export const useSyncStore = defineStore('sync', {
         for (const f of out.failed) this.notify('crit', `Photo upload failed for ${f.item_code}`, f.error)
       } finally {
         this.uploadsReplaying = false
+      }
+    },
+    /** v0.3 — queued enrolments / declines, then refresh the offline template cache. */
+    async replayRecognition(full = false) {
+      if (!this.serverReachable) return
+      const rec = useRecognitionStore()
+      try {
+        if (rec.pendingEnrolments > 0) await rec.replayEnrolments()
+        if (rec.boutiqueEnabled) await rec.syncTemplates(full || !rec.templatesVersion)
+      } catch {
+        /* best effort */
       }
     },
     async countUploads() {

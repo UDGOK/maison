@@ -11,6 +11,8 @@ import { fmtMoney, fmtInt } from '@/utils/money'
 import { fmtDate } from '@/utils/device'
 import Modal from './Modal.vue'
 import Keypad from './Keypad.vue'
+import RecognitionTile from './RecognitionTile.vue'
+import { useRecognitionStore } from '@/stores/recognition'
 
 const cart = useCartStore()
 const session = useSessionStore()
@@ -18,6 +20,7 @@ const catalog = useCatalogStore()
 const scan = useScanStore()
 const layout = useLayoutStore()
 const sync = useSyncStore()
+const recognition = useRecognitionStore()
 const router = useRouter()
 
 const editing = ref<CartLine | null>(null)
@@ -101,11 +104,11 @@ function charge() {
 <template>
   <aside class="basket" :class="{ phone: layout.phone, expanded: layout.sheetExpanded }">
     <!-- phone: collapsed summary bar -->
-    <button v-if="layout.phone && !layout.sheetExpanded" class="summary-bar" :disabled="!cart.lines.length && !cart.customer" @click="layout.openSheet()">
+    <button v-if="layout.phone && !layout.sheetExpanded" class="summary-bar" :disabled="!cart.lines.length && !cart.customer && !recognition.boutiqueEnabled" @click="layout.openSheet()">
       <span class="sum-left">
         <span class="label">{{ cart.count }} item{{ cart.count === 1 ? '' : 's' }}</span>
         <span v-if="cart.customer" class="sum-client ellipsis">{{ cart.customer.customer_name }}</span>
-        <span v-else class="sum-client dim">Walk-in</span>
+        <span v-else class="sum-client dim">Walk-in<span v-if="recognition.boutiqueEnabled" class="sum-rec"> · <span class="accent">Recognition</span></span></span>
       </span>
       <span class="sum-total num">{{ fmtMoney(cart.totals.grand_total, session.currency) }}</span>
       <span class="sum-cta display" :class="{ off: !cart.lines.length }" @click.stop="charge">Charge</span>
@@ -119,10 +122,14 @@ function charge() {
 
       <!-- client card -->
       <div class="client">
+        <RecognitionTile v-if="recognition.boutiqueEnabled" :compact="layout.phone" />
         <template v-if="cart.customer">
           <div class="between">
             <button class="client-name display ellipsis" @click="router.push({ name: 'client' })">{{ cart.customer.customer_name }}</button>
-            <span class="pill pill-accent">{{ cart.customer.tier }}</span>
+            <span class="pills">
+              <span v-if="recognition.recognised?.customer === cart.customer.name" class="pill pill-accent-fill" title="Recognised by camera">Face</span>
+              <span class="pill pill-accent">{{ cart.customer.tier }}</span>
+            </span>
           </div>
           <div class="client-no">
             <span class="label">Client №</span>
@@ -286,6 +293,11 @@ function charge() {
   padding: 14px 16px;
   border-bottom: var(--line-w) solid var(--line);
   color: var(--text);
+}
+.pills {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 .client-name {
   font-size: 15px;
@@ -580,6 +592,9 @@ function charge() {
 }
 .sum-client {
   font-size: 14px;
+}
+.sum-rec {
+  font-size: 12px;
 }
 .sum-total {
   font-size: 20px;

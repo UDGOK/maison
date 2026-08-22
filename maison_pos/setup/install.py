@@ -117,6 +117,13 @@ def create_print_format() -> None:
 		doc.insert(ignore_if_duplicate=True)
 
 
+def ensure_settings_defaults() -> None:
+	"""Fill v0.3 recognition defaults (consent text, threshold, retention) on existing sites."""
+	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import ensure_recognition_defaults
+
+	ensure_recognition_defaults()
+
+
 def after_install() -> None:
 	create_roles()
 	create_custom_fields_from_fixture()
@@ -124,6 +131,7 @@ def after_install() -> None:
 	create_modes_of_payment()
 	create_workflow()
 	create_print_format()
+	ensure_settings_defaults()
 	frappe.db.commit()
 
 
@@ -134,4 +142,5 @@ def after_migrate() -> None:
 	create_role_permissions()
 	create_modes_of_payment()
 	create_print_format()
+	ensure_settings_defaults()
 	frappe.db.commit()

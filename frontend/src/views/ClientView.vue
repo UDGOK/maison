@@ -12,6 +12,8 @@ import { useLayoutStore } from '@/stores/layout'
 import { fmtMoney, fmtInt } from '@/utils/money'
 import { fmtDate } from '@/utils/device'
 import Keypad from '@/components/Keypad.vue'
+import Modal from '@/components/Modal.vue'
+import { useRecognitionStore } from '@/stores/recognition'
 
 const cart = useCartStore()
 const session = useSessionStore()
@@ -19,7 +21,37 @@ const sync = useSyncStore()
 const scan = useScanStore()
 const catalog = useCatalogStore()
 const layout = useLayoutStore()
+const recognition = useRecognitionStore()
 const router = useRouter()
+
+// ---- biometrics (v0.3)
+const revokeOpen = ref(false)
+const revokeReason = ref('Client request')
+const revoking = ref(false)
+const revokeError = ref('')
+const consentAt = (c: Customer) => c.maison_face_consent_at || c.maison_face_consent_on
+async function revoke() {
+  if (!selected.value) return
+  revoking.value = true
+  revokeError.value = ''
+  try {
+    await recognition.revoke(selected.value.name, revokeReason.value.trim() || 'Manager request')
+    selected.value = { ...selected.value, maison_face_consent: 0, maison_face_consent_at: undefined, maison_face_consent_on: undefined, face_templates: 0 }
+    results.value = results.value.map((c) => (c.name === selected.value!.name ? selected.value! : c))
+    sync.notify('good', 'Biometric data deleted', selected.value.customer_name)
+    revokeOpen.value = false
+  } catch (e) {
+    revokeError.value = (e as Error).message
+  } finally {
+    revoking.value = false
+  }
+}
+function enrolSelected() {
+  if (!selected.value) return
+  cart.setCustomer(selected.value)
+  recognition.openEnrol({ customer: selected.value, name: selected.value.customer_name, phone: selected.value.mobile_no || '', email: selected.value.email_id || '' })
+  router.push({ name: 'sell' })
+}
 
 // ---- client number (v0.2)
 const clientNo = ref('')
@@ -230,6 +262,18 @@ async function create() {
           <div>{{ selected.mobile_no || 'No mobile' }}</div>
           <div>{{ selected.email_id || 'No email' }}</div>
         </div>
+        <div v-if="recognition.boutiqueEnabled || selected.maison_face_consent" class="bio" data-testid="biometric-status">
+          <span class="bio-ico" :class="{ on: selected.maison_face_consent }" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="12" cy="11" r="3" /><path d="M7 17c1.2-1.6 3-2.4 5-2.4s3.8.8 5 2.4" /></svg>
+          </span>
+          <span class="bio-txt">
+            <span class="bio-line">Face recognition: <span :class="selected.maison_face_consent ? 'good' : 'dim'">{{ selected.maison_face_consent ? `enrolled ${consentAt(selected) ? fmtDate(consentAt(selected)!) : ''}` : 'not enrolled' }}</span></span>
+            <span v-if="selected.maison_face_consent" class="dim small">Consent on file · templates only, no images</span>
+          </span>
+          <button v-if="selected.maison_face_consent && session.isManager" class="label bio-act crit" data-testid="biometric-revoke" @click="revokeOpen = true">Delete</button>
+          <span v-else-if="selected.maison_face_consent" class="label label-dim bio-act">Manager</span>
+          <button v-else-if="recognition.active && !layout.phone" class="label bio-act accent" @click="enrolSelected">Enrol</button>
+        </div>
         <div class="section-title hist-title">History</div>
         <div class="hist scroll">
           <div v-if="loadingHistory" class="label label-dim">Loading</div>
@@ -250,6 +294,24 @@ async function create() {
       </template>
       <div v-else-if="!layout.phone" class="empty label label-dim">Select a client</div>
     </aside>
+
+    <Modal v-if="revokeOpen && selected" title="Delete biometric data" width="460px" @close="revokeOpen = false">
+      <div class="stack">
+        <div class="muted" style="font-size: 14px">
+          Permanently deletes every face template stored for <strong>{{ selected.customer_name }}</strong>, marks the consent as revoked and logs this action. The client keeps their profile, history and points.
+        </div>
+        <div class="field">
+          <label class="label">Reason</label>
+          <input v-model="revokeReason" class="input" />
+        </div>
+        <div v-if="revokeError" class="crit small">{{ revokeError }}</div>
+        <div v-if="!sync.online" class="warn small">Online required.</div>
+      </div>
+      <template #footer>
+        <button class="btn" @click="revokeOpen = false">Cancel</button>
+        <button class="btn btn-crit" :disabled="revoking || !sync.online" data-testid="biometric-revoke-confirm" @click="revoke">{{ revoking ? 'Deleting' : 'Delete biometric data' }}</button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -372,6 +434,47 @@ async function create() {
   padding: 14px 20px;
   font-size: 13px;
   border-bottom: var(--line-w) solid var(--line);
+}
+.bio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 20px;
+  border-bottom: var(--line-w) solid var(--line);
+  font-size: 13px;
+}
+.bio-ico {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--line-w) solid var(--line-strong);
+  color: var(--dim);
+}
+.bio-ico.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.bio-ico svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.bio-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.bio-act {
+  min-width: 0;
+  padding: 0 8px;
+  min-height: 36px;
 }
 .hist-title {
   padding: 16px 20px 8px;

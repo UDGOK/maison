@@ -4,12 +4,15 @@ import { useRoute } from 'vue-router'
 import TopBar from '@/components/TopBar.vue'
 import NoticeStack from '@/components/NoticeStack.vue'
 import ScannerSheet from '@/components/ScannerSheet.vue'
+import EnrolSheet from '@/components/EnrolSheet.vue'
+import { useRecognitionStore } from '@/stores/recognition'
 import { useSessionStore } from '@/stores/session'
 import { useScanStore } from '@/stores/scan'
 
 const route = useRoute()
 const session = useSessionStore()
 const scan = useScanStore()
+const recognition = useRecognitionStore()
 const showChrome = computed(() => session.unlocked && route.name !== 'unlock')
 </script>
 
@@ -23,6 +26,7 @@ const showChrome = computed(() => session.unlocked && route.name !== 'unlock')
     </main>
     <NoticeStack class="no-print" />
     <ScannerSheet v-if="scan.sheetOpen && showChrome" class="no-print" />
+    <EnrolSheet v-if="recognition.enrolOpen && showChrome" class="no-print" />
   </div>
 </template>
 

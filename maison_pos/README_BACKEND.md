@@ -27,7 +27,8 @@ refreshes the receipt print format HTML. Custom fields live in
 `fixtures/custom_field.json` (synced by `bench migrate` *and* applied through
 `create_custom_fields` in `setup/install.py`, so a fresh site gets everything either way).
 The v0.2 patch `maison_pos.patches.v0_2.backfill_client_numbers` assigns a client number to
-every existing Customer.
+every existing Customer; the v0.3 patch `maison_pos.patches.v0_3.biometrics_fields` adds the
+biometric fields and fills the recognition settings defaults (consent text, threshold, retention).
 
 ## Demo data
 
@@ -133,7 +134,7 @@ empty when `receipt_qr_enabled` is off). `/r/<token>` (`www/r.py` + `www/r.html`
 | `receipt_qr_enabled` | 1 | QR on printed receipts and `/r/<token>` page. |
 | `receipt_qr_base_url` | site URL | Base of the QR link. |
 | `loyalty_lookup_enabled` | 1 | Client № lookup in Sell. |
-| `face_recognition_enabled` | 0, read-only | Reserved — see below. |
+| `face_recognition_enabled` | 0 | v0.3 client recognition master switch — see "Client recognition". |
 
 ## Barcodes
 
@@ -151,34 +152,69 @@ serial via `serials`). Client QR payload is `MC:<customer_id>`; invoice QR is th
 `customers.search` / `lookup` return `client_number`, `loyalty_points`, `points_value`
 (points × conversion factor) and `tier`.
 
-## Facial recognition: legal notice
+## Client recognition (v0.3)
 
-Recognition is **not** implemented. Only the scaffold exists: `Customer.maison_face_id`
-(hidden, reserved), `Customer.maison_face_consent` (Check) with
-`maison_face_consent_on` (stamped automatically when consent is recorded and cleared —
-together with `maison_face_id` — when it is withdrawn), and the read-only
-`face_recognition_enabled` toggle in Maison POS Settings.
+Camera-based client recognition, **off by default**. Embeddings are computed on the device;
+the backend stores only vectors (never images), matches them server-side and keeps the
+consent/audit trail. Legal template, consent wording (EN/ES), signage and the DPIA risk list
+live in `docs/biometrics-policy.md` — read it before switching a boutique on.
 
-Before any provider is wired in, note:
+Doctypes:
 
-- **BIPA (Illinois, 740 ILCS 14)** — collecting a face geometry scan requires prior
-  written informed consent, a public retention / destruction policy, and prohibits sale or
-  profit from the data; statutory damages are per violation. Chicago (`CHI-OAK`) is in
-  scope.
-- **CCPA / CPRA (California)** — biometric data is "sensitive personal information":
-  notice at collection, right to limit use, right to delete.
-- Other states (Texas CUBI, Washington, New York City biometric signage law) impose
-  similar consent / signage duties.
-- The feature must therefore be **opt-in per client**, with the consent timestamp stored
-  (`maison_face_consent_on`), revocable from the Customer record, and any embedding stored
-  only against `maison_face_id` with a documented retention period. Never enable it for
-  walk-in customers or without boutique signage.
+- `Maison Face Template` — child table `Customer.maison_face_templates`: `embedding`
+  (Long Text JSON float array), `model`, `dims`, `quality`, `captured_at`, `boutique`,
+  `device_id`, `consent` (Link). Written only by `recognition.enroll`.
+- `Maison Biometric Consent` (`MBC-YYYY-#####`): `customer`, `status` (Active / Revoked /
+  Superseded — a re-enrolment supersedes the previous consent), `consent_text_version`,
+  `consent_text` snapshot, `method` (Hold-to-agree / Signature), `signature` (private
+  Attach Image), `boutique`, `associate`, `device_id`, `captured_at`, `ip`, `offline_uuid`
+  (idempotency for queued enrolments), `revoked_at` / `revoked_by` / `revoke_reason`.
+- `Maison Recognition Event`: `ts`, `outcome` (Matched / NoMatch / Enrolled / Undone /
+  Declined / Revoked / Purged), `score`, `customer?`, `boutique`, `device_id`,
+  `sales_invoice?`, `user`, `detail`. Scoped by boutique for managers.
+- Customer: `maison_face_consent` (Check) + `maison_face_consent_at` (Datetime; the v0.2
+  `maison_face_consent_on` is kept as a hidden mirror). Both are derived from the consent
+  records; unticking the box in the desk purges the templates and revokes the consent.
+
+Settings (`Maison POS Settings`, merged into `bootstrap.settings`):
+
+| Field | Default | Notes |
+| --- | --- | --- |
+| `face_recognition_enabled` | 0 | Master switch (Head Office). `Maison Boutique.face_recognition_enabled` = Inherit / On / Off overrides per store; `bootstrap.settings.face_recognition_enabled` is the effective value. |
+| `recognition_model` | `face-api/faceRecognitionNet@1` | Templates are matched only within the same model (and dims). |
+| `match_threshold` | 0.6 | **Maximum euclidean distance between RAW face-api descriptors** (face-api's rule: `distance < 0.6` = same person; descriptors are *not* unit vectors, so cosine would false-match). The same rule runs on the device. `recognition.match` returns `distance` per candidate, `threshold_distance` (alias `threshold`) and a display-only `score = clamp(1 − distance/1.2, 0, 1)`. `bootstrap.settings.match_threshold` / `match_distance_threshold` are that distance; a device may only tighten (lower) it. |
+| `biometric_retention_months` | 36 | Daily purge window (no POS visit for N months). |
+| `recognition_offline_cache` | 1 | Allows `recognition.templates` (device cache). |
+| `consent_text` / `consent_text_version` | EN text / `2026-08-1` | Bump the version when the text changes; enrolments with another version are rejected. |
+
+API (`maison_pos.api.recognition`, vectors as JSON lists, Maison Associate+ unless stated):
+
+| Endpoint | Returns |
+| --- | --- |
+| `match(embedding, model, boutique, device_id?)` | `{matches: [{customer, customer_name, client_number, distance, score, tier, loyalty_points, points_value, face_consent, face_consent_at}], threshold_distance, threshold, best_distance, best_score, model, candidates, event}` — only candidates with `distance < threshold_distance` (closest first, max 3). Logs Matched / NoMatch. Throws when recognition is off for the boutique. |
+| `enroll(embeddings, model, boutique, device_id, consent{method, text_version, signature_data_url?}, quality?, customer?, phone?, email?, name?, offline_uuid?)` | `{customer, customer_name, client_number, tier, loyalty_points, points_value, face_consent, face_consent_at, consent, templates[] (row names), template_count, created, consent_text_version, event}`; replays with the same `offline_uuid` return `duplicate: true`. Finds the customer by id, else e-mail (case-insensitive), else phone (digits, ≥7), else creates one. Replaces previous templates. |
+| `decline(boutique, device_id, phone?, email?, name?, customer?)` | same customer summary + `{created, event}`; no biometrics. Logs Declined. |
+| `templates(boutique, since?)` | `{templates: [{template, customer, customer_name, client_number, embedding (unit-normalised), model, dims, captured_at}], deleted: [customer], enabled, model, threshold, version}`. Pass the previous `version` as `since` (site-local ISO). Empty with `enabled: 0` when the cache or recognition is off. |
+| `revoke(customer, reason, boutique?, device_id?)` | **Manager+** → `{ok, customer, purged_templates, revoked_consents[], event}`. |
+| `log_event(outcome, customer?, score?, sales_invoice?, boutique?, device_id?)` | `{ok, event}`; `outcome` ∈ Undone / Matched / NoMatch (offline decisions). |
+| `status(customer)` | customer summary + `{consent: {name, captured_at, consent_text_version, method, boutique} \| null, templates: n, can_revoke}` for the Client screen. |
+
+Matching uses a process-level cache of normalised vectors keyed by a version token in
+`frappe.cache`; the token is bumped by the Customer `on_update` hook whenever the template
+table changes and by `enroll` / `revoke` / the purge, so every web/worker process reloads on
+its next call. Numpy is used when present (it is not in the reference bench); the pure-python
+path is fine for thousands of templates.
+
+`dashboard.live_summary` adds `recognition: {matched_today, enrolled_today, nomatch_today,
+declined_today, undone_today}`.
 
 ## Scheduler
 
 - every 2 minutes: `maison_pos.tasks.check_heartbeat_staleness` marks devices
   Offline after 180 s without a ping and publishes `maison_heartbeat`.
 - daily: `maison_pos.tasks.purge_old_sync_logs` removes successful sync logs older than 90 days.
+- daily: `maison_pos.tasks.purge_expired_biometrics` destroys face templates of clients with
+  no visit in `biometric_retention_months` (revokes the consent, logs `Purged`).
 
 ## Tests
 
@@ -190,7 +226,8 @@ Tests seed the demo data inside the test transaction and cover batch
 idempotency, serial conflicts, price-change approval, boutique scoping, and (v0.2,
 `tests/test_v0_2.py`) receipt tokens + the guest endpoint + QR, client number assignment /
 search / lookup, the barcode map and settings in bootstrap, and `upload_item_image`
-permissions.
+permissions, and (v0.3, `tests/test_recognition.py`) match math / threshold conversion,
+enrol by phone / e-mail, decline, revoke, retention purge and role checks.
 
 ## Export fixtures after editing in the desk
 

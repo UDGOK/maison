@@ -1,0 +1,137 @@
+[
+  {
+    "name": "tile reaches Looking (camera + model loaded)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "first verdict is New client (no templates yet)",
+    "ok": true,
+    "detail": "real on-device detection"
+  },
+  {
+    "name": "short press (200 ms) does not agree",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "hold 800 ms → capture step",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "enrolment completed (sheet closed)",
+    "ok": true,
+    "detail": "3 real captures"
+  },
+  {
+    "name": "server: customer created by phone",
+    "ok": true,
+    "detail": "CUST-0021"
+  },
+  {
+    "name": "server: Active consent stored (Hold-to-agree)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "server: 3 templates stored, no images",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "server: Enrolled event logged",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "client attached to the sale after enrolment",
+    "ok": true,
+    "detail": "Nadia Okafor"
+  },
+  {
+    "name": "same face again → Recognised",
+    "ok": true,
+    "detail": "real detection · score 0.995"
+  },
+  {
+    "name": "recognised the enrolled customer",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "Undo offered within 5 s",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "Undo detaches the client",
+    "ok": true,
+    "detail": "Walk-in"
+  },
+  {
+    "name": "server: Undone event logged",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "server: Matched event logged",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "client screen shows \"Face recognition: enrolled <date>\"",
+    "ok": true,
+    "detail": "Face recognition: enrolled Aug 22, 2026Consent on file · templates only, no imagesDelete"
+  },
+  {
+    "name": "after revoke: not enrolled",
+    "ok": true,
+    "detail": "Face recognition: not enrolledEnrol"
+  },
+  {
+    "name": "server: templates purged + consent Revoked",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "local template cache emptied after revoke",
+    "ok": true,
+    "detail": "cached=0"
+  },
+  {
+    "name": "Settings \"Test recognition\" reports candidates without attaching",
+    "ok": true,
+    "detail": "3:35:46 PM · motion · q 0.89 · no match"
+  },
+  {
+    "name": "different face (B) against A's templates → New client (no false match)",
+    "ok": true,
+    "detail": "real detection"
+  },
+  {
+    "name": "decline: client created + attached without biometrics",
+    "ok": true,
+    "detail": "Theo Brandt"
+  },
+  {
+    "name": "server: Declined event logged",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: first verdict New client",
+    "ok": true,
+    "detail": "real detection"
+  },
+  {
+    "name": "iphone: signature consent stored (has_signature)",
+    "ok": true,
+    "detail": "3 real captures"
+  },
+  {
+    "name": "iphone: same face → Recognised",
+    "ok": true,
+    "detail": "score 0.991"
+  }
+]

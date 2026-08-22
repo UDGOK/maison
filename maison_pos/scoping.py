@@ -132,3 +132,11 @@ def price_change_request_has_permission(doc, ptype: str = "read", user: Optional
 	if is_unrestricted(user):
 		return True
 	return bool(doc.get("boutique")) and doc.get("boutique") == get_user_boutique(user)
+
+
+def biometric_consent_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Biometric Consent", user)
+
+
+def recognition_event_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Recognition Event", user)

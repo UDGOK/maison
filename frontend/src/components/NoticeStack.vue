@@ -2,14 +2,17 @@
 import { useRouter } from 'vue-router'
 import { useSyncStore } from '@/stores/sync'
 import { useScanStore } from '@/stores/scan'
+import { useRecognitionStore } from '@/stores/recognition'
 
 const sync = useSyncStore()
 const scan = useScanStore()
+const recognition = useRecognitionStore()
 const router = useRouter()
 
 function act(n: { id: number; action?: { action: string } }) {
   if (n.action?.action === 'search') scan.searchPending()
   else if (n.action?.action === 'queue') router.push({ name: 'queue' })
+  else if (n.action?.action === 'undo-recognition') void recognition.undo()
   sync.dismiss(n.id)
 }
 </script>
