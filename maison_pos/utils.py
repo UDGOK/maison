@@ -282,6 +282,13 @@ def receipt_payload(doc) -> dict[str, Any]:
 		"payments": payments,
 		"notes": doc.get("maison_notes"),
 		"url": receipt_url(doc.maison_receipt_token) if doc.get("maison_receipt_token") else None,
+		# v0.4 E — credit notes / exchanges
+		"return_against": doc.get("return_against"),
+		"refund_method": doc.get("maison_refund_method"),
+		"refund_id": doc.get("maison_refund_id"),
+		"return_reason": doc.get("maison_return_reason"),
+		"exchange_invoice": doc.get("maison_exchange_invoice"),
+		"store_credit": abs(flt(doc.outstanding_amount)) if doc.get("is_return") and flt(doc.outstanding_amount) < 0 else 0.0,
 	}
 
 

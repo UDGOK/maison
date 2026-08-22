@@ -3,7 +3,8 @@ import { computed, ref } from 'vue'
 import { fetchLiveSummary, MOCK } from '../api'
 import { addSaleToHours, applySale, computeTotals, deriveStatus, emptyHours, pct, sortByNet } from '../lib/aggregate'
 import { connectRealtime } from '../realtime'
-import type { BoutiqueRow, HeartbeatEvent, HourBucket, SaleEvent } from '../types'
+import type { BoutiqueRow, HeartbeatEvent, HourBucket, LowStockBlock, PeriodComparison, ReportLink, SaleEvent } from '../types'
+import { fetchPeriodComparison, fetchReports } from '../api'
 
 export const FEED_SIZE = 12
 
@@ -56,6 +57,11 @@ export const useDashboard = defineStore('dashboard', () => {
   const hours = ref<HourBucket[]>(emptyHours())
   const feed = ref<SaleEvent[]>([])
   const pendingApprovals = ref(0)
+  /** v0.4 D/E/F */
+  const lowStock = ref<LowStockBlock>({ open: 0, by_boutique: {}, top: [] })
+  const returnsToday = ref<{ count: number; value: number }>({ count: 0, value: 0 })
+  const reports = ref<ReportLink[]>([])
+  const periods = ref<PeriodComparison | null>(null)
   const connected = ref(false)
   const loaded = ref(false)
   const error = ref<string | null>(null)
@@ -113,6 +119,8 @@ export const useDashboard = defineStore('dashboard', () => {
       rows.value = s.by_boutique
       hours.value = s.by_hour.length === 24 ? s.by_hour : emptyHours()
       pendingApprovals.value = s.pending_approvals
+      if (s.low_stock) lowStock.value = s.low_stock
+      if (s.returns) returnsToday.value = s.returns
       const recent = (s as unknown as { recent?: SaleEvent[] }).recent
       if (recent) feed.value = [...recent].reverse().slice(0, FEED_SIZE)
       error.value = null
@@ -126,8 +134,19 @@ export const useDashboard = defineStore('dashboard', () => {
   let tick: number | undefined
   let refresh: number | undefined
 
+  async function loadInsights() {
+    try {
+      const [r, p] = await Promise.all([fetchReports(), fetchPeriodComparison()])
+      reports.value = r
+      periods.value = p
+    } catch (e) {
+      error.value = (e as Error).message
+    }
+  }
+
   async function start() {
     await load()
+    void loadInsights()
     tick = window.setInterval(() => (now.value = Date.now()), 1000)
     if (MOCK) {
       const { startMockStream } = await import('../mock')
@@ -135,7 +154,10 @@ export const useDashboard = defineStore('dashboard', () => {
       connected.value = true
     } else {
       stop = connectRealtime({ onSale, onHeartbeat, onConnection: (c) => (connected.value = c) })
-      refresh = window.setInterval(load, 5 * 60_000) // reconcile with server periodically
+      refresh = window.setInterval(() => {
+        void load()
+        void loadInsights()
+      }, 5 * 60_000) // reconcile with server periodically
     }
   }
 
@@ -153,6 +175,7 @@ export const useDashboard = defineStore('dashboard', () => {
   return {
     rows, hours, feed, connected, loaded, error, now, flash,
     totals, cardPct, cashPct, sorted, pendingTotal,
-    onSale, onHeartbeat, load, start, dispose,
+    lowStock, returnsToday, reports, periods,
+    onSale, onHeartbeat, load, loadInsights, start, dispose,
   }
 })

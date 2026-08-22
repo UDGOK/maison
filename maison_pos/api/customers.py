@@ -264,7 +264,7 @@ def upsert(customer: Any) -> dict[str, str]:
 		doc.update(
 			{
 				"customer_type": "Individual",
-				"customer_group": frappe.db.get_single_value("Selling Settings", "customer_group") or _default("Customer Group"),
+				"customer_group": _default_customer_group(),
 				"territory": frappe.db.get_single_value("Selling Settings", "territory") or _default("Territory"),
 			}
 		)
@@ -278,6 +278,17 @@ def upsert(customer: Any) -> dict[str, str]:
 
 def _default(doctype: str) -> Optional[str]:
 	return frappe.db.get_value(doctype, {"is_group": 0}, "name", order_by="creation asc")
+
+
+def _default_customer_group() -> Optional[str]:
+	"""Selling Settings default unless it is a *group* node (e.g. "All Customer Groups", which
+	ERPNext rejects on a Customer); prefer "Individual", else the first leaf group."""
+	configured = frappe.db.get_single_value("Selling Settings", "customer_group")
+	if configured and not frappe.db.get_value("Customer Group", configured, "is_group"):
+		return configured
+	if frappe.db.exists("Customer Group", {"name": "Individual", "is_group": 0}):
+		return "Individual"
+	return _default("Customer Group")
 
 
 @frappe.whitelist()

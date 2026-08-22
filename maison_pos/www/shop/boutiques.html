@@ -1,0 +1,17 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap">
+	<section class="mw-section" style="padding-top:56px">
+		<div class="mw-section-head"><div><span class="mw-label">Maison</span><h1 class="mw-display lg">Our boutiques</h1></div></div>
+		<div class="mw-collections" style="grid-template-columns:repeat({{ boutiques | length or 1 }},1fr)">
+			{% for b in boutiques %}
+			<a id="{{ b.name }}" href="/shop/collection" style="min-height:280px">
+				<span class="mw-label gold">{{ (b.city or '').split(',')[0] }}</span>
+				<span class="n">{{ b.boutique_name }}</span>
+				<span class="c">{{ b.address_line }}<br>{{ b.city }}<br><br>{{ b.phone }}<br>{{ b.email }}<br><br>Monday – Saturday 10:00 – 19:00<br>Sunday by appointment</span>
+			</a>
+			{% endfor %}
+		</div>
+	</section>
+</div>
+{% endblock %}

@@ -6,10 +6,13 @@ import './styles/base.css'
 import { useSessionStore } from './stores/session'
 import { useCatalogStore } from './stores/catalog'
 import { usePrinterStore } from './stores/printer'
+import { useInventoryStore } from './stores/inventory'
 import { useSyncStore } from './stores/sync'
 import { useLayoutStore } from './stores/layout'
 import { useScanStore } from './stores/scan'
 import { useRecognitionStore } from './stores/recognition'
+import { usePromosStore } from './stores/promos'
+import { useLoyaltyStore } from './stores/loyalty'
 
 async function boot() {
   const app = createApp(App)
@@ -21,13 +24,18 @@ async function boot() {
   await session.restore()
   await useCatalogStore().restore()
   await usePrinterStore().restore()
+  await useInventoryStore().restore() // v0.4 D
   await useRecognitionStore().restore()
+  await usePromosStore().restore() // v0.4 I — cached promotions
+  await useLoyaltyStore().restore()
 
   app.use(router)
   await router.isReady()
   app.mount('#app')
   useLayoutStore().start()
-  useScanStore().startWedge()
+  const scan = useScanStore()
+  await scan.loadScannerConfig() // v0.4 J — prefix / suffix / terminator
+  scan.startWedge()
   void useSyncStore().start()
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) void registerServiceWorker()

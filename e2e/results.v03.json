@@ -1,6 +1,6 @@
 {
   "base": "http://maison.localhost:8000",
-  "run": "KJQJF",
+  "run": "WZF66",
   "results": [
     {
       "step": "recognition enabled for CHI-OAK via API (Administrator)",
@@ -10,7 +10,7 @@
     {
       "step": "dashboard live_summary exposes recognition counters",
       "ok": true,
-      "detail": "{\"matched_today\":4,\"enrolled_today\":6,\"nomatch_today\":7,\"declined_today\":3,\"undone_today\":2}"
+      "detail": "{\"matched_today\":11,\"enrolled_today\":12,\"nomatch_today\":15,\"declined_today\":7,\"undone_today\":6}"
     },
     {
       "step": "tile reaches Looking (camera + models served by the bench)",
@@ -35,42 +35,42 @@
     {
       "step": "enrolment completed and client attached to the sale",
       "ok": true,
-      "detail": "3 real captures · attached \"Nadia Okafor KJQJF\""
+      "detail": "3 real captures · attached \"Nadia Okafor WZF66\""
     },
     {
       "step": "server: Customer created by phone",
       "ok": true,
-      "detail": "Nadia Okafor KJQJF MC590104 consent=1"
+      "detail": "Nadia Okafor WZF66 MC285260 consent=1"
     },
     {
       "step": "server: Active consent (Hold-to-agree, current text version)",
       "ok": true,
-      "detail": "{\"name\":\"MBC-2026-00007\",\"captured_at\":\"2026-08-22 12:04:49.447605\",\"consent_text_version\":\"2026-08-1\",\"method\":\"Hold-to-agree\",\"boutique\":\"CHI-OAK\"}"
+      "detail": "{\"name\":\"MBC-2026-00013\",\"captured_at\":\"2026-08-22 17:52:53.667759\",\"consent_text_version\":\"2026-08-1\",\"method\":\"Hold-to-agree\",\"boutique\":\"CHI-OAK\"}"
     },
     {
       "step": "server: 3 face templates (128-d raw descriptors, no images)",
       "ok": true,
-      "detail": "status.templates=3 rows=3 ‖d‖=1.58/1.59/1.58 (raw, not unit-normalised)"
+      "detail": "status.templates=3 rows=3 ‖d‖=1.58/1.58/1.58 (raw, not unit-normalised)"
     },
     {
       "step": "server: Recognition Event Enrolled logged",
       "ok": true,
-      "detail": "lifhdbvmnq device=dev-b1dec2cd"
+      "detail": "1gpmm0b8gt device=dev-59cc827c"
     },
     {
       "step": "same face after reload → Recognised (euclidean distance < threshold)",
       "ok": true,
-      "detail": "real detection · Nadia Okafor KJQJF d=0.127 score=0.894373 threshold=0.6 source=server local d=0.127 server d=0.127"
+      "detail": "real detection · Nadia Okafor WZF66 d=0.105 score=0.912 threshold=0.6 source=local local d=0.105 server d=0.105"
     },
     {
       "step": "score is the display mapping 1 − d/1.2 (rounded)",
       "ok": true,
-      "detail": "score=0.894373 expected=0.894"
+      "detail": "score=0.912 expected=0.912"
     },
     {
       "step": "chip shows \"Recognised · nn %\"",
       "ok": true,
-      "detail": "Recognised · 89%"
+      "detail": "Recognised · 91%"
     },
     {
       "step": "Undo offered within 5 s",
@@ -85,7 +85,7 @@
     {
       "step": "server: Matched + Undone events logged",
       "ok": true,
-      "detail": "matched=1 (score 0.8944) undone=1 (score 0.8944)"
+      "detail": "matched=1 (score 0.9123) undone=1 (score 0.912)"
     },
     {
       "step": "different face (B) against A's templates → New client (no false match)",
@@ -95,12 +95,12 @@
     {
       "step": "decline: client created + attached WITHOUT biometrics",
       "ok": true,
-      "detail": "attached \"Theo Brandt KJQJF\" · Theo Brandt KJQJF consent=0 templates=0 consents=0"
+      "detail": "attached \"Theo Brandt WZF66\" · Theo Brandt WZF66 consent=0 templates=0 consents=0"
     },
     {
       "step": "server: Recognition Event Declined logged",
       "ok": true,
-      "detail": "lva7hufs3e"
+      "detail": "1jsrkupgv0"
     },
     {
       "step": "client screen shows \"Face recognition: enrolled <date>\" with manager Delete",
@@ -135,7 +135,7 @@
     {
       "step": "offline: enrolment queued in pending_enrolments, provisional client attached",
       "ok": true,
-      "detail": "real captures · pending=1 attached \"Offline Client KJQJF\""
+      "detail": "real captures · pending=1 attached \"Offline Client WZF66\""
     },
     {
       "step": "server: nothing created while offline",
@@ -145,12 +145,12 @@
     {
       "step": "reconnect: queue replayed → Customer + consent + 3 templates server-side; real client swapped onto the basket",
       "ok": true,
-      "detail": "pending=0 Offline Client KJQJF templates=3 consent=MBC-2026-00008 attached \"Offline Client KJQJF\" after 3s"
+      "detail": "pending=0 Offline Client WZF66 templates=3 consent=MBC-2026-00014 attached \"Offline Client WZF66\" after 3s"
     },
     {
       "step": "dashboard live_summary.recognition counters incremented",
       "ok": true,
-      "detail": "delta {\"matched_today\":2,\"enrolled_today\":2,\"nomatch_today\":2,\"declined_today\":1,\"undone_today\":1} · now {\"matched_today\":6,\"enrolled_today\":8,\"nomatch_today\":9,\"declined_today\":4,\"undone_today\":3}"
+      "detail": "delta {\"matched_today\":2,\"enrolled_today\":2,\"nomatch_today\":2,\"declined_today\":1,\"undone_today\":1} · now {\"matched_today\":13,\"enrolled_today\":14,\"nomatch_today\":17,\"declined_today\":8,\"undone_today\":7}"
     },
     {
       "step": "recognition switched off again for the dev site",
@@ -203,6 +203,16 @@
       "tag": "manager",
       "type": "warning",
       "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "manager",
+      "type": "warning",
+      "text": "Initialization of backend webgl failed"
+    },
+    {
+      "tag": "manager",
+      "type": "warning",
+      "text": "Error: WebGL is not supported on this device\n    at new FT (http://maison.localhost:8000/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:653)\n    at Object.factory (http://maison.localhost:8000/assets/maison_pos/pos/assets/face-api.esm-DMaQY5kn.js:1238:17579)\n    at om.initializeBackend ("
     },
     {
       "tag": "offline",

@@ -66,6 +66,20 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 		"printer_model": doc.printer_model,
 		"show_product_images": int(doc.get("show_product_images") or 0),
 		"currency": frappe.get_cached_value("Company", doc.company, "default_currency"),
+		# v0.4 A — reader registry (Maison Boutique Reader) for the Settings reader picker / print route
+		"readers": [
+			{
+				"name": r.name,
+				"label": r.label,
+				"stripe_reader_id": r.stripe_reader_id,
+				"device_type": r.device_type,
+				"has_printer": int(r.get("has_printer") or 0),
+				"enabled": int(r.get("enabled") if r.get("enabled") is not None else 1),
+				"serial_number": r.get("serial_number"),
+			}
+			for r in (doc.get("readers") or [])
+		],
+		"damaged_warehouse": doc.get("damaged_warehouse"),
 	}
 
 

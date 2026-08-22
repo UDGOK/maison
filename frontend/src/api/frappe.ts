@@ -139,6 +139,28 @@ export const frappeApi: MaisonApi = {
     live_summary: (date) => call('dashboard.live_summary', { date }),
     heartbeat: (boutique, device_id, queued) => call('dashboard.heartbeat', { boutique, device_id, queued })
   },
+  // v0.4 H — insights
+  insights: {
+    recommend_for_client: (customer, n = 3, boutique) => call('insights.recommend_for_client', { customer, n, boutique }),
+    recommend_for_basket: (items, n = 3, boutique, customer) => call('insights.recommend_for_basket', { items, n, boutique, customer })
+  },
+  // v0.4 E — returns & exchanges
+  returns: {
+    lookup: (args) => call('returns.lookup', { ...args }),
+    return_items: (req) => call('returns.return_items', { ...req }),
+    exchange: (req) => call('returns.exchange', { ...req }),
+    policy: (boutique) => call('returns.policy', { boutique }, { get: true }),
+    recent: (boutique, limit = 20) => call('returns.recent', { boutique, limit }, { get: true })
+  },
+  // v0.4 D — inventory
+  inventory: {
+    alerts: (boutique, status = 'open') => call('inventory.alerts', { boutique, status }, { get: true }),
+    acknowledge: (alert) => call('inventory.acknowledge', { alert }),
+    resolve: (alert) => call('inventory.resolve', { alert }),
+    request_transfer: (args) => call('inventory.request_transfer', { ...args }),
+    cycle_count_expected: (boutique) => call('inventory.cycle_count_expected', { boutique }, { get: true }),
+    submit_cycle_count: (args) => call('inventory.submit_cycle_count', { ...args })
+  },
   verifyPin: (associate, pin) => call(VERIFY_PIN, { associate, pin }),
   // The backend has no catalog.boutiques; the boutiques the user may unlock come from session.me().
   boutiques: async () => {

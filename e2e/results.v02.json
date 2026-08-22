@@ -3,7 +3,7 @@
     {
       "step": "manager uploads item image via catalog.upload_item_image",
       "ok": true,
-      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"http://maison.localhost:8000/files/AC-012-e7e42d.png\",\"file_url\":\"/files/AC-012-e7e42d.png\",\"file_name\":\"AC-012-95cdcd.png\"}"
+      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"http://maison.localhost:8000/files/AC-012-e7e42d.png\",\"file_url\":\"/files/AC-012-e7e42d.png\",\"file_name\":\"AC-012-307a95.png\"}"
     },
     {
       "step": "uploaded image URL is served",
@@ -13,12 +13,12 @@
     {
       "step": "bootstrap has settings/barcodes/images",
       "ok": true,
-      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"http://maison.localhost:8000\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0,\"face_recognition_global\":0,\"recognition_model\":\"face-api/faceRecognitionNet@1\",\"match_threshold\":0.6,\"match_distance_threshold\":0.6,\"biometric_retention_months\":36,\"recognition_offline_cache\":1,\"consent_text\":\"I agree that Maison may create and store a mathematical template of my facial features (a \\\"face template\\\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.\",\"consent_text_version\":\"2026-08-1\"} ean=2004103867421→BR-006 serial=HJ-005-CHI-002 image=http://maison.localhost:8000/files/AC-012-e7e42d.png"
+      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"http://maison.localhost:8000\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0,\"face_recognition_global\":0,\"recognition_model\":\"face-api/faceRecognitionNet@1\",\"match_threshold\":0.6,\"match_distance_threshold\":0.6,\"biometric_retention_months\":36,\"recognition_offline_cache\":1,\"consent_text\":\"I agree that Maison may create and store a mathematical template of my facial features (a \\\"face template\\\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.\",\"consent_text_version\":\"2026-08-1\",\"return_window_days\":30,\"exchange_window_days\":60,\"returns_manager_threshold\":2500,\"low_stock_digest_enabled\":1,\"low_stock_notify_regional\":0} ean=2004103867421→BR-006 serial=HJ-002-CHI-H002 image=http://maison.localhost:8000/files/AC-012-e7e42d.png"
     },
     {
       "step": "customers.search rows carry client_number / loyalty_points / points_value / tier",
       "ok": true,
-      "detail": "Mei-Lin Chen MC528952 pts=313251 value=313251 tier=Patron"
+      "detail": "Mei-Lin Chen MC528952 pts=448263 value=448263 tier=Patron"
     },
     {
       "step": "associate login",
@@ -43,27 +43,27 @@
     {
       "step": "wedge scan serial adds that exact serial",
       "ok": true,
-      "detail": "HJ-005-CHI-002 (Lumiere Diamond Tennis Bracelet); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Lumiere Diamond Tennis BraceletHJ-005-CHI-002$42,000.00×"
+      "detail": "HJ-002-CHI-H002 (Solstice Emerald Pendant); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Solstice Emerald PendantHJ-002-CHI-H002$68,000.00×"
     },
     {
       "step": "client № keypad lookup attaches client with points",
       "ok": true,
-      "detail": "Mei-Lin ChenPatronClient №MC528952Points 313,251 ($313,251.00)Last visit Aug 22, 2026 Redeem points up to 48,454Detach"
+      "detail": "Mei-Lin ChenPatronClient №MC528952Points 448,263 ($448,263.00)Last visit Aug 22, 2026PatronHighest tier Redeem points up to 77,012DetachSuggested for this clientRing Resizing$150.00Bought with Eternal"
     },
     {
       "step": "receipt screen shows QR and receipt link",
       "ok": true,
-      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=http://maison.localhost:8000/r/k8MtsqtDwS6kCiTx"
+      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=http://maison.localhost:8000/r/NRlKnK6nK5m3z8jM"
     },
     {
       "step": "GET /r/<token> as guest returns 200 with boutique name",
       "ok": true,
-      "detail": "200 len=335696"
+      "detail": "200 len=342224"
     },
     {
       "step": "guest sales.receipt JSON has boutique, lines, totals and no PII",
       "ok": true,
-      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••952\",\"tier\":\"Patron\",\"points_earned\":24227,\"points_balance\":337478}"
+      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••952\",\"tier\":\"Patron\",\"points_earned\":38506,\"points_balance\":486769}"
     },
     {
       "step": "GET /r/<bad token> is 404",
@@ -93,7 +93,7 @@
     {
       "step": "iPhone: cash pay → receipt synced with QR + link",
       "ok": true,
-      "detail": "Synced link=http://maison.localhost:8000/r/nO8USEl-Nn_AtkRQ"
+      "detail": "Synced link=http://maison.localhost:8000/r/vFnPzF83hujR2M43"
     },
     {
       "step": "iPhone: receipt screen has no horizontal overflow",
@@ -105,22 +105,22 @@
     {
       "tag": "pos",
       "type": "requestfailed",
-      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CONNECTION_RESET"
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CERT_AUTHORITY_INVALID"
     },
     {
       "tag": "pos",
       "type": "error",
-      "text": "Failed to load resource: net::ERR_CONNECTION_RESET"
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
     },
     {
       "tag": "phone",
       "type": "requestfailed",
-      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CONNECTION_RESET"
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CERT_AUTHORITY_INVALID"
     },
     {
       "tag": "phone",
       "type": "error",
-      "text": "Failed to load resource: net::ERR_CONNECTION_RESET"
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
     }
   ]
 }

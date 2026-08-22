@@ -1,0 +1,61 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap">
+	<div class="mw-cart">
+		<div>
+			<div class="mw-steps"><div class="done"><i>1</i>Bag</div><div class="active"><i>2</i>Boutique</div><div><i>3</i>Payment</div><div><i>4</i>Collect</div></div>
+			<h1 class="mw-display">Where will you collect?</h1>
+			<p class="mw-muted" style="margin:-12px 0 0;max-width:60ch">Your boutique prepares the order and welcomes you for the collection. Pieces not in that boutique are transferred from another Maison boutique, usually within three days.</p>
+			<div class="mw-boutiques" id="mw-boutiques">
+				{% for b in cart.boutiques %}
+				<button type="button" class="mw-boutique {{ 'selected' if (cart.boutique and cart.boutique == b.boutique) or (not cart.boutique and loop.first) else '' }}" data-boutique="{{ b.boutique }}">
+					<span class="radio"></span>
+					<span><span class="n">{{ b.boutique_name }}</span><span class="a">{{ b.address_line }} &middot; {{ b.city }}</span></span>
+					<span class="s {{ '' if b.all_in_stock else 'transfer' }}">{{ 'All pieces in boutique' if b.all_in_stock else 'Transfer · ~3 days' }}</span>
+				</button>
+				{% endfor %}
+			</div>
+
+			<span class="mw-label">Payment</span>
+			<div class="mw-boutiques" id="mw-pay" style="margin-top:12px">
+				{% if cart.payment.enabled %}
+				<button type="button" class="mw-boutique selected" data-pay="1"><span class="radio"></span><span><span class="n">Pay online now</span><span class="a">{{ 'Card via Stripe' if cart.payment.stripe else 'Simulated card (no Stripe key configured)' }} &middot; collect without queueing</span></span><span class="s">Recommended</span></button>
+				{% endif %}
+				<button type="button" class="mw-boutique {{ '' if cart.payment.enabled else 'selected' }}" data-pay="0"><span class="radio"></span><span><span class="n">Pay at the boutique</span><span class="a">Card, cash or Maison Collectors points at collection</span></span><span class="s" style="color:var(--mw-muted)">At the counter</span></button>
+			</div>
+			<div class="mw-error" id="mw-co-error"></div>
+		</div>
+		<aside class="mw-summary">
+			<span class="mw-label">Your order</span>
+			{% for l in cart['items'] %}<div class="row"><span>{{ l.item_name }} &times; {{ l.qty | int }}</span><span>{{ shop_money(l.amount, cart.currency) }}</span></div>{% endfor %}
+			<div class="row"><span>Sales tax</span><span>Of the boutique of collection</span></div>
+			<div class="row total"><span class="mw-label">Total excl. tax</span><span class="mw-price">{{ shop_money(cart.grand_total, cart.currency) }}</span></div>
+			<button class="mw-btn block" id="mw-place">Place order</button>
+			<div class="fine">By placing the order you agree to collect it within 14 days. Unpaid orders are released after that.</div>
+		</aside>
+	</div>
+</div>
+{% endblock %}
+{% block shop_script %}
+<script>
+frappe.ready(() => {
+	const pick = (root) => root.addEventListener('click', (e) => {
+		const b = e.target.closest('.mw-boutique'); if (!b) return;
+		root.querySelectorAll('.mw-boutique').forEach((x) => x.classList.remove('selected'));
+		b.classList.add('selected');
+	});
+	pick(document.getElementById('mw-boutiques'));
+	pick(document.getElementById('mw-pay'));
+	document.getElementById('mw-place').addEventListener('click', async (e) => {
+		const btn = e.currentTarget; btn.disabled = true;
+		const err = document.getElementById('mw-co-error'); err.textContent = '';
+		const boutique = document.querySelector('#mw-boutiques .selected')?.dataset.boutique;
+		const pay = document.querySelector('#mw-pay .selected')?.dataset.pay || '0';
+		try {
+			const r = await MW.call('maison_pos.api.webshop.place_order', { boutique, fulfilment: 'Click & Collect', pay_now: pay });
+			window.location.href = r.payment_url || ('/shop/order?name=' + encodeURIComponent(r.sales_order) + '&placed=1');
+		} catch (ex) { err.textContent = MW.errorText(ex); btn.disabled = false; }
+	});
+});
+</script>
+{% endblock %}

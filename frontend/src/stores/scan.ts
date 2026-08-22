@@ -9,11 +9,13 @@ import { db } from '@/db'
 import { router } from '@/router'
 import { resolveScan, type Resolution } from '@/scan/resolve'
 import { installWedgeListener } from '@/scan/wedge'
+import { DEFAULT_SCANNER_CONFIG, normalizeScannerConfig, stripAffixes, type ScannerConfig } from '@/scan/affixes'
+import { getSetting, setSetting } from '@/db'
 import { useCartStore } from './cart'
 import { useCatalogStore } from './catalog'
 import { useSyncStore } from './sync'
 
-export type ScanMode = 'any' | 'client'
+export type ScanMode = 'any' | 'client' | 'raw'
 
 interface ScanState {
   sheetOpen: boolean
@@ -24,16 +26,33 @@ interface ScanState {
   pendingSearch: string
   /** resolver for a one-off client scan (Client screen / client card) */
   clientResolver: ((c: Customer | null) => void) | null
+  /** v0.4 D/E — raw-code consumer (Returns lookup, Cycle count): receives every scanned string untouched */
+  rawResolver: ((code: string) => void) | null
   uninstall: (() => void) | null
+  /** v0.4 J — device-level scanner prefix / suffix / terminator (Settings → Scanner) */
+  scanner: ScannerConfig
 }
 
 export const useScanStore = defineStore('scan', {
-  state: (): ScanState => ({ sheetOpen: false, mode: 'any', last: null, pendingSearch: '', clientResolver: null, uninstall: null }),
+  state: (): ScanState => ({ sheetOpen: false, mode: 'any', last: null, pendingSearch: '', clientResolver: null, rawResolver: null, uninstall: null, scanner: { ...DEFAULT_SCANNER_CONFIG } }),
   actions: {
     /** Install the global keyboard-wedge listener once. */
     startWedge() {
       if (this.uninstall || typeof window === 'undefined') return
-      this.uninstall = installWedgeListener((code) => void this.handle(code))
+      this.uninstall = installWedgeListener((code) => void this.handle(code), { terminator: this.scanner.terminator })
+    },
+    /** v0.4 J — load the scanner config from Dexie (call before startWedge). */
+    async loadScannerConfig() {
+      this.scanner = normalizeScannerConfig(await getSetting<Partial<ScannerConfig> | null>('scanner', null))
+      return this.scanner
+    },
+    async setScannerConfig(cfg: Partial<ScannerConfig>) {
+      this.scanner = normalizeScannerConfig({ ...this.scanner, ...cfg })
+      await setSetting('scanner', { ...this.scanner })
+      if (this.uninstall) {
+        this.stopWedge()
+        this.startWedge()
+      }
     },
     stopWedge() {
       this.uninstall?.()
@@ -45,6 +64,7 @@ export const useScanStore = defineStore('scan', {
     },
     closeSheet() {
       this.sheetOpen = false
+      if (this.mode === 'raw') this.mode = 'any'
       if (this.clientResolver) {
         this.clientResolver(null)
         this.clientResolver = null
@@ -56,6 +76,20 @@ export const useScanStore = defineStore('scan', {
         this.clientResolver = resolve
         this.openSheet('client')
       })
+    },
+    /**
+     * v0.4 — route every code (wedge or camera) to *consumer* while a screen such as Cycle count
+     * or Returns is active; returns the uninstall function. Camera sheet opens with `openSheet('raw')`.
+     */
+    captureRaw(consumer: (code: string) => void): () => void {
+      this.mode = 'raw'
+      this.rawResolver = consumer
+      return () => {
+        if (this.rawResolver === consumer) {
+          this.rawResolver = null
+          this.mode = 'any'
+        }
+      }
     },
     async lookupCustomer(code: string): Promise<Customer | null> {
       const local = await db.customers.where('client_number').equals(code).first().catch(() => undefined)
@@ -71,6 +105,12 @@ export const useScanStore = defineStore('scan', {
       }
     },
     async handle(raw: string): Promise<Resolution> {
+      raw = stripAffixes(raw, this.scanner)
+      if (this.mode === 'raw' && this.rawResolver) {
+        this.last = { code: raw, at: new Date().toISOString(), result: 'unknown' }
+        this.rawResolver(raw)
+        return { kind: 'unknown', code: raw } as Resolution
+      }
       const catalog = useCatalogStore()
       const cart = useCartStore()
       const sync = useSyncStore()

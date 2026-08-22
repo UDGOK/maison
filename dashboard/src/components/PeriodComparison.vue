@@ -1,0 +1,74 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { fmtInt, fmtMoney } from '../lib/format'
+import type { PeriodBlock, PeriodComparison, PeriodKind } from '../types'
+
+/** v0.4 F — today vs same weekday last week · WTD · MTD vs last month · YTD vs LY. */
+const props = defineProps<{ data: PeriodComparison | null }>()
+const ORDER: { kind: PeriodKind; short: string }[] = [
+  { kind: 'today_vs_same_weekday', short: 'Today' },
+  { kind: 'wtd', short: 'WTD' },
+  { kind: 'mtd', short: 'MTD' },
+  { kind: 'ytd', short: 'YTD' },
+]
+const blocks = computed(() => ORDER.map((o) => ({ ...o, block: props.data?.periods[o.kind] ?? null })))
+const sign = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`)
+const tone = (v: number | null | undefined) => (v === null || v === undefined ? 'dim' : v > 0 ? 'good' : v < 0 ? 'crit' : 'dim')
+const sub = (b: PeriodBlock) => b.label.replace(/^.*? vs /, 'vs ')
+</script>
+
+<template>
+  <section class="periods">
+    <header class="head">
+      <span class="label">Period comparison</span>
+      <span class="label">net sales · returns netted</span>
+    </header>
+    <div class="grid">
+      <div v-for="b in blocks" :key="b.kind" class="cell">
+        <div class="top">
+          <span class="display short">{{ b.short }}</span>
+          <span v-if="b.block" class="label">{{ sub(b.block) }}</span>
+        </div>
+        <template v-if="b.block">
+          <span class="display value num">{{ fmtMoney(b.block.current.net) }}</span>
+          <div class="deltas">
+            <span class="delta num" :class="tone(b.block.pct.net)">{{ sign(b.block.pct.net) }}</span>
+            <span class="label prev">prev {{ fmtMoney(b.block.previous.net) }}</span>
+          </div>
+          <div class="row2 label">
+            <span>{{ fmtInt(b.block.current.tickets) }} tickets <span class="num" :class="tone(b.block.pct.tickets)">{{ sign(b.block.pct.tickets) }}</span></span>
+            <span>avg {{ fmtMoney(b.block.current.avg_ticket) }} <span class="num" :class="tone(b.block.pct.avg_ticket)">{{ sign(b.block.pct.avg_ticket) }}</span></span>
+            <span v-if="b.block.current.returns">{{ b.block.current.returns }} returns · {{ fmtMoney(b.block.current.returns_value) }}</span>
+          </div>
+          <div class="bar">
+            <span class="cur" :style="{ width: `${Math.min(100, (100 * b.block.current.net) / Math.max(b.block.current.net, b.block.previous.net, 1))}%` }"></span>
+            <span class="prevbar" :style="{ width: `${Math.min(100, (100 * b.block.previous.net) / Math.max(b.block.current.net, b.block.previous.net, 1))}%` }"></span>
+          </div>
+        </template>
+        <span v-else class="label dim">Loading…</span>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.periods { padding: 18px 32px 16px; border-bottom: 1px solid var(--line); }
+.head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.cell { background: var(--surface); padding: 14px 18px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.short { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; color: var(--accent); }
+.value { font-size: clamp(20px, 1.5vw, 28px); font-weight: 800; line-height: 1; }
+.deltas { display: flex; align-items: baseline; gap: 12px; }
+.delta { font-family: var(--display); font-weight: 800; font-size: 14px; }
+.good { color: var(--good); }
+.crit { color: var(--crit); }
+.dim { color: var(--dim); }
+.prev { color: var(--dim); }
+.row2 { display: flex; flex-wrap: wrap; gap: 10px 14px; text-transform: none; letter-spacing: 0.02em; font-size: 11px; color: var(--muted); }
+.bar { position: relative; height: 4px; background: var(--ground); margin-top: 2px; }
+.bar span { position: absolute; left: 0; top: 0; height: 100%; }
+.cur { background: var(--accent); z-index: 1; }
+.prevbar { background: var(--line-strong); height: 2px !important; top: 1px !important; }
+@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+</style>

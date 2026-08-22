@@ -85,6 +85,33 @@ class TestSubmitBatch(FrappeTestCase):
 		si = frappe.get_doc("Sales Invoice", result["invoice_name"])
 		self.assertGreater(si.change_amount, 0)
 
+	def test_line_discount_is_whole_line_amount_off_the_list_rate(self):
+		"""POSInvoice: `rate` = unit list rate, `discount_amount` = whole-line discount (manual + promotion).
+		The device tenders qty * rate - discount (+ tax); the server must land on the same total."""
+		# 2 × 160 list, $48 off the line (15 % promotion) → net 272, NYC tax 8.875 % → 296.14
+		payload = pos_invoice(items=[{"item_code": "AC-012", "qty": 2, "rate": 160, "discount_amount": 48}], payments=[{"mode_of_payment": "Card", "amount": 296.14}])
+		result = sales.submit_batch([payload])["results"][0]
+		self.assertEqual(result["status"], "ok", result)
+		si = frappe.get_doc("Sales Invoice", result["invoice_name"])
+		row = si.items[0]
+		self.assertEqual(row.price_list_rate, 160)
+		self.assertEqual(row.rate, 136)
+		self.assertEqual(row.discount_amount, 24)  # ERPNext keeps it per unit
+		self.assertEqual(row.amount, 272)
+		self.assertEqual(si.net_total, 272)
+		self.assertAlmostEqual(si.grand_total, 296.14, places=2)
+
+	def test_half_cent_tax_rounds_like_the_device(self):
+		"""Commercial rounding (System Settings, pinned by the install): 10.25 % of 22 050 = 2 260.125 must
+		become 2 260.13 like the device's half-away-from-zero `round`, not banker's 2 260.12."""
+		self.assertEqual(frappe.get_system_settings("rounding_method"), "Commercial Rounding")
+		payload = pos_invoice(boutique="CHI-OAK", items=[{"item_code": "AC-012", "qty": 1, "rate": 22050}], payments=[{"mode_of_payment": "Card", "amount": 24310.13}])
+		result = sales.submit_batch([payload])["results"][0]
+		self.assertEqual(result["status"], "ok", result)
+		si = frappe.get_doc("Sales Invoice", result["invoice_name"])
+		self.assertAlmostEqual(si.total_taxes_and_charges, 2260.13, places=2)
+		self.assertAlmostEqual(si.grand_total, 24310.13, places=2)
+
 	def test_void_creates_credit_note(self):
 		result = sales.submit_batch([pos_invoice()])["results"][0]
 		self.assertEqual(result["status"], "ok", result)

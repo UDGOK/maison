@@ -1,0 +1,142 @@
+[
+  {
+    "name": "desktop: mock seeded demo sales",
+    "ok": true,
+    "detail": "2 invoices"
+  },
+  {
+    "name": "desktop: refund button reflects credit",
+    "ok": true,
+    "detail": "Refund $13,671.00"
+  },
+  {
+    "name": "desktop: credit note created for serial sale",
+    "ok": true,
+    "detail": "CN-CHI-OAK-00003"
+  },
+  {
+    "name": "desktop: serial back in stock",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: card refund simulated",
+    "ok": true,
+    "detail": "re_sim_cnchioak00003"
+  },
+  {
+    "name": "desktop: V660p canvas print route produced a bitmap",
+    "ok": true,
+    "detail": "43746 chars"
+  },
+  {
+    "name": "desktop: exchange shows charge or refund of the difference",
+    "ok": true,
+    "detail": "Exchange & refund $1,764.00"
+  },
+  {
+    "name": "desktop: exchange created credit note + new sale",
+    "ok": true,
+    "detail": "SINV-CHI-OAK-00004"
+  },
+  {
+    "name": "desktop: Exchange Credit nets to zero",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: cycle count lists unexpected serial",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: shift shows low-stock badge",
+    "ok": true,
+    "detail": "2 open"
+  },
+  {
+    "name": "desktop: reader picker lists V660p + S710",
+    "ok": true,
+    "detail": "Counter 1 · V660p · verifone_v660p · printer | Roaming · S710 · stripe_s710"
+  },
+  {
+    "name": "desktop: settings test reader print",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: S710 has no printer → non-reader route",
+    "ok": true,
+    "detail": "ePOS prints"
+  },
+  {
+    "name": "iphone: mock seeded demo sales",
+    "ok": true,
+    "detail": "2 invoices"
+  },
+  {
+    "name": "iphone: refund button reflects credit",
+    "ok": true,
+    "detail": "Refund $13,671.00"
+  },
+  {
+    "name": "iphone: credit note created for serial sale",
+    "ok": true,
+    "detail": "CN-CHI-OAK-00003"
+  },
+  {
+    "name": "iphone: serial back in stock",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: card refund simulated",
+    "ok": true,
+    "detail": "re_sim_cnchioak00003"
+  },
+  {
+    "name": "iphone: V660p canvas print route produced a bitmap",
+    "ok": true,
+    "detail": "43078 chars"
+  },
+  {
+    "name": "iphone: exchange shows charge or refund of the difference",
+    "ok": true,
+    "detail": "Exchange & refund $1,764.00"
+  },
+  {
+    "name": "iphone: exchange created credit note + new sale",
+    "ok": true,
+    "detail": "SINV-CHI-OAK-00004"
+  },
+  {
+    "name": "iphone: Exchange Credit nets to zero",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: cycle count lists unexpected serial",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: shift shows low-stock badge",
+    "ok": true,
+    "detail": "2 open"
+  },
+  {
+    "name": "iphone: reader picker lists V660p + S710",
+    "ok": true,
+    "detail": "Counter 1 · V660p · verifone_v660p · printer | Roaming · S710 · stripe_s710"
+  },
+  {
+    "name": "iphone: settings test reader print",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: S710 has no printer → non-reader route",
+    "ok": true,
+    "detail": "ePOS prints"
+  }
+]

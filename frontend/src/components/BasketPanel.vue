@@ -12,7 +12,16 @@ import { fmtDate } from '@/utils/device'
 import Modal from './Modal.vue'
 import Keypad from './Keypad.vue'
 import RecognitionTile from './RecognitionTile.vue'
+import PromotionsChip from './PromotionsChip.vue'
+import TierProgress from './TierProgress.vue'
+import { usePromosStore } from '@/stores/promos'
+import { useLoyaltyStore } from '@/stores/loyalty'
 import { useRecognitionStore } from '@/stores/recognition'
+// --- v0.4 H insights ---
+import { watch } from 'vue'
+import SuggestionTiles from './SuggestionTiles.vue'
+import { useInsightsStore } from '@/stores/insights'
+// --- end v0.4 H ---
 
 const cart = useCartStore()
 const session = useSessionStore()
@@ -21,7 +30,23 @@ const scan = useScanStore()
 const layout = useLayoutStore()
 const sync = useSyncStore()
 const recognition = useRecognitionStore()
+const promos = usePromosStore()
+const loyaltyStore = useLoyaltyStore()
 const router = useRouter()
+
+// --- v0.4 H insights: "Suggested for this client" + "Pairs well with" ---
+const insights = useInsightsStore()
+watch(
+  () => cart.customer?.name ?? null,
+  (name) => void insights.loadClient(name, session.boutique?.name),
+  { immediate: true }
+)
+watch(
+  () => [cart.lines.map((l) => l.item_code).join('|'), cart.customer?.name ?? ''] as const,
+  () => insights.scheduleBasket(cart.lines.map((l) => l.item_code), session.boutique?.name, cart.customer?.name ?? null),
+  { immediate: true }
+)
+// --- end v0.4 H ---
 
 const editing = ref<CartLine | null>(null)
 const discPct = ref('')
@@ -139,6 +164,7 @@ function charge() {
             <span><span class="label-dim label">Points</span> <span class="num-inline">{{ fmtInt(cart.customer.loyalty_points) }}</span> <span class="dim">({{ fmtMoney(pointsValue, session.currency) }})</span></span>
             <span v-if="cart.customer.last_visit"><span class="label-dim label">Last visit</span> {{ fmtDate(cart.customer.last_visit) }}</span>
           </div>
+          <TierProgress v-if="loyaltyStore.forCustomer(cart.customer.name)" :loyalty="loyaltyStore.forCustomer(cart.customer.name)" :currency="session.currency" compact class="client-tier" />
           <div class="client-actions">
             <button class="redeem" :class="{ on: redeemOn }" :disabled="!cart.maxRedeemable" @click="toggleRedeem">
               <span class="switch" :class="{ on: redeemOn }"></span>
@@ -149,6 +175,16 @@ function charge() {
             </button>
             <button class="label detach" @click="cart.setCustomer(null)">Detach</button>
           </div>
+          <!-- v0.4 H: next best offer for the attached client -->
+          <SuggestionTiles
+            v-if="sync.online && (insights.visibleClientItems.length || insights.clientLoading)"
+            class="client-suggest"
+            title="Suggested for this client"
+            :items="insights.visibleClientItems"
+            :loading="insights.clientLoading"
+            :compact="layout.phone"
+            testid="suggested-for-client"
+          />
         </template>
         <template v-else>
           <div class="between">
@@ -183,6 +219,9 @@ function charge() {
         </template>
       </div>
 
+      <!-- v0.4 I — promotions & coupons -->
+      <div v-if="promos.enabled" class="promo-row"><PromotionsChip /></div>
+
       <!-- lines -->
       <div class="lines scroll">
         <div v-if="!cart.lines.length" class="empty">
@@ -192,14 +231,15 @@ function charge() {
           <button class="line-main" @click="openLine(l)">
             <div class="line-name ellipsis">{{ l.item_name }}</div>
             <div class="line-sub">
-              <span v-if="l.serial_no" class="good">{{ l.serial_no }}</span>
+              <span v-if="l.serial_no" class="good serial">{{ l.serial_no }}</span>
               <span v-else>{{ l.qty }} &times; {{ fmtMoney(l.rate, session.currency) }}</span>
               <span v-if="l.discount_amount" class="warn">&minus;{{ fmtMoney(l.discount_amount, session.currency) }}</span>
+              <span v-if="cart.extras[l.id]" class="good" :title="'Promotion / coupon'">&#10022; &minus;{{ fmtMoney(cart.extras[l.id], session.currency) }}</span>
               <span v-if="!l.taxable" class="dim">No tax</span>
             </div>
           </button>
           <div class="line-right">
-            <div class="line-amt num">{{ fmtMoney(l.qty * l.rate - l.discount_amount, session.currency) }}</div>
+            <div class="line-amt num">{{ fmtMoney(l.qty * l.rate - l.discount_amount - (cart.extras[l.id] || 0), session.currency) }}</div>
             <div v-if="!l.serial_no" class="qty">
               <button class="qty-btn" @click="cart.setQty(l.id, l.qty - 1)" aria-label="Less">&minus;</button>
               <span class="qty-n">{{ l.qty }}</span>
@@ -210,10 +250,22 @@ function charge() {
         </div>
       </div>
 
+      <!-- v0.4 H: pairs well with the basket -->
+      <SuggestionTiles
+        v-if="cart.lines.length && sync.online && insights.visibleBasketItems.length"
+        title="Pairs well with"
+        :items="insights.visibleBasketItems"
+        :loading="insights.basketLoading"
+        :compact="layout.phone"
+        testid="pairs-well-with"
+      />
+
       <!-- totals -->
       <div class="totals">
         <div class="trow"><span class="label">Subtotal</span><span>{{ fmtMoney(cart.totals.gross, session.currency) }}</span></div>
-        <div v-if="cart.totals.discount" class="trow"><span class="label">Discount</span><span class="warn">&minus;{{ fmtMoney(cart.totals.discount, session.currency) }}</span></div>
+        <div v-if="cart.totals.discount - promos.promoTotal - promos.couponTotal > 0.004" class="trow"><span class="label">Discount</span><span class="warn">&minus;{{ fmtMoney(cart.totals.discount - promos.promoTotal - promos.couponTotal, session.currency) }}</span></div>
+        <div v-if="promos.promoTotal" class="trow" data-testid="promo-total"><span class="label">Promotions</span><span class="good">&minus;{{ fmtMoney(promos.promoTotal, session.currency) }}</span></div>
+        <div v-if="promos.coupon && promos.couponTotal" class="trow" data-testid="coupon-total"><span class="label">Coupon {{ promos.coupon.code }}</span><span class="good">&minus;{{ fmtMoney(promos.couponTotal, session.currency) }}</span></div>
         <div class="trow"><span class="label">Tax {{ catalog.taxRate }}%</span><span>{{ fmtMoney(cart.totals.total_taxes, session.currency) }}</span></div>
         <button class="trow loyalty" :disabled="!cart.customer || !cart.maxRedeemable" @click="redeemPts = String(cart.loyalty_points_redeemed || cart.maxRedeemable); redeemOpen = true">
           <span class="label">Loyalty<span v-if="cart.loyalty_points_redeemed"> &middot; {{ fmtInt(cart.loyalty_points_redeemed) }} pts</span></span>
@@ -277,6 +329,21 @@ function charge() {
 </template>
 
 <style scoped>
+.promo-row {
+  padding: 0 16px 10px;
+}
+.client-tier {
+  margin: 8px 0 2px;
+}
+/* v0.4 H — suggestion tiles must never squeeze the basket lines out of view */
+.client-suggest {
+  padding: 6px 0 0;
+  border-bottom: 0;
+  background: transparent;
+}
+.basket:not(.phone) .lines {
+  min-height: 96px;
+}
 .basket {
   width: var(--panel-w);
   flex: 0 0 var(--panel-w);

@@ -1,0 +1,248 @@
+{
+  "base": "http://maison.localhost:8000",
+  "run": "X0832",
+  "results": [
+    {
+      "step": "demo website items published",
+      "ok": true,
+      "detail": "{\"TP-002\":\"/timepieces/meridian-automatic-40mm-rose-gold-2sxoh\",\"HJ-001\":\"/high-jewellery/cascade-diamond-riviere-necklace-o8jcl\",\"BR-006\":\"/bridal/classic-wedding-band-2mm-platinum-3ecph\"}"
+    },
+    {
+      "step": "home renders in the gold theme",
+      "ok": true,
+      "detail": "8 cards"
+    },
+    {
+      "step": "collection lists timepieces with Reserve mode",
+      "ok": true,
+      "detail": "8 cards · Reserve"
+    },
+    {
+      "step": "/all-products is served by the Maison listing",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "serialized one-off shows Enquire (no add to cart)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "item page shows availability per boutique",
+      "ok": true,
+      "detail": "Available at Miami, New York"
+    },
+    {
+      "step": "guest enquiry creates Maison Web Enquiry for the boutique",
+      "ok": true,
+      "detail": "{\"name\":\"MWE-2026-00022\",\"boutique\":\"CHI-OAK\",\"item_code\":\"HJ-001\",\"status\":\"New\"}"
+    },
+    {
+      "step": "timepiece shows Reserve with deposit",
+      "ok": true,
+      "detail": "Reserve · $ 2,450 deposit"
+    },
+    {
+      "step": "accessory shows Add to bag",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "loyalty lookup refuses a wrong e-mail",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "loyalty lookup shows points for client number + e-mail",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "add to bag (signed in)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "/cart shows the Maison bag with the line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "quantity stepper updates the cart",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "checkout offers every boutique with stock status",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "place order redirects to the (simulated) payment page",
+      "ok": true,
+      "detail": "http://maison.localhost:8000/shop/pay?pr=ACC-PRQ-2026-00030"
+    },
+    {
+      "step": "Sales Order carries maison_boutique = CHI-OAK, web order, status New",
+      "ok": true,
+      "detail": "{\"maison_boutique\":\"CHI-OAK\",\"maison_web_order\":1,\"maison_web_status\":\"New\",\"maison_prepaid_amount\":4299.75,\"grand_total\":4299.75,\"customer\":\"Isabella Marchetti\",\"docstatus\":1}"
+    },
+    {
+      "step": "online payment recorded as advance on the order",
+      "ok": true,
+      "detail": "prepaid 4299.75 / total 4299.75"
+    },
+    {
+      "step": "order page shows timeline + boutique",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "reservation = Sales Order with 10 % deposit paid online",
+      "ok": true,
+      "detail": "{\"maison_boutique\":\"MIA-DD\",\"maison_web_mode\":\"Reserve-with-deposit\",\"maison_deposit_amount\":2450,\"maison_prepaid_amount\":2450,\"grand_total\":26215}"
+    },
+    {
+      "step": "account page shows loyalty + recent web orders for the signed-in client",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "POS Web orders queue lists the new order for Oak Street",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "Pick → Sales Order status Picking",
+      "ok": true,
+      "detail": "Picking"
+    },
+    {
+      "step": "Ready → Sales Order status Ready",
+      "ok": true,
+      "detail": "Ready"
+    },
+    {
+      "step": "collection creates a submitted Sales Invoice linked to the web order",
+      "ok": true,
+      "detail": "{\"name\":\"ACC-SINV-2026-01699\",\"grand_total\":4299.75,\"total_advance\":4299.75,\"outstanding_amount\":0,\"maison_receipt_token\":\"JE0iiZ_wD6QLGR5T\",\"maison_boutique\":\"CHI-OAK\",\"customer\":\"Isabella Marchetti\"}"
+    },
+    {
+      "step": "online payment allocated as advance; nothing outstanding; receipt token issued",
+      "ok": true,
+      "detail": "advance 4299.75 / total 4299.75 / outstanding 0"
+    },
+    {
+      "step": "Sales Order marked Collected with the invoice",
+      "ok": true,
+      "detail": "{\"maison_web_status\":\"Collected\",\"maison_sales_invoice\":\"ACC-SINV-2026-01699\",\"per_delivered\":100,\"per_billed\":100,\"status\":\"Completed\"}"
+    },
+    {
+      "step": "reservation with deposit appears in the queue",
+      "ok": true,
+      "detail": "MIA-DD: {\"name\":\"SAL-ORD-2026-00037\",\"boutique\":\"MIA-DD\",\"boutique_name\":\"Maison Design District\",\"customer\":\"Isabella Marchetti"
+    },
+    {
+      "step": "enquiries are listed in the queue",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "console": [
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "shopper",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap">
+	{% if cart and cart['items'] %}
+	<div class="mw-cart">
+		<div>
+			<h1 class="mw-display">Your bag</h1>
+			<div class="mw-lines" id="mw-lines">
+				{% for l in cart['items'] %}
+				<div class="mw-line" data-item-code="{{ l.item_code }}">
+					<div class="img">{% if l.image %}<img src="{{ l.image }}" alt="">{% endif %}</div>
+					<div>
+						<div class="name">{{ l.item_name }}</div>
+						<div class="code">{{ l.item_code }} &middot; {{ shop_money(l.rate, cart.currency) }}</div>
+						<div class="qty"><button data-d="-1" aria-label="Less">&minus;</button><span>{{ l.qty | int }}</span><button data-d="1" aria-label="More">+</button></div>
+					</div>
+					<div class="right"><div class="amt">{{ shop_money(l.amount, cart.currency) }}</div><button class="rm" data-rm>Remove</button></div>
+				</div>
+				{% endfor %}
+			</div>
+			<p class="mw-note" style="margin-top:18px">Pieces in your bag are not reserved until the order is placed. Taxes are calculated for the boutique of collection.</p>
+		</div>
+		<aside class="mw-summary">
+			<span class="mw-label">Summary</span>
+			<div class="row" style="margin-top:12px"><span>{{ cart['items'] | length }} piece{{ 's' if cart['items'] | length != 1 else '' }}</span><span>{{ shop_money(cart.net_total, cart.currency) }}</span></div>
+			<div class="row"><span>Taxes</span><span>{{ shop_money(cart.total_taxes, cart.currency) if cart.total_taxes else 'At collection' }}</span></div>
+			<div class="row"><span>Collection</span><span>Complimentary</span></div>
+			<div class="row total"><span class="mw-label">Total excl. tax</span><span class="mw-price">{{ shop_money(cart.grand_total, cart.currency) }}</span></div>
+			<a class="mw-btn block" href="/shop/checkout">Choose a boutique</a>
+			<div class="fine">Pay online now or at the counter when you collect. Maison Collectors points are credited at collection.</div>
+		</aside>
+	</div>
+	{% else %}
+	<div class="mw-empty">
+		<div class="mw-display lg">Your bag is empty</div>
+		<p>Pieces you add will appear here.</p>
+		<a class="mw-btn" href="/shop/collection" style="margin-top:20px">Explore the collection</a>
+	</div>
+	{% endif %}
+</div>
+{% endblock %}
+{% block shop_script %}
+<script>
+frappe.ready(() => {
+	const lines = document.getElementById('mw-lines');
+	if (!lines) return;
+	lines.addEventListener('click', async (e) => {
+		const line = e.target.closest('.mw-line'); if (!line) return;
+		const code = line.dataset.itemCode;
+		const qtyEl = line.querySelector('.qty span');
+		let qty = parseInt(qtyEl.textContent, 10);
+		const d = e.target.closest('[data-d]');
+		if (d) qty = Math.max(0, qty + parseInt(d.dataset.d, 10));
+		else if (e.target.closest('[data-rm]')) qty = 0;
+		else return;
+		try {
+			await MW.call('maison_pos.api.webshop.update_cart', { item_code: code, qty });
+			window.location.reload();
+		} catch (ex) { MW.toast(MW.errorText(ex), 'crit'); }
+	});
+});
+</script>
+{% endblock %}

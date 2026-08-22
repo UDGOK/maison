@@ -16,6 +16,12 @@ export const router = createRouter({
     { path: '/queue', name: 'queue', component: () => import('@/views/QueueView.vue') },
     { path: '/shift', name: 'shift', component: () => import('@/views/ShiftView.vue') },
     { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue') },
+    // v0.4 D/E — returns & exchanges, cycle count
+    { path: '/returns', name: 'returns', component: () => import('@/views/ReturnsView.vue') },
+    // v0.4 G — web orders (click & collect queue)
+    { path: '/web-orders', name: 'web-orders', component: () => import('@/views/WebOrdersView.vue') },
+    { path: '/exchange/:invoice', name: 'exchange', component: () => import('@/views/ExchangeView.vue'), props: true },
+    { path: '/count', name: 'count', component: () => import('@/views/CycleCountView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/sell' }
   ]
 })

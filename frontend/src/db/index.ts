@@ -58,6 +58,13 @@ export interface ReceiptSnapshot {
   payments: { mode_of_payment: 'Cash' | 'Card'; amount: number; tendered?: number; change?: number; card_brand?: string; last4?: string; approval?: string }[]
   points_earned: number
   points_balance?: number
+  /** v0.4 I — promotions / coupon shown on the receipt */
+  promo_discount?: number
+  /** v0.4 G — web order collected at the counter: amount paid online (advance) */
+  web_order?: string
+  prepaid?: number
+  coupon_code?: string
+  coupon_discount?: number
   currency: string
 }
 

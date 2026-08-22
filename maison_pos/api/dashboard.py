@@ -202,6 +202,9 @@ def live_summary(date: Optional[str] = None) -> dict[str, Any]:
 		"pending_approvals": pending_total,
 		"pending_approvals_list": _pending_list(boutiques) if is_unrestricted() else [],
 		"recognition": recognition_counts(boutiques, day),
+		# v0.4 D/E — low-stock tile (open + acknowledged alerts per boutique) and today's returns
+		"low_stock": _low_stock_block(boutiques),
+		"returns": _returns_block(boutiques, day),
 	}
 
 
@@ -248,3 +251,33 @@ def recent_sales(limit: int = 20, boutique: Optional[str] = None) -> list[dict[s
 		order_by="posting_date desc, posting_time desc",
 		limit=min(max(cint(limit) or 20, 1), 100),
 	)
+
+
+# ---------------------------------------------------------------------------
+# v0.4 D/E — dashboard tiles
+# ---------------------------------------------------------------------------
+def _low_stock_block(boutiques: list[str]) -> dict[str, Any]:
+	"""``{open, by_boutique: {code: n}, top: [...]}`` for the "Low stock" tile (drill-down = inventory.alerts)."""
+	from maison_pos.api.inventory import open_alert_counts
+
+	counts = open_alert_counts(boutiques)
+	top = frappe.get_all(
+		"Maison Stock Alert",
+		filters={"status": ("in", ("Open", "Acknowledged")), "boutique": ("in", boutiques or ["__none__"])},
+		fields=["name", "item_code", "item_name", "boutique", "qty", "reorder_level", "status"],
+		order_by="qty asc, first_seen asc",
+		limit=8,
+	)
+	return {"open": sum(counts.values()), "by_boutique": counts, "top": top}
+
+
+def _returns_block(boutiques: list[str], day) -> dict[str, Any]:
+	"""Today's credit notes (count + value) so the wall can show returns next to net sales."""
+	SI = DocType("Sales Invoice")
+	rows = (
+		frappe.qb.from_(SI)
+		.select(Count(SI.name).as_("n"), Sum(SI.grand_total).as_("value"))
+		.where((SI.docstatus == 1) & (SI.is_pos == 1) & (SI.is_return == 1) & (SI.posting_date == day) & (SI.maison_boutique.isin(boutiques or ["__none__"])))
+	).run(as_dict=True)
+	r = rows[0] if rows else {}
+	return {"count": cint(r.get("n")), "value": abs(flt(r.get("value")))}

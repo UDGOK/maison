@@ -41,7 +41,7 @@ async function copyLink() {
     /* clipboard unavailable */
   }
 }
-const printed = ref<'epos' | 'browser' | null>(null)
+const printed = ref<'reader' | 'epos' | 'browser' | null>(null)
 const emailOpen = ref(false)
 const email = ref('')
 const emailSent = ref(false)
@@ -119,6 +119,7 @@ function done() {
           <div v-else class="warn">No printer configured; Print uses the browser dialog.</div>
           <div v-if="printer.lastError" class="warn">{{ printer.lastError }}</div>
           <div v-if="printed === 'epos'" class="good">Sent to printer.</div>
+          <div v-else-if="printed === 'reader'" class="good">Printed on {{ printer.reader?.label || 'reader' }}.</div>
         </div>
       </template>
       <div v-else class="label label-dim">Receipt not found</div>

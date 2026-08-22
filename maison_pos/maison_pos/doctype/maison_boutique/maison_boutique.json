@@ -25,9 +25,12 @@
   "column_break_devices",
   "printer_ip",
   "printer_model",
+  "section_readers",
+  "readers",
   "section_pos",
   "show_product_images",
-  "face_recognition_enabled"
+  "face_recognition_enabled",
+  "damaged_warehouse"
  ],
  "fields": [
   {
@@ -168,6 +171,25 @@
    "fieldtype": "Select",
    "label": "Client recognition (camera)",
    "options": "Inherit\nOn\nOff"
+  },
+  {
+   "fieldname": "section_readers",
+   "fieldtype": "Section Break",
+   "label": "Stripe Terminal readers (v0.4)"
+  },
+  {
+   "fieldname": "readers",
+   "fieldtype": "Table",
+   "label": "Readers",
+   "options": "Maison Boutique Reader",
+   "description": "Every reader paired to this boutique. The POS Settings screen lets each device pick one; readers with a built-in printer (Verifone V660p) print receipts through terminal.print()."
+  },
+  {
+   "fieldname": "damaged_warehouse",
+   "fieldtype": "Link",
+   "label": "Damaged Warehouse",
+   "options": "Warehouse",
+   "description": "Returned pieces in Damaged condition go here instead of the selling warehouse (v0.4 returns). Seed creates '<code> Damaged'."
   }
  ],
  "index_web_pages_for_search": 0,
@@ -190,6 +212,14 @@
   },
   {
    "link_doctype": "Maison Recognition Event",
+   "link_fieldname": "boutique"
+  },
+  {
+   "link_doctype": "Maison Stock Alert",
+   "link_fieldname": "boutique"
+  },
+  {
+   "link_doctype": "Maison Cycle Count",
    "link_fieldname": "boutique"
   }
  ],

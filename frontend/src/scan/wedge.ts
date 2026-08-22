@@ -13,6 +13,8 @@ export interface WedgeOptions {
   minLength?: number
   /** max ms from the first char to Enter — guards against a long human-typed line ending in Enter */
   maxBurstMs?: number
+  /** v0.4 J — which key ends a burst (scanners can be programmed for Enter or Tab); default both */
+  terminator?: 'enter' | 'tab' | 'both'
 }
 
 export interface WedgeKey {
@@ -28,18 +30,26 @@ export class WedgeParser {
   readonly maxGapMs: number
   readonly minLength: number
   readonly maxBurstMs: number
+  readonly terminator: 'enter' | 'tab' | 'both'
 
   constructor(opts: WedgeOptions = {}) {
     this.maxGapMs = opts.maxGapMs ?? 50
     this.minLength = opts.minLength ?? 4
     this.maxBurstMs = opts.maxBurstMs ?? 1500
+    this.terminator = opts.terminator ?? 'both'
+  }
+
+  isTerminator(key: string): boolean {
+    if (key === 'Enter') return this.terminator !== 'tab'
+    if (key === 'Tab') return this.terminator !== 'enter'
+    return false
   }
 
   /** Feed one key; returns the completed code when a burst ends with Enter, else null. */
   feed(k: WedgeKey): string | null {
     const gap = k.time - this.last
     if (this.buf && gap > this.maxGapMs) this.reset()
-    if (k.key === 'Enter' || k.key === 'Tab') {
+    if (this.isTerminator(k.key)) {
       const code = this.buf
       const dur = k.time - this.start
       this.reset()
@@ -90,7 +100,7 @@ export function installWedgeListener(onScan: (code: string) => void, opts: Wedge
       return
     }
     const code = parser.feed({ key: e.key, time: e.timeStamp || performance.now() })
-    if (e.key === 'Enter' && code) {
+    if (code && parser.isTerminator(e.key)) {
       e.preventDefault()
       onScan(code)
     } else if (parser.pending.length >= parser.minLength) e.preventDefault()

@@ -1,0 +1,19 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap"><div class="mw-narrow">
+	<span class="mw-label">Maison</span>
+	<h1 class="mw-display lg" style="margin:10px 0 28px">Your orders</h1>
+	{% if orders %}
+	<div class="mw-orders">
+		{% for o in orders %}
+		<a href="/shop/order?name={{ o.name }}">
+			<div><div class="t">{{ o.name }} &middot; {{ o.boutique_name }}</div><div class="d">{{ frappe.utils.format_date(o.transaction_date, 'd MMM yyyy') }} &middot; {{ o.maison_web_mode or 'Buy' }}</div></div>
+			<div style="text-align:right"><div class="mw-price">{{ shop_money(o.grand_total, o.currency) }}</div><span class="mw-pill {{ 'good' if o.maison_web_status == 'Ready' else ('gold' if o.maison_web_status == 'Collected' else '') }}">{{ o.maison_web_status or 'New' }}</span></div>
+		</a>
+		{% endfor %}
+	</div>
+	{% else %}
+	<div class="mw-empty"><div class="mw-display md">No orders yet</div><a class="mw-btn" href="/shop/collection" style="margin-top:20px">Explore the collection</a></div>
+	{% endif %}
+</div></div>
+{% endblock %}

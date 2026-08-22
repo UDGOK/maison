@@ -5,6 +5,7 @@
  *   exactly like a fetch() that cannot reach the bench.
  * - Tracks sold serials so duplicate/conflict errors behave like the real server.
  */
+import { __mockCollectWebOrder, __mockWebOrderPrepaid } from './webshop' // v0.4 G
 import {
   ApiError,
   type Bootstrap,
@@ -23,6 +24,7 @@ import {
   type MaisonApi,
   type POSInvoice,
   type PublicReceipt,
+  type Recommendation,
   type SalesList,
   type SalesSummaryRow,
   type SubmitResult
@@ -46,6 +48,9 @@ import {
   stockFor
 } from './seed'
 import { computeTotals } from '@/utils/totals'
+import { computeExchange, computeReturnTotals, managerRequired } from '@/returns/math'
+import { compareCount } from '@/inventory/count'
+import type { CycleCountResult, ExchangeRequest, ExchangeResult, POSInvoiceItem, ReturnRequest, ReturnResult, ReturnableInvoice, StockAlert } from './types'
 import { sha256Hex } from '@/utils/hash'
 import { DEFAULT_DISTANCE_THRESHOLD, rankMatches } from '@/recognition/math'
 
@@ -85,6 +90,27 @@ interface MockEvent {
   ts: string
 }
 
+/** v0.4 E — mock credit note. */
+interface MockCreditNote {
+  name: string
+  return_against: string
+  boutique: string
+  customer?: string
+  customer_name?: string
+  posting_datetime: string
+  lines: { row: string; item_code: string; item_name: string; qty: number; rate: number; serials: string[]; reason: string; condition: string; warehouse: string }[]
+  net_total: number
+  total_taxes: number
+  grand_total: number
+  refund_method: string
+  refund_id?: string
+  exchange_invoice?: string
+  receipt_token: string
+  payments: { mode_of_payment: string; amount: number }[]
+}
+/** v0.4 E — mock returns policy (Maison POS Settings). */
+export const RETURNS_POLICY = { return_window_days: 30, exchange_window_days: 60, returns_manager_threshold: 2500 }
+
 /** Mock `Maison POS Settings` recognition block; `match_threshold` is the maximum euclidean distance between RAW descriptors (face-api rule: < 0.6). */
 export const RECOGNITION_SETTINGS = {
   face_recognition_enabled: true,
@@ -104,7 +130,11 @@ const state = {
   serials: new Map<string, Record<string, string[]>>(),
   stock: new Map<string, Record<string, number>>(),
   submitted: new Map<string, SubmitResult>(),
-  invoices: [] as (SalesSummaryRow & { boutique: string; item_codes: string[] })[],
+  invoices: [] as (SalesSummaryRow & { boutique: string; item_codes: string[]; lines?: POSInvoiceItem[]; receipt_token?: string; terminal_ref?: string; card_brand?: string; last4?: string; tax_rate?: number })[],
+  /** v0.4 E: credit notes */
+  returns: [] as MockCreditNote[],
+  /** v0.4 D: stock alerts */
+  alerts: [] as StockAlert[],
   history: new Map<string, CustomerHistoryRow[]>(),
   seq: 1,
   /** v0.2: Item.image overrides uploaded from the POS */
@@ -136,6 +166,8 @@ function load() {
     state.templates = j.templates || []
     state.consents = j.consents || []
     state.events = j.events || []
+    state.returns = j.returns || []
+    state.alerts = j.alerts || []
   } catch {
     /* ignore corrupt state */
   }
@@ -157,7 +189,9 @@ function save() {
         receipts: state.receipts,
         templates: state.templates,
         consents: state.consents,
-        events: state.events
+        events: state.events,
+        returns: state.returns,
+        alerts: state.alerts
       })
     )
   } catch {
@@ -199,7 +233,8 @@ function settingsFor(boutique: string) {
     receipt_qr_base_url: SETTINGS_GLOBAL.receipt_qr_base_url,
     loyalty_lookup_enabled: SETTINGS_GLOBAL.loyalty_lookup_enabled,
     ...RECOGNITION_SETTINGS,
-    face_recognition_enabled: recognitionEnabledFor(boutique)
+    face_recognition_enabled: recognitionEnabledFor(boutique),
+    ...RETURNS_POLICY
   }
 }
 
@@ -211,9 +246,10 @@ function recognitionEnabledFor(boutique: string): boolean {
 function bootstrapFor(boutique: string): Bootstrap {
   const b = BOUTIQUES.find((x) => x.name === boutique)
   if (!b) throw new ApiError(`Boutique ${boutique} not found`, 'NotFound', 404)
+  ensureDemoHistory(boutique)
   const ser = JSON.parse(JSON.stringify(serials(boutique)))
   return {
-    boutique: b,
+    boutique: { ...b, readers: b.readers || readersFor(boutique), damaged_warehouse: b.damaged_warehouse || `${boutique} Damaged - MJ` },
     associates: ASSOCIATES.filter((a) => a.boutique === boutique || a.role === 'HeadOffice'),
     pos_profile: b.pos_profile,
     taxes: TAXES,
@@ -528,9 +564,204 @@ export const mockApi: MaisonApi = {
       return { ok: true }
     }
   },
+  // v0.4 H — insights (parity with maison_pos.api.insights: owned items are never suggested)
+  insights: {
+    async recommend_for_client(customer, n = 3, boutique) {
+      await guard()
+      const owned = mockOwnedItems(customer)
+      return { customer, owned: [...owned].sort(), source: 'cache', items: mockRecommend([...owned], owned, n, boutique) }
+    },
+    async recommend_for_basket(items, n = 3, boutique, customer) {
+      await guard()
+      if (!items.length) return { basket: [], items: [] }
+      const exclude = new Set<string>([...items, ...(customer ? mockOwnedItems(customer) : [])])
+      return { basket: items, items: mockRecommend(items, exclude, n, boutique) }
+    }
+  },
   async boutiques() {
     await guard()
     return BOUTIQUES.map((b) => ({ name: b.name, boutique_name: b.boutique_name, city: b.city }))
+  },
+  // ---- v0.4 E returns & exchanges ----
+  returns: {
+    async lookup(args) {
+      await guard()
+      let rows = state.invoices
+      if (args.token) {
+        const t = args.token.includes('/r/') ? args.token.split('/r/')[1].split('?')[0].replace(/\/$/, '') : args.token.trim()
+        rows = rows.filter((i) => i.receipt_token === t)
+        if (!rows.length) throw new ApiError('Receipt not found', 'NotFound', 404)
+      } else if (args.invoice) {
+        const q = args.invoice.trim().toUpperCase()
+        rows = rows.filter((i) => i.invoice.toUpperCase() === q || i.invoice.toUpperCase().includes(q))
+        if (!rows.length) throw new ApiError(`Invoice ${args.invoice} not found`, 'NotFound', 404)
+      } else if (args.customer) rows = rows.filter((i) => i.customer === args.customer)
+      else if (args.q) {
+        const hits = (await mockApi.customers.search(args.q, 5)).map((c) => c.name)
+        rows = rows.filter((i) => i.customer && hits.includes(i.customer))
+      } else throw new ApiError('Pass invoice, token or customer', 'ValidationError', 417)
+      return { invoices: rows.slice(-(args.limit || 10)).reverse().map(returnableFor) }
+    },
+    async return_items(req: ReturnRequest): Promise<ReturnResult> {
+      await guard()
+      if (!['card', 'cash', 'store_credit'].includes(req.refund_method)) throw new ApiError('refund_method must be card, cash or store_credit', 'ValidationError', 417)
+      const src = state.invoices.find((i) => i.invoice === req.invoice)
+      if (!src) throw new ApiError(`Invoice ${req.invoice} not found`, 'NotFound', 404)
+      const info = returnableFor(src)
+      const { lines, totals } = selectReturnLines(info, req.lines)
+      gateManager(info, totals.total, req)
+      if (req.refund_method === 'card' && !src.terminal_ref) throw new ApiError(`${src.invoice} was not paid by card on this terminal; refund in cash or as store credit`, 'ValidationError', 417)
+      const cn = createCreditNote(src, info, lines, totals)
+      cn.refund_method = req.refund_method === 'card' ? 'Card' : req.refund_method === 'cash' ? 'Cash' : 'Store Credit'
+      if (req.refund_method !== 'store_credit') cn.payments.push({ mode_of_payment: cn.refund_method, amount: -totals.total })
+      if (req.refund_method === 'card') cn.refund_id = `re_sim_${cn.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`
+      save()
+      return creditNoteResult(cn, src, req.manager)
+    },
+    async exchange(req: ExchangeRequest): Promise<ExchangeResult> {
+      await guard()
+      const src = state.invoices.find((i) => i.invoice === req.invoice)
+      if (!src) throw new ApiError(`Invoice ${req.invoice} not found`, 'NotFound', 404)
+      if (!req.new_items?.length) throw new ApiError('An exchange needs at least one new item', 'ValidationError', 417)
+      const info = returnableFor(src)
+      const { lines, totals } = selectReturnLines(info, req.lines)
+      gateManager(info, totals.total, req, 'exchange')
+      const newTotals = computeTotals(
+        req.new_items.map((l) => {
+          const item = ITEMS.find((i) => i.item_code === l.item_code)
+          if (!item) throw new ApiError(`Item ${l.item_code} not found`, 'ValidationError', 417)
+          return { qty: l.qty, rate: l.rate, discount_amount: l.discount_amount || 0, taxable: item.maison_taxable === 1 }
+        }),
+        TAXES.reduce((s, t) => s + t.rate, 0)
+      )
+      const x = computeExchange(totals.total, newTotals.grand_total)
+      const paid = (req.payments || []).reduce((s, p) => s + p.amount, 0)
+      if (x.to_collect > 0 && paid + 0.005 < x.to_collect) throw new ApiError(`Payments (${paid.toFixed(2)}) do not cover the exchange difference (${x.to_collect.toFixed(2)})`, 'ValidationError', 417)
+      const payments = [...(x.applied > 0 ? [{ mode_of_payment: 'Exchange Credit' as 'Cash', amount: x.applied }] : []), ...(x.to_collect > 0 ? req.payments || [] : [])]
+      const res = processInvoice({
+        offline_uuid: req.offline_uuid || `xchg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        boutique: src.boutique,
+        associate: src.associate,
+        device_id: req.device_id || 'mock',
+        customer: req.customer || src.customer,
+        posting_datetime: new Date().toISOString(),
+        items: req.new_items,
+        payments,
+        notes: `Exchange against ${src.invoice}`
+      })
+      if (res.status !== 'ok') throw new ApiError(res.error || 'Exchange failed', res.error_code || 'ValidationError', 417)
+      const cn = createCreditNote(src, info, lines, totals)
+      cn.exchange_invoice = res.invoice_name
+      if (x.applied > 0) cn.payments.push({ mode_of_payment: 'Exchange Credit', amount: -x.applied })
+      cn.refund_method = 'Exchange'
+      const method = req.refund_method || 'cash'
+      if (x.to_refund > 0 && method !== 'store_credit') {
+        cn.refund_method = method === 'card' ? 'Card' : 'Cash'
+        cn.payments.push({ mode_of_payment: cn.refund_method, amount: -x.to_refund })
+        if (method === 'card') cn.refund_id = `re_sim_${cn.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`
+      }
+      const newInv = state.invoices.find((i) => i.invoice === res.invoice_name)!
+      save()
+      return {
+        ...creditNoteResult(cn, src, req.manager),
+        new_invoice: res.invoice_name!,
+        new_grand_total: x.new_total,
+        credit: x.credit,
+        applied: x.applied,
+        difference: x.difference,
+        refund_remainder: x.to_refund,
+        new_receipt_token: res.receipt_token,
+        new_receipt: state.receipts[res.receipt_token!] as unknown as Record<string, unknown>,
+        new_payments: payments.map((p) => ({ mode_of_payment: p.mode_of_payment, amount: p.amount })),
+        simulated_refund: true,
+        ...(newInv ? {} : {})
+      }
+    },
+    async policy() {
+      await guard()
+      return { ...RETURNS_POLICY, reasons: ['Change of mind', 'Defect', 'Sizing', 'Gift return', 'Other'], conditions: ['Sellable', 'Damaged'], refund_methods: ['card', 'cash', 'store_credit', 'exchange'], stripe_configured: false } as const
+    },
+    async recent(boutique, limit = 20) {
+      await guard()
+      return {
+        boutique,
+        returns: state.returns
+          .filter((r) => r.boutique === boutique)
+          .slice(-limit)
+          .reverse()
+          .map((r) => ({ name: r.name, posting_date: r.posting_datetime.slice(0, 10), posting_time: r.posting_datetime.slice(11, 19), return_against: r.return_against, customer_name: r.customer_name, grand_total: r.grand_total, maison_refund_method: r.refund_method, maison_return_reason: r.lines[0]?.reason, maison_exchange_invoice: r.exchange_invoice, maison_receipt_token: r.receipt_token }))
+      }
+    }
+  },
+  // ---- v0.4 D inventory ----
+  inventory: {
+    async alerts(boutique, status = 'open') {
+      await guard()
+      ensureDemoAlerts()
+      const boutiques = boutique ? [boutique] : BOUTIQUES.map((b) => b.name)
+      const rows = state.alerts.filter((a) => boutiques.includes(a.boutique) && (status === 'all' || (status === 'open' ? a.status !== 'Resolved' : a.status === status)))
+      const counts: Record<string, number> = {}
+      for (const a of state.alerts) if (a.status !== 'Resolved') counts[a.boutique] = (counts[a.boutique] || 0) + 1
+      return { boutiques, alerts: rows.map((a) => ({ ...a })), open: rows.filter((a) => a.status !== 'Resolved').length, counts }
+    },
+    async acknowledge(alert) {
+      await guard()
+      const a = state.alerts.find((x) => x.name === alert)
+      if (!a) throw new ApiError(`Alert ${alert} not found`, 'NotFound', 404)
+      if (a.status === 'Open') Object.assign(a, { status: 'Acknowledged', acknowledged_at: new Date().toISOString(), acknowledged_by: 'mock' })
+      save()
+      return { name: a.name, status: a.status }
+    },
+    async resolve(alert) {
+      await guard()
+      const a = state.alerts.find((x) => x.name === alert)
+      if (!a) throw new ApiError(`Alert ${alert} not found`, 'NotFound', 404)
+      Object.assign(a, { status: 'Resolved', resolved_at: new Date().toISOString() })
+      save()
+      return { name: a.name, status: a.status }
+    },
+    async request_transfer(args) {
+      await guard()
+      if (!(args.qty > 0)) throw new ApiError('Quantity must be positive', 'ValidationError', 417)
+      const to = BOUTIQUES.find((b) => b.name === args.to)
+      if (!to) throw new ApiError(`Boutique ${args.to} not found`, 'NotFound', 404)
+      const from = args.from_warehouse ? BOUTIQUES.find((b) => b.name === args.from_warehouse)?.warehouse || args.from_warehouse : null
+      const name = `MAT-MR-${String(state.seq++).padStart(5, '0')}`
+      const alert = args.alert ? state.alerts.find((a) => a.name === args.alert) : undefined
+      if (alert) alert.material_request = name
+      save()
+      return { material_request: name, status: 'Draft', item: args.item, qty: args.qty, to_warehouse: to.warehouse, from_warehouse: from }
+    },
+    async cycle_count_expected(boutique) {
+      await guard()
+      const b = boutique || BOUTIQUES[0].name
+      const ser = serials(b)
+      const stk = stock(b)
+      const serialsOut: Record<string, string[]> = {}
+      for (const [code, list] of Object.entries(ser)) if (list.length) serialsOut[code] = [...list]
+      const qty: Record<string, number> = {}
+      for (const [code, n] of Object.entries(stk)) if (n > 0 && !serialsOut[code]) qty[code] = n
+      const items = Object.fromEntries(ITEMS.map((i) => [i.item_code, i.item_name]))
+      return { boutique: b, warehouse: BOUTIQUES.find((x) => x.name === b)!.warehouse, serials: serialsOut, qty, items, as_of: new Date().toISOString() }
+    },
+    async submit_cycle_count(args): Promise<CycleCountResult> {
+      await guard()
+      const exp = await mockApi.inventory.cycle_count_expected(args.boutique)
+      const cmp = compareCount(exp, args.serials, args.qty)
+      const known = new Set(Object.values(serials(args.boutique)).flat())
+      const name = `MCC-${String(state.seq++).padStart(5, '0')}`
+      return {
+        cycle_count: name,
+        warehouse: exp.warehouse,
+        expected_serials: cmp.expected_serials,
+        scanned_serials: args.serials.length,
+        missing: cmp.missing,
+        unexpected: cmp.unexpected.map((s) => ({ serial_no: s, item_code: null, warehouse: null, status: known.has(s) ? 'other_warehouse' : 'not_found' })),
+        qty_differences: cmp.qty_differences,
+        stock_reconciliation: cmp.qty_differences.length ? `MAT-RECO-${String(state.seq++).padStart(5, '0')}` : null,
+        clean: cmp.clean
+      }
+    }
   },
   async verifyPin(associate, pin) {
     await guard()
@@ -642,7 +873,9 @@ function processInvoice(inv: POSInvoice): SubmitResult {
     LOYALTY.conversion_factor
   )
   const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
-  if (Math.abs(paid - totals.grand_total) > 0.01)
+  // v0.4 G — a web order's online payment is an advance: only the balance is tendered at the counter
+  const advance = inv.sales_order ? __mockWebOrderPrepaid(inv.sales_order) : 0
+  if (Math.abs(paid + advance - totals.grand_total) > 0.01)
     return fail(inv, `Payments ${paid.toFixed(2)} do not match grand total ${totals.grand_total.toFixed(2)}`, 'PaymentMismatch')
 
   // Commit stock + serials
@@ -652,6 +885,7 @@ function processInvoice(inv: POSInvoice): SubmitResult {
     stk[line.item_code] = (stk[line.item_code] ?? 0) - line.qty
   }
   const invoice_name = `SINV-${inv.boutique}-${String(state.seq++).padStart(5, '0')}`
+  if (inv.sales_order) __mockCollectWebOrder(inv.sales_order, invoice_name) // v0.4 G
   state.invoices.push({
     invoice: invoice_name,
     offline_uuid: inv.offline_uuid,
@@ -665,7 +899,11 @@ function processInvoice(inv: POSInvoice): SubmitResult {
     card: inv.payments.filter((p) => p.mode_of_payment === 'Card').reduce((s, p) => s + p.amount, 0),
     items: inv.items.reduce((s, l) => s + l.qty, 0),
     boutique: inv.boutique,
-    item_codes: inv.items.map((l) => l.item_code)
+    item_codes: inv.items.map((l) => l.item_code),
+    lines: inv.items.map((l) => ({ ...l })),
+    receipt_token: receiptToken(inv.offline_uuid),
+    terminal_ref: inv.payments.find((p) => p.stripe_payment_intent)?.stripe_payment_intent,
+    tax_rate: TAXES.reduce((s, t) => s + t.rate, 0)
   })
   if (inv.customer) {
     const c = state.customers.find((x) => x.name === inv.customer)
@@ -748,9 +986,290 @@ export function __resetMock() {
   state.templates = []
   state.consents = []
   state.events = []
+  state.returns = []
+  state.alerts = []
   try {
     localStorage.removeItem(LS_KEY)
   } catch {
     /* ignore */
   }
+}
+
+/* ---------- v0.4 H: affinity mock ---------- */
+
+/** Co-purchase table over the mock catalogue: trigger prefix -> [companion, lift, confidence]. */
+const AFFINITY: [string, string, number, number][] = [
+  ['RG-SOL', 'RG-ETE-004', 3.4, 0.52],
+  ['RG-HAL', 'RG-ETE-004', 3.1, 0.48],
+  ['RG-', 'AC-CLN-036', 1.6, 0.21],
+  ['WT-', 'AC-STR-037', 4.2, 0.38],
+  ['WT-', 'AC-WND-038', 2.7, 0.17],
+  ['NK-CHN', 'NK-PND-010', 3.8, 0.45],
+  ['NK-', 'ER-STD-020', 1.9, 0.19],
+  ['ER-STD', 'NK-PND-010', 2.2, 0.24],
+  ['ER-', 'AC-BOX-035', 1.5, 0.14],
+  ['BR-TEN', 'ER-STD-021', 2.4, 0.22],
+  ['BR-', 'AC-CLN-036', 1.4, 0.16],
+  ['HJ-', 'SV-APP-040', 5.1, 0.62],
+  ['HJ-', 'AC-BOX-035', 2.9, 0.35],
+  ['AC-GFT', 'ER-PRL-024', 1.7, 0.18]
+]
+const BESTSELLERS = ['ER-STD-020', 'NK-PND-010', 'RG-ETE-004', 'BR-BNG-016', 'AC-STR-037', 'ER-HUG-025', 'NK-CHN-012', 'AC-BOX-035']
+
+function mockOwnedItems(customer: string): Set<string> {
+  const owned = new Set<string>()
+  for (const inv of state.invoices) if (inv.customer === customer) for (const c of inv.item_codes) owned.add(c)
+  const cust = state.customers.find((c) => c.name === customer)
+  if (cust?.last_visit) owned.add(ITEMS[parseInt(cust.name.slice(-4)) % ITEMS.length]!.item_code) // the seeded history row
+  return owned
+}
+
+function mockRecommend(context: string[], exclude: Set<string>, n: number, boutique?: string): Recommendation[] {
+  const scores = new Map<string, { score: number; lift: number; confidence: number; because: string }>()
+  for (const ctx of context) {
+    for (const [prefix, companion, lift, confidence] of AFFINITY) {
+      if (!ctx.startsWith(prefix) || exclude.has(companion) || context.includes(companion)) continue
+      const cur = scores.get(companion)
+      if (!cur) scores.set(companion, { score: lift, lift, confidence, because: ctx })
+      else {
+        cur.score += lift
+        if (lift > cur.lift) Object.assign(cur, { lift, confidence, because: ctx })
+      }
+    }
+  }
+  const ranked = [...scores.entries()].sort((a, b) => b[1].score - a[1].score).map(([code, r]) => ({ code, ...r }))
+  for (const code of BESTSELLERS) {
+    if (ranked.length >= n) break
+    if (exclude.has(code) || context.includes(code) || ranked.some((r) => r.code === code)) continue
+    ranked.push({ code, score: 0.3, lift: 0, confidence: 0, because: '' })
+  }
+  const stock = boutique ? stockFor(boutique) : null
+  return ranked.slice(0, n).flatMap((r) => {
+    const it = ITEMS.find((i) => i.item_code === r.code)
+    if (!it) return []
+    const because = r.because ? ITEMS.find((i) => i.item_code === r.because) : undefined
+    return [
+      {
+        item_code: it.item_code,
+        item_name: it.item_name,
+        item_group: it.item_group,
+        department: it.maison_department,
+        metal: it.maison_metal,
+        image: it.image ?? null,
+        has_serial_no: it.has_serial_no,
+        is_stock_item: it.is_stock_item ?? 1,
+        rate: PRICES[it.item_code] ?? 0,
+        score: Math.round(r.score * 1000) / 1000,
+        lift: r.lift,
+        confidence: r.confidence,
+        because: r.because || null,
+        because_name: because?.item_name ?? null,
+        reason: because ? `Bought with ${because.item_name} in ${Math.round(r.confidence * 100)}% of baskets` : 'Bestseller',
+        in_stock: stock ? (stock[it.item_code] ?? 0) > 0 : null
+      } satisfies Recommendation
+    ]
+  })
+}
+
+// ---- v0.4 A/D/E mock helpers ----
+function readersFor(boutique: string) {
+  const slug = boutique.toLowerCase().replace(/-/g, '')
+  return [
+    { name: `${slug}-r1`, label: 'Counter 1 · V660p', stripe_reader_id: `tmr_sim_${slug}_1`, device_type: 'verifone_v660p' as const, has_printer: 1 as const, enabled: 1 as const, serial_number: `SIM-${boutique}-01` },
+    { name: `${slug}-r2`, label: 'Roaming · S710', stripe_reader_id: `tmr_sim_${slug}_2`, device_type: 'stripe_s710' as const, has_printer: 0 as const, enabled: 1 as const, serial_number: `SIM-${boutique}-02` }
+  ]
+}
+
+const IS_TEST = typeof process !== 'undefined' && !!(process as unknown as { env?: Record<string, string> }).env?.VITEST
+
+/** Two sales from "yesterday" per boutique so the Returns screen has something to find in mock mode. */
+function ensureDemoHistory(boutique: string) {
+  if (IS_TEST || state.invoices.some((i) => i.boutique === boutique)) return
+  const yesterday = new Date(Date.now() - 86400000)
+  yesterday.setHours(15, 20, 0, 0)
+  const assoc = ASSOCIATES.find((a) => a.boutique === boutique && a.role === 'Associate')?.name || 'MA-0002'
+  const cust = state.customers[2]
+  const ser = serials(boutique)
+  const watch = ITEMS.find((i) => i.has_serial_no && ser[i.item_code]?.length)
+  const accessories = ITEMS.filter((i) => !i.has_serial_no && (stock(boutique)[i.item_code] ?? 0) > 3).slice(0, 2)
+  const taxRate = TAXES.reduce((s, t) => s + t.rate, 0)
+  const mk = (items: POSInvoiceItem[], card: boolean, uuid: string) => {
+    const t = computeTotals(items.map((l) => ({ qty: l.qty, rate: l.rate, taxable: true })), taxRate)
+    processInvoice({ offline_uuid: uuid, boutique, associate: assoc, device_id: 'demo', customer: cust?.name, posting_datetime: yesterday.toISOString(), items, payments: [{ mode_of_payment: card ? 'Card' : 'Cash', amount: t.grand_total, stripe_payment_intent: card ? `pi_sim_demo_${uuid}` : undefined }] })
+  }
+  if (watch) mk([{ item_code: watch.item_code, qty: 1, rate: PRICES[watch.item_code], serial_no: ser[watch.item_code][0] }], true, `demo-${boutique}-1`)
+  if (accessories.length) mk(accessories.map((a, i) => ({ item_code: a.item_code, qty: i === 0 ? 2 : 1, rate: PRICES[a.item_code] })), false, `demo-${boutique}-2`)
+  save()
+}
+
+function ensureDemoAlerts() {
+  if (state.alerts.length) return
+  let n = 1
+  for (const b of BOUTIQUES) {
+    const stk = stock(b.name)
+    const low = ITEMS.filter((i) => !i.has_serial_no && (stk[i.item_code] ?? 0) > 0)
+      .sort((a, c) => (stk[a.item_code] ?? 0) - (stk[c.item_code] ?? 0))
+      .slice(0, 2)
+    for (const it of low) {
+      const qty = stk[it.item_code] ?? 0
+      state.alerts.push({ name: `MSA-${String(n++).padStart(5, '0')}`, item_code: it.item_code, item_name: it.item_name, warehouse: b.warehouse, boutique: b.name, status: 'Open', qty, reorder_level: qty + 3, reorder_qty: 6, first_seen: new Date(Date.now() - 3600000 * 5).toISOString(), last_seen: new Date().toISOString() })
+    }
+  }
+  save()
+}
+
+function returnableFor(src: (typeof state.invoices)[number]): ReturnableInvoice {
+  const lines: POSInvoiceItem[] = src.lines || src.item_codes.map((c) => ({ item_code: c, qty: 1, rate: PRICES[c] }))
+  const returnedFor = (row: string) => state.returns.filter((r) => r.return_against === src.invoice).flatMap((r) => r.lines.filter((l) => l.row === row))
+  const days = Math.max(0, Math.floor((Date.now() - new Date(src.posting_datetime).getTime()) / 86400000))
+  const out: ReturnableInvoice = {
+    name: src.invoice,
+    posting_date: src.posting_datetime.slice(0, 10),
+    posting_datetime: src.posting_datetime,
+    boutique: src.boutique,
+    associate: src.associate,
+    customer: src.customer,
+    customer_name: state.customers.find((c) => c.name === src.customer)?.customer_name,
+    currency: 'USD',
+    net_total: src.net_total,
+    total_taxes: src.total_taxes,
+    tax_rate: src.tax_rate ?? TAXES.reduce((s, t) => s + t.rate, 0),
+    grand_total: src.grand_total,
+    loyalty_amount: 0,
+    payments: [...(src.cash ? [{ mode_of_payment: 'Cash', amount: src.cash }] : []), ...(src.card ? [{ mode_of_payment: 'Card', amount: src.card }] : [])],
+    terminal_ref: src.terminal_ref || null,
+    card_brand: src.card ? 'Visa' : null,
+    card_last4: src.card ? '4242' : null,
+    receipt_token: src.receipt_token,
+    days_since: days,
+    within_return_window: days <= RETURNS_POLICY.return_window_days,
+    within_exchange_window: days <= RETURNS_POLICY.exchange_window_days,
+    return_window_days: RETURNS_POLICY.return_window_days,
+    exchange_window_days: RETURNS_POLICY.exchange_window_days,
+    manager_threshold: RETURNS_POLICY.returns_manager_threshold,
+    credit_notes: state.returns.filter((r) => r.return_against === src.invoice).map((r) => r.name),
+    fully_returned: false,
+    lines: lines.map((l, i) => {
+      const row = `${src.invoice}-${i + 1}`
+      const item = ITEMS.find((x) => x.item_code === l.item_code)
+      const sold = l.serial_no ? [l.serial_no] : []
+      const ret = returnedFor(row)
+      const returned_qty = ret.reduce((s, r) => s + r.qty, 0)
+      const returned_serials = ret.flatMap((r) => r.serials)
+      return {
+        row,
+        item_code: l.item_code,
+        item_name: item?.item_name || l.item_code,
+        qty: l.qty,
+        rate: l.rate,
+        amount: l.qty * l.rate - (l.discount_amount || 0),
+        discount_amount: l.discount_amount || 0,
+        serials: sold,
+        returned_qty,
+        returned_serials,
+        returnable_qty: Math.max(0, l.qty - returned_qty),
+        returnable_serials: sold.filter((s) => !returned_serials.includes(s)),
+        taxable: (item?.maison_taxable ?? 1) as 0 | 1,
+        is_stock_item: (item?.is_stock_item ?? 1) as 0 | 1
+      }
+    })
+  }
+  out.fully_returned = out.lines.every((l) => l.returnable_qty <= 0)
+  return out
+}
+
+function selectReturnLines(info: ReturnableInvoice, req: ReturnRequest['lines']) {
+  if (!req?.length) throw new ApiError('Select at least one line to return', 'ValidationError', 417)
+  const lines = req.map((r) => {
+    const src = (r.row && info.lines.find((l) => l.row === r.row)) || info.lines.find((l) => l.item_code === r.item_code && l.returnable_qty > 0)
+    if (!src) throw new ApiError(`${r.item_code}: nothing left to return on ${info.name}`, 'NotFound', 404)
+    const serials = r.serial_no ? r.serial_no.split(/[\n,]/).map((s) => s.trim()).filter(Boolean) : []
+    const qty = r.qty || serials.length || 1
+    if (qty > src.returnable_qty) throw new ApiError(`${r.item_code}: only ${src.returnable_qty} left to return`, 'ValidationError', 417)
+    if (src.serials.length) {
+      const pick = serials.length ? serials : src.returnable_serials.slice(0, qty)
+      const bad = pick.filter((s) => !src.returnable_serials.includes(s))
+      if (bad.length) throw new ApiError(`Serial ${bad.join(', ')} was not sold on ${info.name} (or is already returned)`, 'NotFound', 404)
+      return { src, qty: pick.length, serials: pick, reason: r.reason || 'Other', condition: r.condition || 'Sellable' }
+    }
+    return { src, qty, serials: [], reason: r.reason || 'Other', condition: r.condition || 'Sellable' }
+  })
+  const totals = computeReturnTotals(lines.map((l) => ({ rate: l.src.rate, qty: l.qty, discount_amount: l.src.discount_amount, taxable: l.src.taxable })), info.tax_rate)
+  return { lines, totals }
+}
+
+function gateManager(info: ReturnableInvoice, credit: number, req: { manager?: string; manager_pin?: string }, kind: 'return' | 'exchange' = 'return') {
+  const gate = managerRequired({ credit, threshold: RETURNS_POLICY.returns_manager_threshold, daysSince: info.days_since, windowDays: kind === 'exchange' ? RETURNS_POLICY.exchange_window_days : RETURNS_POLICY.return_window_days })
+  if (!gate.required) return
+  const why = gate.reason === 'window' ? `sale is ${info.days_since} days old` : `credit ${credit.toFixed(2)} is above the manager threshold ${RETURNS_POLICY.returns_manager_threshold}`
+  if (!req.manager) throw new ApiError(`Manager approval required: ${why}`, 'MANAGER_REQUIRED', 417)
+  const m = ASSOCIATES.find((a) => a.name === req.manager)
+  if (!m || m.role === 'Associate') throw new ApiError(`${req.manager} is not a manager`, 'MANAGER_REQUIRED', 417)
+  // The real server approves implicitly when the *session user* is a manager; the mock has no
+  // session, so the POS sends its unlocked manager as `manager` without a PIN. With a PIN
+  // (associate flow) the check is synchronous: managers all use 1234 (see seed PIN_HASHES).
+  if (req.manager_pin !== undefined && req.manager_pin !== '1234') throw new ApiError('Manager PIN incorrect', 'MANAGER_REQUIRED', 417)
+}
+
+function createCreditNote(src: (typeof state.invoices)[number], info: ReturnableInvoice, lines: ReturnType<typeof selectReturnLines>['lines'], totals: { net: number; tax: number; total: number }): MockCreditNote {
+  const ser = serials(src.boutique)
+  const stk = stock(src.boutique)
+  const boutique = BOUTIQUES.find((b) => b.name === src.boutique)!
+  const damaged = `${src.boutique} Damaged - MJ`
+  const cn: MockCreditNote = {
+    name: `CN-${src.boutique}-${String(state.seq++).padStart(5, '0')}`,
+    return_against: src.invoice,
+    boutique: src.boutique,
+    customer: src.customer,
+    customer_name: info.customer_name,
+    posting_datetime: new Date().toISOString(),
+    lines: lines.map((l) => ({ row: l.src.row, item_code: l.src.item_code, item_name: l.src.item_name, qty: l.qty, rate: l.src.rate, serials: l.serials, reason: l.reason, condition: l.condition, warehouse: l.condition === 'Damaged' ? damaged : boutique.warehouse })),
+    net_total: -totals.net,
+    total_taxes: -totals.tax,
+    grand_total: -totals.total,
+    refund_method: 'Cash',
+    receipt_token: receiptToken(`cn-${state.seq}-${Date.now()}`),
+    payments: []
+  }
+  for (const l of lines) {
+    if (l.condition === 'Sellable') {
+      if (l.serials.length) ser[l.src.item_code] = [...(ser[l.src.item_code] || []), ...l.serials]
+      stk[l.src.item_code] = (stk[l.src.item_code] ?? 0) + l.qty
+    }
+  }
+  if (src.customer) {
+    const c = state.customers.find((x) => x.name === src.customer)
+    if (c) c.loyalty_points = Math.max(0, c.loyalty_points - Math.floor(totals.net * LOYALTY.collection_factor))
+  }
+  state.returns.push(cn)
+  return cn
+}
+
+function creditNoteResult(cn: MockCreditNote, src: (typeof state.invoices)[number], manager?: string): ReturnResult {
+  const c = src.customer ? state.customers.find((x) => x.name === src.customer) : undefined
+  return {
+    credit_note: cn.name,
+    return_against: cn.return_against,
+    grand_total: cn.grand_total,
+    net_total: cn.net_total,
+    total_taxes: cn.total_taxes,
+    refund_method: cn.refund_method,
+    refund_id: cn.refund_id || null,
+    receipt_token: cn.receipt_token,
+    payments: cn.payments.map((p) => ({ ...p })),
+    lines: cn.lines.map((l) => ({ item_code: l.item_code, item_name: l.item_name, qty: -l.qty, rate: l.rate, amount: -(l.qty * l.rate), serials: l.serials, warehouse: l.warehouse, reason: l.reason, condition: l.condition })),
+    loyalty_points_reversed: c?.loyalty_points ?? 0,
+    manager_approved_by: manager || null,
+    simulated_refund: true,
+    receipt: { invoice: cn.name, return_against: cn.return_against, refund_method: cn.refund_method, refund_id: cn.refund_id, store_credit: cn.refund_method === 'Store Credit' ? -cn.grand_total : 0 }
+  }
+}
+
+/** Test hook: inspect the mock returns / alerts state. */
+export const __mockOps = {
+  invoices: () => state.invoices.map((i) => ({ ...i })),
+  returns: () => state.returns.map((r) => ({ ...r })),
+  alerts: () => state.alerts.map((a) => ({ ...a })),
+  serials: (b: string) => JSON.parse(JSON.stringify(serials(b))) as Record<string, string[]>,
+  stock: (b: string) => ({ ...stock(b) })
 }

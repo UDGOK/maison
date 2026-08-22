@@ -31,7 +31,22 @@ SETTINGS_KEYS = (
 	"recognition_offline_cache",
 	"consent_text",
 	"consent_text_version",
+	# --- v0.4 returns / inventory (maison_pos.api.returns, maison_pos.api.inventory) ---
+	"return_window_days",
+	"exchange_window_days",
+	"returns_manager_threshold",
+	"low_stock_digest_enabled",
+	"low_stock_notify_regional",
 )
+
+# v0.4 defaults (returns & exchanges, inventory alerts)
+OPERATIONS_DEFAULTS: dict[str, Any] = {
+	"return_window_days": 30,
+	"exchange_window_days": 60,
+	"returns_manager_threshold": 2500.0,
+	"low_stock_digest_enabled": 1,
+	"low_stock_notify_regional": 0,
+}
 
 # v0.2 switches that default to on; persisted by ``ensure_recognition_defaults`` so that a
 # Single saved from the desk does not silently flip them to 0 (Frappe does not apply field
@@ -74,7 +89,7 @@ def ensure_recognition_defaults() -> None:
 	if not frappe.db.exists("DocType", "Maison POS Settings"):
 		return
 	stored = frappe.db.get_singles_dict("Maison POS Settings")
-	for key, value in {**BASE_DEFAULTS, **RECOGNITION_DEFAULTS}.items():
+	for key, value in {**BASE_DEFAULTS, **RECOGNITION_DEFAULTS, **OPERATIONS_DEFAULTS}.items():
 		if key == "face_recognition_enabled":
 			continue  # off unless Head Office switched it on
 		if stored.get(key) in (None, ""):
@@ -96,6 +111,7 @@ def _raw_settings() -> dict[str, Any]:
 		"loyalty_lookup_enabled": 1,
 	}
 	defaults.update(RECOGNITION_DEFAULTS)
+	defaults.update(OPERATIONS_DEFAULTS)
 	if frappe.db.exists("DocType", "Maison POS Settings"):
 		# Read the stored row, not the Document: a Single that was saved before a field
 		# existed has no value for it, and the Document would report 0 instead of the default.
@@ -162,4 +178,17 @@ def get_pos_settings(boutique: Optional[str] = None) -> dict[str, Any]:
 		"loyalty_lookup_enabled": cint(defaults["loyalty_lookup_enabled"]),
 	}
 	out.update(get_recognition_settings(boutique))
+	out.update(get_operations_settings())
 	return out
+
+
+def get_operations_settings() -> dict[str, Any]:
+	"""v0.4 returns / inventory block (merged into ``bootstrap.settings``)."""
+	raw = _raw_settings()
+	return {
+		"return_window_days": cint(raw["return_window_days"]) or OPERATIONS_DEFAULTS["return_window_days"],
+		"exchange_window_days": cint(raw["exchange_window_days"]) or OPERATIONS_DEFAULTS["exchange_window_days"],
+		"returns_manager_threshold": flt(raw["returns_manager_threshold"]),
+		"low_stock_digest_enabled": cint(raw["low_stock_digest_enabled"]),
+		"low_stock_notify_regional": cint(raw["low_stock_notify_regional"]),
+	}

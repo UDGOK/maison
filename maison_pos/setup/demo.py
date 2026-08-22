@@ -828,6 +828,54 @@ def ensure_users() -> None:
 
 
 # ---------------------------------------------------------------------------
+# test hook
+# ---------------------------------------------------------------------------
+def restore_demo_prices() -> int:
+	"""Re-create missing demo Item Prices (idempotent; 0 when the demo company is absent). Commits."""
+	if not frappe.db.exists("Company", COMPANY) or not frappe.db.exists("Price List", PRICE_LIST):
+		return 0
+	restored = 0
+	for code, *_rest in ITEMS:
+		rate = _rest[6]
+		if frappe.db.exists("Item", code) and not frappe.db.exists("Item Price", {"item_code": code, "price_list": PRICE_LIST, "selling": 1}):
+			_insert({"doctype": "Item Price", "item_code": code, "price_list": PRICE_LIST, "price_list_rate": rate, "selling": 1, "currency": CURRENCY})
+			restored += 1
+	if restored:
+		frappe.db.commit()
+	return restored
+
+
+def before_tests() -> None:
+	"""``hooks.before_tests`` — ERPNext's hook (`erpnext.setup.utils.before_tests`, also re-registered by
+	webshop / payments and therefore run again *after* ours) deletes every Item Price and commits.
+
+	On a seeded dev site that leaves the POS with $0 prices, so restore the demo price list now and
+	once more when the test process exits. Test cases seed inside their own transaction, so this
+	never changes test behaviour.
+	"""
+	restore_demo_prices()
+
+	import atexit
+
+	site = frappe.local.site
+
+	def _restore_on_exit() -> None:
+		try:
+			frappe.init(site=site)
+			frappe.connect()
+			restore_demo_prices()
+		except Exception:
+			pass
+		finally:
+			try:
+				frappe.destroy()
+			except Exception:
+				pass
+
+	atexit.register(_restore_on_exit)
+
+
+# ---------------------------------------------------------------------------
 # entry point
 # ---------------------------------------------------------------------------
 @frappe.whitelist()
@@ -863,6 +911,26 @@ def seed(commit: bool = True) -> dict[str, Any]:
 	ensure_stock()
 	ensure_customers()
 	ensure_users()
+	# --- v0.4 D/E (inventory + returns): reorder levels, Damaged warehouses, readers, sample alerts ---
+	from maison_pos.setup.demo_v04_inventory import seed_inventory_v04
+
+	seed_inventory_v04()
+	# --- end v0.4 D/E ---
+	# --- v0.4 G (webshop): settings, gateway, website items + visuals, demo shopper, sample web orders ---
+	from maison_pos.setup.demo_v04_webshop import seed_webshop
+
+	seed_webshop()  # no-op when the webshop app is not installed
+	# --- end v0.4 G ---
+
+	# --- v0.4 B/C/I (CRM / HR / promotions / feedback): employees, commission rules, promos, coupons, profiles ---
+	try:
+		from maison_pos.setup.demo_v04_crm_hr import seed_v04_crm_hr
+
+		summary_v04_crm = seed_v04_crm_hr()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison demo v0.4 crm/hr seed")
+		summary_v04_crm = {"error": "see Error Log"}
+	# --- end v0.4 B/C/I ---
 
 	if commit:
 		frappe.db.commit()
@@ -876,6 +944,7 @@ def seed(commit: bool = True) -> dict[str, Any]:
 		"associates": frappe.db.count("Maison Associate"),
 		"loyalty_program": LOYALTY_PROGRAM,
 		"password": DEMO_PASSWORD,
+		"v04_crm_hr": summary_v04_crm,
 	}
 	print(frappe.as_json(summary))
 	return summary

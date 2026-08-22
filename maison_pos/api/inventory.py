@@ -1,0 +1,464 @@
+"""Inventory (v0.4 section D): low-stock alerts, transfer requests, cycle counts.
+
+* ``low_stock_scan`` (hourly scheduler job) compares every ``Item Reorder`` row against the
+  warehouse ``Bin`` and keeps exactly one open ``Maison Stock Alert`` per (item, warehouse) —
+  re-running never duplicates, and alerts auto-resolve once stock is back above the level.
+* ``alerts`` / ``acknowledge`` / ``resolve`` drive the POS Shift/Settings badge and the
+  dashboard "Low stock" tile.
+* ``request_transfer`` raises a Material Request (Material Transfer) between boutiques.
+* ``cycle_count_expected`` / ``submit_cycle_count`` back the POS Cycle count screen: serials
+  scanned on the device are compared with the warehouse and a draft Stock Reconciliation is
+  created for the qty items so a manager can review and submit it in the desk.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any, Optional
+
+import frappe
+from frappe import _
+from frappe.utils import cint, flt, get_url_to_form, now_datetime, nowdate, nowtime
+
+from maison_pos.scoping import (
+	ALL_MAISON_ROLES,
+	assert_boutique_access,
+	assert_roles,
+	get_allowed_boutiques,
+	get_associate,
+	is_manager_or_above,
+	is_unrestricted,
+)
+
+ALERT_FIELDS = [
+	"name", "item_code", "item_name", "warehouse", "boutique", "status", "qty", "reorder_level", "reorder_qty",
+	"first_seen", "last_seen", "acknowledged_by", "acknowledged_at", "resolved_at", "material_request",
+]
+
+
+def _boutique_for_warehouse(warehouse: str) -> Optional[str]:
+	return frappe.db.get_value("Maison Boutique", {"warehouse": warehouse}, "name")
+
+
+def _actual_qty(item_code: str, warehouse: str) -> float:
+	return flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"))
+
+
+# ---------------------------------------------------------------------------
+# scan (scheduler, hourly) — idempotent
+# ---------------------------------------------------------------------------
+def low_stock_scan(notify: bool = True) -> dict[str, Any]:
+	"""Create / refresh / resolve ``Maison Stock Alert`` rows from ``Item Reorder`` levels.
+
+	Returns ``{checked, created: [name], updated: n, resolved: [name]}``. Only warehouses that
+	belong to an enabled boutique are considered (plus any warehouse with a reorder level, so
+	head-office stock rooms also alert).
+	"""
+	levels = frappe.get_all(
+		"Item Reorder",
+		fields=["parent as item_code", "warehouse", "warehouse_reorder_level", "warehouse_reorder_qty"],
+		filters={"parenttype": "Item"},
+	)
+	disabled = set(frappe.get_all("Item", filters={"disabled": 1}, pluck="name")) if levels else set()
+	created: list[str] = []
+	resolved: list[str] = []
+	updated = 0
+	now = now_datetime()
+	seen: set[tuple[str, str]] = set()
+	for lv in levels:
+		if lv.item_code in disabled or flt(lv.warehouse_reorder_level) <= 0:
+			continue
+		key = (lv.item_code, lv.warehouse)
+		if key in seen:
+			continue
+		seen.add(key)
+		qty = _actual_qty(lv.item_code, lv.warehouse)
+		open_alert = frappe.db.get_value(
+			"Maison Stock Alert",
+			{"item_code": lv.item_code, "warehouse": lv.warehouse, "status": ("in", ("Open", "Acknowledged"))},
+			["name", "qty"],
+			as_dict=True,
+		)
+		if qty <= flt(lv.warehouse_reorder_level):
+			if open_alert:
+				if flt(open_alert.qty) != qty:
+					frappe.db.set_value("Maison Stock Alert", open_alert.name, {"qty": qty, "last_seen": now, "reorder_level": flt(lv.warehouse_reorder_level)}, update_modified=False)
+					updated += 1
+				else:
+					frappe.db.set_value("Maison Stock Alert", open_alert.name, "last_seen", now, update_modified=False)
+				continue
+			alert = frappe.get_doc(
+				{
+					"doctype": "Maison Stock Alert",
+					"item_code": lv.item_code,
+					"warehouse": lv.warehouse,
+					"boutique": _boutique_for_warehouse(lv.warehouse),
+					"status": "Open",
+					"qty": qty,
+					"reorder_level": flt(lv.warehouse_reorder_level),
+					"reorder_qty": flt(lv.warehouse_reorder_qty),
+					"first_seen": now,
+					"last_seen": now,
+				}
+			)
+			alert.flags.ignore_permissions = True
+			alert.insert()
+			created.append(alert.name)
+		elif open_alert:
+			frappe.db.set_value("Maison Stock Alert", open_alert.name, {"status": "Resolved", "resolved_at": now, "qty": qty}, update_modified=False)
+			resolved.append(open_alert.name)
+
+	# alerts whose reorder level was removed are resolved too
+	stale = frappe.get_all("Maison Stock Alert", filters={"status": ("in", ("Open", "Acknowledged"))}, fields=["name", "item_code", "warehouse"])
+	for row in stale:
+		if (row.item_code, row.warehouse) not in seen:
+			frappe.db.set_value("Maison Stock Alert", row.name, {"status": "Resolved", "resolved_at": now}, update_modified=False)
+			resolved.append(row.name)
+
+	if created and notify:
+		_notify_new_alerts(created)
+	if not frappe.flags.in_test:
+		frappe.db.commit()
+	_publish_alert_counts()
+	return {"checked": len(seen), "created": created, "updated": updated, "resolved": resolved}
+
+
+def _recipients_for(boutique: Optional[str]) -> list[str]:
+	"""Managers of the boutique + every Head Office user (+ Regional when enabled)."""
+	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_operations_settings
+
+	users: set[str] = set()
+	if boutique:
+		users.update(frappe.get_all("Maison Associate", filters={"boutique": boutique, "role": "Manager", "enabled": 1}, pluck="user"))
+	roles = ["Maison Head Office"]
+	if get_operations_settings()["low_stock_notify_regional"]:
+		roles.append("Maison Regional")
+	users.update(frappe.get_all("Has Role", filters={"role": ("in", roles), "parenttype": "User"}, pluck="parent"))
+	enabled = set(frappe.get_all("User", filters={"name": ("in", list(users)), "enabled": 1, "user_type": "System User"}, pluck="name")) if users else set()
+	return sorted(u for u in enabled if u not in ("Administrator", "Guest"))
+
+
+def _notify_new_alerts(names: list[str]) -> None:
+	"""One Notification Log per user per boutique batch (desk bell), no e-mail (the digest does that)."""
+	rows = frappe.get_all("Maison Stock Alert", filters={"name": ("in", names)}, fields=ALERT_FIELDS)
+	by_boutique: dict[Optional[str], list] = {}
+	for r in rows:
+		by_boutique.setdefault(r.boutique, []).append(r)
+	for boutique, alerts in by_boutique.items():
+		subject = _("Low stock at {0}: {1} item(s)").format(boutique or _("Head office"), len(alerts))
+		lines = [f"{a.item_name or a.item_code} ({a.item_code}): {flt(a.qty):g} left, level {flt(a.reorder_level):g}" for a in alerts[:12]]
+		body = "<br>".join(lines)
+		for user in _recipients_for(boutique):
+			try:
+				frappe.get_doc(
+					{
+						"doctype": "Notification Log",
+						"for_user": user,
+						"type": "Alert",
+						"document_type": "Maison Stock Alert",
+						"document_name": alerts[0].name,
+						"subject": subject,
+						"email_content": body,
+					}
+				).insert(ignore_permissions=True)
+			except Exception:  # pragma: no cover - notifications must not break the scan
+				frappe.log_error(frappe.get_traceback(), "Maison low stock notification")
+		for a in alerts:
+			frappe.db.set_value("Maison Stock Alert", a.name, "notified", 1, update_modified=False)
+
+
+def _publish_alert_counts() -> None:
+	try:
+		from maison_pos.utils import DASHBOARD_ROOM
+
+		frappe.publish_realtime("maison_stock_alerts", {"open": open_alert_counts()}, room=DASHBOARD_ROOM, after_commit=True)
+	except Exception:  # pragma: no cover
+		pass
+
+
+def open_alert_counts(boutiques: Optional[list[str]] = None) -> dict[str, int]:
+	"""``{boutique: open+acknowledged alerts}`` for the dashboard tile / POS badge."""
+	filters: dict[str, Any] = {"status": ("in", ("Open", "Acknowledged"))}
+	if boutiques is not None:
+		filters["boutique"] = ("in", boutiques or ["__none__"])
+	rows = frappe.get_all("Maison Stock Alert", filters=filters, fields=["boutique", "count(name) as n"], group_by="boutique")
+	return {(r.boutique or ""): cint(r.n) for r in rows}
+
+
+def low_stock_digest() -> dict[str, Any]:
+	"""Daily e-mail digest of open alerts to Head Office (and boutique managers for their store)."""
+	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_operations_settings
+
+	if not get_operations_settings()["low_stock_digest_enabled"]:
+		return {"sent": 0, "skipped": "disabled"}
+	rows = frappe.get_all("Maison Stock Alert", filters={"status": ("in", ("Open", "Acknowledged"))}, fields=ALERT_FIELDS, order_by="boutique, item_code")
+	if not rows:
+		return {"sent": 0}
+	by_boutique: dict[Optional[str], list] = {}
+	for r in rows:
+		by_boutique.setdefault(r.boutique, []).append(r)
+	sent = 0
+	ho = _recipients_for(None)
+	if ho:
+		_send_digest(ho, rows, _("Maison low stock digest — {0} open alert(s)").format(len(rows)))
+		sent += len(ho)
+	for boutique, alerts in by_boutique.items():
+		if not boutique:
+			continue
+		managers = [u for u in _recipients_for(boutique) if u not in ho]
+		if managers:
+			_send_digest(managers, alerts, _("{0}: {1} low-stock alert(s)").format(boutique, len(alerts)))
+			sent += len(managers)
+	return {"sent": sent, "alerts": len(rows)}
+
+
+def _send_digest(recipients: list[str], rows: list, subject: str) -> None:
+	table = "".join(
+		f"<tr><td>{r.boutique or ''}</td><td>{r.item_code}</td><td>{r.item_name or ''}</td><td style='text-align:right'>{flt(r.qty):g}</td>"
+		f"<td style='text-align:right'>{flt(r.reorder_level):g}</td><td>{r.status}</td></tr>"
+		for r in rows
+	)
+	html = (
+		f"<p>{subject}</p><table border='1' cellpadding='4' style='border-collapse:collapse'>"
+		"<tr><th>Boutique</th><th>Item</th><th>Name</th><th>Qty</th><th>Level</th><th>Status</th></tr>"
+		f"{table}</table><p><a href='{get_url_to_form('Maison Stock Alert', rows[0].name)}'>Open in desk</a></p>"
+	)
+	frappe.sendmail(recipients=recipients, subject=subject, message=html, delayed=True)
+
+
+# ---------------------------------------------------------------------------
+# POS / dashboard endpoints
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def alerts(boutique: Optional[str] = None, status: str = "open", limit: int = 200) -> dict[str, Any]:
+	"""Alerts of *boutique* (scoped users: their own; unrestricted + empty boutique: every boutique).
+
+	``status``: ``open`` (Open + Acknowledged), ``all`` or an exact status.
+	"""
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	if boutique or not is_unrestricted():
+		boutiques = [assert_boutique_access(boutique)]
+	else:
+		boutiques = get_allowed_boutiques()
+	filters: dict[str, Any] = {"boutique": ("in", boutiques or ["__none__"])}
+	if status == "open":
+		filters["status"] = ("in", ("Open", "Acknowledged"))
+	elif status != "all":
+		filters["status"] = status
+	rows = frappe.get_all("Maison Stock Alert", filters=filters, fields=ALERT_FIELDS, order_by="status asc, qty asc, item_code asc", limit=cint(limit) or 200)
+	return {
+		"boutiques": boutiques,
+		"alerts": rows,
+		"open": sum(1 for r in rows if r.status in ("Open", "Acknowledged")),
+		"counts": open_alert_counts(boutiques),
+	}
+
+
+@frappe.whitelist()
+def acknowledge(alert: str) -> dict[str, Any]:
+	"""Mark an alert Acknowledged (manager of the boutique or unrestricted)."""
+	doc = frappe.get_doc("Maison Stock Alert", alert)
+	assert_boutique_access(doc.boutique)
+	if doc.status == "Open":
+		doc.status = "Acknowledged"
+		doc.acknowledged_by = frappe.session.user
+		doc.acknowledged_at = now_datetime()
+		doc.flags.ignore_permissions = True
+		doc.save()
+	_publish_alert_counts()
+	return {"name": doc.name, "status": doc.status}
+
+
+@frappe.whitelist()
+def resolve(alert: str) -> dict[str, Any]:
+	"""Manager+: close an alert by hand (the scan also resolves it automatically when stock returns)."""
+	if not is_manager_or_above():
+		frappe.throw(_("Only managers may resolve stock alerts"), frappe.PermissionError)
+	doc = frappe.get_doc("Maison Stock Alert", alert)
+	assert_boutique_access(doc.boutique)
+	if doc.status != "Resolved":
+		doc.status = "Resolved"
+		doc.resolved_at = now_datetime()
+		doc.flags.ignore_permissions = True
+		doc.save()
+	_publish_alert_counts()
+	return {"name": doc.name, "status": doc.status}
+
+
+@frappe.whitelist()
+def request_transfer(item: str, to: str, qty: float, from_warehouse: Optional[str] = None, alert: Optional[str] = None, reason: Optional[str] = None) -> dict[str, Any]:
+	"""Raise a Material Request (Material Transfer) of *qty* × *item* into boutique *to*.
+
+	``from_warehouse`` is optional — a boutique code or a warehouse name (Head Office picks the
+	source when approving). Associates may only request into their own boutique. Links the
+	request to *alert* when given.
+	"""
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	to_boutique = assert_boutique_access(to)
+	qty = flt(qty)
+	if qty <= 0:
+		frappe.throw(_("Quantity must be positive"), frappe.ValidationError)
+	if not frappe.db.exists("Item", item):
+		frappe.throw(_("Item {0} does not exist").format(item), frappe.DoesNotExistError)
+	b = frappe.get_cached_doc("Maison Boutique", to_boutique)
+	source = None
+	if from_warehouse:
+		if frappe.db.exists("Maison Boutique", from_warehouse):
+			source = frappe.db.get_value("Maison Boutique", from_warehouse, "warehouse")
+		elif frappe.db.exists("Warehouse", from_warehouse):
+			source = from_warehouse
+		else:
+			frappe.throw(_("Unknown source {0}").format(from_warehouse), frappe.DoesNotExistError)
+		if source == b.warehouse:
+			frappe.throw(_("Source and destination warehouse are the same"), frappe.ValidationError)
+	mr = frappe.get_doc(
+		{
+			"doctype": "Material Request",
+			"material_request_type": "Material Transfer",
+			"company": b.company,
+			"transaction_date": nowdate(),
+			"schedule_date": nowdate(),
+			"set_from_warehouse": source,
+			"set_warehouse": b.warehouse,
+			"title": _("Transfer {0} to {1}").format(item, to_boutique),
+			"items": [
+				{
+					"item_code": item,
+					"qty": qty,
+					"schedule_date": nowdate(),
+					"warehouse": b.warehouse,
+					"from_warehouse": source,
+					"description": (reason or "")[:140] or None,
+				}
+			],
+		}
+	)
+	mr.flags.ignore_permissions = True
+	mr.insert()
+	if alert and frappe.db.exists("Maison Stock Alert", alert):
+		frappe.db.set_value("Maison Stock Alert", alert, "material_request", mr.name, update_modified=False)
+	return {"material_request": mr.name, "status": mr.status, "item": item, "qty": qty, "to_warehouse": b.warehouse, "from_warehouse": source}
+
+
+# ---------------------------------------------------------------------------
+# cycle count
+# ---------------------------------------------------------------------------
+def _expected(boutique: str) -> dict[str, Any]:
+	warehouse = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+	serial_rows = frappe.get_all("Serial No", filters={"warehouse": warehouse, "status": "Active"}, fields=["name", "item_code"], order_by="item_code, name")
+	serials: dict[str, list[str]] = {}
+	for r in serial_rows:
+		serials.setdefault(r.item_code, []).append(r.name)
+	bins = frappe.get_all("Bin", filters={"warehouse": warehouse, "actual_qty": (">", 0)}, fields=["item_code", "actual_qty"])
+	qty = {b.item_code: flt(b.actual_qty) for b in bins if b.item_code not in serials}
+	return {"warehouse": warehouse, "serials": serials, "qty": qty}
+
+
+@frappe.whitelist()
+def cycle_count_expected(boutique: Optional[str] = None) -> dict[str, Any]:
+	"""What the warehouse should contain: ``{warehouse, serials: {item: [serial]}, qty: {item: n}, items: {...}}``."""
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	boutique = assert_boutique_access(boutique)
+	exp = _expected(boutique)
+	codes = sorted(set(exp["serials"]) | set(exp["qty"]))
+	names = {r.name: r.item_name for r in frappe.get_all("Item", filters={"name": ("in", codes or ["__none__"])}, fields=["name", "item_name"])}
+	return {"boutique": boutique, **exp, "items": names, "as_of": now_datetime().isoformat()}
+
+
+@frappe.whitelist()
+def submit_cycle_count(boutique: str, serials: Any = None, qty: Any = None, device_id: Optional[str] = None, notes: Optional[str] = None) -> dict[str, Any]:
+	"""Compare scanned *serials* (list) and counted *qty* (``{item_code: n}``) with the warehouse.
+
+	Creates a ``Maison Cycle Count`` (Draft) and, when qty items differ, a **draft** Stock
+	Reconciliation for a manager to review. Serialized discrepancies are reported as
+	``missing`` (expected, not scanned = unaccounted) and ``unexpected`` (scanned but not in
+	this warehouse) — serial corrections are deliberate manual actions in the desk.
+	"""
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	boutique = assert_boutique_access(boutique)
+	if isinstance(serials, str):
+		serials = json.loads(serials or "[]")
+	if isinstance(qty, str):
+		qty = json.loads(qty or "{}")
+	scanned = sorted({str(s).strip() for s in (serials or []) if str(s).strip()})
+	counted = {str(k): flt(v) for k, v in (qty or {}).items()}
+	exp = _expected(boutique)
+	expected_serials = {s: item for item, lst in exp["serials"].items() for s in lst}
+	missing = [{"serial_no": s, "item_code": item} for s, item in sorted(expected_serials.items()) if s not in scanned]
+	unexpected = []
+	for s in scanned:
+		if s in expected_serials:
+			continue
+		info = frappe.db.get_value("Serial No", s, ["item_code", "warehouse", "status"], as_dict=True)
+		unexpected.append({"serial_no": s, "item_code": info.item_code if info else None, "warehouse": info.warehouse if info else None, "status": info.status if info else "not_found"})
+	diffs = []
+	for item, expected_qty in sorted(exp["qty"].items()):
+		if item in counted and flt(counted[item]) != expected_qty:
+			diffs.append({"item_code": item, "expected": expected_qty, "counted": flt(counted[item]), "diff": flt(counted[item]) - expected_qty})
+	for item, n in sorted(counted.items()):
+		if item not in exp["qty"] and item not in exp["serials"] and n > 0 and frappe.db.exists("Item", item):
+			diffs.append({"item_code": item, "expected": 0.0, "counted": n, "diff": n})
+
+	assoc = get_associate()
+	cc = frappe.get_doc(
+		{
+			"doctype": "Maison Cycle Count",
+			"boutique": boutique,
+			"warehouse": exp["warehouse"],
+			"counted_at": now_datetime(),
+			"associate": assoc["name"] if assoc else None,
+			"device_id": device_id,
+			"status": "Draft",
+			"expected_serials": len(expected_serials),
+			"scanned_serials": len(scanned),
+			"missing_serials": json.dumps(missing),
+			"unexpected_serials": json.dumps(unexpected),
+			"qty_differences": json.dumps(diffs),
+			"counts": json.dumps({"serials": scanned, "qty": counted}),
+			"notes": notes,
+		}
+	)
+	cc.flags.ignore_permissions = True
+	cc.insert()
+
+	recon = None
+	if diffs:
+		company = frappe.db.get_value("Maison Boutique", boutique, "company")
+		sr = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"purpose": "Stock Reconciliation",
+				"company": company,
+				"set_warehouse": exp["warehouse"],
+				"posting_date": nowdate(),
+				"posting_time": nowtime(),
+				"set_posting_time": 1,
+				"items": [{"item_code": d["item_code"], "warehouse": exp["warehouse"], "qty": d["counted"]} for d in diffs],
+			}
+		)
+		sr.flags.ignore_permissions = True
+		# ERPNext's get_stock_balance_for() checks write permission on Stock Reconciliation explicitly
+		# (ignoring ignore_permissions); the draft is created on behalf of the associate by the system
+		# and reviewed by a manager in the desk, so insert it as Administrator.
+		user = frappe.session.user
+		try:
+			frappe.set_user("Administrator")
+			sr.owner = user
+			sr.insert()
+			recon = sr.name
+			cc.db_set("stock_reconciliation", recon, update_modified=False)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"Maison cycle count {cc.name}: stock reconciliation draft")
+		finally:
+			frappe.set_user(user)
+	return {
+		"cycle_count": cc.name,
+		"warehouse": exp["warehouse"],
+		"expected_serials": len(expected_serials),
+		"scanned_serials": len(scanned),
+		"missing": missing,
+		"unexpected": unexpected,
+		"qty_differences": diffs,
+		"stock_reconciliation": recon,
+		"clean": not missing and not unexpected and not diffs,
+	}

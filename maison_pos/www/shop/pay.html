@@ -1,0 +1,38 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap"><div class="mw-narrow" style="max-width:560px">
+	<div class="mw-steps"><div class="done"><i>1</i>Bag</div><div class="done"><i>2</i>Boutique</div><div class="active"><i>3</i>Payment</div><div><i>4</i>Collect</div></div>
+	<span class="mw-label">{{ 'Deposit' if mode == 'Reserve-with-deposit' else 'Payment' }} for {{ order_name }}</span>
+	<h1 class="mw-display lg" style="margin:10px 0 24px">{{ shop_money(pr.grand_total, pr.currency) }}</h1>
+	{% if pr.status == 'Paid' %}
+	<div class="mw-panel"><span class="mw-pill good"><span class="dot"></span>Paid</span><p class="mw-muted" style="margin:14px 0 0">This payment has already been received.</p></div>
+	<a class="mw-btn" href="/shop/order?name={{ order_name }}">View order</a>
+	{% else %}
+	<div class="mw-panel">
+		<span class="mw-pill warn" style="margin-bottom:18px">Simulated gateway</span>
+		<div class="mw-field"><label class="mw-label dim">Card number</label><input class="mw-input" value="4242 4242 4242 4242" readonly></div>
+		<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+			<div class="mw-field"><label class="mw-label dim">Expiry</label><input class="mw-input" value="12 / 29" readonly></div>
+			<div class="mw-field"><label class="mw-label dim">CVC</label><input class="mw-input" value="123" readonly></div>
+		</div>
+		<div class="mw-error" id="mw-pay-error"></div>
+		<button class="mw-btn block" id="mw-pay-go">Pay {{ shop_money(pr.grand_total, pr.currency) }}</button>
+		<div class="mw-note" style="margin-top:12px">No Stripe key is configured on this site, so this test card completes the payment instantly. With <code>stripe_secret_key</code> set, this step is Stripe Checkout.</div>
+	</div>
+	{% endif %}
+</div></div>
+{% endblock %}
+{% block shop_script %}
+<script>
+frappe.ready(() => {
+	const btn = document.getElementById('mw-pay-go'); if (!btn) return;
+	btn.addEventListener('click', async () => {
+		btn.disabled = true; btn.textContent = 'Processing…';
+		try {
+			const r = await MW.call('maison_pos.api.webshop.simulate_payment', { payment_request: {{ pr.name | tojson }} });
+			window.location.href = r.redirect_to + '&paid=1';
+		} catch (ex) { document.getElementById('mw-pay-error').textContent = MW.errorText(ex); btn.disabled = false; btn.textContent = 'Retry'; }
+	});
+});
+</script>
+{% endblock %}

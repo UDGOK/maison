@@ -19,6 +19,23 @@ export interface Boutique {
   printer_model?: string
   enabled: 1 | 0
   currency: string
+  /** v0.4 A — Stripe Terminal readers paired to the boutique (child table `readers`). */
+  readers?: BoutiqueReader[]
+  /** v0.4 E — returns in Damaged condition land here */
+  damaged_warehouse?: string
+}
+
+/** v0.4 A — `Maison Boutique Reader` row. */
+export type ReaderDeviceType = 'verifone_v660p' | 'stripe_s710' | 'bbpos_wisepos_e' | 'simulated'
+export interface BoutiqueReader {
+  name?: string
+  label: string
+  stripe_reader_id?: string
+  device_type: ReaderDeviceType
+  /** V660p prints through terminal.print(canvas); S710 / WisePOS E fall back to ePOS / browser */
+  has_printer: 0 | 1 | boolean
+  enabled?: 0 | 1 | boolean
+  serial_number?: string
 }
 
 export interface Associate {
@@ -84,6 +101,11 @@ export interface PosSettings {
   consent_text: string
   consent_text_version: string
   recognition_offline_cache: boolean
+  /** v0.4 E — returns policy (merged from Maison POS Settings). */
+  return_window_days: number
+  exchange_window_days: number
+  /** refunds / exchange credits above this need a manager PIN (0 = always) */
+  returns_manager_threshold: number
 }
 
 /** Backend `catalog.upload_item_image` result: `image` is the absolute URL now on `Item.image`. */
@@ -106,7 +128,7 @@ export function normalizeSettings(raw?: Partial<Record<keyof PosSettings, unknow
     if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true'
     return !!v
   }
-  const num = (k: 'match_threshold' | 'biometric_retention_months'): number => {
+  const num = (k: 'match_threshold' | 'biometric_retention_months' | 'return_window_days' | 'exchange_window_days'): number => {
     const v = Number(r[k])
     return Number.isFinite(v) && v > 0 ? v : DEFAULT_SETTINGS[k]
   }
@@ -122,7 +144,10 @@ export function normalizeSettings(raw?: Partial<Record<keyof PosSettings, unknow
     biometric_retention_months: Math.round(num('biometric_retention_months')),
     consent_text: String(r.consent_text || DEFAULT_SETTINGS.consent_text),
     consent_text_version: String(r.consent_text_version || DEFAULT_SETTINGS.consent_text_version),
-    recognition_offline_cache: flag('recognition_offline_cache')
+    recognition_offline_cache: flag('recognition_offline_cache'),
+    return_window_days: Math.round(num('return_window_days')),
+    exchange_window_days: Math.round(num('exchange_window_days')),
+    returns_manager_threshold: Number.isFinite(Number(r.returns_manager_threshold)) && r.returns_manager_threshold !== undefined && r.returns_manager_threshold !== null && r.returns_manager_threshold !== '' ? Number(r.returns_manager_threshold) : DEFAULT_SETTINGS.returns_manager_threshold
   }
 }
 
@@ -150,7 +175,10 @@ export const DEFAULT_SETTINGS: PosSettings = {
   biometric_retention_months: 36,
   consent_text: DEFAULT_CONSENT_TEXT,
   consent_text_version: '2026-08-1',
-  recognition_offline_cache: true
+  recognition_offline_cache: true,
+  return_window_days: 30,
+  exchange_window_days: 60,
+  returns_manager_threshold: 2500
 }
 
 export interface PricingRule {
@@ -316,7 +344,10 @@ export interface POSInvoiceItem {
   qty: number
   rate: number
   serial_no?: string
+  /** whole-line discount (manual + automatic promotion) */
   discount_amount?: number
+  /** v0.4 I — share of the coupon discount shown for this line (server recomputes and must agree) */
+  coupon_discount?: number
 }
 
 export interface POSPayment {
@@ -336,6 +367,12 @@ export interface POSInvoice {
   payments: POSPayment[]
   loyalty_points_redeemed?: number
   notes?: string
+  /** v0.4 I — Maison Coupon code applied to the basket (validated server-side) */
+  coupon_code?: string
+  /** v0.4 I — promotions applied automatically (for the Promotion performance report) */
+  promotions?: { name: string; title: string; discount: number }[]
+  /** v0.4 G — collecting a web order: the Sales Order; the online payment is an advance, `payments` holds only the balance (may be empty). */
+  sales_order?: string
 }
 
 export type SubmitStatus = 'ok' | 'duplicate' | 'error'
@@ -463,6 +500,30 @@ export interface MaisonApi {
     live_summary(date?: string): Promise<LiveSummary>
     heartbeat(boutique: string, device_id: string, queued: number): Promise<{ ok: boolean }>
   }
+  /** v0.4 H — next-best-offer tiles (`maison_pos.api.insights`). */
+  insights: {
+    /** "Suggested for this client" — never an item the client already owns. */
+    recommend_for_client(customer: string, n?: number, boutique?: string): Promise<RecommendForClientResult>
+    /** "Pairs well with" for the basket lines (owned items of `customer` excluded). */
+    recommend_for_basket(items: string[], n?: number, boutique?: string, customer?: string): Promise<RecommendForBasketResult>
+  }
+  /** v0.4 E — itemized returns & exchanges (`maison_pos.api.returns`). */
+  returns: {
+    lookup(args: { invoice?: string; token?: string; customer?: string; q?: string; limit?: number }): Promise<{ invoices: ReturnableInvoice[] }>
+    return_items(req: ReturnRequest): Promise<ReturnResult>
+    exchange(req: ExchangeRequest): Promise<ExchangeResult>
+    policy(boutique?: string): Promise<ReturnPolicy>
+    recent(boutique: string, limit?: number): Promise<{ boutique: string; returns: RecentReturn[] }>
+  }
+  /** v0.4 D — low-stock alerts, transfer requests, cycle counts (`maison_pos.api.inventory`). */
+  inventory: {
+    alerts(boutique?: string, status?: 'open' | 'all' | string): Promise<StockAlertList>
+    acknowledge(alert: string): Promise<{ name: string; status: StockAlertStatus }>
+    resolve(alert: string): Promise<{ name: string; status: StockAlertStatus }>
+    request_transfer(args: { item: string; to: string; qty: number; from_warehouse?: string; alert?: string; reason?: string }): Promise<TransferRequestResult>
+    cycle_count_expected(boutique?: string): Promise<CycleCountExpected>
+    submit_cycle_count(args: { boutique: string; serials: string[]; qty: Record<string, number>; device_id?: string; notes?: string }): Promise<CycleCountResult>
+  }
   /** Boutiques the current user may unlock — used by the Unlock screen. */
   boutiques(): Promise<Pick<Boutique, 'name' | 'boutique_name' | 'city'>[]>
   /**
@@ -470,4 +531,256 @@ export interface MaisonApi {
    * online and caches a device-local digest so the same PIN keeps working offline.
    */
   verifyPin(associate: string, pin: string): Promise<{ ok: boolean; associate: string; full_name: string; boutique: string; role: string }>
+}
+
+// ---------------------------------------------------------------------------------------------
+// v0.4 H — insights (`maison_pos.api.insights`)
+// ---------------------------------------------------------------------------------------------
+export interface Recommendation {
+  item_code: string
+  item_name: string
+  item_group: string
+  department?: string
+  metal?: string
+  image?: string | null
+  has_serial_no: 0 | 1
+  is_stock_item: 0 | 1
+  rate: number
+  /** aggregated lift score (higher = stronger affinity) */
+  score: number
+  lift: number
+  confidence: number
+  /** item that triggered the suggestion, if any */
+  because?: string | null
+  because_name?: string | null
+  /** human reason shown under the tile, e.g. "Bought with Curb Chain in 45% of baskets" */
+  reason: string
+  /** in stock at the boutique (null for services / when no boutique given) */
+  in_stock: boolean | null
+}
+
+export interface RecommendForClientResult {
+  customer: string
+  items: Recommendation[]
+  owned: string[]
+  source: 'cache' | 'live'
+}
+
+export interface RecommendForBasketResult {
+  basket: string[]
+  items: Recommendation[]
+}
+
+// ---------------------------------------------------------------------------------------------
+// v0.4 E — returns & exchanges (`maison_pos.api.returns`)
+// ---------------------------------------------------------------------------------------------
+export type ReturnReason = 'Change of mind' | 'Defect' | 'Sizing' | 'Gift return' | 'Other'
+export type ReturnCondition = 'Sellable' | 'Damaged'
+export type RefundMethod = 'card' | 'cash' | 'store_credit'
+export const RETURN_REASONS: ReturnReason[] = ['Change of mind', 'Defect', 'Sizing', 'Gift return', 'Other']
+export const RETURN_CONDITIONS: ReturnCondition[] = ['Sellable', 'Damaged']
+
+export interface ReturnableLine {
+  /** Sales Invoice Item row name */
+  row: string
+  item_code: string
+  item_name: string
+  qty: number
+  rate: number
+  amount: number
+  discount_amount: number
+  serials: string[]
+  returned_qty: number
+  returned_serials: string[]
+  returnable_qty: number
+  returnable_serials: string[]
+  taxable: 0 | 1
+  is_stock_item: 0 | 1
+}
+
+export interface ReturnableInvoice {
+  name: string
+  posting_date: string
+  posting_datetime: string
+  boutique: string
+  associate?: string
+  customer?: string
+  customer_name?: string
+  currency: string
+  net_total: number
+  total_taxes: number
+  tax_rate: number
+  grand_total: number
+  loyalty_amount: number
+  payments: { mode_of_payment: string; amount: number }[]
+  terminal_ref?: string | null
+  card_brand?: string | null
+  card_last4?: string | null
+  receipt_token?: string | null
+  days_since: number
+  within_return_window: boolean
+  within_exchange_window: boolean
+  return_window_days: number
+  exchange_window_days: number
+  manager_threshold: number
+  credit_notes: string[]
+  fully_returned: boolean
+  lines: ReturnableLine[]
+}
+
+export interface ReturnLineRequest {
+  row?: string
+  item_code: string
+  qty: number
+  serial_no?: string
+  reason: ReturnReason
+  condition: ReturnCondition
+}
+
+export interface ReturnRequest {
+  invoice: string
+  lines: ReturnLineRequest[]
+  refund_method: RefundMethod
+  reason?: ReturnReason
+  manager?: string
+  manager_pin?: string
+  device_id?: string
+  notes?: string
+}
+
+export interface ReturnResultLine {
+  item_code: string
+  item_name: string
+  qty: number
+  rate: number
+  amount: number
+  serials: string[]
+  warehouse?: string
+  reason?: string
+  condition?: string
+}
+
+export interface ReturnResult {
+  credit_note: string
+  return_against: string
+  /** negative */
+  grand_total: number
+  net_total: number
+  total_taxes: number
+  refund_method: string | null
+  refund_id?: string | null
+  receipt_token?: string | null
+  payments: { mode_of_payment: string; amount: number }[]
+  lines: ReturnResultLine[]
+  loyalty_points_reversed: number
+  manager_approved_by?: string | null
+  simulated_refund?: boolean
+  /** `sales.receipt`-shaped payload of the credit note (for printing) */
+  receipt: Record<string, unknown>
+}
+
+export interface ExchangeRequest {
+  invoice: string
+  lines: ReturnLineRequest[]
+  new_items: POSInvoiceItem[]
+  payments?: POSPayment[]
+  refund_method?: RefundMethod
+  reason?: ReturnReason
+  manager?: string
+  manager_pin?: string
+  offline_uuid?: string
+  device_id?: string
+  customer?: string
+  notes?: string
+}
+
+export interface ExchangeResult extends ReturnResult {
+  new_invoice: string
+  new_grand_total: number
+  credit: number
+  applied: number
+  /** > 0 = client paid the difference, < 0 = remainder refunded */
+  difference: number
+  refund_remainder: number
+  new_receipt_token?: string | null
+  new_receipt: Record<string, unknown>
+  new_payments: { mode_of_payment: string; amount: number }[]
+}
+
+export interface ReturnPolicy {
+  return_window_days: number
+  exchange_window_days: number
+  returns_manager_threshold: number
+  reasons: ReturnReason[]
+  conditions: ReturnCondition[]
+  refund_methods: string[]
+  stripe_configured: boolean
+}
+
+export interface RecentReturn {
+  name: string
+  posting_date: string
+  posting_time: string
+  return_against: string
+  customer_name?: string
+  grand_total: number
+  maison_refund_method?: string
+  maison_return_reason?: string
+  maison_exchange_invoice?: string
+  maison_receipt_token?: string
+}
+
+// ---------------------------------------------------------------------------------------------
+// v0.4 D — inventory (`maison_pos.api.inventory`)
+// ---------------------------------------------------------------------------------------------
+export type StockAlertStatus = 'Open' | 'Acknowledged' | 'Resolved'
+export interface StockAlert {
+  name: string
+  item_code: string
+  item_name?: string
+  warehouse: string
+  boutique: string
+  status: StockAlertStatus
+  qty: number
+  reorder_level: number
+  reorder_qty: number
+  first_seen?: string
+  last_seen?: string
+  acknowledged_by?: string
+  acknowledged_at?: string
+  resolved_at?: string
+  material_request?: string
+}
+export interface StockAlertList {
+  boutiques: string[]
+  alerts: StockAlert[]
+  open: number
+  counts: Record<string, number>
+}
+export interface TransferRequestResult {
+  material_request: string
+  status: string
+  item: string
+  qty: number
+  to_warehouse: string
+  from_warehouse?: string | null
+}
+export interface CycleCountExpected {
+  boutique: string
+  warehouse: string
+  serials: Record<string, string[]>
+  qty: Record<string, number>
+  items: Record<string, string>
+  as_of: string
+}
+export interface CycleCountResult {
+  cycle_count: string
+  warehouse: string
+  expected_serials: number
+  scanned_serials: number
+  missing: { serial_no: string; item_code: string }[]
+  unexpected: { serial_no: string; item_code?: string | null; warehouse?: string | null; status: string }[]
+  qty_differences: { item_code: string; expected: number; counted: number; diff: number }[]
+  stock_reconciliation: string | null
+  clean: boolean
 }

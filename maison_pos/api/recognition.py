@@ -148,14 +148,14 @@ def find_or_create_customer(phone: Optional[str], email: Optional[str], name: Op
 	if existing:
 		return existing, False
 
-	from maison_pos.api.customers import _default
+	from maison_pos.api.customers import _default, _default_customer_group
 
 	doc = frappe.new_doc("Customer")
 	doc.update(
 		{
 			"customer_name": (name or "").strip() or phone or email,
 			"customer_type": "Individual",
-			"customer_group": frappe.db.get_single_value("Selling Settings", "customer_group") or _default("Customer Group"),
+			"customer_group": _default_customer_group(),
 			"territory": frappe.db.get_single_value("Selling Settings", "territory") or _default("Territory"),
 			"mobile_no": phone,
 			"email_id": email,

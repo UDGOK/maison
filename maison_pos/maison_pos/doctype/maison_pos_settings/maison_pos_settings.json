@@ -21,7 +21,15 @@
   "recognition_offline_cache",
   "section_consent",
   "consent_text_version",
-  "consent_text"
+  "consent_text",
+  "section_returns",
+  "return_window_days",
+  "exchange_window_days",
+  "column_break_returns",
+  "returns_manager_threshold",
+  "section_inventory",
+  "low_stock_digest_enabled",
+  "low_stock_notify_regional"
  ],
  "fields": [
   {
@@ -96,7 +104,7 @@
   },
   {
    "default": "0.6",
-   "description": "Maximum euclidean distance between RAW face-api descriptors for a match (face-api rule: < 0.6 = same person). Lower = stricter. Devices may only tighten it. The API reports distance plus a display score = 1 − distance/1.2.",
+   "description": "Maximum euclidean distance between RAW face-api descriptors for a match (face-api rule: < 0.6 = same person). Lower = stricter. Devices may only tighten it. The API reports distance plus a display score = 1 \u2212 distance/1.2.",
    "fieldname": "match_threshold",
    "fieldtype": "Float",
    "label": "Match threshold (distance)",
@@ -129,11 +137,58 @@
    "label": "Consent text version"
   },
   {
-   "default": "I agree that Maison may create and store a mathematical template of my facial features (a \"face template\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.",
+   "default": "I agree that Maison may create and store a mathematical template of my facial features (a \"face template\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law \u2014 whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.",
    "description": "Shown to the client on the enrolment consent screen (large type). See docs/biometrics-policy.md for EN/ES versions.",
    "fieldname": "consent_text",
    "fieldtype": "Text",
    "label": "Consent text (EN)"
+  },
+  {
+   "fieldname": "section_returns",
+   "fieldtype": "Section Break",
+   "label": "Returns & exchanges (v0.4)"
+  },
+  {
+   "default": "30",
+   "fieldname": "return_window_days",
+   "fieldtype": "Int",
+   "label": "Return window (days)",
+   "description": "Refunds after this many days from the sale need a manager PIN."
+  },
+  {
+   "default": "60",
+   "fieldname": "exchange_window_days",
+   "fieldtype": "Int",
+   "label": "Exchange window (days)",
+   "description": "Exchanges after this many days need a manager PIN."
+  },
+  {
+   "fieldname": "column_break_returns",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "2500",
+   "fieldname": "returns_manager_threshold",
+   "fieldtype": "Currency",
+   "label": "Manager PIN above (refund amount)",
+   "description": "Refunds / exchange credits above this amount require a manager PIN at the POS. 0 = always."
+  },
+  {
+   "fieldname": "section_inventory",
+   "fieldtype": "Section Break",
+   "label": "Inventory alerts (v0.4)"
+  },
+  {
+   "default": "1",
+   "fieldname": "low_stock_digest_enabled",
+   "fieldtype": "Check",
+   "label": "Daily low-stock e-mail digest"
+  },
+  {
+   "default": "0",
+   "fieldname": "low_stock_notify_regional",
+   "fieldtype": "Check",
+   "label": "Also notify Maison Regional"
   }
  ],
  "index_web_pages_for_search": 1,

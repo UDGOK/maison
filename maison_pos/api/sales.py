@@ -148,7 +148,12 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	if not items:
 		raise MaisonPOSError(_("Invoice has no items"))
 	payments = payload.get("payments") or []
-	if not payments:
+	# --- v0.4 G (webshop): collecting a web order — the online payment is an advance on the Sales Order ---
+	sales_order = payload.get("sales_order")
+	if sales_order and not frappe.db.exists("Sales Order", {"name": sales_order, "docstatus": 1}):
+		raise MaisonPOSError(_("Sales Order {0} does not exist").format(sales_order), ERR_NOT_FOUND)
+	# --- end v0.4 G ---
+	if not payments and not sales_order:
 		raise PaymentMismatchError(_("Invoice has no payments"))
 
 	posting = parse_datetime(payload.get("posting_datetime"))
@@ -187,21 +192,33 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 		qty = flt(row.get("qty") or 1)
 		if qty <= 0:
 			raise MaisonPOSError(_("Quantity must be positive for {0}").format(item_code))
+		# POSInvoice semantics (SPEC.md): `rate` = unit list rate shown on the tile, `discount_amount` =
+		# manual + promotion discount for the WHOLE line (the device computes its total as
+		# qty * rate - discount_amount). ERPNext's Sales Invoice Item keeps `discount_amount` per unit and
+		# derives `amount` from `rate`, so the net unit rate is what lands in `rate`.
 		rate = flt(row.get("rate"))
-		discount = flt(row.get("discount_amount"))
+		discount = min(flt(row.get("discount_amount")), flt(qty * rate))
+		unit_discount = flt(discount / qty, 4) if discount else 0.0
 		line = {
 			"item_code": item_code,
 			"qty": qty,
 			"warehouse": b.warehouse,
 			"cost_center": b.cost_center,
-			"price_list_rate": rate + discount,
-			"discount_amount": discount,
-			"rate": rate,
+			"price_list_rate": rate,
+			"discount_amount": unit_discount,
+			"rate": flt(rate - unit_discount, 4),
 		}
 		serials = _split_serials(row.get("serial_no"))
 		if serials:
 			line["use_serial_batch_fields"] = 1
 			line["serial_no"] = "\n".join(serials)
+		# --- v0.4 G (webshop): link the line to the web order so ERPNext marks it delivered + billed ---
+		if sales_order:
+			line["sales_order"] = sales_order
+			line["so_detail"] = row.get("so_detail") or frappe.db.get_value(
+				"Sales Order Item", {"parent": sales_order, "item_code": item_code}, "name"
+			)
+		# --- end v0.4 G ---
 		si.append("items", line)
 
 	# taxes from the boutique template (server recomputes amounts)
@@ -210,6 +227,11 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 		from erpnext.controllers.accounts_controller import get_taxes_and_charges
 
 		si.set("taxes", get_taxes_and_charges("Sales Taxes and Charges Template", template))
+
+	# v0.4 I — coupon (validated server-side; folds into line discounts before taxes)
+	from maison_pos.api.promotions import apply_coupon_to_invoice
+
+	apply_coupon_to_invoice(si, payload)
 
 	# loyalty redemption
 	points = flt(payload.get("loyalty_points_redeemed"))
@@ -248,6 +270,12 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 
 	change_account = pos_profile.get("account_for_change_amount") or frappe.get_cached_value("Company", company, "default_cash_account")
 	si.account_for_change_amount = change_account
+	# --- v0.4 G (webshop): allocate the online payment (advance Payment Entry against the Sales Order) ---
+	if sales_order:
+		from maison_pos.webshop.collect import apply_web_order_advances
+
+		apply_web_order_advances(si, sales_order, payments)
+	# --- end v0.4 G ---
 	return si
 
 
@@ -257,6 +285,9 @@ def _validate_payments_cover_total(si) -> None:
 	due = flt(si.rounded_total or si.grand_total)
 	if si.redeem_loyalty_points:
 		due -= flt(si.loyalty_amount)
+	# --- v0.4 G (webshop): advances (online payment of a web order) reduce what is due at the counter ---
+	due -= flt(si.get("total_advance"))
+	# --- end v0.4 G ---
 	if paid + 0.005 < due:
 		raise PaymentMismatchError(
 			_("Payments ({0}) do not cover the invoice total ({1})").format(paid, due), paid=paid, due=due

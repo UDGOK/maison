@@ -33,6 +33,10 @@ export interface LiveSummary {
   by_boutique: BoutiqueRow[]
   by_hour: HourBucket[]
   pending_approvals: number
+  /** v0.4 D — low-stock tile */
+  low_stock?: LowStockBlock
+  /** v0.4 E — today's credit notes */
+  returns?: { count: number; value: number }
 }
 
 export interface SaleEvent {
@@ -54,4 +58,56 @@ export interface HeartbeatEvent {
   queued: number
   pending_approvals?: number
   ts: string // ISO
+}
+
+// ---------------------------------------------------------------------------
+// v0.4 D/F — inventory tile, reports, period comparison
+// ---------------------------------------------------------------------------
+export interface LowStockAlert {
+  name: string
+  item_code: string
+  item_name?: string
+  boutique: string
+  qty: number
+  reorder_level: number
+  status: 'Open' | 'Acknowledged' | 'Resolved'
+}
+export interface LowStockBlock {
+  open: number
+  by_boutique: Record<string, number>
+  top: LowStockAlert[]
+}
+
+export interface ReportLink {
+  name: string
+  group: string
+  description: string
+  installed: boolean
+  url: string
+  csv: string
+}
+
+export interface PeriodTotals {
+  net: number
+  gross: number
+  tax: number
+  tickets: number
+  returns: number
+  returns_value: number
+  avg_ticket: number
+}
+export interface PeriodBlock {
+  label: string
+  current: PeriodTotals
+  previous: PeriodTotals
+  delta: Record<string, number>
+  pct: Record<string, number | null>
+  range: { from: string; to: string }
+  previous_range: { from: string; to: string }
+}
+export type PeriodKind = 'today_vs_same_weekday' | 'wtd' | 'mtd' | 'ytd'
+export interface PeriodComparison {
+  boutiques: string[]
+  periods: Record<PeriodKind, PeriodBlock>
+  as_of: string
 }

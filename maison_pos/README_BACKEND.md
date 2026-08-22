@@ -234,3 +234,155 @@ enrol by phone / e-mail, decline, revoke, retention purge and role checks.
 ```bash
 bench --site maison.localhost export-fixtures --app maison_pos
 ```
+
+<!-- v0.4 H — AI & insights -->
+## AI & insights (v0.4 H)
+
+Pure-python analytics in `maison_pos/insights/` (no numpy / pandas in the reference bench):
+
+| Module | What it computes |
+| --- | --- |
+| `affinity.py` | Item co-purchase **lift** from submitted POS baskets (+ client co-ownership at half weight). `recommend_for_basket(items)` = "Pairs well with", `recommend_for_client(customer)` = "Suggested for this client" — never an item the client already owns (net of full returns); same-group bestsellers as fallback. Weekly cache table **Maison Client Recommendation** (rank, score, lift, confidence, reason). |
+| `client_signals.py` | Per client: visits, cadence (mean gap between visits, chain median when < 2 visits), expected next visit, churn risk (`churn_score(days_since, cadence)` → 0–1: 0.2 at one cadence, ≈0.9 at 3×), spend trend (last 90 vs previous 90 days), preferred department / metal / boutique / associate, birthday / anniversary within 30 days (read from **Maison Client Profile** when installed). One signal per client → **Maison Client Signal** (`Overdue visit`, `Due this week`, `Birthday`, `Anniversary`, `Spend drop`, `VIP lapsing`, `New client follow-up`; priority 0–100; status Open / Contacted / Dismissed; `week` = ISO week). |
+| `product_performance.py` | Item × boutique over N days (default 90): units, revenue, velocity (units/week), on hand, days on hand, sell-through, stock-out risk (< 21 days cover), index vs chain average; heatmap item group × boutique; top / slow movers; **rebalance rule** (slow store with ≥ 120 days cover or no sales → fast store at stock-out risk, `qty = min(surplus − 45-day keep, need for 31 days)`, moves under $300 ignored) → **Maison Rebalance Suggestion**. |
+| `narrative.py` | `build_numbers()` (chain + per-boutique week vs previous week, best sellers, open signals / moves, new clients) → `template_narrative()` (deterministic) or the Anthropic Messages API when `anthropic_api_key` is in `site_config.json` (`anthropic_model`, default `claude-sonnet-4-5`; `insights_narrative_llm: 0` forces the template). Only aggregated numbers are sent — no client names or invoice rows. Stored as **Maison Insight Report** (`MIR-<period_end>-Weekly`, one per period, `generator`, `model`, `numbers` JSON, `error`), e-mailed to every enabled user with **Maison Head Office**. |
+| `jobs.py` | `compute_weekly` (Monday 05:00 site tz: recommendations → signals → rebalance) and `weekly_narrative` (Monday 06:00: last Mon–Sun, e-mail). Both runnable by hand: `bench --site X execute maison_pos.insights.jobs.compute_weekly`. |
+
+API (`maison_pos.api.insights`):
+
+| Endpoint | Who | Returns |
+| --- | --- | --- |
+| `recommend_for_client(customer, n=3, boutique?)` | any Maison role | `{items: [{item_code, item_name, item_group, rate, image, score, lift, confidence, because, because_name, reason, in_stock}], owned[], source: cache \| live}` |
+| `recommend_for_basket(items, n=3, boutique?, customer?)` | any Maison role | `{basket, items[]}` (basket lines and the client's owned items excluded) |
+| `client_signals(boutique?, limit=50, status="Open")` | any Maison role, boutique-scoped | `{signals[], by_type, week, last_run}` (+ `mobile_no`, `email_id`, `client_number`) |
+| `mark_signal(signal, status, note?)` | any Maison role (own boutique) | Contacted (records user + time) / Dismissed / Open; handled clients stay out of the next recompute of the same week |
+| `product_performance(period=90, boutique?)` | Manager+ | `{period, boutiques, item_groups, items[], heatmap[], top_movers{}, slow_movers{}, rebalance[], totals}` |
+| `rebalance_suggestions(status="Open")` | Manager+ (scoped to own boutique) | `{suggestions[] (+ can_transfer), last_run}` |
+| `create_transfer(suggestion, qty?)` | manager of either boutique / HQ | submits a **Stock Entry – Material Transfer** (specific serials for serialized pieces), marks the suggestion Transferred, publishes `maison_rebalance` |
+| `dismiss_suggestion(suggestion, note?)` | same | the (item, from, to) pair is not re-suggested by later runs |
+| `narrative(period_end?, generate=0)` | Manager+ (`generate=1`: HQ) | latest weekly report (`narrative`, `numbers`, `generator`, …) |
+| `compute(narrative=0, send=0)` | HQ / System Manager | runs the weekly job now |
+| `summary()` | any Maison role | `{open_signals, open_rebalances, recommended_clients, latest_report, last_run, llm}` for dashboard tiles |
+
+POS: `BasketPanel` shows up to three "Suggested for this client" tiles under the attached client and "Pairs well with" under the basket (debounced, hidden offline; tapping adds the item — a serialized piece with one free serial is added directly, otherwise the grid is filtered to it). Dashboard: the **Insights** tab (`/maison-dashboard?view=insights`) — weekly narrative, item-group × boutique heatmap, top / slow movers per boutique, "Clients to contact this week" (Done / dismiss), rebalance suggestions with one-click **Create transfer**.
+
+### Historical sales seed
+
+```bash
+bench --site maison.localhost execute maison_pos.setup.demo_history.seed_history --kwargs '{"months": 6}'
+# or over the API (System Manager): POST /api/method/maison_pos.setup.demo_history.seed_history_remote  (enqueued on the long queue; sync=1 runs inline)
+# status: maison_pos.setup.demo_history.history_status
+```
+
+Deterministic (`random.Random(20260822)`): ~1,500 submitted POS invoices over the last 6 months across the three boutiques (weekday + seasonal intensity — Valentine's, Mother's Day, wedding season, summer dip), 120 extra clients with personas (home boutique, visit cadence, department / metal preference, budget band, a lapsed subset), built-in co-purchase patterns (watch → strap, solitaire → band, chain → pendant, high jewellery → appraisal), mixed cash / card, plus a second small plan of ~70 serialized-piece sales spread over the last 100 days. Every unit / serial sold is received first through back-dated Material Receipts (`Maison demo history stock …`, serials `<item>-<city>-H###` / `-R###`), so serial availability and bins are always consistent. ~12 returns go through `maison_pos.api.returns.return_items` when that module exists (else `sales.void`). Idempotent: invoices carry `maison_offline_uuid = hist-<seed>-<n>` / `hist-r<seed>-<n>`; a marker (`frappe.defaults` key `maison_history_seed`) short-circuits completed runs, an interrupted run resumes, and transient DB errors (deadlocks, "table definition has changed" during a concurrent migrate) are retried. Commits every 50 invoices; `item_based_reposting` is switched on for the run and the queued Repost Item Valuation entries are processed at the end (`run_reposts=0` to leave them to the hourly scheduler). Runtime on the reference bench: ≈ 0.38 s per invoice → about 9–10 minutes for the full history plus ~2 minutes of reposts.
+
+Note for dev sites: ERPNext's `before_tests` hook deletes every **Item Price** (and commits) on each `bench run-tests`; `maison_pos.setup.demo.before_tests` puts the demo prices back afterwards.
+<!-- end v0.4 H -->
+
+## v0.4 — CRM / employees / promotions / feedback / scanners (sections B, C, I, J)
+
+Apps: **hrms 15.63.3** (`version-15`) and **crm 1.81.2** (`main`, supports Frappe v15/v16) are in
+`required_apps`; every glue path feature-detects them (`api.hr.hrms_installed()`,
+`api.crm.crm_installed()`) and keeps working when they are absent. Details: `docs/crm.md`,
+`docs/payroll.md`, `docs/scanners.md`.
+
+New doctypes: `Maison Client Profile` (+ child `Maison Wishlist Item`), `Maison Client
+Interaction`, `Maison Commission Rule`, `Maison Commission Entry`, `Maison Shift`, `Maison
+Coupon`, `Maison Coupon Redemption`, `Maison Feedback`. `Maison Associate.employee` (Link →
+Employee). Custom fields (`setup/install_v04_crm.py`, also applied by patch
+`patches.v0_4.crm_hr_fields`): Sales Invoice `maison_coupon`, `maison_coupon_discount`,
+`maison_promotions`; Sales Invoice Item `maison_coupon_discount`; Maison POS Settings
+`promotions_enabled` (1), `birthday_bonus_points` (0), `feedback_enabled` (1),
+`feedback_alert_threshold` (2). Tier Customer Groups (Collector / Connoisseur / Patron).
+
+| Endpoint | Notes |
+| --- | --- |
+| `crm.profile / update_profile / wishlist_add / wishlist_remove / tasks / interactions / log_interaction / complete_task / wishlist_matches / upcoming_dates` | Clienteling (docs/crm.md). |
+| `hr.clock_in / clock_out / toggle_break / shift_status / on_shift / shifts` | Shifts → HRMS Employee Checkin. |
+| `hr.commission_statement / employee_performance / payroll_export(format=gusto\|adp\|quickbooks\|hrms) / payroll_export_download` | Commissions & payroll (docs/payroll.md). |
+| `promotions.active(boutique)` | Pricing Rules the POS applies (percent/amount, item group/code/transaction, min qty/amt, tier via Customer Group). |
+| `promotions.check_coupon(code, lines, boutique?, customer?)` | POS preview — `{valid, discount, per_line, reason?}` never raises. |
+| `promotions.loyalty(customer)` | Tier ladder, progress to next tier, points expiring in 90 days. |
+| `promotions.performance(from, to, boutique?)` | Coupon / promotion performance (also report **Maison Promotion Performance**). |
+| `feedback.status(token)` (guest GET) / `feedback.submit(token, rating, comment)` (guest POST) | Private feedback from `/r/<token>`; guests can never read feedback. |
+| `feedback.list / summary / respond` | Manager (own boutique) / HQ. `summary` feeds the dashboard tile. |
+
+`sales.submit_batch` accepts `coupon_code` + per-line `coupon_discount` (and `promotions[]`);
+the server re-validates the coupon and folds the discount into the line discounts before
+taxes; mismatches / invalid coupons return `error_code: COUPON_INVALID` with
+`details.reason` (unknown, disabled, expired, not_started, wrong_boutique, wrong_customer,
+exhausted, min_basket, not_applicable, mismatch).
+
+Hooks (grouped in `hooks.py`): Sales Invoice on_submit → commissions, coupon redemption,
+wishlist fulfilment; on_cancel → reversals; Stock Entry on_submit → wishlist alerts; daily
+`promotions.birthday_bonus`. Realtime: `maison_shift`, `maison_wishlist_match`,
+`maison_feedback`, `maison_feedback_alert`. Reports: **Maison Commission Statement**,
+**Maison Promotion Performance**. Tests: `tests/test_v0_4_crm_hr.py` (24).
+
+## v0.4 D/E/F — inventory alerts, returns & exchanges, reports (see `docs/returns.md`, `docs/hardware.md`)
+
+Doctypes: `Maison Stock Alert` (`MSA-YYYY-#####`: item, warehouse, boutique, status Open /
+Acknowledged / Resolved, qty, reorder_level, lifecycle fields; one open row per item+warehouse),
+`Maison Cycle Count` (`MCC-…`: counted serials vs expected, unaccounted / unexpected serials,
+qty differences, link to the draft Stock Reconciliation), child table `Maison Boutique Reader`
+(`Maison Boutique.readers`: label, stripe_reader_id, device_type `verifone_v660p` / `stripe_s710` /
+`bbpos_wisepos_e` / `simulated`, has_printer, enabled) and `Maison Boutique.damaged_warehouse`.
+
+Settings (`Maison POS Settings`, merged into `bootstrap.settings`): `return_window_days` (30),
+`exchange_window_days` (60), `returns_manager_threshold` (2 500), `low_stock_digest_enabled` (1),
+`low_stock_notify_regional` (0).
+
+| Endpoint | Notes |
+| --- | --- |
+| `inventory.alerts(boutique?, status="open")` | `{boutiques, alerts[], open, counts{boutique: n}}` (scoped) |
+| `inventory.acknowledge(alert)` / `inventory.resolve(alert)` | resolve = Manager+ |
+| `inventory.request_transfer(item, to, qty, from_warehouse?, alert?, reason?)` | Material Request (Material Transfer) into the boutique warehouse; `from_warehouse` accepts a boutique code or a warehouse |
+| `inventory.cycle_count_expected(boutique?)` | `{warehouse, serials{item: [serial]}, qty{item: n}, items{code: name}}` |
+| `inventory.submit_cycle_count(boutique, serials[], qty{}, device_id?, notes?)` | `{cycle_count, missing[], unexpected[], qty_differences[], stock_reconciliation (draft) \| null, clean}` |
+| `inventory.low_stock_scan()` (hourly) / `inventory.low_stock_digest()` (daily) | Item Reorder levels vs Bin → alerts (idempotent, auto-resolve), Notification Log to boutique managers + Head Office, e-mail digest |
+| `returns.lookup / return_items / exchange / policy / recent` | see `docs/returns.md` |
+| `reports.list_reports()` / `reports.run(report, filters)` / `reports.export(report, filters)` (CSV download) / `reports.period_comparison(boutique?)` | 8 Script Reports (module Maison POS): Maison Sales Tax Summary, Daily Sales, Sales by Item (group_by Item / Item Group / Department), Sales by Associate, Hourly Sales Heatmap, Client Purchases (RFM), Serial Ledger, Returns (group_by Reason / Boutique / Associate / Detail). Scoped users only see their boutique. |
+
+`dashboard.live_summary` adds `low_stock: {open, by_boutique, top[]}` and `returns: {count, value}`;
+realtime `maison_stock_alerts` is published after each scan / acknowledge. Print format
+`Maison Return Receipt` (credit notes). Seed (`setup/demo_v04_inventory.py`): reorder levels for
+accessories / bands per boutique, `<code> Damaged` warehouses, `Exchange Credit` tender, two
+readers per boutique, two sample alerts. Tests: `tests/test_v0_4_returns.py`,
+`tests/test_v0_4_inventory.py`, `tests/test_v0_4_reports.py`.
+
+## Web shop (v0.4 G — Frappe Webshop + Payments)
+
+Installed apps `payments` and `webshop` (both `version-15`) power the online boutique; Maison adds
+`maison_pos/webshop/` (web modes, availability per boutique, click & collect orders, Payment Request
+override, `Website Item` template override), `api/webshop.py`, the Monolith Gold storefront
+(`www/shop/*`, `templates/webshop/*`, `public/css/maison-web.css`), the doctype **Maison Web Enquiry**,
+custom fields on Item / Quotation / Sales Order / Sales Invoice (created by `maison_pos.webshop.setup`
+on install/migrate, not in the shared fixture file) and the seed `setup/demo_v04_webshop.py`
+(called from `demo.seed()`, no-op without the app). Everything is documented in
+[`docs/webshop.md`](../docs/webshop.md): install on Frappe Cloud, Stripe vs simulated gateway,
+native-vs-custom map, API, and how a marketing site links to `shop.brand.com`.
+
+Quick reference:
+
+| Endpoint | Notes |
+| --- | --- |
+| `webshop.catalogue / availability / boutiques / enquire / loyalty_lookup` | guest |
+| `webshop.cart / update_cart / set_boutique / place_order / reserve / simulate_payment / my_orders / order` | signed-in shopper (Website User with Contact → Customer) |
+| `webshop.web_orders / web_order / set_web_order_status / update_enquiry` | POS "Web orders" queue, boutique-scoped |
+| `sales.submit_batch` with `sales_order` on the payload | collection: lines linked to the order, online payment allocated as advance, `Sales Order.maison_web_status = Collected` |
+
+Tests: `tests/test_webshop.py` (skipped when webshop is absent).
+
+## v0.4 integration notes (sales semantics, rounding, bootstrap)
+
+- **Line semantics of `sales.submit_batch`** (enforced since 0.4.0): `items[].rate` is the unit *list* rate the
+  tile showed, `items[].discount_amount` is the discount for the **whole line** (manual + automatic promotion),
+  `items[].coupon_discount` the coupon share (re-validated server-side). The server stores
+  `price_list_rate = rate`, `discount_amount = discount / qty` (ERPNext keeps it per unit) and
+  `rate = list − unit discount`, so `qty × rate − discount_amount` on the device equals `amount` on the invoice.
+- **Rounding**: `setup.install.ensure_rounding_method` pins System Settings `rounding_method` to
+  *Commercial Rounding* (half away from zero) on install / migrate — the device rounds the same way, Frappe's
+  default banker's rounding produced 1-cent `PAYMENT_MISMATCH` refusals on half-cent taxes.
+- **`catalog.bootstrap.boutique`** carries `readers[]` (`Maison Boutique Reader`: name, label, stripe_reader_id,
+  device_type, has_printer, enabled, serial_number) and `damaged_warehouse` for the POS reader picker / print route.
+- Tests are self-sufficient on a used site (serials received inside the test transaction, empty biometric gallery).

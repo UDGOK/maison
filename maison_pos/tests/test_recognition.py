@@ -54,6 +54,12 @@ class RecognitionTestCase(FrappeTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		ensure_demo_data()
+		# start from an empty gallery: e2e runs / desk enrolments leave consented clients with templates
+		# behind, and the candidate / purge counts below assume only this class's enrolments exist
+		# (everything happens inside the class transaction FrappeTestCase rolls back)
+		frappe.db.delete("Maison Face Template")
+		frappe.db.sql("update `tabMaison Biometric Consent` set status = 'Revoked' where status = 'Active'")
+		frappe.db.sql("update `tabCustomer` set maison_face_consent = 0 where maison_face_consent = 1")
 		frappe.db.set_single_value("Maison POS Settings", "face_recognition_enabled", 1)
 		frappe.db.set_single_value("Maison POS Settings", "recognition_offline_cache", 1)
 		frappe.db.set_single_value("Maison POS Settings", "match_threshold", biometrics.DEFAULT_DISTANCE_THRESHOLD)
@@ -426,12 +432,18 @@ class TestRevokeAndPurge(RecognitionTestCase):
 		# stale: visited 40 months ago; fresh: bought today; never: consented 40 months ago, no visits
 		from maison_pos.api import sales
 
+		# post both visits first, then back-date the stale one at DB level (the demo fiscal year only covers the
+		# current year). Nothing may hit stock after the back-dating: a later submit of the same item/warehouse
+		# would trigger an item-wise repost that regenerates this invoice's GL with the 2023 date and fail
+		# ("not in any active Fiscal Year") — the original posting date is restored at the end of the test.
 		res = sales.submit_batch([pos_invoice(customer=stale["customer"])])["results"][0]
 		self.assertEqual(res["status"], "ok", res)
-		# back-date the visit at DB level (the demo fiscal year only covers the current year)
-		frappe.db.set_value("Sales Invoice", res["invoice_name"], "posting_date", old.date(), update_modified=False)
+		stale_invoice = res["invoice_name"]
 		res = sales.submit_batch([pos_invoice(customer=fresh["customer"])])["results"][0]
 		self.assertEqual(res["status"], "ok", res)
+		today = frappe.db.get_value("Sales Invoice", stale_invoice, "posting_date")
+		frappe.db.set_value("Sales Invoice", stale_invoice, "posting_date", old.date(), update_modified=False)
+		self.addCleanup(frappe.db.set_value, "Sales Invoice", stale_invoice, "posting_date", today, update_modified=False)
 		frappe.db.set_value("Maison Biometric Consent", never["consent"], "captured_at", old)
 		frappe.db.set_value("Maison Biometric Consent", stale["consent"], "captured_at", old)
 

@@ -1,0 +1,48 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% set o = order %}
+{% block shop_content %}
+<div class="mw-wrap"><div class="mw-narrow">
+	{% if placed %}<span class="mw-pill good" style="margin-bottom:16px"><span class="dot"></span>Order placed</span>{% endif %}
+	<span class="mw-label">{{ 'Reservation' if o.web_mode == 'Reserve-with-deposit' else 'Order' }} {{ o.name }}</span>
+	<h1 class="mw-display lg" style="margin:10px 0 24px">{% if o.status == 'Collected' %}Collected. Thank you.{% elif o.status == 'Ready' %}Ready for you at {{ boutique.boutique_name }}{% elif o.status == 'Cancelled' %}Cancelled{% else %}{{ boutique.boutique_name }} is preparing your {{ 'reservation' if o.web_mode == 'Reserve-with-deposit' else 'order' }}{% endif %}</h1>
+
+	{% if open_payment %}
+	<div class="mw-panel" style="border-color:var(--mw-accent)">
+		<div class="head"><div><span class="mw-label gold">Payment due</span><div class="mw-price" style="font-size:24px;margin-top:6px">{{ shop_money(open_payment.amount, o.currency) }}</div></div><a class="mw-btn" href="{{ open_payment.url }}">Pay now</a></div>
+		<div class="mw-note">{{ 'Deposit to hold the piece.' if o.web_mode == 'Reserve-with-deposit' else 'Or pay at the boutique when you collect.' }}</div>
+	</div>
+	{% endif %}
+
+	<div class="mw-panel">
+		<div class="mw-timeline">
+			{% for s in steps %}<div class="{{ 'done' if loop.index0 < step_index else ('now' if loop.index0 == step_index else '') }}">{{ {'New': 'Received', 'Picking': 'Preparing', 'Ready': 'Ready', 'Collected': 'Collected'}[s] }}</div>{% endfor %}
+		</div>
+		<div class="mw-kv" style="margin-top:26px">
+			<div><div class="k">Collect at</div><div class="v">{{ boutique.boutique_name }}<br><span class="mw-dim" style="font-size:13px">{{ boutique.address_line }}, {{ boutique.city }}<br>{{ boutique.phone }}</span></div></div>
+			<div><div class="k">Placed</div><div class="v">{{ frappe.utils.format_date(o.transaction_date, 'd MMMM yyyy') }}</div></div>
+			<div><div class="k">Paid online</div><div class="v">{{ shop_money(o.prepaid_amount, o.currency) }}</div></div>
+			<div><div class="k">Balance at collection</div><div class="v">{{ shop_money(o.balance_due, o.currency) }}</div></div>
+		</div>
+	</div>
+
+	<div class="mw-panel">
+		<span class="mw-label">Pieces</span>
+		<div class="mw-lines" style="margin-top:12px;border-top-color:var(--mw-line)">
+			{% for l in o['items'] %}
+			<div class="mw-line" style="grid-template-columns:64px 1fr auto;padding:14px 0">
+				<div class="img" style="width:64px;height:64px">{% if l.image %}<img src="{{ l.image }}" alt="">{% endif %}</div>
+				<div><div class="name">{{ l.item_name }}</div><div class="code">{{ l.item_code }} &times; {{ l.qty | int }}</div></div>
+				<div class="right"><div class="amt">{{ shop_money(l.amount, o.currency) }}</div></div>
+			</div>
+			{% endfor %}
+		</div>
+		<div class="mw-summary" style="position:static;border:0;padding:18px 0 0;background:transparent">
+			<div class="row"><span>Subtotal</span><span>{{ shop_money(o.net_total, o.currency) }}</span></div>
+			<div class="row"><span>Taxes ({{ boutique.city }})</span><span>{{ shop_money(o.total_taxes, o.currency) }}</span></div>
+			<div class="row total"><span class="mw-label">Total</span><span class="mw-price">{{ shop_money(o.grand_total, o.currency) }}</span></div>
+		</div>
+	</div>
+	{% if o.receipt_token %}<a class="mw-btn ghost" href="/r/{{ o.receipt_token }}">View receipt</a>{% endif %}
+	<a class="mw-link" href="/shop/orders" style="margin-left:18px">All orders</a>
+</div></div>
+{% endblock %}

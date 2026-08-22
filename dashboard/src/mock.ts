@@ -1,4 +1,4 @@
-import type { BoutiqueRow, HeartbeatEvent, LiveSummary, SaleEvent } from './types'
+import type { BoutiqueRow, HeartbeatEvent, LiveSummary, PeriodComparison, PeriodTotals, ReportLink, SaleEvent } from './types'
 import { bucketByHour, computeTotals, deriveStatus } from './lib/aggregate'
 
 export const BOUTIQUES: { code: string; name: string }[] = [
@@ -103,6 +103,8 @@ export function mockLiveSummary(now = new Date()): LiveSummary {
     by_boutique: rows,
     by_hour: bucketByHour(sales),
     pending_approvals: rows.reduce((a, r) => a + (r.pending_approvals ?? 0), 0),
+    low_stock: mockLowStock(),
+    returns: { count: 3, value: 6420 },
     // extra: recent sales so the feed isn't empty on load
     ...({ recent: sales.slice(-12) } as object),
   }
@@ -131,5 +133,65 @@ export function startMockStream(onSale: (s: SaleEvent) => void, onHeartbeat: (h:
   return () => {
     clearTimeout(saleTimer)
     clearInterval(hb)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// v0.4 D/F — mock low-stock block, reports catalogue, period comparison
+// ---------------------------------------------------------------------------
+export function mockLowStock(): LiveSummary['low_stock'] {
+  const top = [
+    { name: 'MSA-2026-00001', item_code: 'AC-007', item_name: 'Pearl Strand 18 inch Akoya', boutique: 'NYC-MAD', qty: 1, reorder_level: 2, status: 'Open' as const },
+    { name: 'MSA-2026-00002', item_code: 'BR-009', item_name: 'Full Eternity Band 1.5ct', boutique: 'PAR-VEN', qty: 0, reorder_level: 2, status: 'Open' as const },
+    { name: 'MSA-2026-00003', item_code: 'AC-012', item_name: 'Silk Pocket Square', boutique: 'LON-BND', qty: 6, reorder_level: 12, status: 'Acknowledged' as const },
+    { name: 'MSA-2026-00004', item_code: 'AC-010', item_name: 'Leather Watch Strap Alligator', boutique: 'DXB-MAL', qty: 4, reorder_level: 10, status: 'Open' as const },
+    { name: 'MSA-2026-00005', item_code: 'BR-006', item_name: 'Classic Wedding Band 2mm Platinum', boutique: 'NYC-MAD', qty: 3, reorder_level: 4, status: 'Open' as const },
+  ]
+  const by_boutique: Record<string, number> = {}
+  for (const t of top) by_boutique[t.boutique] = (by_boutique[t.boutique] || 0) + 1
+  return { open: top.length, by_boutique, top }
+}
+
+export function mockReports(): ReportLink[] {
+  const rows: [string, string, string][] = [
+    ['Maison Sales Tax Summary', 'Tax', 'Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings.'],
+    ['Maison Daily Sales', 'Sales', 'Per boutique per day: gross, discounts, returns, net, tax, cash, card, tickets, avg ticket, items/ticket.'],
+    ['Maison Sales by Item', 'Sales', 'By item, item group or department; returns netted.'],
+    ['Maison Sales by Associate', 'Sales', 'Tickets, net sales, avg ticket, clients attached per associate.'],
+    ['Maison Hourly Sales Heatmap', 'Sales', 'Weekday × hour net sales per boutique.'],
+    ['Maison Client Purchases', 'Clients', 'RFM per client: recency, frequency, monetary, tier, lifetime.'],
+    ['Maison Serial Ledger', 'Inventory', 'Every serial: received → sold / returned / transferred, current location.'],
+    ['Maison Returns', 'Returns', 'Credit notes by reason / boutique / associate, or line detail.'],
+  ]
+  return rows.map(([name, group, description]) => ({ name, group, description, installed: true, url: `/app/query-report/${encodeURIComponent(name)}`, csv: `/api/method/maison_pos.api.reports.export?report=${encodeURIComponent(name)}` }))
+}
+
+function periodTotals(net: number, tickets: number, returns: number): PeriodTotals {
+  const gross = Math.round(net * 1.0925)
+  return { net, gross, tax: gross - net, tickets, returns, returns_value: Math.round(returns * 1900), avg_ticket: tickets ? Math.round((gross / tickets) * 100) / 100 : 0 }
+}
+
+export function mockPeriodComparison(): PeriodComparison {
+  const today = new Date()
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  const mk = (label: string, cur: PeriodTotals, prev: PeriodTotals, days: number): PeriodComparison['periods']['mtd'] => {
+    const delta: Record<string, number> = {}
+    const pct: Record<string, number | null> = {}
+    for (const k of ['net', 'gross', 'tickets', 'avg_ticket', 'returns_value'] as const) {
+      delta[k] = Math.round((cur[k] - prev[k]) * 100) / 100
+      if (k !== 'returns_value') pct[k] = prev[k] ? Math.round(((cur[k] - prev[k]) / prev[k]) * 1000) / 10 : null
+    }
+    const from = new Date(today.getTime() - days * 86400000)
+    return { label, current: cur, previous: prev, delta, pct, range: { from: iso(from), to: iso(today) }, previous_range: { from: iso(new Date(from.getTime() - (days + 1) * 86400000)), to: iso(new Date(today.getTime() - (days + 1) * 86400000)) } }
+  }
+  return {
+    boutiques: BOUTIQUES.map((b) => b.code),
+    as_of: iso(today),
+    periods: {
+      today_vs_same_weekday: mk('Today vs same weekday last week', periodTotals(186400, 41, 2), periodTotals(171900, 38, 1), 0),
+      wtd: mk('Week to date vs last week', periodTotals(642300, 148, 6), periodTotals(688100, 155, 4), today.getDay() || 7),
+      mtd: mk('Month to date vs last month', periodTotals(2893500, 655, 19), periodTotals(2410200, 560, 23), today.getDate() - 1),
+      ytd: mk('Year to date vs last year', periodTotals(21475000, 4890, 142), periodTotals(18620000, 4410, 160), 234),
+    },
   }
 }

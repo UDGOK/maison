@@ -1,0 +1,99 @@
+{#- Maison storefront shell — Monolith Gold. Every shop page (and the Website Item page) extends this. -#}
+{% extends "templates/base.html" %}
+{% set shop = shop_context() %}
+
+{% block title %}{{ title or "Maison" }}{% endblock %}
+
+{% block favicon %}
+<link rel="shortcut icon" href="/assets/maison_pos/favicon.svg" type="image/svg+xml">
+{% endblock %}
+
+{%- block head_include %}
+{{ super() }}
+<meta name="theme-color" content="#0B0B0A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/maison_pos/css/maison-web.css">
+{% block shop_head %}{% endblock %}
+{% endblock -%}
+
+{%- block banner -%}{%- endblock -%}
+
+{%- block navbar -%}
+<header class="mw-header">
+	<div class="mw-wrap">
+		<a class="mw-wordmark" href="/shop">Maison</a>
+		<nav class="mw-nav">
+			<a href="/shop/collection" class="{{ 'active' if mw_nav == 'collection' and not mw_group else '' }}">All pieces</a>
+			{% for g in shop.groups %}
+			<a href="/shop/collection?item_group={{ g.name | urlencode }}" class="{{ 'active' if mw_group == g.name else '' }}">{{ g.name }}</a>
+			{% endfor %}
+			<a href="/shop/boutiques" class="{{ 'active' if mw_nav == 'boutiques' else '' }}">Boutiques</a>
+		</nav>
+		<div class="spacer"></div>
+		<div class="mw-tools">
+			{% if shop.signed_in %}
+			<a href="/shop/account" title="My account"><span class="txt">{{ shop.full_name or "Account" }}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></a>
+			{% else %}
+			<a href="/login?redirect-to=/shop/account"><span class="txt">Sign in</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></a>
+			{% endif %}
+			<a href="/cart" class="cta" id="mw-cart-link"><span class="txt">Bag</span><span class="count" id="mw-cart-count">{{ shop.cart_count }}</span></a>
+			<button class="mw-burger" id="mw-burger" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+		</div>
+	</div>
+</header>
+<nav class="mw-drawer" id="mw-drawer">
+	<a href="/shop/collection">All pieces</a>
+	{% for g in shop.groups %}<a href="/shop/collection?item_group={{ g.name | urlencode }}">{{ g.name }}</a>{% endfor %}
+	<a href="/shop/boutiques">Boutiques</a>
+	<a href="/cart" class="gold">Bag ({{ shop.cart_count }})</a>
+	{% if shop.signed_in %}<a href="/shop/account" class="gold">My account</a><a href="/?cmd=web_logout">Sign out</a>{% else %}<a href="/login?redirect-to=/shop/account" class="gold">Sign in</a>{% endif %}
+</nav>
+{%- endblock -%}
+
+{% block content %}
+<main class="mw-main" id="mw-main">
+{% block shop_content %}{% endblock %}
+</main>
+<div class="mw-toast" id="mw-toast" role="status"></div>
+{% endblock %}
+
+{%- block footer -%}
+<footer class="mw-footer">
+	<div class="mw-wrap">
+		<div class="cols">
+			<div class="col">
+				<div class="wm">Maison</div>
+				<div>Fine jewellery and timepieces, made in the Maison atelier.<br>Every online order is prepared and collected in one of our boutiques.</div>
+			</div>
+			<div class="col">
+				<h5>Boutiques</h5>
+				{% for b in shop.boutiques %}<a href="/shop/boutiques#{{ b.name }}">{{ b.boutique_name }} &middot; {{ (b.city or '').split(',')[0] }}</a>{% endfor %}
+			</div>
+			<div class="col">
+				<h5>Client services</h5>
+				<a href="/shop/account">Maison Collectors</a>
+				<a href="/shop/orders">Your orders</a>
+				<a href="/shop/boutiques">Visit us</a>
+			</div>
+			<div class="col">
+				<h5>The house</h5>
+				<a href="/shop/collection?item_group=High%20Jewellery">High jewellery</a>
+				<a href="/shop/collection?item_group=Timepieces">Timepieces</a>
+				<a href="/shop/collection?item_group=Bridal">Bridal</a>
+			</div>
+		</div>
+		<div class="legal">
+			<span>&copy; Maison &middot; Prices in USD, taxes added at the boutique of collection</span>
+			<span>Click &amp; collect &middot; Enquire &middot; Reserve with deposit</span>
+		</div>
+	</div>
+</footer>
+{%- endblock -%}
+
+{%- block script %}
+{{ super() }}
+<script src="/assets/maison_pos/js/maison-web.js"></script>
+{% block shop_script %}{% endblock %}
+{% endblock -%}

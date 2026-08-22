@@ -1,0 +1,278 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer",
+  "customer_name",
+  "boutique",
+  "preferred_associate",
+  "column_break_1",
+  "signal_type",
+  "priority",
+  "status",
+  "week",
+  "section_reason",
+  "reason",
+  "recommended_item",
+  "recommended_item_name",
+  "section_pattern",
+  "churn_risk",
+  "cadence_days",
+  "expected_next_visit",
+  "last_visit",
+  "days_since_last_visit",
+  "column_break_2",
+  "visits",
+  "lifetime_spend",
+  "spend_trend",
+  "preferred_department",
+  "preferred_metal",
+  "section_followup",
+  "contacted_by",
+  "contacted_at",
+  "note",
+  "computed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "label": "Boutique",
+   "options": "Maison Boutique",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "preferred_associate",
+   "fieldtype": "Link",
+   "label": "Preferred Associate",
+   "options": "Maison Associate"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "signal_type",
+   "fieldtype": "Select",
+   "label": "Signal",
+   "options": "Overdue visit\nDue this week\nBirthday\nAnniversary\nSpend drop\nVIP lapsing\nNew client follow-up",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Float",
+   "label": "Priority",
+   "precision": "1",
+   "in_list_view": 1,
+   "description": "0\u2013100; higher first"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Open\nContacted\nDismissed",
+   "default": "Open",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "week",
+   "fieldtype": "Data",
+   "label": "Week",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "ISO week the signal was computed for, e.g. 2026-W34"
+  },
+  {
+   "fieldname": "section_reason",
+   "fieldtype": "Section Break",
+   "label": "Why"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "recommended_item",
+   "fieldtype": "Link",
+   "label": "Next Best Offer",
+   "options": "Item"
+  },
+  {
+   "fieldname": "recommended_item_name",
+   "fieldtype": "Data",
+   "label": "Next Best Offer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_pattern",
+   "fieldtype": "Section Break",
+   "label": "Pattern"
+  },
+  {
+   "fieldname": "churn_risk",
+   "fieldtype": "Float",
+   "label": "Churn Risk",
+   "precision": "4",
+   "description": "0\u20131 from recency vs cadence"
+  },
+  {
+   "fieldname": "cadence_days",
+   "fieldtype": "Float",
+   "label": "Cadence (days)",
+   "precision": "1"
+  },
+  {
+   "fieldname": "expected_next_visit",
+   "fieldtype": "Date",
+   "label": "Expected Next Visit"
+  },
+  {
+   "fieldname": "last_visit",
+   "fieldtype": "Date",
+   "label": "Last Visit"
+  },
+  {
+   "fieldname": "days_since_last_visit",
+   "fieldtype": "Int",
+   "label": "Days Since Last Visit"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "visits",
+   "fieldtype": "Int",
+   "label": "Visits"
+  },
+  {
+   "fieldname": "lifetime_spend",
+   "fieldtype": "Currency",
+   "label": "Lifetime Spend"
+  },
+  {
+   "fieldname": "spend_trend",
+   "fieldtype": "Float",
+   "label": "Spend Trend",
+   "precision": "4",
+   "description": "Last 90 days vs previous 90 (\u22121 \u2026 +1)"
+  },
+  {
+   "fieldname": "preferred_department",
+   "fieldtype": "Data",
+   "label": "Preferred Department"
+  },
+  {
+   "fieldname": "preferred_metal",
+   "fieldtype": "Data",
+   "label": "Preferred Metal"
+  },
+  {
+   "fieldname": "section_followup",
+   "fieldtype": "Section Break",
+   "label": "Follow-up"
+  },
+  {
+   "fieldname": "contacted_by",
+   "fieldtype": "Link",
+   "label": "Contacted By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contacted_at",
+   "fieldtype": "Datetime",
+   "label": "Contacted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  },
+  {
+   "fieldname": "computed_at",
+   "fieldtype": "Datetime",
+   "label": "Computed At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison Client Signal",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Maison Head Office",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "role": "Maison Regional"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "role": "Maison Manager"
+  },
+  {
+   "read": 1,
+   "role": "Maison Associate"
+  }
+ ],
+ "sort_field": "priority",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "customer_name"
+}

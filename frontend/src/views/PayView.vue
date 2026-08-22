@@ -6,23 +6,42 @@ import { useCartStore } from '@/stores/cart'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
 import { useSyncStore } from '@/stores/sync'
-import type { POSInvoice } from '@/api'
+import { IS_MOCK, type POSInvoice } from '@/api'
+import { usePromosStore } from '@/stores/promos'
+import { __mockRedeemCoupon } from '@/api/v04'
 import type { ReceiptSnapshot } from '@/db'
-import { createTerminal, type CardResult, type TerminalProgress } from '@/payments/terminal'
+import type { CardResult, TerminalProgress } from '@/payments/terminal'
+import { usePrinterStore } from '@/stores/printer'
 import { fmtMoney, round } from '@/utils/money'
 import { useLayoutStore } from '@/stores/layout'
+import { useWebOrdersStore } from '@/stores/webOrders' // v0.4 G
 import Keypad from '@/components/Keypad.vue'
 
 const cart = useCartStore()
 const session = useSessionStore()
 const catalog = useCatalogStore()
 const sync = useSyncStore()
+const promos = usePromosStore()
 const route = useRoute()
 const router = useRouter()
 const layout = useLayoutStore()
 
 const mode = ref<'cash' | 'card'>((route.query.mode as 'cash' | 'card') || 'cash')
-const total = computed(() => cart.totals.grand_total)
+// --- v0.4 G: collecting a web order — the amount paid online is an advance; only the balance is due ---
+const webOrders = useWebOrdersStore()
+const prepaid = computed(() => (webOrders.active ? Math.min(webOrders.prepaid, cart.totals.grand_total) : 0))
+const total = computed(() => round(Math.max(0, cart.totals.grand_total - prepaid.value)))
+const fullyPrepaid = computed(() => !!webOrders.active && total.value <= 0.005)
+async function completeCollection() {
+  if (!fullyPrepaid.value || busy.value) return
+  busy.value = true
+  try {
+    await finalize('Cash')
+  } finally {
+    busy.value = false
+  }
+}
+// --- end v0.4 G ---
 
 // ---- cash
 const tenderedStr = ref('')
@@ -42,7 +61,8 @@ function key(k: string) {
 }
 
 // ---- card
-const terminal = createTerminal({ publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY, locationId: session.boutique?.stripe_location_id })
+// v0.4 A — the driver is bound to the reader picked in Settings (shared with the printer store)
+const terminal = usePrinterStore().terminal()
 const progress = ref<TerminalProgress>({ step: 'idle', message: '' })
 const cardError = ref('')
 const offline_uuid = ref(uuidv4())
@@ -117,11 +137,17 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
       qty: l.qty,
       rate: l.rate,
       serial_no: l.serial_no,
-      discount_amount: l.discount_amount || undefined
+      // v0.4 I — manual + promotion discount; the coupon share is sent separately for server verification
+      discount_amount: round(l.discount_amount + (promos.promoResult.perLine[l.id] || 0)) || undefined,
+      coupon_discount: promos.couponResult.perLine[l.id] || undefined
     })),
-    payments: [{ mode_of_payment: modeOfPayment, amount: total.value, stripe_payment_intent: card?.payment_intent }],
+    // v0.4 G — nothing to tender when the web order was fully paid online
+    payments: total.value > 0.005 ? [{ mode_of_payment: modeOfPayment, amount: total.value, stripe_payment_intent: card?.payment_intent }] : [],
+    sales_order: webOrders.active?.name,
     loyalty_points_redeemed: cart.loyalty_points_redeemed || undefined,
-    notes: cart.notes || undefined
+    notes: cart.notes || undefined,
+    coupon_code: promos.coupon?.code || undefined,
+    promotions: promos.applied.length ? promos.applied.map((a) => ({ name: a.name, title: a.title, discount: a.discount })) : undefined
   }
   const t = cart.totals
   const receipt: ReceiptSnapshot = {
@@ -140,10 +166,10 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
       item_name: l.item_name,
       qty: l.qty,
       rate: l.rate,
-      amount: round(l.qty * l.rate - l.discount_amount),
+      amount: round(l.qty * l.rate - l.discount_amount - (cart.extras[l.id] || 0)),
       serial_no: l.serial_no,
       certificate_no: l.certificate_no,
-      discount_amount: l.discount_amount || undefined
+      discount_amount: round(l.discount_amount + (cart.extras[l.id] || 0)) || undefined
     })),
     net_total: t.net_total,
     discount: t.discount,
@@ -152,15 +178,24 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     loyalty_amount: t.loyalty_amount,
     loyalty_points_redeemed: cart.loyalty_points_redeemed,
     grand_total: t.grand_total,
-    payments: [
-      modeOfPayment === 'Cash'
-        ? { mode_of_payment: 'Cash', amount: total.value, tendered: round(tendered.value), change: change.value }
-        : { mode_of_payment: 'Card', amount: total.value, card_brand: card?.card_brand, last4: card?.last4, approval: card?.approval }
-    ],
+    payments:
+      total.value > 0.005
+        ? [
+            modeOfPayment === 'Cash'
+              ? { mode_of_payment: 'Cash', amount: total.value, tendered: round(tendered.value), change: change.value }
+              : { mode_of_payment: 'Card', amount: total.value, card_brand: card?.card_brand, last4: card?.last4, approval: card?.approval }
+          ]
+        : [],
+    web_order: webOrders.active?.name, // v0.4 G
+    prepaid: prepaid.value || undefined, // v0.4 G
     points_earned: cart.pointsEarned,
+    promo_discount: promos.promoTotal || undefined,
+    coupon_code: promos.coupon?.code,
+    coupon_discount: promos.couponTotal || undefined,
     points_balance: cart.customer ? cart.customer.loyalty_points - cart.loyalty_points_redeemed + cart.pointsEarned : undefined,
     currency: session.currency
   }
+  if (IS_MOCK && promos.coupon) __mockRedeemCoupon(promos.coupon.code)
   await sync.enqueue(invoice, receipt)
   for (const l of cart.lines) catalog.consume(l.item_code, l.qty, l.serial_no)
   const uuid = offline_uuid.value
@@ -185,7 +220,9 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
 
       <div class="amount">
         <div class="label">Amount due</div>
-        <div class="due num">{{ fmtMoney(total, session.currency) }}</div>
+        <div class="due num" data-testid="pay-total">{{ fmtMoney(total, session.currency) }}</div>
+        <!-- v0.4 G: web order collection -->
+        <div v-if="webOrders.active" class="accent sub" style="font-size: 13px">Web order {{ webOrders.active.name }} &middot; paid online {{ fmtMoney(prepaid, session.currency) }} of {{ fmtMoney(cart.totals.grand_total, session.currency) }}</div>
         <div class="muted sub">{{ cart.count }} item{{ cart.count === 1 ? '' : 's' }}<span v-if="cart.customer"> &middot; {{ cart.customer.customer_name }}<span v-if="cart.customer.client_number" class="accent"> &middot; {{ cart.customer.client_number }}</span></span></div>
       </div>
 
@@ -209,7 +246,8 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
         </div>
         <div class="actions">
           <button class="btn btn-big" :disabled="busy" @click="router.push({ name: 'sell' })">Back</button>
-          <button class="btn btn-primary btn-big" style="flex: 1" :disabled="!cashOk || busy" @click="payCash">Complete cash sale</button>
+          <button v-if="fullyPrepaid" class="btn btn-primary btn-big" style="flex: 1" :disabled="busy" data-testid="collect-complete" @click="completeCollection">Complete collection · paid online</button>
+          <button v-else class="btn btn-primary btn-big" style="flex: 1" :disabled="!cashOk || busy" @click="payCash">Complete cash sale</button>
         </div>
       </div>
 

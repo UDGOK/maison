@@ -1,0 +1,60 @@
+{
+ "results": [
+  {
+   "name": "insights view renders",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "weekly narrative present",
+   "ok": true,
+   "detail": "Week 2026-08-10 to 2026-08-16: the chain took $288,443 across 58 tickets, down sharply (-29%) against $403,803 the week "
+  },
+  {
+   "name": "heatmap item-group × boutique",
+   "ok": true,
+   "detail": "15 cells"
+  },
+  {
+   "name": "rebalance suggestions with one-click transfer",
+   "ok": true,
+   "detail": "8 open"
+  },
+  {
+   "name": "clients to contact list",
+   "ok": true,
+   "detail": "40 rows"
+  },
+  {
+   "name": "movers tab switch",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "live view intact",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "suggested for this client: 3 tiles",
+   "ok": true,
+   "detail": "Clara Fontaine: SV-005, BR-004, BR-005"
+  },
+  {
+   "name": "suggestions exclude owned items",
+   "ok": true,
+   "detail": "owned: AC-001, AC-002, AC-005, AC-010, AC-011, AC-012, BR-003, BR-006, BR-007, SV-004, TP-001, TP-008"
+  },
+  {
+   "name": "pairs well with the basket",
+   "ok": true,
+   "detail": "SV-002, BR-009, BR-001"
+  },
+  {
+   "name": "tapping a suggestion adds to the basket",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "errors": []
+}

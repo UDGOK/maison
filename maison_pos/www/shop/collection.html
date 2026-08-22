@@ -1,0 +1,28 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% from "maison_pos/templates/webshop/macros.html" import product_card %}
+{% block shop_content %}
+<div class="mw-wrap">
+	<section class="mw-section" style="padding-top:56px">
+		<div class="mw-section-head">
+			<div><span class="mw-label">{{ 'Collection' if mw_group else 'The collection' }}</span><h1 class="mw-display lg">{{ mw_group or 'All pieces' }}</h1></div>
+			<form method="get" action="/shop/collection" style="display:flex;gap:8px">
+				{% if mw_group %}<input type="hidden" name="item_group" value="{{ mw_group }}">{% endif %}
+				<input class="mw-input" name="q" value="{{ q or '' }}" placeholder="Search the collection" style="min-width:260px;min-height:44px">
+				<button class="mw-btn ghost sm" type="submit">Search</button>
+			</form>
+		</div>
+		<div class="mw-filters">
+			<a class="mw-chip {{ 'active' if not mw_group else '' }}" href="/shop/collection{{ '?mode=' ~ mode if mode else '' }}">All</a>
+			{% for g in groups %}<a class="mw-chip {{ 'active' if mw_group == g.name else '' }}" href="/shop/collection?item_group={{ g.name | urlencode }}{{ '&mode=' ~ mode if mode else '' }}">{{ g.name }}</a>{% endfor %}
+			<span style="width:1px;height:24px;background:var(--mw-line-strong);margin:0 6px"></span>
+			{% for m, label in modes %}<a class="mw-chip {{ 'active' if mode == m else '' }}" href="/shop/collection?{{ 'item_group=' ~ (mw_group | urlencode) ~ '&' if mw_group else '' }}{{ '' if mode == m else 'mode=' ~ m }}">{{ label }}</a>{% endfor %}
+			<span class="count mw-label dim">{{ items | length }} pieces</span>
+		</div>
+		{% if items %}
+		<div class="mw-grid">{% for p in items %}{{ product_card(p) }}{% endfor %}</div>
+		{% else %}
+		<div class="mw-empty"><div class="mw-display md">Nothing here yet</div><p>Try another collection or <a href="/shop/collection">clear the filters</a>.</p></div>
+		{% endif %}
+	</section>
+</div>
+{% endblock %}

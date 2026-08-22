@@ -1,0 +1,203 @@
+{
+  "base": "http://maison.localhost:8000",
+  "run": "X1K4A",
+  "results": [
+    {
+      "step": "demo coupon WELCOME10 exists (Maison Coupon)",
+      "ok": true,
+      "detail": "{\"name\":\"WELCOME10\",\"discount_type\":\"Percent\",\"value\":10,\"usage\":\"Multi-use\",\"used_count\":7}"
+    },
+    {
+      "step": "prep: reorder level of AC-001 @ CHI-OAK raised above stock",
+      "ok": true,
+      "detail": "stock 17 → level 22 (was 5)"
+    },
+    {
+      "step": "inventory.low_stock_scan raises a Maison Stock Alert for AC-001 @ CHI-OAK",
+      "ok": true,
+      "detail": "bench execute: {\"checked\": 48, \"created\": [\"MSA-2026-00011\", \"MSA-2026-00012\"], \"updated\": 1, \"resolved\": []} · alert MSA-2026-00012 qty 17 / level 22"
+    },
+    {
+      "step": "clock-in on Unlock → open Maison Shift for the associate at CHI-OAK",
+      "ok": true,
+      "detail": "Not clocked inHR → {\"name\":\"2e73huhv15\",\"boutique\":\"CHI-OAK\",\"clock_in\":\"2026-08-22 17:54:27.790595\",\"checkin_in\":\"EMP-CKIN-08-2026-000017\",\"status\":\"On shift\"}"
+    },
+    {
+      "step": "clock-in → HRMS Employee Checkin (IN) created",
+      "ok": true,
+      "detail": "checkins 8 → 9; shift.checkin_in=EMP-CKIN-08-2026-000017"
+    },
+    {
+      "step": "Settings: V660p reader picked from the boutique reader registry",
+      "ok": true,
+      "detail": "Counter 1 · V660p · verifone_v660p · printer"
+    },
+    {
+      "step": "Shift screen shows the open low-stock alert for AC-001",
+      "ok": true,
+      "detail": "Low stock4 openClassic Wedding Band 2mm Platinum · BR-0062 / 4OpenAcknowledgeRequest transferCufflinks Onyx and Gold · AC-0094 / 5OpenAcknowledgeRequest transfe"
+    },
+    {
+      "step": "serialized watch added to the basket",
+      "ok": true,
+      "detail": "HJ-007 HJ-007-CHI-001"
+    },
+    {
+      "step": "Clienteling tab shows the wishlist (profile, sizes, preferences)",
+      "ok": true,
+      "detail": "wishlist rows 2 (server 2) · ring undefined · metal undefined"
+    },
+    {
+      "step": "\"Suggested for this client\" tiles visible for a client with history",
+      "ok": true,
+      "detail": "3 tiles (server 3, source live) · Suggested for this clientEternal Solitaire 2.0ct Platinum$58,000.00Bought with Classic Wedding Band 2mm Platinum in 4% of basketsTrinity Three-Stone Oval$32,500"
+    },
+    {
+      "step": "coupon WELCOME10 applied at POS: basket shows the coupon line and a lower total",
+      "ok": true,
+      "detail": "Welcome 10% off · −$3,950.00 · \"Coupon WELCOME10−$3,950.00\" · 43548.75 → 39193.88"
+    },
+    {
+      "step": "card sale synced; on-screen 80 mm receipt shows the coupon",
+      "ok": true,
+      "detail": "Synced · uuid 1be2100b-c178-4335-a4c4-7b36e6eb66ef"
+    },
+    {
+      "step": "server Sales Invoice carries maison_coupon + discount, the client and a terminal ref",
+      "ok": true,
+      "detail": "{\"name\":\"ACC-SINV-2026-01700\",\"grand_total\":39193.88,\"maison_coupon\":\"WELCOME10\",\"maison_coupon_discount\":3950,\"maison_receipt_token\":\"DCy7WCBCr86RewgC\",\"maison_terminal_ref\":\"pi_sim_e87cf1dcd3496d8d\",\"customer\":\"Isabella Marchetti\",\"is_return\":0}"
+    },
+    {
+      "step": "coupon redemption counted (used_count +1, Maison Coupon Redemption row)",
+      "ok": true,
+      "detail": "used 7 → 8"
+    },
+    {
+      "step": "receipt printed through the reader route: terminal.print(canvas) called on the simulated V660p (384 px bitmap)",
+      "ok": true,
+      "detail": "width 384px, 37 KB · Printed on Counter 1"
+    },
+    {
+      "step": "Clienteling → Owned pieces lists the serialized watch just sold to the client",
+      "ok": true,
+      "detail": "owned pieces 4, includes HJ-007-CHI-001: true"
+    },
+    {
+      "step": "Returns: card sale found, serialized line + serial selected, refund to original card offered",
+      "ok": true,
+      "detail": "CreditItems1Subtotal$31,600.00Tax 10.25%$3,239.00Refund$34,839.00Refund toOriginal cardCard •••• Cashfrom the drawerStore crediton the clien"
+    },
+    {
+      "step": "credit note created (is_return, against the sale, submitted, card refund recorded)",
+      "ok": true,
+      "detail": "{\"is_return\":1,\"return_against\":\"ACC-SINV-2026-01700\",\"docstatus\":1,\"grand_total\":-39193.88,\"maison_refund_method\":\"Card\",\"maison_refund_id\":\"re_sim_da06e65ce636edb9\",\"update_stock\":1}"
+    },
+    {
+      "step": "returned serial is back in the boutique warehouse (sellable)",
+      "ok": true,
+      "detail": "{\"warehouse\":\"CHI-OAK - MSN\",\"status\":\"Active\"}"
+    },
+    {
+      "step": "commission reversal entry on the credit note",
+      "ok": true,
+      "detail": "[{\"name\":\"MCE-2026-01414\",\"commission_amount\":-1422,\"is_reversal\":1}]"
+    },
+    {
+      "step": "return receipt printed on the reader (canvas route)",
+      "ok": true,
+      "detail": "44 KB data URL"
+    },
+    {
+      "step": "Maison Return Receipt print format renders for the credit note (/printview)",
+      "ok": true,
+      "detail": "200 13061 chars"
+    },
+    {
+      "step": "cash accessory sale synced (to be exchanged)",
+      "ok": true,
+      "detail": "ACC-SINV-2026-01702 149.94"
+    },
+    {
+      "step": "exchange: new piece added, difference to collect shown",
+      "ok": true,
+      "detail": "Charge $295.47"
+    },
+    {
+      "step": "exchange with difference: credit note + new invoice linked, difference = price gap (+tax) paid",
+      "ok": true,
+      "detail": "credit ACC-SINV-2026-01703 -149.94 · new ACC-SINV-2026-01704 418.95 (exchange link ACC-SINV-2026-01703) · gap 220.00 · Paid$269.01"
+    },
+    {
+      "step": "web order placed for Oak Street through the webshop API (paid online, status New)",
+      "ok": true,
+      "detail": "SAL-ORD-2026-00038 {\"maison_boutique\":\"CHI-OAK\",\"maison_web_order\":1,\"maison_web_status\":\"New\",\"maison_prepaid_amount\":2149.88,\"grand_total\":2149.88,\"docstatus\":1}"
+    },
+    {
+      "step": "web order collected at the POS → submitted Sales Invoice, advance allocated, order Collected",
+      "ok": true,
+      "detail": "ACC-SINV-2026-01705 total 2149.88 advance 2149.88 · {\"maison_web_status\":\"Collected\",\"maison_sales_invoice\":\"ACC-SINV-2026-01705\"}"
+    },
+    {
+      "step": "public receipt page shows the private feedback form (guest)",
+      "ok": true,
+      "detail": "/r/DCy7WCBC…"
+    },
+    {
+      "step": "feedback stored as Maison Feedback (rating 5, boutique, associate) and visible to HQ via feedback.list",
+      "ok": true,
+      "detail": "Thank you for your feedback. · {\"name\":\"36cgh9jt7r\",\"sales_invoice\":\"ACC-SINV-2026-01700\",\"boutique\":\"CHI-OAK\",\"associate\":\"chi.oak.a1@maison.example\",\"rating\":5,\"comment\":\"Wonderful service at Oak Street (e2e X1K4A)\",\"submitted_at\":\"2026-08-22 17:55:45.264088\",\"status\":\"New\",\"hq_response\":null,\"responded_by\":null,\"responded_on\":null,\"associate_name\":\"Ines Calder\"}"
+    },
+    {
+      "step": "HQ dashboard tile (feedback.summary) counts the new rating",
+      "ok": true,
+      "detail": "{\"days\":30,\"count\":12,\"avg_rating\":4.25,\"low_count\":2,\"by_boutique\":[{\"boutique\":\"CHI-OAK\",\"count\":8,\"low\":2,\"avg_rating\":4.25},{\"boutique\":\"MIA-DD\",\"count\":2,\"low\":0,\"avg_rating\":4},{\"boutique\":\"NYC-5AV\",\"count\":2,\"low\":0,\"avg_rating\":4.5}"
+    },
+    {
+      "step": "reloading the receipt shows \"already received\" instead of the form",
+      "ok": true,
+      "detail": " How was your visit? Thank you — your feedback has been received. "
+    },
+    {
+      "step": "Maison Sales Tax Summary runs via reports.run (columns + rows, CHI-OAK present)",
+      "ok": true,
+      "detail": "14 columns 3 rows · boutique, boutique_name, tax_template, tax_rate, tickets, returns, gross_sales, returns_value"
+    },
+    {
+      "step": "boutique manager sees only CHI-OAK rows in the tax summary",
+      "ok": true,
+      "detail": "1 rows, 0 foreign"
+    },
+    {
+      "step": "reports.list_reports lists the 8 Maison reports as installed",
+      "ok": true,
+      "detail": "Sales Tax Summary, Daily Sales, Sales by Item, Sales by Associate, Hourly Sales Heatmap, Client Purchases, Serial Ledger, Returns"
+    },
+    {
+      "step": "phone drawer lists Sell, Client, Returns, Web orders, Count, Queue, Shift, Settings (no horizontal overflow)",
+      "ok": true,
+      "detail": "Sell · Client · Returns · Web · Count · Queue · Shift · Settings · Lock"
+    },
+    {
+      "step": "iPad landscape (1024 px): all 8 nav entries fit on one row with the Lock button on screen",
+      "ok": true,
+      "detail": "{\"items\":8,\"navW\":506,\"scrollW\":506,\"lockRight\":1024,\"docW\":1024}"
+    },
+    {
+      "step": "cleanup: reorder level restored → alert resolved by the next scan; associate clocked out",
+      "ok": true,
+      "detail": "alert resolved"
+    }
+  ],
+  "console": [
+    {
+      "tag": "assoc",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "manager",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ]
+}

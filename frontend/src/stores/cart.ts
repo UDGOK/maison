@@ -3,6 +3,8 @@ import type { Customer, Item } from '@/api'
 import { computeTotals, type Totals } from '@/utils/totals'
 import { round } from '@/utils/money'
 import { useCatalogStore } from './catalog'
+import { usePromosStore } from './promos'
+import { useWebOrdersStore } from './webOrders' // v0.4 G
 
 export interface CartLine {
   id: string
@@ -25,6 +27,15 @@ interface CartState {
 
 let seq = 0
 
+/** v0.4 I — promo + coupon discount for a line (whole line), folded into the totals math. */
+function extraDiscount(id: string): number {
+  try {
+    return usePromosStore().extraPerLine[id] || 0
+  } catch {
+    return 0
+  }
+}
+
 export const useCartStore = defineStore('cart', {
   state: (): CartState => ({ lines: [], customer: null, loyalty_points_redeemed: 0, notes: '' }),
   getters: {
@@ -32,18 +43,22 @@ export const useCartStore = defineStore('cart', {
     totals(s): Totals {
       const catalog = useCatalogStore()
       return computeTotals(
-        s.lines.map((l) => ({ qty: l.qty, rate: l.rate, discount_amount: l.discount_amount, taxable: l.taxable })),
+        s.lines.map((l) => ({ qty: l.qty, rate: l.rate, discount_amount: round(l.discount_amount + extraDiscount(l.id)), taxable: l.taxable })),
         catalog.taxRate,
         s.loyalty_points_redeemed,
         catalog.loyalty?.conversion_factor ?? 0
       )
+    },
+    /** v0.4 I — promo + coupon discount per line id (whole line) */
+    extras(s): Record<string, number> {
+      return Object.fromEntries(s.lines.map((l) => [l.id, extraDiscount(l.id)]))
     },
     /** Max points that can be redeemed: customer balance, capped to the bill value. */
     maxRedeemable(s): number {
       const catalog = useCatalogStore()
       if (!s.customer || !catalog.loyalty) return 0
       const billBeforeLoyalty = computeTotals(
-        s.lines.map((l) => ({ qty: l.qty, rate: l.rate, discount_amount: l.discount_amount, taxable: l.taxable })),
+        s.lines.map((l) => ({ qty: l.qty, rate: l.rate, discount_amount: round(l.discount_amount + extraDiscount(l.id)), taxable: l.taxable })),
         catalog.taxRate
       ).grand_total
       const cf = catalog.loyalty.conversion_factor || 0
@@ -117,6 +132,10 @@ export const useCartStore = defineStore('cart', {
     setCustomer(c: Customer | null) {
       this.customer = c
       this.loyalty_points_redeemed = 0
+      if (c) {
+        // v0.4 I — tier progress for the client card (cached; offline fallback)
+        import('./loyalty').then((m) => void m.useLoyaltyStore().load(c)).catch(() => undefined)
+      }
     },
     redeem(points: number) {
       this.loyalty_points_redeemed = Math.max(0, Math.min(Math.floor(points), this.maxRedeemable))
@@ -129,6 +148,18 @@ export const useCartStore = defineStore('cart', {
       this.customer = null
       this.loyalty_points_redeemed = 0
       this.notes = ''
+      try {
+        usePromosStore().reset()
+      } catch {
+        /* store not active (unit tests) */
+      }
+      // --- v0.4 G: a web order being collected is bound to this cart ---
+      try {
+        useWebOrdersStore().clearActive()
+      } catch {
+        /* store not active (unit tests) */
+      }
+      // --- end v0.4 G ---
     }
   }
 })

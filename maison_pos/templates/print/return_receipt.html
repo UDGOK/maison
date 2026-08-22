@@ -1,0 +1,141 @@
+{#-
+  Maison Return Receipt — 80 mm thermal (Jinja print format for Sales Invoice credit notes, v0.4).
+  Helpers from hooks.jinja: get_receipt_context(doc), format_money(v, currency), receipt_qr_svg(doc)
+-#}
+{%- set ctx = get_receipt_context(doc) -%}
+{%- set boutique = ctx.boutique -%}
+{%- set cur = doc.currency -%}
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  .mr { width: 72mm; margin: 0 auto; padding: 4mm 0 6mm; font-family: "Jost", "Helvetica Neue", Arial, sans-serif;
+        font-size: 9pt; line-height: 1.35; color: #000; font-variant-numeric: tabular-nums; }
+  .mr * { box-sizing: border-box; }
+  .mr .wordmark { font-family: "Unbounded", "Arial Black", Arial, sans-serif; font-weight: 900; font-size: 17pt;
+        letter-spacing: -0.02em; text-transform: uppercase; text-align: center; margin-bottom: 1mm; }
+  .mr .sub { text-align: center; font-size: 7.5pt; letter-spacing: 0.25em; text-transform: uppercase; }
+  .mr .center { text-align: center; }
+  .mr .rule { border-top: 1px solid #000; margin: 2.5mm 0; }
+  .mr .rule-soft { border-top: 1px dashed #000; margin: 2mm 0; }
+  .mr .row { display: flex; justify-content: space-between; gap: 2mm; }
+  .mr .row .l { flex: 1 1 auto; }
+  .mr .row .r { flex: 0 0 auto; text-align: right; white-space: nowrap; }
+  .mr .label { font-size: 7pt; letter-spacing: 0.25em; text-transform: uppercase; }
+  .mr .meta { font-size: 8pt; }
+  .mr .line { margin-bottom: 1.5mm; }
+  .mr .line .name { font-weight: 500; }
+  .mr .line .detail { font-size: 7.5pt; padding-left: 3mm; }
+  .mr .total { font-family: "Unbounded", "Arial Black", Arial, sans-serif; font-weight: 800; font-size: 13pt;
+        text-transform: uppercase; margin: 2mm 0; }
+  .mr .banner { border: 2px solid #000; padding: 1.5mm; text-align: center; font-weight: 700; margin: 2mm 0; letter-spacing: 0.2em; }
+  .mr .sig { margin-top: 6mm; }
+  .mr .sig .box { border-bottom: 1px solid #000; height: 12mm; }
+  .mr .foot { margin-top: 4mm; font-size: 7.5pt; text-align: center; }
+  .mr .qr { text-align: center; margin-top: 3mm; }
+  .mr .qr img { width: 22mm; height: 22mm; }
+</style>
+
+<div class="mr">
+  <div class="wordmark">Maison</div>
+  {% if boutique %}
+    <div class="sub">{{ boutique.boutique_name }}</div>
+    <div class="center meta">{{ boutique.address_line or "" }}{% if boutique.city %}{% if boutique.address_line %}, {% endif %}{{ boutique.city }}{% endif %}</div>
+    {% if boutique.phone %}<div class="center meta">{{ boutique.phone }}</div>{% endif %}
+  {% else %}
+    <div class="sub">{{ doc.company }}</div>
+  {% endif %}
+
+  <div class="banner">{% if doc.maison_exchange_invoice and doc.is_return %}EXCHANGE · CREDIT NOTE{% else %}RETURN · CREDIT NOTE{% endif %}</div>
+  {% if doc.docstatus == 2 %}<div class="banner">CANCELLED</div>{% endif %}
+
+  <div class="rule"></div>
+  <div class="row meta"><span class="l label">Credit note</span><span class="r">{{ doc.name }}</span></div>
+  {% if doc.return_against %}<div class="row meta"><span class="l label">Original sale</span><span class="r">{{ doc.return_against }}</span></div>{% endif %}
+  {% if doc.maison_exchange_invoice %}<div class="row meta"><span class="l label">{% if doc.is_return %}New sale{% else %}Credit note{% endif %}</span><span class="r">{{ doc.maison_exchange_invoice }}</span></div>{% endif %}
+  <div class="row meta"><span class="l label">Date</span><span class="r">{{ frappe.utils.format_datetime(doc.posting_date ~ " " ~ doc.posting_time, "dd MMM yyyy HH:mm") }}</span></div>
+  {% if ctx.associate_name %}<div class="row meta"><span class="l label">Associate</span><span class="r">{{ ctx.associate_name }}</span></div>{% endif %}
+  {% if doc.maison_manager_approved_by %}<div class="row meta"><span class="l label">Approved by</span><span class="r">{{ frappe.db.get_value("Maison Associate", doc.maison_manager_approved_by, "full_name") or doc.maison_manager_approved_by }}</span></div>{% endif %}
+  {% if doc.customer %}
+    <div class="row meta"><span class="l label">Client</span><span class="r">{{ doc.customer_name }}{% if ctx.tier %} · {{ ctx.tier }}{% endif %}</span></div>
+    {% if ctx.client_number %}<div class="row meta"><span class="l label">Client №</span><span class="r">{{ ctx.client_number }}</span></div>{% endif %}
+  {% endif %}
+  {% if doc.maison_return_reason %}<div class="row meta"><span class="l label">Reason</span><span class="r">{{ doc.maison_return_reason }}</span></div>{% endif %}
+
+  <div class="rule"></div>
+  <div class="label" style="margin-bottom:1mm">Returned items</div>
+  {% for item in doc.items %}
+    <div class="line">
+      <div class="row">
+        <span class="l name">{{ item.item_name }}</span>
+        <span class="r">{{ format_money(item.amount, cur) }}</span>
+      </div>
+      {% if item.qty|abs != 1 %}<div class="detail">{{ item.qty|abs|int }} × {{ format_money(item.rate, cur) }}</div>{% endif %}
+      {% if item.serial_no %}<div class="detail">Serial {{ item.serial_no|replace("\n", ", ") }}</div>{% endif %}
+      {% if item.serial_and_batch_bundle %}
+        {% set serials = frappe.get_all("Serial and Batch Entry", filters={"parent": item.serial_and_batch_bundle}, pluck="serial_no") %}
+        {% if serials %}<div class="detail">Serial {{ serials|join(", ") }}</div>{% endif %}
+      {% endif %}
+      {% if item.maison_return_reason or item.maison_return_condition %}
+        <div class="detail">{{ item.maison_return_reason or "" }}{% if item.maison_return_condition %} · {{ item.maison_return_condition }}{% endif %}</div>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <div class="rule-soft"></div>
+  <div class="row"><span class="l label">Subtotal</span><span class="r">{{ format_money(doc.net_total, cur) }}</span></div>
+  {% for tax in doc.taxes %}
+    <div class="row"><span class="l label">{{ tax.description }}</span><span class="r">{{ format_money(tax.tax_amount, cur) }}</span></div>
+  {% endfor %}
+  <div class="row total"><span class="l">Credit</span><span class="r">{{ format_money((doc.rounded_total or doc.grand_total)|abs, cur) }}</span></div>
+
+  <div class="rule-soft"></div>
+  {% set refunded = [] %}
+  {% for p in doc.payments %}
+    {% if p.amount %}
+      {% set _ = refunded.append(p.amount) %}
+      <div class="row">
+        <span class="l label">
+          {% if p.mode_of_payment == "Exchange Credit" %}Applied to exchange{% else %}Refund · {{ p.mode_of_payment }}{% endif %}
+          {% if p.mode_of_payment == "Card" and (doc.maison_card_brand or doc.maison_card_last4) %}
+            · {{ doc.maison_card_brand or "" }} {% if doc.maison_card_last4 %}•••• {{ doc.maison_card_last4 }}{% endif %}
+          {% endif %}
+        </span>
+        <span class="r">{{ format_money(p.amount|abs, cur) }}</span>
+      </div>
+      {% if p.mode_of_payment == "Card" and doc.maison_refund_id %}<div class="detail meta">Refund ref {{ doc.maison_refund_id }}</div>{% endif %}
+    {% endif %}
+  {% endfor %}
+  {% if doc.outstanding_amount and doc.outstanding_amount < 0 %}
+    <div class="row"><span class="l label">Store credit</span><span class="r">{{ format_money(doc.outstanding_amount|abs, cur) }}</span></div>
+    <div class="detail meta">Credit stays on your client account and can be used on any purchase.</div>
+  {% elif not refunded and doc.maison_refund_method == "Store Credit" %}
+    <div class="row"><span class="l label">Store credit</span><span class="r">{{ format_money((doc.rounded_total or doc.grand_total)|abs, cur) }}</span></div>
+  {% endif %}
+
+  {% if doc.customer and ctx.points_balance is not none %}
+    <div class="rule-soft"></div>
+    <div class="row meta"><span class="l label">Points balance</span><span class="r">{{ ctx.points_balance|int }}</span></div>
+    <div class="detail meta">Points earned on the returned items have been reversed.</div>
+  {% endif %}
+
+  <div class="sig">
+    <div class="label">Client signature</div>
+    <div class="box"></div>
+    <div class="meta">I confirm the return of the items listed above.</div>
+  </div>
+
+  {% if doc.maison_notes %}
+    <div class="rule-soft"></div>
+    <div class="meta">{{ doc.maison_notes }}</div>
+  {% endif %}
+
+  {% set qr = receipt_qr_svg(doc) %}
+  {% if qr %}
+    <div class="qr"><img src="{{ qr }}" alt="QR"><div class="label">Scan for your credit note</div></div>
+  {% endif %}
+
+  <div class="foot">
+    <div>Thank you for choosing Maison.</div>
+    {% if boutique and boutique.email %}<div>{{ boutique.email }}</div>{% endif %}
+    <div class="label" style="margin-top:2mm">{{ doc.name }} · {{ frappe.utils.format_datetime(ctx.printed_at, "dd.MM.yy HH:mm") }}</div>
+  </div>
+</div>

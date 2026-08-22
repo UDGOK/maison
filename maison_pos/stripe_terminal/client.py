@@ -160,3 +160,25 @@ def refund(payment_intent_id: str, amount_minor: Optional[int] = None, reason: O
 		params["metadata"] = {"reason": reason}
 	r = _client().Refund.create(**params)
 	return {"id": r.id, "status": r.status, "simulated": False}
+
+
+# ---------------------------------------------------------------------------
+# v0.4 — refunds (itemized returns)
+# ---------------------------------------------------------------------------
+def refund(payment_intent_id: str, amount_minor: int, *, reason: Optional[str] = None, idempotency_key: Optional[str] = None) -> dict[str, Any]:
+	"""Refund *amount_minor* of a captured PaymentIntent (partial refunds allowed).
+
+	Simulated (``re_sim_…``) when no key is configured or the intent itself was simulated.
+	Stripe reason must be one of ``duplicate`` / ``fraudulent`` / ``requested_by_customer``.
+	"""
+	if amount_minor <= 0:
+		frappe.throw(frappe._("Refund amount must be positive"), frappe.ValidationError)
+	if not is_configured() or not payment_intent_id or payment_intent_id.startswith("pi_sim_") or not payment_intent_id.startswith("pi_"):
+		return {"id": _sim_id("re"), "payment_intent": payment_intent_id, "amount": amount_minor, "status": "succeeded", "simulated": True}
+	params: dict[str, Any] = {"payment_intent": payment_intent_id, "amount": amount_minor, "reason": "requested_by_customer"}
+	if reason:
+		params["metadata"] = {"maison_reason": reason[:200]}
+	if idempotency_key:
+		params["idempotency_key"] = idempotency_key
+	r = _client().Refund.create(**params)
+	return {"id": r.id, "payment_intent": payment_intent_id, "amount": r.amount, "status": r.status, "simulated": False}

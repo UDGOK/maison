@@ -14,6 +14,9 @@ import { sendToPrinter } from '@/printer/epos'
 import { useScanStore } from '@/stores/scan'
 import { useRecognitionStore } from '@/stores/recognition'
 import RecognitionTile from '@/components/RecognitionTile.vue'
+import ScannerSettings from '@/components/ScannerSettings.vue'
+import { useInventoryStore } from '@/stores/inventory' // v0.4 D
+import { buildReceiptLayout } from '@/printer/canvas' // v0.4 A
 
 const session = useSessionStore()
 const catalog = useCatalogStore()
@@ -23,6 +26,22 @@ const cart = useCartStore()
 const router = useRouter()
 const scan = useScanStore()
 const recognition = useRecognitionStore()
+const inventory = useInventoryStore()
+const readerTest = ref('')
+async function testReaderPrint() {
+  readerTest.value = ''
+  try {
+    const snap = { boutique: session.boutique!.name, boutique_name: session.boutique!.boutique_name, address_line: session.boutique!.address_line, city: session.boutique!.city, phone: session.boutique!.phone, associate_name: session.associate!.full_name, lines: [{ item_code: 'TEST', item_name: 'Reader test print', qty: 1, rate: 0, amount: 0 }], net_total: 0, discount: 0, total_taxes: 0, tax_rate: catalog.taxRate, loyalty_amount: 0, loyalty_points_redeemed: 0, grand_total: 0, payments: [], points_earned: 0, currency: session.currency }
+    const layout = buildReceiptLayout(snap, { offline_uuid: 'reader-test', posting_datetime: new Date().toISOString() })
+    await printer.printOnReader(snap, { offline_uuid: 'reader-test', posting_datetime: new Date().toISOString() })
+    readerTest.value = `Printed ${layout.width}×${layout.height} px on ${printer.reader?.label}`
+  } catch (e) {
+    readerTest.value = 'Failed: ' + (e as Error).message
+  }
+}
+onMounted(() => {
+  if (sync.browserOnline && !window.__maisonOffline) void inventory.refresh()
+})
 
 // ---- client recognition (v0.3)
 const cameras = ref<{ deviceId: string; label: string }[]>([])
@@ -137,6 +156,35 @@ async function resetDevice() {
           </div>
         </div>
 
+        <!-- v0.4 A — reader registry / print route -->
+        <div class="card block" data-testid="reader-settings">
+          <div class="between">
+            <div class="section-title">Card reader</div>
+            <span class="pill" :class="printer.plannedRoute === 'reader' ? 'pill-accent' : ''">{{ printer.plannedRoute === 'reader' ? 'Reader prints' : printer.plannedRoute === 'epos' ? 'ePOS prints' : 'Browser prints' }}</span>
+          </div>
+          <div class="field">
+            <label class="label">Reader paired to this device</label>
+            <select class="input" :value="printer.reader?.stripe_reader_id || printer.reader?.name || ''" data-testid="reader-picker" @change="printer.selectReader(($event.target as HTMLSelectElement).value)">
+              <option v-for="r in printer.readers" :key="r.stripe_reader_id || r.name" :value="r.stripe_reader_id || r.name">{{ r.label }} · {{ r.device_type }}{{ r.has_printer ? ' · printer' : '' }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="label">Receipt route</label>
+            <select v-model="printer.route" class="input" @change="printer.save()">
+              <option value="auto">Automatic (reader printer → ePOS → browser)</option>
+              <option value="reader">Reader printer only</option>
+              <option value="epos">ePOS printer only</option>
+              <option value="browser">Browser print dialog</option>
+            </select>
+          </div>
+          <div class="row">
+            <button class="btn" :disabled="printer.plannedRoute !== 'reader' && printer.route !== 'reader'" @click="testReaderPrint">Test reader print</button>
+          </div>
+          <div v-if="readerTest" class="muted small">{{ readerTest }}</div>
+          <img v-if="printer.lastReaderPreview" :src="printer.lastReaderPreview" alt="Reader print preview" class="reader-preview" />
+          <div class="muted small">Verifone V660p prints 384-px receipts itself; the S710 has no printer and falls back to ePOS / browser. Readers are registered on the boutique (desk → Maison Boutique → Readers). {{ hasStripeKey ? 'Live Stripe Terminal.' : 'Simulated reader (no Stripe key).' }}</div>
+        </div>
+
         <div class="card block">
           <div class="section-title">Printer</div>
           <div class="field">
@@ -153,6 +201,22 @@ async function resetDevice() {
           </div>
           <div v-if="testResult" class="muted" style="font-size: 13px">{{ testResult }}</div>
           <div class="muted" style="font-size: 13px">Model {{ session.boutique?.printer_model || 'TM-m30' }}. When the printer is unreachable, receipts open in the browser print dialog.</div>
+        </div>
+
+        <!-- v0.4 D — inventory -->
+        <div class="card block" data-testid="inventory-settings">
+          <div class="between">
+            <div class="section-title">Inventory</div>
+            <span class="pill" :class="inventory.openCount ? 'pill-warn' : 'pill-good'">{{ inventory.openCount }} low-stock alert{{ inventory.openCount === 1 ? '' : 's' }}</span>
+          </div>
+          <div class="kv"><span class="label">Unacknowledged</span><span>{{ inventory.unacknowledged }}</span></div>
+          <div class="kv"><span class="label">Checked</span><span>{{ inventory.fetchedAt ? fmtDateTime(inventory.fetchedAt) : 'never' }}</span></div>
+          <div class="kv"><span class="label">Return window</span><span>{{ catalog.settings.return_window_days }} d · exchange {{ catalog.settings.exchange_window_days }} d · manager PIN above {{ catalog.settings.returns_manager_threshold }}</span></div>
+          <div class="row">
+            <button class="btn" @click="router.push({ name: 'shift' })">Open alerts</button>
+            <button class="btn" @click="router.push({ name: 'count' })">Cycle count</button>
+            <button class="btn btn-ghost" :disabled="inventory.loading" @click="inventory.refresh()">Refresh</button>
+          </div>
         </div>
 
         <div class="card block">
@@ -174,6 +238,9 @@ async function resetDevice() {
             <button class="btn" :disabled="!catalog.settings.scan_enabled" @click="scan.openSheet('any')">Open scanner</button>
           </div>
         </div>
+
+        <!-- v0.4 J — Bluetooth / USB scanner prefix, suffix, terminator + test field -->
+        <ScannerSettings />
 
         <div class="card block rec-block">
           <div class="between">
@@ -265,6 +332,11 @@ async function resetDevice() {
 </template>
 
 <style scoped>
+.reader-preview {
+  width: 192px;
+  border: var(--line-w) solid var(--line);
+  background: #fff;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

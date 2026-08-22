@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "associate",
+  "associate_name",
+  "employee",
+  "boutique",
+  "column_break_a",
+  "clock_in",
+  "clock_out",
+  "status",
+  "section_break_b",
+  "break_started",
+  "break_minutes",
+  "worked_minutes",
+  "column_break_c",
+  "device_id",
+  "checkin_in",
+  "checkin_out"
+ ],
+ "fields": [
+  {
+   "fieldname": "associate",
+   "fieldtype": "Link",
+   "label": "Associate",
+   "options": "Maison Associate",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "associate_name",
+   "fieldtype": "Data",
+   "label": "Associate Name",
+   "fetch_from": "associate.full_name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "label": "Boutique",
+   "options": "Maison Boutique",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "clock_in",
+   "fieldtype": "Datetime",
+   "label": "Clock In",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "clock_out",
+   "fieldtype": "Datetime",
+   "label": "Clock Out",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "On shift\nOn break\nOff shift",
+   "default": "On shift",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "section_break_b",
+   "fieldtype": "Section Break",
+   "label": "Breaks & device"
+  },
+  {
+   "fieldname": "break_started",
+   "fieldtype": "Datetime",
+   "label": "Break Started",
+   "read_only": 1
+  },
+  {
+   "fieldname": "break_minutes",
+   "fieldtype": "Int",
+   "label": "Break Minutes",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "worked_minutes",
+   "fieldtype": "Int",
+   "label": "Worked Minutes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_c",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "device_id",
+   "fieldtype": "Data",
+   "label": "Device"
+  },
+  {
+   "fieldname": "checkin_in",
+   "fieldtype": "Data",
+   "label": "HRMS Check-in (IN)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "checkin_out",
+   "fieldtype": "Data",
+   "label": "HRMS Check-in (OUT)",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison Shift",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Head Office",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Regional",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Maison Manager",
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Associate",
+   "read": 1,
+   "create": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "hash",
+ "naming_rule": "Random",
+ "title_field": "associate_name"
+}

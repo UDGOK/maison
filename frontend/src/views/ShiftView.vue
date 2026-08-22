@@ -6,9 +6,24 @@ import { useSyncStore } from '@/stores/sync'
 import { fmtMoney } from '@/utils/money'
 import { fmtDateTime, todayISO } from '@/utils/device'
 import { round } from '@/utils/money'
+import { useInventoryStore } from '@/stores/inventory' // v0.4 D
+import { useRouter } from 'vue-router'
 
 const session = useSessionStore()
 const sync = useSyncStore()
+const inventory = useInventoryStore()
+const router = useRouter()
+const transferQty = ref<Record<string, number>>({})
+async function requestTransfer(name: string) {
+  const a = inventory.alerts.find((x) => x.name === name)
+  if (!a) return
+  try {
+    const res = await inventory.requestTransfer(a, transferQty.value[name] || a.reorder_qty || 1)
+    sync.notify('good', 'Transfer requested', res.material_request)
+  } catch (e) {
+    sync.notify('crit', 'Transfer request failed', (e as Error).message)
+  }
+}
 
 const date = ref(todayISO())
 const server = ref<SalesList | null>(null)
@@ -51,7 +66,10 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+onMounted(() => {
+  void load()
+  if (sync.browserOnline && !window.__maisonOffline) void inventory.refresh()
+})
 
 function printReport() {
   window.print()
@@ -77,6 +95,7 @@ function printReport() {
           </div>
           <button class="btn" :disabled="loading" @click="load">{{ loading ? 'Loading' : 'Refresh' }}</button>
           <button class="btn" @click="printReport">Print</button>
+          <button class="btn" @click="router.push({ name: 'count' })">Cycle count</button>
         </div>
       </div>
       <div v-if="error" class="warn no-print" style="font-size: 13px; margin-bottom: 16px">{{ error }}</div>
@@ -111,6 +130,33 @@ function printReport() {
           <button class="btn btn-primary btn-block" :disabled="closed || !countedCash || local.pending > 0" @click="closed = true">
             {{ closed ? 'Shift closed' : local.pending ? 'Sync queue before closing' : 'Close shift' }}
           </button>
+        </div>
+
+        <!-- v0.4 D — low-stock alerts for this boutique -->
+        <div class="card block no-print" data-testid="low-stock">
+          <div class="between">
+            <div class="section-title">Low stock</div>
+            <span class="pill" :class="inventory.openCount ? 'pill-warn' : 'pill-good'">{{ inventory.openCount }} open</span>
+          </div>
+          <div v-if="inventory.error" class="warn" style="font-size: 13px">{{ inventory.error }}</div>
+          <div v-if="!inventory.open.length" class="label label-dim" style="padding: 8px 0">Nothing below its reorder level.</div>
+          <div v-for="a in inventory.open" :key="a.name" class="alert">
+            <div class="between">
+              <span><span style="font-weight: 500">{{ a.item_name || a.item_code }}</span><span class="muted" style="font-size: 12px"> · {{ a.item_code }}</span></span>
+              <span class="num" :class="a.qty <= 0 ? 'crit' : 'warn'">{{ a.qty }} / {{ a.reorder_level }}</span>
+            </div>
+            <div class="row" style="margin-top: 6px; flex-wrap: wrap">
+              <span class="pill" :class="a.status === 'Acknowledged' ? 'pill-accent' : 'pill-warn'">{{ a.status }}</span>
+              <button v-if="a.status === 'Open'" class="btn" @click="inventory.acknowledge(a.name)">Acknowledge</button>
+              <template v-if="!a.material_request">
+                <input v-model.number="transferQty[a.name]" class="input qty" inputmode="numeric" :placeholder="String(a.reorder_qty || 1)" />
+                <button class="btn" @click="requestTransfer(a.name)">Request transfer</button>
+              </template>
+              <span v-else class="muted" style="font-size: 12px">{{ a.material_request }} requested</span>
+              <button v-if="session.isManager" class="btn btn-ghost" @click="inventory.resolve(a.name)">Resolve</button>
+            </div>
+          </div>
+          <button class="btn btn-ghost" :disabled="inventory.loading" @click="inventory.refresh()">{{ inventory.loading ? 'Refreshing' : 'Refresh' }}</button>
         </div>
 
         <div class="card block">
@@ -167,6 +213,16 @@ function printReport() {
   font-size: 13px;
   padding: 6px 0;
   border-bottom: var(--line-w) solid var(--line);
+}
+.alert {
+  padding: 10px 0;
+  border-bottom: var(--line-w) solid var(--line);
+  font-size: 14px;
+}
+.alert .qty {
+  width: 72px;
+  min-height: 40px;
+  text-align: right;
 }
 @media print {
   .kpis,

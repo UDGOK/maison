@@ -1,0 +1,112 @@
+[
+  {
+    "name": "desktop: unlock shows shift status",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: clocked in → On shift",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: promo line in totals",
+    "ok": true,
+    "detail": "Promotions−$75.00"
+  },
+  {
+    "name": "desktop: bad coupon shows error",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: coupon line in totals",
+    "ok": true,
+    "detail": "Coupon WELCOME10−$227.50"
+  },
+  {
+    "name": "desktop: profile shows ring size",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: wishlist add",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: follow-up created",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: tier progress in basket",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "desktop: scanner test strips prefix",
+    "ok": true,
+    "detail": "Decoded2000733100019Resolves tonot in catalogueRaw\"~2000733100019\"Characters14Burst123 ms · max gap 14 msTerminatorTabCl"
+  },
+  {
+    "name": "desktop: clocked out",
+    "ok": true,
+    "detail": "Clocked out · 1m worked"
+  },
+  {
+    "name": "iphone: unlock shows shift status",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: clocked in → On shift",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: promo line in totals",
+    "ok": true,
+    "detail": "Promotions−$75.00"
+  },
+  {
+    "name": "iphone: bad coupon shows error",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: coupon line in totals",
+    "ok": true,
+    "detail": "Coupon WELCOME10−$227.50"
+  },
+  {
+    "name": "iphone: profile shows ring size",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: wishlist add",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: follow-up created",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: tier progress in basket",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "iphone: scanner test strips prefix",
+    "ok": true,
+    "detail": "Decoded2000733100019Resolves tonot in catalogueRaw\"~2000733100019\"Characters14Burst120 ms · max gap 16 msTerminatorTabCl"
+  },
+  {
+    "name": "iphone: clocked out",
+    "ok": true,
+    "detail": "Clocked out · 1m worked"
+  }
+]

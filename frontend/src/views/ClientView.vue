@@ -14,6 +14,7 @@ import { fmtDate } from '@/utils/device'
 import Keypad from '@/components/Keypad.vue'
 import Modal from '@/components/Modal.vue'
 import { useRecognitionStore } from '@/stores/recognition'
+import ClientProfilePanel from '@/components/ClientProfilePanel.vue'
 
 const cart = useCartStore()
 const session = useSessionStore()
@@ -51,6 +52,12 @@ function enrolSelected() {
   cart.setCustomer(selected.value)
   recognition.openEnrol({ customer: selected.value, name: selected.value.customer_name, phone: selected.value.mobile_no || '', email: selected.value.email_id || '' })
   router.push({ name: 'sell' })
+}
+
+// ---- clienteling (v0.4 B): profile / wishlist / owned pieces / follow-ups vs purchase history
+const detailTab = ref<'profile' | 'history'>('profile')
+function onTier(tier: string | null) {
+  if (selected.value && tier && selected.value.tier !== tier) selected.value = { ...selected.value, tier }
 }
 
 // ---- client number (v0.2)
@@ -274,8 +281,12 @@ async function create() {
           <span v-else-if="selected.maison_face_consent" class="label label-dim bio-act">Manager</span>
           <button v-else-if="recognition.active && !layout.phone" class="label bio-act accent" @click="enrolSelected">Enrol</button>
         </div>
-        <div class="section-title hist-title">History</div>
-        <div class="hist scroll">
+        <div class="detail-switch">
+          <button class="label dsw" :class="{ on: detailTab === 'profile' }" data-testid="detail-profile" @click="detailTab = 'profile'">Clienteling</button>
+          <button class="label dsw" :class="{ on: detailTab === 'history' }" data-testid="detail-history" @click="detailTab = 'history'">History</button>
+        </div>
+        <ClientProfilePanel v-if="detailTab === 'profile'" :key="selected.name" :customer="selected" @tier="onTier" />
+        <div v-else class="hist scroll">
           <div v-if="loadingHistory" class="label label-dim">Loading</div>
           <div v-else-if="!history.length" class="label label-dim">No purchases on record</div>
           <div v-for="h in history" :key="h.invoice" class="hrow">
@@ -475,6 +486,20 @@ async function create() {
   min-width: 0;
   padding: 0 8px;
   min-height: 36px;
+}
+.detail-switch {
+  display: flex;
+  border-bottom: var(--line-w) solid var(--line);
+}
+.dsw {
+  flex: 1;
+  min-height: 44px;
+  color: var(--dim);
+  border-bottom: 2px solid transparent;
+}
+.dsw.on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 .hist-title {
   padding: 16px 20px 8px;

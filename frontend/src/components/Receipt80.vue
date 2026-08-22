@@ -61,10 +61,16 @@ watch(
     <div class="r-rule"></div>
     <div class="r-kv"><span>Subtotal</span><span>{{ fmtAmount(row.receipt.net_total + row.receipt.discount) }}</span></div>
     <div v-if="row.receipt.discount" class="r-kv"><span>Discount</span><span>-{{ fmtAmount(row.receipt.discount) }}</span></div>
+    <div v-if="row.receipt.promo_discount" class="r-kv r-sub"><span>incl. promotions</span><span>-{{ fmtAmount(row.receipt.promo_discount) }}</span></div>
+    <div v-if="row.receipt.coupon_code" class="r-kv r-sub"><span>incl. coupon {{ row.receipt.coupon_code }}</span><span>-{{ fmtAmount(row.receipt.coupon_discount || 0) }}</span></div>
     <div class="r-kv"><span>Tax {{ row.receipt.tax_rate }}%</span><span>{{ fmtAmount(row.receipt.total_taxes) }}</span></div>
     <div v-if="row.receipt.loyalty_amount" class="r-kv"><span>Loyalty ({{ row.receipt.loyalty_points_redeemed }} pts)</span><span>-{{ fmtAmount(row.receipt.loyalty_amount) }}</span></div>
     <div class="r-kv r-total"><span>Total {{ row.receipt.currency }}</span><span>{{ fmtAmount(row.receipt.grand_total) }}</span></div>
     <div class="r-rule"></div>
+    <template v-if="row.receipt.web_order">
+      <div class="r-kv"><span>Web order {{ row.receipt.web_order }}</span><span></span></div>
+      <div v-if="row.receipt.prepaid" class="r-kv"><span>Paid online</span><span>{{ fmtAmount(row.receipt.prepaid) }}</span></div>
+    </template>
     <template v-for="(p, i) in row.receipt.payments" :key="i">
       <template v-if="p.mode_of_payment === 'Card'">
         <div class="r-kv"><span>Card {{ p.card_brand }} <template v-if="p.last4">**** {{ p.last4 }}</template></span><span>{{ fmtAmount(p.amount) }}</span></div>

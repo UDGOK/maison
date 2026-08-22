@@ -126,7 +126,7 @@ async function addItem(page, name) {
   await page.waitForFunction((n) => document.querySelectorAll('.basket .line').length > n, before, { timeout: 5000 })
   await q.fill('')
   await page.click('.rail .rail-btn:text-is("All")')
-  if (!serial) serial = (await page.locator('.basket .line').last().locator('.line-sub .good').textContent().catch(() => null))?.trim() || null
+  if (!serial) serial = (await page.locator('.basket .line').last().locator('.line-sub .good.serial').textContent().catch(() => null))?.trim() || null
   return serial
 }
 

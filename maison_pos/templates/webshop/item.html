@@ -1,0 +1,204 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% from "maison_pos/templates/webshop/macros.html" import product_card %}
+{% set m = maison %}
+{% set mw_group = doc.item_group %}
+{% set price_info = (shopping_cart.product_info.price if shopping_cart and shopping_cart.product_info else none) or {} %}
+
+{% block title %}{{ doc.web_item_name }} — Maison{% endblock %}
+{% block shop_head %}
+<meta name="description" content="{{ (doc.short_description or doc.web_item_name) | striptags }}">
+{% endblock %}
+
+{% block shop_content %}
+<div class="mw-wrap">
+	<section class="mw-item">
+		<div class="gallery">
+			<div class="main">
+				{% set hero = doc.website_image or doc.image or (slides[0].image if slides else none) %}
+				{% if hero %}<img src="{{ hero }}" alt="{{ doc.web_item_name }}">{% else %}<div class="ph" style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--mw-line-strong);font-family:var(--mw-display);font-size:64px">M</div>{% endif %}
+			</div>
+			{% if slides and slides | length > 1 %}
+			<div class="thumbs">{% for s in slides %}<img src="{{ s.image }}" alt="">{% endfor %}</div>
+			{% endif %}
+		</div>
+
+		<div class="info">
+			<div class="crumbs">
+				<a href="/shop">Maison</a><span>/</span>
+				<a href="/shop/collection?item_group={{ doc.item_group | urlencode }}">{{ doc.item_group }}</a><span>/</span>
+				<span>{{ doc.item_code }}</span>
+			</div>
+			{% if m.one_off %}<span class="mw-pill gold" style="margin-bottom:16px">One of a kind</span>{% elif m.web_mode == 'Reserve-with-deposit' %}<span class="mw-pill warn" style="margin-bottom:16px">Reserve with deposit</span>{% endif %}
+			<h1 class="mw-display">{{ doc.web_item_name }}</h1>
+			<div class="price-row">
+				<span class="mw-price">{% if m.rate %}{{ shop_money(m.rate, price_info.currency) }}{% else %}Price on request{% endif %}</span>
+				{% if m.rate %}<span class="tax">excl. tax &middot; collected in boutique</span>{% endif %}
+			</div>
+			<p class="lead">{{ (doc.short_description or '') }} {{ (doc.description or '') | striptags if not doc.short_description else '' }}</p>
+
+			<div class="mw-specs">
+				{% if m.metal %}<div><span class="k">Metal</span><span class="v">{{ m.metal }}</span></div>{% endif %}
+				{% if m.carat %}<div><span class="k">Total weight</span><span class="v">{{ '%.2f' | format(m.carat) }} ct</span></div>{% endif %}
+				{% if m.stones %}<div><span class="k">Stones</span><span class="v">{{ m.stones }}</span></div>{% endif %}
+				{% if m.certificate_no %}<div><span class="k">Certificate</span><span class="v">{{ m.certificate_no }}</span></div>{% endif %}
+				<div><span class="k">Reference</span><span class="v">{{ doc.item_code }}</span></div>
+				<div><span class="k">Collection</span><span class="v">{{ doc.item_group }}</span></div>
+			</div>
+
+			<div class="mw-avail" id="mw-avail">
+				<div class="head">
+					<span class="mw-label">Availability</span>
+					{% if m.chain_qty > 0 %}<span class="mw-pill good"><span class="dot"></span>Available at {{ m.available_at }}</span>{% else %}<span class="mw-pill"><span class="dot"></span>Atelier order</span>{% endif %}
+				</div>
+				<ul>
+					{% for a in m.availability %}
+					<li class="{{ 'out' if a.qty <= 0 else '' }}">
+						<span class="b"><span>{{ a.boutique_name }}</span><span class="c">{{ a.city }}</span></span>
+						<span>{% if a.qty <= 0 %}Not in boutique{% elif m.one_off or a.qty == 1 %}In boutique{% else %}{{ a.qty | int }} available{% endif %}</span>
+					</li>
+					{% endfor %}
+				</ul>
+			</div>
+
+			<div class="mw-cta">
+				{% if m.web_mode == 'Buy' %}
+				<div class="row">
+					<button class="mw-btn" id="mw-add" data-item-code="{{ doc.item_code }}" {% if m.chain_qty <= 0 %}disabled{% endif %}>Add to bag</button>
+					<a class="mw-btn ghost" href="/cart" id="mw-view-bag" style="display:none">View bag</a>
+					<button class="mw-btn ghost" data-mw-sheet="mw-enquire">Ask the boutique</button>
+				</div>
+				<div class="mw-note">Collected and paid in the boutique of your choice &middot; or pay online now.</div>
+				{% elif m.web_mode == 'Reserve-with-deposit' %}
+				<div class="row">
+					<button class="mw-btn" data-mw-sheet="mw-reserve" {% if m.chain_qty <= 0 %}disabled{% endif %}>Reserve &middot; {{ shop_money(m.deposit, price_info.currency) }} deposit</button>
+					<button class="mw-btn ghost" data-mw-sheet="mw-enquire">Ask the boutique</button>
+				</div>
+				<div class="mw-note">A {{ m.deposit_percent | int }}% deposit holds this piece in the boutique for 14 days; the balance is settled when you collect it.</div>
+				{% else %}
+				<div class="row">
+					<button class="mw-btn" data-mw-sheet="mw-enquire">Enquire about this piece</button>
+					<a class="mw-btn ghost" href="/shop/boutiques">Visit a boutique</a>
+				</div>
+				<div class="mw-note">{% if m.one_off %}Unique pieces are presented in person. A Maison advisor will contact you to arrange a private viewing.{% else %}A Maison advisor will contact you within one working day.{% endif %}</div>
+				{% endif %}
+			</div>
+
+			<div class="mw-assurance">
+				<div><b>Click &amp; collect</b>Prepared by your boutique, ready in 24 h.</div>
+				<div><b>Maison Collectors</b>Earn points on every piece, online and in boutique.</div>
+				<div><b>Atelier guarantee</b>Five years on timepieces, lifetime on settings.</div>
+				<div><b>Private viewing</b>Book an appointment with an advisor.</div>
+			</div>
+		</div>
+	</section>
+
+	{% if m.related %}
+	<section class="mw-section">
+		<div class="mw-section-head">
+			<div><span class="mw-label">Also from</span><h2 class="mw-display lg">{{ doc.item_group }}</h2></div>
+			<a class="mw-link" href="/shop/collection?item_group={{ doc.item_group | urlencode }}">View the collection</a>
+		</div>
+		<div class="mw-grid">{% for p in m.related %}{{ product_card(p) }}{% endfor %}</div>
+	</section>
+	{% endif %}
+</div>
+
+{# ---------- Enquire sheet ---------- #}
+<div class="mw-sheet-backdrop" id="mw-enquire">
+	<div class="mw-sheet">
+		<div class="head">
+			<div><span class="mw-label gold">Enquire</span><h3 class="mw-display md" style="margin:8px 0 0">{{ doc.web_item_name }}</h3></div>
+			<button class="close" data-mw-close="mw-enquire" aria-label="Close">&times;</button>
+		</div>
+		<form id="mw-enquire-form">
+			<div class="mw-field"><label class="mw-label">Name</label><input class="mw-input" name="name" required value="{{ shop.full_name if shop.signed_in else '' }}"></div>
+			<div class="mw-field"><label class="mw-label">E-mail</label><input class="mw-input" name="email" type="email" value="{{ shop.user if shop.signed_in else '' }}"></div>
+			<div class="mw-field"><label class="mw-label">Phone</label><input class="mw-input" name="phone" type="tel"></div>
+			<div class="mw-field"><label class="mw-label">Preferred boutique</label>
+				<select class="mw-select" name="boutique">
+					{% for b in m.boutiques %}<option value="{{ b.name }}">{{ b.boutique_name }} &middot; {{ b.city }}</option>{% endfor %}
+				</select>
+			</div>
+			<div class="mw-field"><label class="mw-label">Message</label><textarea class="mw-textarea" name="message" placeholder="Sizing, a private viewing, a matching piece…"></textarea></div>
+			<div class="mw-error" id="mw-enquire-error"></div>
+			<button class="mw-btn block" type="submit">Send enquiry</button>
+		</form>
+		<div id="mw-enquire-done" style="display:none">
+			<p class="mw-muted">Thank you. An advisor from the boutique will be in touch shortly.</p>
+			<button class="mw-btn ghost block" data-mw-close="mw-enquire">Close</button>
+		</div>
+	</div>
+</div>
+
+{# ---------- Reserve sheet ---------- #}
+{% if m.web_mode == 'Reserve-with-deposit' %}
+<div class="mw-sheet-backdrop" id="mw-reserve">
+	<div class="mw-sheet">
+		<div class="head">
+			<div><span class="mw-label gold">Reserve with deposit</span><h3 class="mw-display md" style="margin:8px 0 0">{{ doc.web_item_name }}</h3></div>
+			<button class="close" data-mw-close="mw-reserve" aria-label="Close">&times;</button>
+		</div>
+		<p class="mw-muted" style="margin:0 0 6px">Choose the boutique holding the piece. A deposit of <b style="color:var(--mw-accent);font-weight:500">{{ shop_money(m.deposit, price_info.currency) }}</b> is taken now; the balance of {{ shop_money(m.rate - m.deposit, price_info.currency) }} plus tax is settled at collection.</p>
+		<div class="mw-boutiques" id="mw-reserve-boutiques">
+			{% for a in m.availability %}
+			<button type="button" class="mw-boutique {{ 'selected' if loop.first and a.qty > 0 else '' }}" data-boutique="{{ a.boutique }}" {% if a.qty <= 0 %}disabled style="opacity:.45"{% endif %}>
+				<span class="radio"></span>
+				<span><span class="n">{{ a.boutique_name }}</span><span class="a">{{ a.city }}</span></span>
+				<span class="s {{ '' if a.qty > 0 else 'no' }}">{{ 'In boutique' if a.qty > 0 else 'Not here' }}</span>
+			</button>
+			{% endfor %}
+		</div>
+		<div class="mw-error" id="mw-reserve-error"></div>
+		<button class="mw-btn block" id="mw-reserve-go">Continue to deposit</button>
+		<div class="mw-note" style="margin-top:12px">You will be asked to sign in or create a Maison account first.</div>
+	</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block shop_script %}
+<script>
+frappe.ready(() => {
+	const add = document.getElementById('mw-add');
+	if (add) add.addEventListener('click', async () => {
+		const r = await MW.addToCart(add.dataset.itemCode, 1, add).catch(() => null);
+		if (r) { add.textContent = 'Added to bag'; document.getElementById('mw-view-bag').style.display = ''; }
+	});
+	const form = document.getElementById('mw-enquire-form');
+	if (form) form.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const f = new FormData(form);
+		const err = document.getElementById('mw-enquire-error');
+		err.textContent = '';
+		try {
+			await MW.call('maison_pos.api.webshop.enquire', {
+				item_code: {{ doc.item_code | tojson }}, name: f.get('name'), email: f.get('email'), phone: f.get('phone'),
+				boutique: f.get('boutique'), message: f.get('message')
+			});
+			form.style.display = 'none';
+			document.getElementById('mw-enquire-done').style.display = '';
+		} catch (ex) { err.textContent = MW.errorText(ex); }
+	});
+	const rb = document.getElementById('mw-reserve-boutiques');
+	if (rb) {
+		rb.addEventListener('click', (e) => {
+			const b = e.target.closest('.mw-boutique');
+			if (!b || b.disabled) return;
+			rb.querySelectorAll('.mw-boutique').forEach((x) => x.classList.remove('selected'));
+			b.classList.add('selected');
+		});
+		document.getElementById('mw-reserve-go').addEventListener('click', async () => {
+			if (!MW.requireLogin()) return;
+			const sel = rb.querySelector('.mw-boutique.selected');
+			const err = document.getElementById('mw-reserve-error');
+			if (!sel) { err.textContent = 'Choose a boutique'; return; }
+			err.textContent = '';
+			try {
+				const r = await MW.call('maison_pos.api.webshop.reserve', { item_code: {{ doc.item_code | tojson }}, boutique: sel.dataset.boutique });
+				window.location.href = r.payment_url || ('/shop/order?name=' + encodeURIComponent(r.sales_order));
+			} catch (ex) { err.textContent = MW.errorText(ex); }
+		});
+	}
+});
+</script>
+{% endblock %}

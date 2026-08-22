@@ -227,3 +227,253 @@ Operator notes: `maison.localhost` must resolve (`127.0.0.1 maison.localhost` in
 `frappe.client.get_list` cannot list the child table `Maison Face Template` — use `recognition.status(customer).templates`
 or `recognition.templates`. Devices with an old cached threshold override (0.5–0.99 "score") are clamped: any override
 ≥ the boutique distance is ignored, so no device ends up looser than the server. Recognition remains **off** on the dev site.
+
+<!-- v0.4 H — AI & insights + history seed -->
+## v0.4 H — AI & insights, 6-month history seed (2026-08-22)
+
+New: `maison_pos/insights/{affinity,client_signals,product_performance,narrative,jobs}.py`, `maison_pos/api/insights.py`,
+doctypes `Maison Client Recommendation`, `Maison Client Signal`, `Maison Rebalance Suggestion`, `Maison Insight Report`,
+`maison_pos/setup/demo_history.py`, tests `maison_pos/tests/test_insights.py` (20), frontend `stores/insights.ts` +
+`components/SuggestionTiles.vue` (wired into `BasketPanel.vue`, delimited `v0.4 H` blocks) + `src/tests/insights.test.ts` (5),
+dashboard `src/insights/*` + `components/insights/*` + Insights tab in `App.vue` (delimited), screenshots
+`dashboard/screenshots/v04/` (`dashboard/scripts/shots-v04-insights.mjs`, 11/11 checks). Hooks: scheduler cron
+`0 5 * * 1` `maison_pos.insights.jobs.compute_weekly`, `0 6 * * 1` `maison_pos.insights.jobs.weekly_narrative`;
+`before_tests = maison_pos.setup.demo.before_tests`; permission_query_conditions for the two client tables.
+
+```bash
+bench --site maison.localhost migrate
+bench --site maison.localhost execute maison_pos.setup.demo_history.seed_history --kwargs '{"months": 6}'
+# -> planned 1501, posted 1501 (+70 recent serialized), 8+3 returns via api.returns, reposts processed
+bench --site maison.localhost execute maison_pos.insights.jobs.compute_weekly
+# -> affinity {customers 116, recommendations 580, baskets 1627, pairs 619}; signals 73 (Due this week 27, Overdue 19,
+#    VIP lapsing 12, Spend drop 12, New client 2, Birthday 1); rebalance 8 suggestions
+bench --site maison.localhost execute maison_pos.insights.jobs.weekly_narrative
+# -> MIR-2026-08-16-Weekly (Template); e-mail skipped: no outgoing Email Account on the dev site (recorded in `error`)
+bench --site maison.localhost run-tests --module maison_pos.tests.test_insights   # Ran 20 tests — OK
+cd frontend && npm test (141) && npm run lint && npm run build; cd ../dashboard && npm test (12) && npm run build
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node dashboard/scripts/shots-v04-insights.mjs
+```
+
+Runtime of `seed_history`: first run 287 s for 550 invoices before it was interrupted by a concurrent `migrate`
+("Table definition has changed"), resume 491 s for the remaining 951 incl. 125 s of reposts → ≈ 0.38 s per invoice,
+≈ 9.5 min of posting + ≈ 2 min reposts for the full 1,500 on this bench (single process; the Sales Invoice naming
+series lock makes parallel posting pointless). The recent-serialized top-up (70 invoices) took 105 s incl. reposts.
+
+Gotchas found while integrating:
+
+| # | Symptom | Fix |
+|---|---|---|
+| 1 | History run died mid-way: every invoice after #550 failed with `OperationalError 1412 Table definition has changed` (another agent ran `bench migrate` which altered `tabSales Invoice`), then `Deadlock found` on the returns | `_post_plan` retries transient DB errors (deadlock / lock wait / table changed) up to 3× with a full rollback and re-queues the uncommitted chunk; completion marker only when ≥ 98 % of the plan is in, so `seed_history` is safely re-runnable / resumable |
+| 2 | Serialized pieces sold out early in the period (per-boutique caps consumed by March) → "no sales in 90 days" everywhere for watches | added the deterministic `build_recent_plan` (70 serialized sales over the last 100 days with their own `-R###` receipts); kept the main plan byte-identical so the already posted invoices stay consistent |
+| 3 | Every `bench run-tests` wiped `tabItem Price` (ERPNext `erpnext.setup.utils.before_tests` → `delete from tabItem Price` + commit) → POS tiles / suggestions showed $0.00 on the dev site | `hooks.before_tests = maison_pos.setup.demo.before_tests` restores the demo prices after ERPNext's hook; `maison_pos.setup.demo.seed` also repairs them |
+| 4 | `frappe.sendmail(delayed=False)` raises `OutgoingEmailError` on a site without an outgoing account → the Monday narrative job would fail | `narrative.email_report` catches it, stores the message in `Maison Insight Report.error`, the report itself is still saved |
+| 5 | Back-dated history invoices precede the regular demo opening stock → ERPNext queues a Repost Item Valuation per voucher | `Stock Reposting Settings.item_based_reposting = 1` during the run (deduped per item × warehouse) + `process_reposts()` at the end; bins are always exact (`update_bin_qty` recomputes for back-dated rows) |
+| 6 | `"count(name) as n"` works in `frappe.get_all` with `group_by`, but fields containing `_seen`-like names get dropped (known) — not hit here; `Maison Client Profile` is feature-detected (birthday / anniversary / do-not-contact), so H works with or without section B installed | — |
+
+Smoke (Administrator, live bench):
+
+```bash
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.insights.recommend_for_client?customer=Ren%20Yamada&n=3&boutique=NYC-5AV"
+# -> owned [AC-001, AC-003, AC-005, AC-011, AC-012, BR-003, BR-004, BR-006, BR-007, SV-001, SV-002] source cache
+#    items: SV-005 Appraisal Certificate (score 18.4, "Bought with Eternal Solitaire 2.0ct Platinum in 24% of baskets"),
+#           BR-001, BR-002 — none of the owned codes
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.insights.recommend_for_basket?items=%5B%22TP-001%22%5D&n=3&boutique=CHI-OAK"
+# -> AC-010 Leather Watch Strap (lift 4.1, 32 % of baskets), SV-002 Engraving, BR-009
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.insights.rebalance_suggestions"
+# -> e.g. TP-006 NYC-5AV (4 on hand, 0.23/wk, 120 d cover) → CHI-OAK (1 on hand, 0.54/wk, 12 d cover) qty 2, can_transfer true
+curl -s -b $J -H "$H" "$B/api/method/maison_pos.api.insights.narrative" | jq .message.narrative
+```
+<!-- end v0.4 H -->
+
+## v0.4 A/D/E/F — hardware print route, inventory, returns & exchanges, reports (2026-08-22)
+
+Backend: `api/inventory.py`, `api/returns.py`, `api/reports.py`, `reports.py` (shared query helpers),
+8 Script Reports under `maison_pos/maison_pos/report/*`, doctypes `Maison Stock Alert`, `Maison Cycle
+Count`, child `Maison Boutique Reader` (+ `Maison Boutique.readers`, `damaged_warehouse`), settings
+fields (returns windows / threshold / digest), custom fields `Sales Invoice.maison_refund_method /
+maison_refund_id / maison_return_reason / maison_exchange_invoice / maison_manager_approved_by`,
+`Sales Invoice Item.maison_return_reason / maison_return_condition`, `stripe_terminal.client.refund`,
+print format `Maison Return Receipt`, hooks (hourly `inventory.low_stock_scan`, daily
+`inventory.low_stock_digest`, permission queries for the two doctypes), `setup/install_v04_inventory.py`
+(Exchange Credit MOP + clearing account, Damaged warehouses; called from after_install/after_migrate),
+`setup/demo_v04_inventory.py` (called from `seed()`), `dashboard.live_summary.low_stock / returns`,
+`utils.receipt_payload` credit-note keys. Docs: `docs/hardware.md`, `docs/returns.md`.
+
+```bash
+bench --site maison.localhost migrate && bench --site maison.localhost execute maison_pos.setup.demo.seed
+bench --site maison.localhost execute maison_pos.api.inventory.low_stock_scan   # {"checked": 48, ...}
+bench --site maison.localhost run-tests --module maison_pos.tests.test_v0_4_returns     # 11 OK
+bench --site maison.localhost run-tests --module maison_pos.tests.test_v0_4_inventory   # 4 OK
+bench --site maison.localhost run-tests --module maison_pos.tests.test_v0_4_reports     # 5 OK
+cd frontend && npm test      # 13 files, 118 tests (returns math / exchange / canvas layout / cycle count / mock parity)
+VITE_MOCK=1 npx vite --port 5174 & PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://localhost:5174 node scripts/shots-v04.mjs   # 28/28, shots in screenshots/v04-returns/
+```
+
+Gotchas found:
+
+| # | Symptom | Fix |
+|---|---------|-----|
+| 1 | `make_sales_return` maps every line; a partial return needs only the selected rows | `returns._build_credit_note` keeps the selected mapped rows, sets `qty = −n`, limits `serial_no` to the chosen serials (ERPNext still validates them against the original) |
+| 2 | Stock Reconciliation draft from the cycle count failed for associates: `get_stock_balance_for` calls `frappe.has_permission("Stock Reconciliation", "write", throw=True)` regardless of `ignore_permissions` | the draft is inserted as Administrator with `owner` = the associate (`inventory.submit_cycle_count`) |
+| 3 | `frappe.desk.query_report.get_report_doc` refuses associates (report roles) | `reports.run` loads the Report doc directly; access is gated by `assert_roles` + boutique scoping in `normalize_filters` |
+| 4 | `Serial No` has no `purchase_date`, `Serial and Batch Bundle` has `posting_datetime` (not date/time) | Serial Ledger uses `creation` / `posting_datetime` |
+| 5 | Card refunds on exchanges/returns need the intent: POS sales store it in `maison_terminal_ref` | `card` refund refused (PAYMENT_MISMATCH) when the sale has no terminal ref or the amount exceeds the card charge |
+| 6 | Stripe Terminal JS has no reader selection API beyond discovery | driver connects to the reader whose id matches the Settings pick (`readers[].stripe_reader_id`), else the first discovered |
+
+Known failures **outside this section** at the time of writing (full `run-tests --app maison_pos`:
+139 tests, 38 errors / 1 failure): `test_recognition`, `test_v0_2`, `test_scoping` (void) and
+`test_v0_4_crm_hr` fail with *"Cannot select a Group type Customer Group"* when creating customers and
+*"SAVEPOINT maison_batch_0 does not exist"* inside `submit_batch` (a submit hook commits) — both come
+from the concurrent B/C/I work (customer-group tier mapping, commission / coupon hooks), not from
+D/E/F. The three v0.4 D/E/F modules pass on their own and `test_submit_batch` / `test_demo_rebase` /
+`test_price_change_approval` are unaffected.
+
+## v0.4 G — Web shop (Frappe Webshop + Payments) — 2026-08-22
+
+Apps added to the bench and site (`sites/apps.txt` now `frappe, hrms, erpnext, webshop, maison_pos, payments`, …):
+
+| App | Branch | Commit | `__version__` |
+| --- | --- | --- | --- |
+| payments | version-15 | `9885a6e` | 0.0.1 |
+| webshop | version-15 | `6c8fd00` | 0.0.1 |
+
+```bash
+bench get-app payments --branch version-15 --skip-assets && bench get-app webshop --branch version-15 --skip-assets
+bench --site maison.localhost install-app payments    # see quirk 1
+bench --site maison.localhost install-app webshop
+bench --site maison.localhost migrate
+bench --site maison.localhost execute maison_pos.setup.demo_v04_webshop.seed_webshop --args "[True]"
+bench build --app maison_pos
+bench --site maison.localhost run-tests --module maison_pos.tests.test_webshop     # Ran 12 tests — OK
+cd frontend && npm run build && npm test                                            # 15 files, 145 tests
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers ADMIN_PWD=admin node e2e/webshop.e2e.mjs # 29/29, shots in e2e/shots-webshop/
+```
+
+| # | Symptom | Fix |
+|---|---------|-----|
+| 1 | `install-app payments` → `Web Form: Options must be a valid DocType for field Payment Gateway in row 60` (after_install custom fields ran before the doctype was synced) | `bench execute payments.utils.make_custom_fields`; documented in docs/webshop.md |
+| 2 | Template override by path (`templates/generators/item/item.html`) depends on app install order (`reversed(installed_apps)`): webshop installed after maison_pos wins | `override_doctype_class["Website Item"]` = `MaisonWebsiteItem` with `website.template = "maison_pos/templates/webshop/item.html"`; `/cart` and `/all-products` re-routed with `website_route_rules` to `www/shop/*` |
+| 3 | `Website Item.make_thumbnail` (Pillow) fails on the generated SVG visuals | `MaisonWebsiteItem.make_thumbnail` uses the SVG as its own thumbnail |
+| 4 | Portal shopper (role Customer) `update_cart` → PermissionError on Item (`get_item_details` → `item.check_permission()` in ERPNext 15.119) and on Account (`get_party_account` strict check) | `maison_pos.webshop.setup.create_portal_permissions`: Custom DocPerms for Customer (Item, Item Price, Website Item, Price List, Sales Taxes and Charges Template read; Account select) |
+| 5 | Frappe creates a bare Contact for every new User; webshop resolves the party through the first Contact of the user → a second Customer was created and login failed with "Cannot select a Group type Customer Group" (stale cached settings) | seed links every Contact of the demo shopper to the Customer; `frappe.clear_cache` after the seed |
+| 6 | `frappe.csrf_token` rendered as `"None"` on storefront pages after an API login → every `frappe.call` POST failed silently | `shop_context()` calls `frappe.sessions.get_csrf_token()` for signed-in users before the page is rendered |
+| 7 | Paying a Payment Request as the shopper → PermissionError creating the Payment Entry (`get_account_details` checks Payment Entry read); same for the manager reconciling the advance at collection | `simulate_payment` and `MaisonPaymentRequest.on_payment_authorized` run the payment as Administrator; Maison roles get Payment Entry read (HO full) |
+| 8 | ERPNext auto-invoices a *Shopping Cart* Sales Order when its Payment Request is paid (`set_as_paid → make_invoice`) — the POS could then no longer invoice the collection | web Sales Orders use `order_type = Sales`; the advance PE stays against the order |
+| 9 | POS invoices skip `update_against_document_in_jv` (ERPNext assumes they are fully tendered) → outstanding stayed = total after collection | `maison_pos.webshop.events.on_invoice_submit` reconciles the advances for `is_pos` invoices with `advances` |
+| 10 | webshop's `update_cart(qty=0)` on the last line crashes in `set_cart_count(None)` | `api.webshop.update_cart` deletes the cart Quotation cleanly |
+| 11 | `override_doctype_class["Payment Request"]` is declared by both webshop and maison_pos; Frappe takes the last app in `installed_apps` (webshop on this bench) | `simulate_payment` does not depend on it; for real gateways install maison_pos after webshop (documented) |
+| 12 | ERPNext `before_tests` deletes every Item Price on each `bench run-tests` — the storefront showed "Price on request" / `$ 0 deposit` while other work-streams ran tests | `maison_pos.setup.demo.before_tests` (v0.4 H) restores them; `ensure_items` re-creates them; demo web orders are only created when prices exist |
+
+## v0.4 — Integration of the four streams (2026-08-22)
+
+Four agents (A/D/E/F, B/C/I/J, G, H) edited the same tree concurrently. This pass merged the result,
+made every suite green, proved a from-scratch install, ran every e2e script and wrote `CHANGELOG.md`.
+App versions bumped to **0.4.0** (`maison_pos/__init__.py`, `frontend/package.json`, `dashboard/package.json`).
+
+### What was broken and what changed
+
+| # | Symptom | Root cause / fix |
+|---|---------|------------------|
+| 1 | Full suite: `test_insights.test_client_recommendations_exclude_owned_items` — `owned == {AC-001, AC-012}` failed with an extra `BR-006` | The test used the demo client *Isabella Marchetti*, who carries real history on any site where `seed_history` ran. Uses a dedicated client (`ensure_customer("Insights Owned Test", …)`) — `tests/test_insights.py`. |
+| 2 | Full suite (order dependent): `test_recognition.test_retention_purge` — the *second* invoice was refused: *Date 04-22-2023 is not in any active Fiscal Year* | The test back-dated the first invoice at DB level (`posting_date` → 40 months ago) and then submitted another invoice of the same item/warehouse. Whenever a later-dated SLE existed (e.g. sales posted a few hours earlier in UTC from another run) ERPNext's `repost_future_sle_and_gle` re-generated the GL of the back-dated invoice and hit the fiscal-year check. Fix: both visits are posted first, the back-dating happens afterwards and is undone in `addCleanup`. |
+| 3 | "Cannot select a Group type Customer Group", "SAVEPOINT maison_batch_0 does not exist" (reported by the D/E/F stream) | Already fixed upstream by the B/C/I stream before this pass: `customers._default_customer_group()` skips group nodes and prefers *Individual*; no `frappe.db.commit()` remains in any `doc_events` hook (`grep` over `maison_pos` — commits only in scheduler jobs, install and seeds). Verified: 0 errors across 3 full runs. |
+| 4 | ERPNext `before_tests` wiping Item Prices | `hooks.before_tests = maison_pos.setup.demo.before_tests` (H stream) restores the demo prices after ERPNext's hook and again at process exit (`atexit`). Ordering verified: prices present after every `run-tests`. |
+| 5 | POS Settings showed only *Simulated reader* — the V660p print route could never be picked on the real bench (only the mock had readers) | `catalog.bootstrap.boutique` never carried the v0.4 A child table. `_boutique_dict` now returns `readers[]` (+ `damaged_warehouse`); `tests/test_v0_4_inventory.py` asserts it. |
+| 6 | Any **discounted line** (15 % *Accessories week* promotion, manual discount) was refused: `PAYMENT_MISMATCH — Payments (149.94) do not cover the invoice total (176.4)` | v0.1 `build_sales_invoice` treated `rate` as the *net* rate and `discount_amount` as per unit (`price_list_rate = rate + discount`), while the device (and `SPEC.md`) send `rate` = unit list rate and `discount_amount` = whole-line amount. The server now sets `price_list_rate = rate`, `discount_amount = discount / qty`, `rate = list − unit discount` (same semantics `promotions.apply_coupon_to_invoice` already used). `test_submit_batch.test_line_discount_is_whole_line_amount_off_the_list_rate`. |
+| 7 | Card sale of TP-002 with WELCOME10 refused: *Card payments exceed the invoice total* — device 24 310.13, server 24 310.12 | Frappe's default **Banker's Rounding** (half to even) vs the device's half-away-from-zero `round()`: 10.25 % of 22 050 = 2 260.125. `setup.install.ensure_rounding_method` pins System Settings `rounding_method = Commercial Rounding` on install / migrate (retail standard; receipts, tags and tax filings expect it). `test_submit_batch.test_half_cent_tax_rounds_like_the_device`. |
+| 8 | `e2e/pos.v03.e2e.mjs` manager step: the associate select snapped back to the first associate after it was chosen (`Incorrect PIN`) | `UnlockView.onMounted` awaited `shift.restore()` / `loadBoutiques()` (v0.4 C) and *then* reset `selectedAssociate` to the first associate — undoing a choice made while the cached catalogue already showed the keypad. Only defaults when nothing is selected. |
+| 9 | `pos.v02` iPhone check: *sheet controls ≥ 48 px* — the Promotions chip was 44 px | `PromotionsChip.vue` `min-height: 48px`. |
+| 10 | `pos.e2e` "add serialized watch + accessory" — the accessory reported a serial | The e2e read `.line-sub .good` as the serial; the promotion marker (`✦ −$24.00`) is also `.good`. Serial span is now `.good.serial`; every e2e script (incl. cloud copies) uses it. |
+| 11 | TopBar at iPad width (1024 px): 8 entries overflowed, *Web orders* and *Count* ran together | Compact mode ≤ 1100 px (short label *Web*, boutique code only, tighter tracking), `.nav` scrolls as a last resort; new **Count** entry (cycle count). Phone drawer lists all 8 entries. Verified by `pos.v04` at 1024 × 768 and 393 × 852. |
+| 12 | `webshop.e2e` / `pos.v04` flaked on repeated runs: BR-006 sold out at Oak Street, TP-002 fully reserved | Data exhaustion, not code: `webshop.e2e` tops BR-006 up (Material Receipt) and reserves at the next boutique with a piece; `pos.v04` prefers a watch with ≥ 2 free serials. |
+| 13 | After the e2e runs the backend suite lost 7 tests (`test_webshop` "TP-002 not available at Oak Street", `test_insights` rebalance "no TP-005 serial", `test_recognition` candidate counts off by the clients an aborted e2e run left enrolled) | Tests assumed the pristine demo state. They now create what they need inside their rolled-back transaction: `test_webshop` / `test_insights` receive a fresh serial into Oak Street, `test_recognition` starts from an empty gallery (templates deleted, consents revoked at `setUpClass`). The suite is green on a site that has been used. |
+
+### Final counts
+
+| Suite | Result |
+|---|---|
+| Backend `bench --site maison.localhost run-tests --app maison_pos` | **Ran 153 tests — OK** (3 consecutive runs, incl. one right after the e2e batch) |
+| Frontend `npm test` / `vue-tsc` / `lint` / `build` | **145 tests, 15 files** — clean |
+| Dashboard `npm test` / `vue-tsc` / `build` | **12 tests** — clean |
+| e2e `pos.e2e` / `pos.v02` / `pos.v03` / `webshop` / `pos.v04` | **11/11 · 20/20 · 31/31 · 29/29 · 37/37** (one sequential batch after the final build; console noise is the sandbox proxy's `ERR_CERT_AUTHORITY_INVALID` on Google Fonts and headless "WebGL not supported") |
+
+Dashboard: no duplicated tabs / stores (`Live` + `Insights`), `npm test` 12, `vue-tsc` clean, build clean (no lint script in `dashboard/`).
+Frontend stores are unique (`cart, catalog, insights, inventory, layout, loyalty, printer, promos, recognition, scan, session, shift, sync, webOrders`), router has one entry per screen (`returns`, `exchange/:invoice`, `count`, `web-orders`).
+
+### Commands run (all as user `claude`)
+
+```bash
+cd frontend  && npm run models && npm test && npx vue-tsc --noEmit && npm run lint && npm run build   # 15 files, 145 tests
+cd dashboard && npm test && npx vue-tsc --noEmit && npm run build                                    # 12 tests
+bench --site maison.localhost run-tests --app maison_pos        # Ran 153 tests — OK (see counts below)
+bench build --app maison_pos; bench --site maison.localhost clear-cache
+pkill -u claude -f "^/usr/bin/python3 /usr/local/bin/honcho"; setsid nohup bench start > logs/bench-start.log 2>&1 &
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin BENCH=/home/claude/frappe-bench \
+  node e2e/pos.e2e.mjs && node e2e/pos.v02.e2e.mjs && node e2e/pos.v03.e2e.mjs && node e2e/webshop.e2e.mjs && node e2e/pos.v04.e2e.mjs
+```
+
+`e2e/pos.v04.e2e.mjs` (37 checks, `e2e/shots-v04/`, `results.v04.json`): coupon WELCOME10 applied on the basket, on the
+on-screen receipt and on the server invoice (+ `Maison Coupon Redemption`); V660p reader picked in Settings → `Print receipt`
+goes through `terminal.print(canvas)` on the simulated reader (384-px PNG captured from `window.__maisonLastReaderPrint`,
+saved as `09-reader-print-bitmap.png`); clock-in on Unlock → `Maison Shift` + HRMS Employee Checkin; `inventory.low_stock_scan`
+(run through `bench execute` when `BENCH` is set) → alert visible on the Shift screen; Clienteling tab (wishlist, owned piece =
+the watch just sold), "Suggested for this client" tiles; manager return of the card line → credit note, Stripe (simulated)
+refund, serial back in `CHI-OAK - MSN`, commission reversal, return receipt printed on the reader + `/printview` of
+`Maison Return Receipt`; cash sale → exchange for a pricier piece, difference paid cash; web order placed through the
+webshop API → Web orders: pick → ready → collect → Sales Invoice with the advance; guest feedback on `/r/<token>` → `Maison
+Feedback` + `feedback.summary`; `reports.run("Maison Sales Tax Summary")` (Administrator all boutiques, manager CHI-OAK only);
+phone drawer + iPad top bar.
+
+### Fresh site from scratch (install order proof)
+
+```bash
+bench new-site maison2.localhost --admin-password admin --db-root-password admin
+for a in erpnext payments webshop hrms crm maison_pos; do bench --site maison2.localhost install-app $a; done   # all clean
+bench --site maison2.localhost execute maison_pos.setup.demo.seed
+# -> items 42, serials 102, customers 20, associates 11, v04_crm_hr {employees 11, salary_assignments 11, commission_rules 5,
+#    promotions [PRLE-0001, PRLE-0002], coupons 3, profiles 10, follow_ups 5, hrms true, crm true}; webshop seeded
+bench --site maison2.localhost execute maison_pos.setup.demo_history.seed_history --kwargs '{"months":3}'
+# -> planned 1532, posted 1602 (incl. recent serialized), clients_created 60, failed 0, returns 8 (≈ 6 min)
+bench --site maison2.localhost execute maison_pos.insights.jobs.compute_weekly
+# -> affinity {customers 51, recommendations 255, baskets 1602, pairs 656}; signals 45; rebalance 0 (3-month window)
+bench drop-site maison2.localhost --force --db-root-password admin
+```
+
+Nothing had to be fixed for the fresh install: the seed's headless ERPNext setup wizard, `payments` before `webshop`
+(the `make_custom_fields` quirk from v0.4 G did not recur in this order) and `maison_pos` last (its
+`override_doctype_class` for *Payment Request* wins) all worked first time.
+
+### Frappe Cloud deployment
+
+1. **Release group → Apps**: add, in this order, with these sources / branches
+   - `erpnext` — https://github.com/frappe/erpnext — `version-15`
+   - `payments` — https://github.com/frappe/payments — `version-15`
+   - `webshop` — https://github.com/frappe/webshop — `version-15`
+   - `hrms` — https://github.com/frappe/hrms — `version-15`
+   - `crm` — https://github.com/frappe/crm — `main` (Frappe CRM 1.x; supports Frappe 15)
+   - `maison_pos` — https://github.com/UDGOK/maison — `main`
+   Then **Deploy** (build). `maison_pos.hooks.required_apps = ["erpnext", "hrms", "crm"]`, so the bench must contain
+   hrms and crm or `install-app maison_pos` fails; webshop / payments are optional but expected for section G.
+2. **Site → Apps**: install (or verify installed) `erpnext`, `payments`, `webshop`, `hrms`, `crm`, `maison_pos` — same order.
+   Existing sites that already have maison_pos: install `payments`, `webshop`, `hrms`, `crm`, then **Migrate**
+   (`after_migrate` creates the v0.4 custom fields, tier Customer Groups, Damaged warehouses, Exchange Credit / Web
+   Payment tenders, the 10 Script Reports, pins Commercial Rounding; patch `v0_4.crm_hr_fields` runs).
+3. **Site config** (Site → Config): `stripe_secret_key`, `stripe_publishable_key` (Terminal + web checkout; without them the
+   POS uses the simulated reader and the shop a simulated gateway), optional `anthropic_api_key` (weekly narrative),
+   `allow_tests` only on dev sites.
+4. **Post-deploy seeding** (Administrator session, `POST /api/method/...` with the session cookie + `X-Frappe-CSRF-Token`,
+   or the Frappe Cloud *Bench console*):
+   ```bash
+   POST /api/method/maison_pos.setup.demo.seed_remote                                  # idempotent demo data incl. v0.4 (≈ 1 min)
+   POST /api/method/maison_pos.setup.demo_history.seed_history_remote  {"months": 6}  # enqueued on the long queue (≈ 10 min)
+   GET  /api/method/maison_pos.setup.demo_history.history_status                      # marker.completed, invoices
+   POST /api/method/maison_pos.api.insights.compute  {"narrative": 1}                  # recommendations, signals, rebalance, narrative
+   ```
+   Bench console equivalents: `bench --site <site> execute maison_pos.setup.demo.seed`,
+   `… execute maison_pos.setup.demo_history.seed_history --kwargs '{"months":6}'`,
+   `… execute maison_pos.insights.jobs.compute_weekly`.
+5. **Scheduler** must be enabled on the site (hourly `inventory.low_stock_scan`, daily digest / biometrics purge /
+   birthday bonus, Monday 05:00 + 06:00 insights + narrative in the site time zone).
+6. **Web shop domain**: Site → Domains → add `shop.brand.com` (CNAME to the site); storefront lives at `/shop`
+   (`docs/webshop.md`). Outgoing e-mail account for digests / narrative / feedback alerts.
+7. **Devices**: open `/pos`, pick the boutique, Settings → Reader (V660p) and print route; `/maison-dashboard` for Head Office.

@@ -1,0 +1,51 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap"><div class="mw-narrow">
+	<span class="mw-label gold">Maison Collectors</span>
+	<h1 class="mw-display lg" style="margin:10px 0 8px">{% if signed_in %}Welcome{{ ', ' ~ shop.full_name if shop.full_name else '' }}{% else %}Your points, wherever you are{% endif %}</h1>
+	<p class="mw-muted" style="margin:0 0 28px;max-width:60ch">Maison Collectors rewards every piece, in boutique or online. {% if not signed_in %}Sign in with your client number and the e-mail we hold for you, or <a href="/login?redirect-to=/shop/account">sign in to your Maison account</a>.{% endif %}</p>
+
+	<div id="mw-loyalty">
+		{% if loyalty %}{% include "maison_pos/templates/webshop/loyalty_card.html" %}{% endif %}
+	</div>
+
+	<div class="mw-panel" id="mw-lookup" {% if loyalty %}style="margin-top:8px"{% endif %}>
+		<span class="mw-label">{{ 'Look up another client number' if loyalty else 'Loyalty sign-in' }}</span>
+		<form id="mw-lookup-form" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
+			<div class="mw-field" style="margin:0"><label class="mw-label dim">Client number</label><input class="mw-input" name="client_number" placeholder="MC123456" autocomplete="off" style="text-transform:uppercase"></div>
+			<div class="mw-field" style="margin:0"><label class="mw-label dim">E-mail on file</label><input class="mw-input" name="email" type="email" placeholder="you@example.com"></div>
+			<button class="mw-btn" type="submit">Show points</button>
+		</form>
+		<div class="mw-error" id="mw-lookup-error" style="margin-top:10px"></div>
+		<div class="mw-note" style="margin-top:12px">Your client number is printed on every Maison receipt.</div>
+	</div>
+
+	{% if signed_in and orders %}
+	<div class="mw-panel">
+		<div class="head"><span class="mw-label">Recent web orders</span><a class="mw-link" href="/shop/orders">All orders</a></div>
+		<div class="mw-orders">
+			{% for o in orders %}<a href="/shop/order?name={{ o.name }}"><div><div class="t">{{ o.name }} &middot; {{ o.boutique_name }}</div><div class="d">{{ frappe.utils.format_date(o.transaction_date, 'd MMM yyyy') }}</div></div><div style="text-align:right"><div class="mw-price">{{ shop_money(o.grand_total, o.currency) }}</div><span class="mw-pill">{{ o.maison_web_status or 'New' }}</span></div></a>{% endfor %}
+		</div>
+	</div>
+	{% endif %}
+	{% if signed_in %}<a class="mw-link" href="/?cmd=web_logout">Sign out</a>{% endif %}
+</div></div>
+{% endblock %}
+{% block shop_script %}
+<script>
+frappe.ready(() => {
+	const form = document.getElementById('mw-lookup-form');
+	form.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const f = new FormData(form); const err = document.getElementById('mw-lookup-error'); err.textContent = '';
+		try {
+			const r = await MW.call('maison_pos.api.webshop.loyalty_lookup', { client_number: f.get('client_number'), email: f.get('email') });
+			if (!r) { err.textContent = 'We could not match that client number and e-mail.'; return; }
+			const html = await MW.call('maison_pos.api.webshop.loyalty_card_html', { client_number: f.get('client_number'), email: f.get('email') });
+			document.getElementById('mw-loyalty').innerHTML = html;
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		} catch (ex) { err.textContent = MW.errorText(ex); }
+	});
+});
+</script>
+{% endblock %}

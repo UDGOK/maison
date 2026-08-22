@@ -140,3 +140,54 @@ def biometric_consent_query(user: Optional[str] = None) -> str:
 
 def recognition_event_query(user: Optional[str] = None) -> str:
 	return _boutique_condition("Maison Recognition Event", user)
+
+
+# v0.4 B/C/I
+def client_interaction_query(user: Optional[str] = None) -> str:
+	if is_unrestricted(user):
+		return ""
+	boutique = get_user_boutique(user)
+	if not boutique:
+		return "1=0"
+	b = frappe.db.escape(boutique)
+	return f"(`tabMaison Client Interaction`.`boutique` = {b} or `tabMaison Client Interaction`.`boutique` is null or `tabMaison Client Interaction`.`boutique` = '')"
+
+
+def commission_entry_query(user: Optional[str] = None) -> str:
+	if is_unrestricted(user):
+		return ""
+	if is_manager_or_above(user):
+		return _boutique_condition("Maison Commission Entry", user)
+	assoc = get_associate(user)
+	return f"`tabMaison Commission Entry`.`associate` = {frappe.db.escape(assoc['name'])}" if assoc else "1=0"
+
+
+def shift_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Shift", user)
+
+
+def feedback_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Feedback", user)
+
+
+def coupon_redemption_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Coupon Redemption", user)
+
+
+# v0.4 D — inventory
+def stock_alert_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Stock Alert", user)
+
+
+def cycle_count_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Cycle Count", user)
+
+
+# --- v0.4 H insights ---
+def client_signal_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Client Signal", user)
+
+
+def client_recommendation_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Client Recommendation", user)
+# --- end v0.4 H ---

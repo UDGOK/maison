@@ -1,0 +1,78 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% from "maison_pos/templates/webshop/macros.html" import product_card %}
+{% block shop_content %}
+{% if not enabled %}
+<div class="mw-wrap mw-empty"><div class="mw-display lg">The shop is not open yet</div><p>Install the webshop app and run the Maison seed.</p></div>
+{% else %}
+<section class="mw-hero">
+	<div class="mw-wrap">
+		<div>
+			<span class="mw-label gold eyebrow">Maison &middot; Autumn collection</span>
+			<h1 class="mw-display xl">Made in the atelier.<br>Collected in your boutique.</h1>
+			<p>Fine jewellery and timepieces from the house of Maison. Choose a piece online, let your boutique prepare it, and collect it with a glass of champagne — or reserve a rare piece with a deposit.</p>
+			<div class="actions">
+				<a class="mw-btn" href="/shop/collection">Explore the collection</a>
+				<a class="mw-btn ghost" href="/shop/boutiques">Our boutiques</a>
+			</div>
+		</div>
+		{% if hero %}
+		<a class="art" href="{{ hero.route }}">
+			{% if hero.image %}<img src="{{ hero.image }}" alt="{{ hero.item_name }}">{% endif %}
+			<div class="tag"><span class="mw-label">{{ hero.item_group }}</span><span class="name">{{ hero.item_name }}</span><span class="mw-price">{{ shop_money(hero.rate, hero.currency) }}</span></div>
+		</a>
+		{% endif %}
+	</div>
+</section>
+
+<div class="mw-wrap">
+	<section class="mw-section">
+		<div class="mw-section-head">
+			<div><span class="mw-label">Collections</span><h2 class="mw-display lg">The house in four chapters</h2></div>
+		</div>
+		<div class="mw-collections">
+			{% for g in group_cards %}
+			<a href="/shop/collection?item_group={{ g.name | urlencode }}"><span class="arrow">&rarr;</span><span class="n">{{ g.name }}</span><span class="c">{{ g.count }} pieces</span></a>
+			{% endfor %}
+		</div>
+	</section>
+
+	<section class="mw-section">
+		<div class="mw-section-head">
+			<div><span class="mw-label">Selected pieces</span><h2 class="mw-display lg">Featured this season</h2></div>
+			<a class="mw-link" href="/shop/collection">All pieces</a>
+		</div>
+		<div class="mw-grid">{% for p in featured %}{{ product_card(p) }}{% endfor %}</div>
+	</section>
+
+	<section class="mw-section">
+		<div class="mw-section-head">
+			<div><span class="mw-label">Click &amp; collect</span><h2 class="mw-display lg">Three ways to acquire a piece</h2></div>
+		</div>
+		<div class="mw-collections" style="grid-template-columns:repeat(3,1fr)">
+			<a href="/shop/collection?mode=Buy"><span class="n">Order &amp; collect</span><span class="c">Add to your bag, choose a boutique, pay online or at the counter. Ready in 24 hours.</span></a>
+			<a href="/shop/collection?mode=Reserve-with-deposit"><span class="n">Reserve with deposit</span><span class="c">A 10% deposit holds a timepiece or solitaire in the boutique of your choice for 14 days.</span></a>
+			<a href="/shop/collection?mode=Enquire"><span class="n">Enquire</span><span class="c">One-of-a-kind high jewellery is presented in person. Ask for a private viewing.</span></a>
+		</div>
+	</section>
+
+	<section class="mw-section">
+		<div class="mw-section-head">
+			<div><span class="mw-label">Boutiques</span><h2 class="mw-display lg">Where to find us</h2></div>
+			<a class="mw-link" href="/shop/boutiques">Details &amp; hours</a>
+		</div>
+		<div class="mw-collections" style="grid-template-columns:repeat({{ boutiques | length or 1 }},1fr)">
+			{% for b in boutiques %}
+			<a href="/shop/boutiques#{{ b.name }}"><span class="n">{{ b.boutique_name }}</span><span class="c">{{ b.address_line }}<br>{{ b.city }}<br>{{ b.phone }}</span></a>
+			{% endfor %}
+		</div>
+	</section>
+
+	<section class="mw-section">
+		<div class="mw-panel" style="display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;padding:36px">
+			<div><span class="mw-label gold">Maison Collectors</span><h2 class="mw-display md" style="margin:10px 0 8px">Points on every piece, online and in boutique</h2><p class="mw-muted" style="margin:0;max-width:60ch">Sign in with your client number to see your balance, your tier and your recent purchases.</p></div>
+			<a class="mw-btn ghost" href="/shop/account">My points</a>
+		</div>
+	</section>
+</div>
+{% endif %}
+{% endblock %}

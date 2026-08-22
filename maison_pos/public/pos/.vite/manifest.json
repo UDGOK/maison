@@ -1,10 +1,6 @@
 {
-  "_Keypad-DUt8D4mf.css": {
-    "file": "assets/Keypad-DUt8D4mf.css",
-    "src": "_Keypad-DUt8D4mf.css"
-  },
-  "_Keypad-Dha8Gl2F.js": {
-    "file": "assets/Keypad-Dha8Gl2F.js",
+  "_Keypad-CJNjTCeO.js": {
+    "file": "assets/Keypad-CJNjTCeO.js",
     "name": "Keypad",
     "imports": [
       "index.html"
@@ -13,12 +9,31 @@
       "assets/Keypad-DUt8D4mf.css"
     ]
   },
+  "_Keypad-DUt8D4mf.css": {
+    "file": "assets/Keypad-DUt8D4mf.css",
+    "src": "_Keypad-DUt8D4mf.css"
+  },
+  "_ManagerPinModal-CK-Jf6yu.js": {
+    "file": "assets/ManagerPinModal-CK-Jf6yu.js",
+    "name": "ManagerPinModal",
+    "imports": [
+      "index.html",
+      "_Keypad-CJNjTCeO.js"
+    ],
+    "css": [
+      "assets/ManagerPinModal-LSj8H6hj.css"
+    ]
+  },
+  "_ManagerPinModal-LSj8H6hj.css": {
+    "file": "assets/ManagerPinModal-LSj8H6hj.css",
+    "src": "_ManagerPinModal-LSj8H6hj.css"
+  },
   "_RecognitionTile-Cy3EJ_vl.css": {
     "file": "assets/RecognitionTile-Cy3EJ_vl.css",
     "src": "_RecognitionTile-Cy3EJ_vl.css"
   },
-  "_RecognitionTile-DnUqrFdp.js": {
-    "file": "assets/RecognitionTile-DnUqrFdp.js",
+  "_RecognitionTile-DKmn71Hk.js": {
+    "file": "assets/RecognitionTile-DKmn71Hk.js",
     "name": "RecognitionTile",
     "imports": [
       "index.html"
@@ -27,8 +42,30 @@
       "assets/RecognitionTile-Cy3EJ_vl.css"
     ]
   },
+  "_TierProgress-CBdDBUMx.js": {
+    "file": "assets/TierProgress-CBdDBUMx.js",
+    "name": "TierProgress",
+    "imports": [
+      "index.html"
+    ],
+    "css": [
+      "assets/TierProgress-CUtZSOrO.css"
+    ]
+  },
+  "_TierProgress-CUtZSOrO.css": {
+    "file": "assets/TierProgress-CUtZSOrO.css",
+    "src": "_TierProgress-CUtZSOrO.css"
+  },
+  "_browser-BhxAKJAc.js": {
+    "file": "assets/browser-BhxAKJAc.js",
+    "name": "browser",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html"
+    ]
+  },
   "index.html": {
-    "file": "assets/index-CkKIoSWN.js",
+    "file": "assets/index-DW0jiQUc.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -42,11 +79,23 @@
       "src/views/QueueView.vue",
       "src/views/ShiftView.vue",
       "src/views/SettingsView.vue",
-      "node_modules/@zxing/browser/esm/index.js"
+      "src/views/ReturnsView.vue",
+      "src/views/WebOrdersView.vue",
+      "src/views/ExchangeView.vue",
+      "src/views/CycleCountView.vue",
+      "node_modules/@zxing/browser/esm/index.js",
+      "_browser-BhxAKJAc.js",
+      "node_modules/@stripe/terminal-js/dist/terminal.esm.js"
     ],
     "css": [
-      "assets/index-CJeWvbm5.css"
+      "assets/index-DxRCAHRW.css"
     ]
+  },
+  "node_modules/@stripe/terminal-js/dist/terminal.esm.js": {
+    "file": "assets/terminal.esm-CQPmv5vm.js",
+    "name": "terminal.esm",
+    "src": "node_modules/@stripe/terminal-js/dist/terminal.esm.js",
+    "isDynamicEntry": true
   },
   "node_modules/@vladmandic/face-api/dist/face-api.esm.js": {
     "file": "assets/face-api.esm-DMaQY5kn.js",
@@ -61,33 +110,60 @@
     "isDynamicEntry": true
   },
   "src/views/ClientView.vue": {
-    "file": "assets/ClientView-CI5vcN59.js",
+    "file": "assets/ClientView-DumRFHx0.js",
     "name": "ClientView",
     "src": "src/views/ClientView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Keypad-Dha8Gl2F.js"
+      "_Keypad-CJNjTCeO.js",
+      "_TierProgress-CBdDBUMx.js"
     ],
     "css": [
-      "assets/ClientView-CRGJkpmm.css"
+      "assets/ClientView-XGdli6RH.css"
+    ]
+  },
+  "src/views/CycleCountView.vue": {
+    "file": "assets/CycleCountView-C66WYrv3.js",
+    "name": "CycleCountView",
+    "src": "src/views/CycleCountView.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html"
+    ],
+    "css": [
+      "assets/CycleCountView-CrgNdD5K.css"
+    ]
+  },
+  "src/views/ExchangeView.vue": {
+    "file": "assets/ExchangeView-DTs_lmah.js",
+    "name": "ExchangeView",
+    "src": "src/views/ExchangeView.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html",
+      "_ManagerPinModal-CK-Jf6yu.js",
+      "_Keypad-CJNjTCeO.js"
+    ],
+    "css": [
+      "assets/ExchangeView-Ch8a49-e.css"
     ]
   },
   "src/views/PayView.vue": {
-    "file": "assets/PayView-CL9jYVCB.js",
+    "file": "assets/PayView-B8ZmNnzM.js",
     "name": "PayView",
     "src": "src/views/PayView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Keypad-Dha8Gl2F.js"
+      "_Keypad-CJNjTCeO.js"
     ],
     "css": [
-      "assets/PayView-ClYftCYB.css"
+      "assets/PayView-BS54nePM.css"
     ]
   },
   "src/views/QueueView.vue": {
-    "file": "assets/QueueView-DBnGro0H.js",
+    "file": "assets/QueueView-CMMDh-3P.js",
     "name": "QueueView",
     "src": "src/views/QueueView.vue",
     "isDynamicEntry": true,
@@ -99,46 +175,62 @@
     ]
   },
   "src/views/ReceiptView.vue": {
-    "file": "assets/ReceiptView-jlpCGLfk.js",
+    "file": "assets/ReceiptView-sI8ubO2Z.js",
     "name": "ReceiptView",
     "src": "src/views/ReceiptView.vue",
     "isDynamicEntry": true,
     "imports": [
-      "index.html"
+      "index.html",
+      "_browser-BhxAKJAc.js"
     ],
     "css": [
-      "assets/ReceiptView-CXxue9Mm.css"
+      "assets/ReceiptView-ES_LTAXB.css"
+    ]
+  },
+  "src/views/ReturnsView.vue": {
+    "file": "assets/ReturnsView-BvBLFpio.js",
+    "name": "ReturnsView",
+    "src": "src/views/ReturnsView.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html",
+      "_ManagerPinModal-CK-Jf6yu.js",
+      "_Keypad-CJNjTCeO.js"
+    ],
+    "css": [
+      "assets/ReturnsView-2gfdZqF-.css"
     ]
   },
   "src/views/SellView.vue": {
-    "file": "assets/SellView-CMN4Td8z.js",
+    "file": "assets/SellView-C7tRQcaJ.js",
     "name": "SellView",
     "src": "src/views/SellView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Keypad-Dha8Gl2F.js",
-      "_RecognitionTile-DnUqrFdp.js"
+      "_Keypad-CJNjTCeO.js",
+      "_RecognitionTile-DKmn71Hk.js",
+      "_TierProgress-CBdDBUMx.js"
     ],
     "css": [
-      "assets/SellView-DF5lwnTQ.css"
+      "assets/SellView-BxxbdHGI.css"
     ]
   },
   "src/views/SettingsView.vue": {
-    "file": "assets/SettingsView-Bup91XL4.js",
+    "file": "assets/SettingsView-8NcauI5n.js",
     "name": "SettingsView",
     "src": "src/views/SettingsView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_RecognitionTile-DnUqrFdp.js"
+      "_RecognitionTile-DKmn71Hk.js"
     ],
     "css": [
-      "assets/SettingsView-DzP00Emp.css"
+      "assets/SettingsView-C0FKX1-5.css"
     ]
   },
   "src/views/ShiftView.vue": {
-    "file": "assets/ShiftView-Drb47qld.js",
+    "file": "assets/ShiftView-CTWqcGYF.js",
     "name": "ShiftView",
     "src": "src/views/ShiftView.vue",
     "isDynamicEntry": true,
@@ -146,20 +238,32 @@
       "index.html"
     ],
     "css": [
-      "assets/ShiftView-BV0Mchwm.css"
+      "assets/ShiftView-qJbOtb1s.css"
     ]
   },
   "src/views/UnlockView.vue": {
-    "file": "assets/UnlockView-DzsNZEFc.js",
+    "file": "assets/UnlockView-B6H72-dj.js",
     "name": "UnlockView",
     "src": "src/views/UnlockView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Keypad-Dha8Gl2F.js"
+      "_Keypad-CJNjTCeO.js"
     ],
     "css": [
-      "assets/UnlockView-B3m0frGA.css"
+      "assets/UnlockView-nLEIGC2X.css"
+    ]
+  },
+  "src/views/WebOrdersView.vue": {
+    "file": "assets/WebOrdersView-DoJEKGbf.js",
+    "name": "WebOrdersView",
+    "src": "src/views/WebOrdersView.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html"
+    ],
+    "css": [
+      "assets/WebOrdersView-BOqEGViL.css"
     ]
   }
 }

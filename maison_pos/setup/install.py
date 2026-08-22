@@ -122,6 +122,25 @@ def ensure_settings_defaults() -> None:
 	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import ensure_recognition_defaults
 
 	ensure_recognition_defaults()
+	ensure_rounding_method()
+
+
+ROUNDING_METHOD = "Commercial Rounding"
+
+
+def ensure_rounding_method() -> None:
+	"""Retail rounding: half away from zero, everywhere.
+
+	The POS computes its totals on the device (`frontend/src/utils/money.ts: round`, half away from
+	zero) and tenders exactly that amount; the server must land on the same cent or a card sale is
+	refused as PAYMENT_MISMATCH. Frappe's default is banker's rounding (half to even), which differs
+	from the device whenever a tax amount lands exactly on a half cent (e.g. 10.25 % of 22 050.00 =
+	2 260.125 → 2 260.12 vs 2 260.13). System Settings `rounding_method` is therefore pinned to
+	Commercial Rounding (also what receipts, price tags and tax filings expect).
+	"""
+	if frappe.db.get_single_value("System Settings", "rounding_method") != ROUNDING_METHOD:
+		frappe.db.set_single_value("System Settings", "rounding_method", ROUNDING_METHOD)
+		frappe.clear_cache()
 
 
 def after_install() -> None:
@@ -132,6 +151,18 @@ def after_install() -> None:
 	create_workflow()
 	create_print_format()
 	ensure_settings_defaults()
+	# v0.4 D/E — Exchange Credit tender + Damaged warehouses (own module, idempotent)
+	from maison_pos.setup.install_v04_inventory import setup_v04_inventory
+
+	setup_v04_inventory()
+	# v0.4 CRM / HR / promotions / feedback glue (own module, idempotent)
+	from maison_pos.setup.install_v04_crm import setup_v04_crm
+
+	setup_v04_crm()
+	# v0.4 G — webshop glue: Item web mode, Quotation/Sales Order boutique fields, Web Payment tender
+	from maison_pos.webshop.setup import after_migrate as webshop_after_migrate
+
+	webshop_after_migrate()
 	frappe.db.commit()
 
 
@@ -143,4 +174,16 @@ def after_migrate() -> None:
 	create_modes_of_payment()
 	create_print_format()
 	ensure_settings_defaults()
+	# v0.4 D/E — Exchange Credit tender + Damaged warehouses (own module, idempotent)
+	from maison_pos.setup.install_v04_inventory import setup_v04_inventory
+
+	setup_v04_inventory()
+	# v0.4 CRM / HR / promotions / feedback glue (own module, idempotent)
+	from maison_pos.setup.install_v04_crm import setup_v04_crm
+
+	setup_v04_crm()
+	# v0.4 G — webshop glue: Item web mode, Quotation/Sales Order boutique fields, Web Payment tender
+	from maison_pos.webshop.setup import after_migrate as webshop_after_migrate
+
+	webshop_after_migrate()
 	frappe.db.commit()
