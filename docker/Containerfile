@@ -1,0 +1,49 @@
+# Custom Frappe v15 image with ERPNext + maison_pos baked in.
+# Based on frappe_docker's images/layered/Containerfile (v15 line).
+#
+# Build from the repo root (the Frappe app lives there):
+#   docker build -f docker/Containerfile -t maison/erpnext:v15 .
+#
+# Uses the official frappe/build layer for the heavy lifting (bench, node, wkhtmltopdf)
+# and installs apps from a local copy of the repo (no git clone of the private app needed).
+
+ARG FRAPPE_BRANCH=version-15
+ARG ERPNEXT_BRANCH=version-15
+ARG PYTHON_VERSION=3.11.6
+ARG NODE_VERSION=18.20.2
+ARG BASE_IMAGE=frappe/build:${FRAPPE_BRANCH}
+
+FROM ${BASE_IMAGE} AS builder
+ARG FRAPPE_BRANCH
+ARG ERPNEXT_BRANCH
+
+USER frappe
+WORKDIR /home/frappe
+
+RUN bench init \
+      --frappe-branch=${FRAPPE_BRANCH} \
+      --frappe-path=https://github.com/frappe/frappe \
+      --no-procfile --no-backups --skip-redis-config-generation \
+      --verbose /home/frappe/frappe-bench
+
+WORKDIR /home/frappe/frappe-bench
+
+RUN bench get-app --branch ${ERPNEXT_BRANCH} --resolve-deps erpnext https://github.com/frappe/erpnext
+
+# maison_pos from the build context (repo root)
+COPY --chown=frappe:frappe . /home/frappe/frappe-bench/apps/maison_pos
+RUN bench get-app --skip-assets maison_pos /home/frappe/frappe-bench/apps/maison_pos \
+ && bench build --production \
+ && echo "erpnext\nmaison_pos" > sites/apps.txt \
+ && rm -rf apps/*/node_modules apps/*/.git /home/frappe/.cache
+
+# ---------------------------------------------------------------------------
+FROM frappe/base:${FRAPPE_BRANCH} AS backend
+USER frappe
+COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
+WORKDIR /home/frappe/frappe-bench
+VOLUME [ "/home/frappe/frappe-bench/sites", "/home/frappe/frappe-bench/sites/assets", "/home/frappe/frappe-bench/logs" ]
+CMD [ "/home/frappe/frappe-bench/env/bin/gunicorn", \
+      "--chdir=/home/frappe/frappe-bench/sites", "--bind=0.0.0.0:8000", \
+      "--threads=4", "--workers=2", "--worker-class=gthread", "--worker-tmp-dir=/dev/shm", \
+      "--timeout=120", "--preload", "frappe.app:application" ]

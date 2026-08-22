@@ -1,0 +1,184 @@
+# Maison POS — single-host Docker Compose (Frappe v15 + ERPNext v15 + maison_pos)
+# Derived from frappe_docker/pwd.yml. See README.md in this folder.
+#
+# Image selection:
+#   default  -> frappe/erpnext:v15 (official; maison_pos must then be installed with `bench get-app`
+#               inside the backend container — see README "Option A")
+#   custom   -> build docker/Containerfile with maison_pos baked in and set IMAGE=maison/erpnext:v15
+#               (README "Option B", recommended for production)
+
+x-image: &image
+  image: ${IMAGE:-frappe/erpnext}:${VERSION:-v15}
+
+x-backend-defaults: &backend-defaults
+  <<: *image
+  restart: unless-stopped
+  networks: [frappe_network]
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+  depends_on:
+    configurator:
+      condition: service_completed_successfully
+
+services:
+  backend:
+    <<: *backend-defaults
+    platform: linux/amd64
+
+  configurator:
+    <<: *image
+    networks: [frappe_network]
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host $$DB_HOST;
+        bench set-config -gp db_port $$DB_PORT;
+        bench set-config -g redis_cache "redis://$$REDIS_CACHE";
+        bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
+        bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
+        bench set-config -gp socketio_port $$SOCKETIO_PORT;
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      SOCKETIO_PORT: "9000"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+
+  # One-shot site creation. Safe to re-run: exits 0 if the site already exists.
+  create-site:
+    <<: *image
+    networks: [frappe_network]
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        wait-for-it -t 120 db:3306;
+        wait-for-it -t 120 redis-cache:6379;
+        wait-for-it -t 120 redis-queue:6379;
+        export start=`date +%s`;
+        until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] &&
+              [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] &&
+              [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_queue // empty"` ]];
+        do
+          echo "Waiting for common_site_config.json to be created";
+          sleep 5;
+          if (( `date +%s`-start > 120 )); then echo "could not find common_site_config.json with required keys"; exit 1; fi
+        done;
+        echo "common_site_config.json found";
+        if [ -d "sites/$$SITE_NAME" ]; then echo "site $$SITE_NAME exists, skipping"; exit 0; fi;
+        APPS="--install-app erpnext";
+        if [ -d apps/maison_pos ]; then APPS="$$APPS --install-app maison_pos"; fi;
+        bench new-site --mariadb-user-host-login-scope='%'
+          --admin-password=$$ADMIN_PASSWORD
+          --db-root-username=root --db-root-password=$$DB_ROOT_PASSWORD
+          $$APPS --set-default $$SITE_NAME;
+        bench --site $$SITE_NAME set-config developer_mode $$DEVELOPER_MODE;
+    environment:
+      SITE_NAME: ${SITE_NAME:-maison.localhost}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-admin}
+      DEVELOPER_MODE: ${DEVELOPER_MODE:-0}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  db:
+    image: mariadb:10.6
+    restart: unless-stopped
+    networks: [frappe_network]
+    healthcheck:
+      test: mysqladmin ping -h localhost --password=${DB_ROOT_PASSWORD:-admin}
+      interval: 5s
+      retries: 20
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed   # frappe_docker workaround for MariaDB 10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-admin}
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    networks: [frappe_network]
+
+  redis-queue:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    networks: [frappe_network]
+    volumes:
+      - redis-queue-data:/data
+
+  frontend:
+    <<: *image
+    restart: unless-stopped
+    networks: [frappe_network]
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:-maison.localhost}
+      SOCKETIO: websocket:9000
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    depends_on:
+      - backend
+      - websocket
+
+  websocket:
+    <<: *image
+    restart: unless-stopped
+    networks: [frappe_network]
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  queue-short:
+    <<: *backend-defaults
+    command: ["bench", "worker", "--queue", "short,default"]
+
+  queue-long:
+    <<: *backend-defaults
+    command: ["bench", "worker", "--queue", "long,default,short"]
+
+  scheduler:
+    <<: *backend-defaults
+    command: ["bench", "schedule"]
+
+networks:
+  frappe_network:
+    driver: bridge
+
+volumes:
+  db-data:
+  redis-queue-data:
+  sites:
+  logs:

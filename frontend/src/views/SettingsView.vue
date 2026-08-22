@@ -1,0 +1,182 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
+import { useCatalogStore } from '@/stores/catalog'
+import { usePrinterStore } from '@/stores/printer'
+import { useSyncStore } from '@/stores/sync'
+import { useCartStore } from '@/stores/cart'
+import { IS_MOCK } from '@/api'
+import { db } from '@/db'
+import { fmtDateTime } from '@/utils/device'
+import { buildReceiptXml } from '@/printer/epos'
+import { sendToPrinter } from '@/printer/epos'
+
+const session = useSessionStore()
+const catalog = useCatalogStore()
+const printer = usePrinterStore()
+const sync = useSyncStore()
+const cart = useCartStore()
+const router = useRouter()
+
+const saved = ref(false)
+const refreshing = ref(false)
+const testResult = ref('')
+const mockOffline = ref(!!window.__maisonOffline)
+const hasStripeKey = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+
+async function save() {
+  await printer.save()
+  saved.value = true
+  setTimeout(() => (saved.value = false), 1500)
+}
+async function refresh() {
+  refreshing.value = true
+  await catalog.bootstrap(session.boutique!.name)
+  refreshing.value = false
+}
+async function testPrint() {
+  testResult.value = ''
+  const xml = buildReceiptXml(
+    {
+      boutique: session.boutique!.name,
+      boutique_name: session.boutique!.boutique_name,
+      address_line: session.boutique!.address_line,
+      city: session.boutique!.city,
+      phone: session.boutique!.phone,
+      associate_name: session.associate!.full_name,
+      lines: [{ item_code: 'TEST', item_name: 'Test print', qty: 1, rate: 0, amount: 0 }],
+      net_total: 0,
+      discount: 0,
+      total_taxes: 0,
+      tax_rate: catalog.taxRate,
+      loyalty_amount: 0,
+      loyalty_points_redeemed: 0,
+      grand_total: 0,
+      payments: [],
+      points_earned: 0,
+      currency: session.currency
+    },
+    { offline_uuid: 'test-print', posting_datetime: new Date().toISOString() }
+  )
+  try {
+    if (!printer.effectiveIp) throw new Error('No printer IP')
+    await sendToPrinter(printer.effectiveIp, xml, 4000)
+    testResult.value = 'Sent to ' + printer.effectiveIp
+  } catch (e) {
+    testResult.value = 'Failed: ' + (e as Error).message
+  }
+}
+function toggleMockOffline() {
+  window.__maisonOffline = mockOffline.value
+  void sync.heartbeat()
+  if (!mockOffline.value) void sync.replay()
+}
+async function resetDevice() {
+  if (!confirm('Clear catalog, clients, queue and boutique from this device?')) return
+  await Promise.all([db.catalog.clear(), db.prices.clear(), db.pricing_rules.clear(), db.serials.clear(), db.stock.clear(), db.customers.clear(), db.queue.clear(), db.settings.clear()])
+  cart.clear()
+  await session.forgetBoutique()
+  catalog.$reset()
+  router.push({ name: 'unlock' })
+}
+</script>
+
+<template>
+  <div class="page">
+    <div class="page-body">
+      <div class="page-title" style="margin-bottom: 20px">Settings</div>
+      <div class="grid">
+        <div class="card block">
+          <div class="section-title">Boutique</div>
+          <div class="kv"><span class="label">Name</span><span>{{ session.boutique?.boutique_name }}</span></div>
+          <div class="kv"><span class="label">Code</span><span>{{ session.boutique?.name }}</span></div>
+          <div class="kv"><span class="label">Warehouse</span><span>{{ session.boutique?.warehouse }}</span></div>
+          <div class="kv"><span class="label">POS profile</span><span>{{ session.boutique?.pos_profile }}</span></div>
+          <div class="kv"><span class="label">Tax</span><span>{{ session.boutique?.tax_template }} ({{ catalog.taxRate }}%)</span></div>
+          <div class="kv"><span class="label">Device</span><span>{{ session.device_id }}</span></div>
+          <div class="kv"><span class="label">Catalog</span><span>{{ catalog.items.length }} items &middot; {{ catalog.version ? fmtDateTime(catalog.version) : 'never' }}</span></div>
+          <div class="row" style="margin-top: 6px">
+            <button class="btn" :disabled="refreshing || !sync.browserOnline" @click="refresh">{{ refreshing ? 'Refreshing' : 'Refresh catalog' }}</button>
+            <button class="btn btn-ghost" @click="session.forgetBoutique().then(() => router.push({ name: 'unlock' }))">Change boutique</button>
+          </div>
+        </div>
+
+        <div class="card block">
+          <div class="section-title">Printer</div>
+          <div class="field">
+            <label class="label">Printer IP (ePOS-Print)</label>
+            <input v-model="printer.printer_ip" class="input" :placeholder="session.boutique?.printer_ip || '192.168.1.50'" inputmode="decimal" />
+          </div>
+          <label class="check">
+            <input v-model="printer.openDrawerOnCash" type="checkbox" />
+            <span>Open cash drawer on cash sales</span>
+          </label>
+          <div class="row">
+            <button class="btn btn-primary" @click="save">{{ saved ? 'Saved' : 'Save' }}</button>
+            <button class="btn" @click="testPrint">Test print</button>
+          </div>
+          <div v-if="testResult" class="muted" style="font-size: 13px">{{ testResult }}</div>
+          <div class="muted" style="font-size: 13px">Model {{ session.boutique?.printer_model || 'TM-m30' }}. When the printer is unreachable, receipts open in the browser print dialog.</div>
+        </div>
+
+        <div class="card block">
+          <div class="section-title">Payments</div>
+          <div class="kv"><span class="label">Stripe</span><span>{{ hasStripeKey ? 'Terminal SDK' : 'Simulated reader' }}</span></div>
+          <div class="kv"><span class="label">Location</span><span>{{ session.boutique?.stripe_location_id || '—' }}</span></div>
+          <div class="kv"><span class="label">Currency</span><span>{{ session.currency }}</span></div>
+        </div>
+
+        <div class="card block">
+          <div class="section-title">Sync</div>
+          <div class="kv"><span class="label">Status</span><span :class="sync.online ? 'good' : 'crit'">{{ sync.online ? 'Online' : 'Offline' }}</span></div>
+          <div class="kv"><span class="label">Last heartbeat</span><span>{{ sync.lastHeartbeat ? fmtDateTime(sync.lastHeartbeat) : '—' }}</span></div>
+          <div class="kv"><span class="label">Queued</span><span>{{ sync.queued }}</span></div>
+          <label v-if="IS_MOCK" class="check">
+            <input v-model="mockOffline" type="checkbox" @change="toggleMockOffline" />
+            <span>Simulate offline (mock API)</span>
+          </label>
+          <div class="row" style="margin-top: 6px">
+            <button class="btn btn-crit" @click="resetDevice">Reset device</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.block {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+}
+.kv span:last-child {
+  text-align: right;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--touch);
+  font-size: 14px;
+  cursor: pointer;
+}
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--platinum);
+}
+</style>

@@ -1,0 +1,120 @@
+[
+ {
+  "doctype": "Workflow",
+  "name": "Maison Price Approval",
+  "workflow_name": "Maison Price Approval",
+  "document_type": "Maison Price Change Request",
+  "is_active": 1,
+  "override_status": 0,
+  "send_email_alert": 1,
+  "workflow_state_field": "workflow_state",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0,
+  "states": [
+   {
+    "state": "Draft",
+    "doc_status": "0",
+    "allow_edit": "Maison Manager",
+    "update_field": null,
+    "update_value": null,
+    "is_optional_state": 0,
+    "idx": 1
+   },
+   {
+    "state": "Pending Approval",
+    "doc_status": "1",
+    "allow_edit": "Maison Head Office",
+    "update_field": null,
+    "update_value": null,
+    "is_optional_state": 0,
+    "idx": 2
+   },
+   {
+    "state": "Approved",
+    "doc_status": "1",
+    "allow_edit": "Maison Head Office",
+    "update_field": null,
+    "update_value": null,
+    "is_optional_state": 0,
+    "idx": 3
+   },
+   {
+    "state": "Rejected",
+    "doc_status": "1",
+    "allow_edit": "Maison Head Office",
+    "update_field": null,
+    "update_value": null,
+    "is_optional_state": 0,
+    "idx": 4
+   }
+  ],
+  "transitions": [
+   {
+    "state": "Draft",
+    "action": "Submit for Approval",
+    "next_state": "Pending Approval",
+    "allowed": "Maison Manager",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 1
+   },
+   {
+    "state": "Draft",
+    "action": "Submit for Approval",
+    "next_state": "Pending Approval",
+    "allowed": "Maison Head Office",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 2
+   },
+   {
+    "state": "Draft",
+    "action": "Submit for Approval",
+    "next_state": "Pending Approval",
+    "allowed": "Maison Regional",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 3
+   },
+   {
+    "state": "Pending Approval",
+    "action": "Approve",
+    "next_state": "Approved",
+    "allowed": "Maison Head Office",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 4
+   },
+   {
+    "state": "Pending Approval",
+    "action": "Approve",
+    "next_state": "Approved",
+    "allowed": "Maison Regional",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 5
+   },
+   {
+    "state": "Pending Approval",
+    "action": "Reject",
+    "next_state": "Rejected",
+    "allowed": "Maison Head Office",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 6
+   },
+   {
+    "state": "Pending Approval",
+    "action": "Reject",
+    "next_state": "Rejected",
+    "allowed": "Maison Regional",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 7
+   }
+  ]
+ }
+]

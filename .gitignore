@@ -1,0 +1,13 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.DS_Store
+e2e/results.json
+e2e/run.log
+e2e/node_modules
+frontend/screenshots/*.png
+dashboard/screenshots/*.png
+!e2e/shots/*.png

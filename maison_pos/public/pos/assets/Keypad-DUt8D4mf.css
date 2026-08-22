@@ -1,0 +1,1 @@
+.keypad[data-v-b425fc99]{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--line-w);background:var(--line);border:var(--line-w) solid var(--line)}.key[data-v-b425fc99]{height:64px;background:var(--surface);font-size:22px;color:var(--text)}.key[data-v-b425fc99]:active{background:var(--surface-2)}.aux[data-v-b425fc99]{color:var(--muted);font-size:18px}

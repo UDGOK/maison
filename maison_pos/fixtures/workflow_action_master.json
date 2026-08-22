@@ -1,0 +1,32 @@
+[
+ {
+  "doctype": "Workflow Action Master",
+  "name": "Submit for Approval",
+  "workflow_action_name": "Submit for Approval",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ },
+ {
+  "doctype": "Workflow Action Master",
+  "name": "Approve",
+  "workflow_action_name": "Approve",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ },
+ {
+  "doctype": "Workflow Action Master",
+  "name": "Reject",
+  "workflow_action_name": "Reject",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ }
+]

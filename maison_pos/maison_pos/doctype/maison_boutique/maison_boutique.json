@@ -1,0 +1,174 @@
+{
+ "actions": [],
+ "autoname": "field:boutique_code",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "boutique_code",
+  "boutique_name",
+  "enabled",
+  "company",
+  "column_break_main",
+  "warehouse",
+  "cost_center",
+  "pos_profile",
+  "tax_template",
+  "section_contact",
+  "address_line",
+  "city",
+  "column_break_contact",
+  "phone",
+  "email",
+  "section_devices",
+  "stripe_location_id",
+  "column_break_devices",
+  "printer_ip",
+  "printer_model"
+ ],
+ "fields": [
+  {
+   "fieldname": "boutique_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Boutique Code",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Short store code, e.g. CHI-OAK"
+  },
+  {
+   "fieldname": "boutique_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Boutique Name",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Warehouse",
+   "options": "Warehouse",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "label": "POS Profile",
+   "options": "POS Profile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tax_template",
+   "fieldtype": "Link",
+   "label": "Sales Taxes and Charges Template",
+   "options": "Sales Taxes and Charges Template"
+  },
+  {
+   "fieldname": "section_contact",
+   "fieldtype": "Section Break",
+   "label": "Address (printed on receipt)"
+  },
+  {
+   "fieldname": "address_line",
+   "fieldtype": "Data",
+   "label": "Address Line"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "fieldname": "column_break_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "section_devices",
+   "fieldtype": "Section Break",
+   "label": "Devices"
+  },
+  {
+   "fieldname": "stripe_location_id",
+   "fieldtype": "Data",
+   "label": "Stripe Terminal Location ID"
+  },
+  {
+   "fieldname": "column_break_devices",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "printer_ip",
+   "fieldtype": "Data",
+   "label": "Receipt Printer IP"
+  },
+  {
+   "default": "TM-m30III",
+   "fieldname": "printer_model",
+   "fieldtype": "Data",
+   "label": "Receipt Printer Model"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [
+  {"link_doctype": "Maison Associate", "link_fieldname": "boutique"},
+  {"link_doctype": "Maison Device Heartbeat", "link_fieldname": "boutique"},
+  {"link_doctype": "Maison Price Change Request", "link_fieldname": "boutique"}
+ ],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison Boutique",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Maison Head Office", "share": 1, "write": 1},
+  {"read": 1, "report": 1, "role": "Maison Regional", "write": 1},
+  {"read": 1, "role": "Maison Manager"},
+  {"read": 1, "role": "Maison Associate"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "boutique_name",
+ "track_changes": 1
+}

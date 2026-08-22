@@ -1,0 +1,109 @@
+/**
+ * Dexie (IndexedDB) schema. Everything the POS needs to sell while offline lives here.
+ */
+import Dexie, { type EntityTable } from 'dexie'
+import type { Customer, Item, POSInvoice, PricingRule } from '@/api/types'
+
+export type QueueStatus = 'pending' | 'sending' | 'ok' | 'error'
+
+export interface QueueRow {
+  offline_uuid: string
+  /** FIFO ordering key */
+  seq?: number
+  invoice: POSInvoice
+  status: QueueStatus
+  attempts: number
+  next_attempt_at: number
+  created_at: string
+  sent_at?: string
+  invoice_name?: string
+  error?: string
+  error_code?: string
+  /** Snapshot for the receipt view — totals + payment meta (card brand/last4) */
+  receipt: ReceiptSnapshot
+}
+
+export interface ReceiptSnapshot {
+  boutique: string
+  boutique_name: string
+  address_line: string
+  city: string
+  phone: string
+  associate_name: string
+  customer_name?: string
+  customer_tier?: string
+  lines: {
+    item_code: string
+    item_name: string
+    qty: number
+    rate: number
+    amount: number
+    serial_no?: string
+    certificate_no?: string
+    discount_amount?: number
+  }[]
+  net_total: number
+  discount: number
+  total_taxes: number
+  tax_rate: number
+  loyalty_amount: number
+  loyalty_points_redeemed: number
+  grand_total: number
+  payments: { mode_of_payment: 'Cash' | 'Card'; amount: number; tendered?: number; change?: number; card_brand?: string; last4?: string; approval?: string }[]
+  points_earned: number
+  points_balance?: number
+  currency: string
+}
+
+export interface PriceRow {
+  item_code: string
+  rate: number
+}
+export interface SerialRow {
+  item_code: string
+  serials: string[]
+}
+export interface StockRow {
+  item_code: string
+  qty: number
+}
+export interface SettingRow {
+  key: string
+  value: unknown
+}
+
+export class MaisonDB extends Dexie {
+  catalog!: EntityTable<Item, 'item_code'>
+  prices!: EntityTable<PriceRow, 'item_code'>
+  pricing_rules!: EntityTable<PricingRule, 'name'>
+  serials!: EntityTable<SerialRow, 'item_code'>
+  stock!: EntityTable<StockRow, 'item_code'>
+  customers!: EntityTable<Customer, 'name'>
+  queue!: EntityTable<QueueRow, 'offline_uuid'>
+  settings!: EntityTable<SettingRow, 'key'>
+
+  constructor(name = 'maison_pos') {
+    super(name)
+    this.version(1).stores({
+      catalog: 'item_code, item_group, maison_department, item_name',
+      prices: 'item_code',
+      pricing_rules: 'name, item_code',
+      serials: 'item_code',
+      stock: 'item_code',
+      customers: 'name, customer_name, mobile_no, email_id',
+      queue: 'offline_uuid, seq, status, created_at',
+      settings: 'key'
+    })
+  }
+}
+
+export const db = new MaisonDB()
+
+export async function getSetting<T>(key: string, fallback: T): Promise<T> {
+  const row = await db.settings.get(key)
+  return row ? (row.value as T) : fallback
+}
+
+export async function setSetting(key: string, value: unknown): Promise<void> {
+  await db.settings.put({ key, value })
+}

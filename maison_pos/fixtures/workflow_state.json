@@ -1,0 +1,50 @@
+[
+ {
+  "doctype": "Workflow State",
+  "name": "Draft",
+  "workflow_state_name": "Draft",
+  "style": "",
+  "icon": "",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ },
+ {
+  "doctype": "Workflow State",
+  "name": "Pending Approval",
+  "workflow_state_name": "Pending Approval",
+  "style": "Warning",
+  "icon": "",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ },
+ {
+  "doctype": "Workflow State",
+  "name": "Approved",
+  "workflow_state_name": "Approved",
+  "style": "Success",
+  "icon": "",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ },
+ {
+  "doctype": "Workflow State",
+  "name": "Rejected",
+  "workflow_state_name": "Rejected",
+  "style": "Danger",
+  "icon": "",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "creation": "2026-08-22 00:00:00.000000",
+  "modified": "2026-08-22 00:00:00.000000",
+  "docstatus": 0
+ }
+]

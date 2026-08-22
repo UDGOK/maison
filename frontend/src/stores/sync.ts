@@ -1,0 +1,151 @@
+import { defineStore } from 'pinia'
+import { api, type POSInvoice } from '@/api'
+import { db, type QueueRow, type ReceiptSnapshot } from '@/db'
+import { QueueReplayer } from '@/sync/replay'
+import { useSessionStore } from './session'
+import { useCatalogStore } from './catalog'
+
+export interface SyncNotice {
+  id: number
+  kind: 'good' | 'warn' | 'crit'
+  title: string
+  detail?: string
+  offline_uuid?: string
+}
+
+interface SyncState {
+  browserOnline: boolean
+  /** last heartbeat succeeded */
+  serverReachable: boolean
+  lastHeartbeat: string | null
+  queue: QueueRow[]
+  replaying: boolean
+  notices: SyncNotice[]
+  heartbeatTimer: number | null
+  replayTimer: number | null
+}
+
+export const replayer = new QueueReplayer(db, api)
+let noticeSeq = 0
+
+export const useSyncStore = defineStore('sync', {
+  state: (): SyncState => ({
+    browserOnline: typeof navigator === 'undefined' ? true : navigator.onLine,
+    serverReachable: false,
+    lastHeartbeat: null,
+    queue: [],
+    replaying: false,
+    notices: [],
+    heartbeatTimer: null,
+    replayTimer: null
+  }),
+  getters: {
+    online: (s) => s.browserOnline && s.serverReachable,
+    queued: (s) => s.queue.filter((q) => q.status === 'pending' || q.status === 'sending').length,
+    errored: (s) => s.queue.filter((q) => q.status === 'error').length,
+    sentToday: (s) => s.queue.filter((q) => q.status === 'ok').length
+  },
+  actions: {
+    async start() {
+      if (typeof window !== 'undefined') {
+        window.addEventListener('online', () => {
+          this.browserOnline = true
+          void this.heartbeat()
+        })
+        window.addEventListener('offline', () => {
+          this.browserOnline = false
+          this.serverReachable = false
+        })
+      }
+      await this.loadQueue()
+      await this.heartbeat()
+      this.heartbeatTimer = window.setInterval(() => void this.heartbeat(), 60_000)
+      // Every 5 s: replay when reachable; while unreachable, probe with a heartbeat every 15 s
+      // so recovery is noticed well before the next 60 s heartbeat.
+      let tick = 0
+      this.replayTimer = window.setInterval(() => {
+        tick++
+        if (this.serverReachable) void this.replay()
+        else if (tick % 3 === 0) void this.heartbeat()
+      }, 5_000)
+    },
+    stop() {
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+      if (this.replayTimer) clearInterval(this.replayTimer)
+    },
+    async loadQueue() {
+      const rows = await db.queue.toArray()
+      this.queue = rows.sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0))
+    },
+    async heartbeat() {
+      const session = useSessionStore()
+      if (!session.boutique) return
+      // Mock offline toggle flips navigator.onLine semantics for us
+      if (typeof window !== 'undefined' && window.__maisonOffline) {
+        this.serverReachable = false
+        return
+      }
+      if (!this.browserOnline) return
+      try {
+        await api.dashboard.heartbeat(session.boutique.name, session.device_id, this.queued)
+        const wasOffline = !this.serverReachable
+        this.serverReachable = true
+        this.lastHeartbeat = new Date().toISOString()
+        if (wasOffline) {
+          void this.replay()
+          void useCatalogStore().refresh()
+        }
+      } catch {
+        this.serverReachable = false
+      }
+    },
+    async enqueue(invoice: POSInvoice, receipt: ReceiptSnapshot) {
+      const row = await replayer.enqueue(invoice, receipt)
+      await this.loadQueue()
+      if (this.online) void this.replay()
+      return row
+    },
+    async replay() {
+      if (this.replaying) return
+      if (typeof window !== 'undefined' && window.__maisonOffline) {
+        this.serverReachable = false
+        return
+      }
+      if (!this.browserOnline) return
+      this.replaying = true
+      try {
+        const before = new Map(this.queue.map((q) => [q.offline_uuid, q.status]))
+        const out = await replayer.replay()
+        await this.loadQueue()
+        if (out.offline) this.serverReachable = false
+        else if (out.sent) this.serverReachable = true
+        for (const q of this.queue) {
+          const prev = before.get(q.offline_uuid)
+          if (prev !== q.status && q.status === 'error')
+            this.notify('crit', `Sale ${q.offline_uuid.slice(0, 8).toUpperCase()} rejected`, q.error, q.offline_uuid)
+          if (prev && prev !== 'ok' && q.status === 'ok' && prev !== 'pending')
+            this.notify('good', `Sale synced as ${q.invoice_name}`, undefined, q.offline_uuid)
+        }
+      } finally {
+        this.replaying = false
+      }
+    },
+    async retry(offline_uuid: string) {
+      await replayer.retry(offline_uuid)
+      await this.loadQueue()
+      void this.replay()
+    },
+    async discard(offline_uuid: string) {
+      await replayer.discard(offline_uuid)
+      await this.loadQueue()
+    },
+    notify(kind: SyncNotice['kind'], title: string, detail?: string, offline_uuid?: string) {
+      const id = ++noticeSeq
+      this.notices.push({ id, kind, title, detail, offline_uuid })
+      setTimeout(() => this.dismiss(id), kind === 'crit' ? 12000 : 5000)
+    },
+    dismiss(id: number) {
+      this.notices = this.notices.filter((n) => n.id !== id)
+    }
+  }
+})
