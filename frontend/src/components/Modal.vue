@@ -26,7 +26,7 @@ const emit = defineEmits<{ close: [] }>()
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 20, 16, 0.82);
+  background: rgba(11, 11, 10, 0.82);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,6 +35,7 @@ const emit = defineEmits<{ close: [] }>()
 .modal {
   max-width: calc(100vw - 48px);
   max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -62,5 +63,28 @@ const emit = defineEmits<{ close: [] }>()
   justify-content: flex-end;
   padding: 16px 20px;
   border-top: var(--line-w) solid var(--line);
+}
+@media (max-width: 767px) {
+  .backdrop {
+    align-items: flex-end;
+  }
+  .modal {
+    width: 100% !important;
+    max-width: 100vw;
+    max-height: calc(100dvh - 24px);
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding-bottom: var(--safe-bottom);
+  }
+  .modal-body {
+    padding: 16px;
+  }
+  .modal-foot {
+    padding: 12px 16px;
+  }
+  .modal-foot .btn {
+    flex: 1;
+  }
 }
 </style>

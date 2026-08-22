@@ -25,7 +25,7 @@ ALLOWED_FIELDS = frozenset(
 		"maison_appraisal_value",
 		"maison_department",
 		"maison_taxable",
-		"maison_image_url",
+		"image",
 	}
 )
 

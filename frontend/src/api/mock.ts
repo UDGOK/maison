@@ -14,6 +14,7 @@ import {
   type LiveSummary,
   type MaisonApi,
   type POSInvoice,
+  type PublicReceipt,
   type SalesList,
   type SalesSummaryRow,
   type SubmitResult
@@ -29,6 +30,10 @@ import {
   PRICES,
   PRICING_RULES,
   TAXES,
+  BOUTIQUE_SHOW_IMAGES,
+  SETTINGS_GLOBAL,
+  barcodesFor,
+  clientNumberFor,
   serialsFor,
   stockFor
 } from './seed'
@@ -43,7 +48,11 @@ const state = {
   submitted: new Map<string, SubmitResult>(),
   invoices: [] as (SalesSummaryRow & { boutique: string; item_codes: string[] })[],
   history: new Map<string, CustomerHistoryRow[]>(),
-  seq: 1
+  seq: 1,
+  /** v0.2: Item.image overrides uploaded from the POS */
+  images: {} as Record<string, string>,
+  /** v0.2: receipt token → public receipt */
+  receipts: {} as Record<string, PublicReceipt>
 }
 
 // --- persistence: keep the "server" alive across page reloads in dev (localStorage) ---
@@ -60,6 +69,8 @@ function load() {
     state.invoices = j.invoices || []
     state.history = new Map(Object.entries(j.history || {}))
     state.seq = j.seq || 1
+    state.images = j.images || {}
+    state.receipts = j.receipts || {}
   } catch {
     /* ignore corrupt state */
   }
@@ -76,7 +87,9 @@ function save() {
         submitted: Object.fromEntries(state.submitted),
         invoices: state.invoices,
         history: Object.fromEntries(state.history),
-        seq: state.seq
+        seq: state.seq,
+        images: state.images,
+        receipts: state.receipts
       })
     )
   } catch {
@@ -105,9 +118,25 @@ async function guard() {
   }
 }
 
+function itemsWithImages() {
+  return ITEMS.map((it) => (state.images[it.item_code] ? { ...it, image: state.images[it.item_code] } : it))
+}
+
+/** Boutique overrides global (`Maison POS Settings` merged with `Maison Boutique`). */
+function settingsFor(boutique: string) {
+  return {
+    show_product_images: BOUTIQUE_SHOW_IMAGES[boutique] ?? SETTINGS_GLOBAL.show_product_images_default,
+    scan_enabled: SETTINGS_GLOBAL.scan_enabled,
+    receipt_qr_enabled: SETTINGS_GLOBAL.receipt_qr_enabled,
+    receipt_qr_base_url: SETTINGS_GLOBAL.receipt_qr_base_url,
+    loyalty_lookup_enabled: SETTINGS_GLOBAL.loyalty_lookup_enabled
+  }
+}
+
 function bootstrapFor(boutique: string): Bootstrap {
   const b = BOUTIQUES.find((x) => x.name === boutique)
   if (!b) throw new ApiError(`Boutique ${boutique} not found`, 'NotFound', 404)
+  const ser = JSON.parse(JSON.stringify(serials(boutique)))
   return {
     boutique: b,
     associates: ASSOCIATES.filter((a) => a.boutique === boutique || a.role === 'HeadOffice'),
@@ -116,12 +145,14 @@ function bootstrapFor(boutique: string): Bootstrap {
     modes_of_payment: ['Cash', 'Card'],
     item_groups: ITEM_GROUPS,
     departments: DEPARTMENTS,
-    items: ITEMS,
+    items: itemsWithImages(),
     prices: { ...PRICES },
     pricing_rules: PRICING_RULES.filter((r) => r.warehouse === b.warehouse),
-    serials: JSON.parse(JSON.stringify(serials(boutique))),
+    serials: ser,
     stock: { ...stock(boutique) },
     loyalty_program: LOYALTY,
+    barcodes: barcodesFor(ser),
+    settings: settingsFor(boutique),
     version: new Date().toISOString()
   }
 }
@@ -137,20 +168,49 @@ export const mockApi: MaisonApi = {
       // Mock: nothing changes server-side except serials/stock, so resend those only.
       const full = bootstrapFor(boutique)
       return { ...full, items: [], prices: {}, pricing_rules: [], deleted: [] }
+    },
+    async upload_item_image(item_code, file) {
+      await guard()
+      if (!ITEMS.some((i) => i.item_code === item_code)) throw new ApiError(`Item ${item_code} not found`, 'NotFound', 404)
+      if (!file || !file.size) throw new ApiError('No file', 'ValidationError', 417)
+      // The real server stores a File doc and returns its URL; the mock returns a data URI so
+      // the tile updates immediately (and survives reloads via localStorage).
+      const url = await blobToDataUrl(file)
+      state.images[item_code] = url
+      save()
+      return { item_code, image: url, file_url: url, file_name: `${item_code}.jpg` }
     }
   },
   customers: {
     async search(q, limit = 20) {
       await guard()
       const s = q.trim().toLowerCase()
+      const digits = s.replace(/\D/g, '')
       const rows = state.customers.filter(
         (c) =>
           !s ||
           c.customer_name.toLowerCase().includes(s) ||
-          (c.mobile_no || '').replace(/\s/g, '').includes(s.replace(/\s/g, '')) ||
+          (c.client_number || '').toLowerCase().includes(s) ||
+          (digits.length >= 4 && (c.mobile_no || '').replace(/\D/g, '').includes(digits)) ||
           (c.email_id || '').toLowerCase().includes(s)
       )
       return rows.slice(0, limit)
+    },
+    async lookup(code) {
+      await guard()
+      const raw = code.trim()
+      if (!raw) return null
+      const up = raw.toUpperCase()
+      const qr = up.startsWith('MC:') ? raw.slice(3) : null
+      const digits = raw.replace(/\D/g, '')
+      const c = state.customers.find(
+        (x) =>
+          (qr && x.name === qr) ||
+          (x.client_number || '').toUpperCase() === up ||
+          (digits.length >= 6 && (x.mobile_no || '').replace(/\D/g, '') === digits) ||
+          (digits.length >= 7 && (x.mobile_no || '').replace(/\D/g, '').endsWith(digits))
+      )
+      return c ? { ...c } : null
     },
     async upsert(customer) {
       await guard()
@@ -162,17 +222,21 @@ export const mockApi: MaisonApi = {
           return { name: customer.name }
         }
       }
-      const name = `CUST-${String(state.customers.length + 1).padStart(4, '0')}`
+      const idx = state.customers.length + 1
+      const name = `CUST-${String(idx).padStart(4, '0')}`
+      const client_number = clientNumberFor(idx - 1)
       state.customers.unshift({
         name,
         customer_name: customer.customer_name,
         mobile_no: customer.mobile_no,
         email_id: customer.email_id,
         loyalty_points: 0,
-        tier: 'Member'
+        tier: 'Member',
+        client_number,
+        maison_face_consent: 0
       })
       save()
-      return { name }
+      return { name, client_number }
     },
     async history(customer, limit = 20) {
       await guard()
@@ -220,6 +284,12 @@ export const mockApi: MaisonApi = {
       const row = state.invoices.find((i) => i.invoice === invoice)
       if (!row) throw new ApiError(`Invoice ${invoice} not found`, 'NotFound', 404)
       return { credit_note: invoice.replace('SINV', 'CN') }
+    },
+    async receipt(token) {
+      await delay()
+      const r = state.receipts[token]
+      if (!r) throw new ApiError('Receipt not found', 'NotFound', 404)
+      return r
     }
   },
   stripe_terminal: {
@@ -356,9 +426,50 @@ function processInvoice(inv: POSInvoice): SubmitResult {
     })
     state.history.set(inv.customer, h)
   }
-  const res: SubmitResult = { offline_uuid: inv.offline_uuid, status: 'ok', invoice_name }
+  const receipt_token = receiptToken(inv.offline_uuid)
+  state.receipts[receipt_token] = {
+    token: receipt_token,
+    invoice: invoice_name,
+    boutique: inv.boutique,
+    boutique_name: BOUTIQUES.find((b) => b.name === inv.boutique)?.boutique_name || inv.boutique,
+    posting_datetime: inv.posting_datetime,
+    lines: inv.items.map((l) => ({
+      item_name: ITEMS.find((i) => i.item_code === l.item_code)?.item_name || l.item_code,
+      qty: l.qty,
+      rate: l.rate,
+      amount: l.qty * l.rate - (l.discount_amount || 0),
+      serial_no: l.serial_no
+    })),
+    net_total: totals.net_total,
+    total_taxes: totals.total_taxes,
+    grand_total: totals.grand_total,
+    currency: 'USD',
+    payments: inv.payments.map((p) => ({ mode_of_payment: p.mode_of_payment, amount: p.amount }))
+  }
+  const res: SubmitResult = { offline_uuid: inv.offline_uuid, status: 'ok', invoice_name, receipt_token }
   state.submitted.set(inv.offline_uuid, res)
   return res
+}
+
+/** 16-char urlsafe token, deterministic per offline_uuid in the mock (server: secrets.token_urlsafe). */
+function receiptToken(uuid: string): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+  let h = 2166136261
+  let out = ''
+  for (let i = 0; i < 16; i++) {
+    for (const ch of uuid + i) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0
+    out += alphabet[h % 64]
+  }
+  return out
+}
+
+function blobToDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(String(fr.result))
+    fr.onerror = () => reject(new ApiError('Could not read file', 'ValidationError', 417))
+    fr.readAsDataURL(file)
+  })
 }
 
 function fail(inv: POSInvoice, error: string, error_code: string): SubmitResult {
@@ -374,6 +485,8 @@ export function __resetMock() {
   state.invoices = []
   state.history.clear()
   state.seq = 1
+  state.images = {}
+  state.receipts = {}
   try {
     localStorage.removeItem(LS_KEY)
   } catch {

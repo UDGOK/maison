@@ -30,6 +30,9 @@
   .mr .sig .box { border-bottom: 1px solid #000; height: 12mm; }
   .mr .foot { margin-top: 4mm; font-size: 7.5pt; text-align: center; }
   .mr .cancelled { border: 2px solid #000; padding: 1mm; text-align: center; font-weight: 700; margin: 2mm 0; }
+  .mr .qr { text-align: center; margin-top: 3mm; }
+  .mr .qr img { width: 22mm; height: 22mm; }
+  .mr .qr .label { margin-top: 1mm; }
 </style>
 
 <div class="mr">
@@ -52,6 +55,7 @@
   {% if ctx.associate_name %}<div class="row meta"><span class="l label">Associate</span><span class="r">{{ ctx.associate_name }}</span></div>{% endif %}
   {% if doc.customer %}
     <div class="row meta"><span class="l label">Client</span><span class="r">{{ doc.customer_name }}{% if ctx.tier %} · {{ ctx.tier }}{% endif %}</span></div>
+    {% if ctx.client_number %}<div class="row meta"><span class="l label">Client №</span><span class="r">{{ ctx.client_number }}</span></div>{% endif %}
   {% endif %}
 
   <div class="rule"></div>
@@ -132,6 +136,14 @@
   {% if doc.maison_notes %}
     <div class="rule-soft"></div>
     <div class="meta">{{ doc.maison_notes }}</div>
+  {% endif %}
+
+  {% set qr = receipt_qr_svg(doc) %}
+  {% if qr %}
+    <div class="qr">
+      <img src="{{ qr }}" alt="QR">
+      <div class="label">Scan for your receipt</div>
+    </div>
   {% endif %}
 
   <div class="foot">

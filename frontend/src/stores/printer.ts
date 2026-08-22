@@ -3,6 +3,7 @@ import { buildReceiptXml, sendToPrinter } from '@/printer/epos'
 import type { QueueRow } from '@/db'
 import { getSetting, setSetting } from '@/db'
 import { useSessionStore } from './session'
+import { useCatalogStore } from './catalog'
 
 interface PrinterState {
   /** overrides boutique.printer_ip when set in Settings */
@@ -31,11 +32,15 @@ export const usePrinterStore = defineStore('printer', {
     },
     xmlFor(row: QueueRow): string {
       const openDrawer = this.openDrawerOnCash && row.receipt.payments.some((p) => p.mode_of_payment === 'Cash')
+      const catalog = useCatalogStore()
       return buildReceiptXml(row.receipt, {
         invoice_name: row.invoice_name,
         offline_uuid: row.offline_uuid,
         posting_datetime: row.invoice.posting_datetime,
-        openDrawer
+        openDrawer,
+        receipt_token: row.receipt_token,
+        receipt_qr_enabled: catalog.settings.receipt_qr_enabled,
+        receipt_qr_base_url: row.receipt.receipt_qr_base_url || catalog.receiptQrBase
       })
     },
     /**

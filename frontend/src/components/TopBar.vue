@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import { useSyncStore } from '@/stores/sync'
 import { useCartStore } from '@/stores/cart'
+import { useLayoutStore } from '@/stores/layout'
 
 const session = useSessionStore()
 const sync = useSyncStore()
 const cart = useCartStore()
+const layout = useLayoutStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -19,10 +21,16 @@ const nav = [
   { name: 'settings', label: 'Settings' }
 ]
 
-const statusClass = computed(() => (sync.online ? 'pill-good' : sync.queued ? 'pill-warn' : 'pill-crit'))
+const statusClass = computed(() => (sync.online ? 'pill-accent' : sync.queued ? 'pill-warn' : 'pill-crit'))
 const statusText = computed(() => (sync.online ? 'Online' : 'Offline'))
+const isActive = (n: string) => route.name === n || (n === 'sell' && ['pay', 'receipt'].includes(String(route.name)))
 
+function go(name: string) {
+  layout.navOpen = false
+  router.push({ name })
+}
 function lock() {
+  layout.navOpen = false
   session.lock()
   cart.clear()
   router.push({ name: 'unlock' })
@@ -30,47 +38,72 @@ function lock() {
 </script>
 
 <template>
-  <header class="topbar">
+  <header class="topbar" :class="{ phone: layout.phone }">
     <div class="wordmark display-900">MAISON</div>
-    <div class="vline"></div>
-    <div class="boutique">
-      <div class="boutique-name ellipsis">{{ session.boutique?.boutique_name }}</div>
-      <div class="label label-dim">{{ session.boutique?.name }}</div>
-    </div>
-    <nav class="nav">
-      <button
-        v-for="n in nav"
-        :key="n.name"
-        class="nav-btn"
-        :class="{ active: route.name === n.name || (n.name === 'sell' && ['pay', 'receipt'].includes(String(route.name))) }"
-        @click="router.push({ name: n.name })"
-      >
-        {{ n.label }}
-        <span v-if="n.name === 'queue' && sync.errored" class="badge crit">{{ sync.errored }}</span>
+    <template v-if="!layout.phone">
+      <div class="vline"></div>
+      <div class="boutique">
+        <div class="boutique-name ellipsis">{{ session.boutique?.boutique_name }}</div>
+        <div class="label label-dim">{{ session.boutique?.name }}</div>
+      </div>
+      <nav class="nav">
+        <button v-for="n in nav" :key="n.name" class="nav-btn" :class="{ active: isActive(n.name) }" @click="go(n.name)">
+          {{ n.label }}
+          <span v-if="n.name === 'queue' && sync.errored" class="badge crit">{{ sync.errored }}</span>
+        </button>
+      </nav>
+      <div class="spacer"></div>
+      <div class="associate">
+        <div class="assoc-name ellipsis">{{ session.associate?.full_name }}</div>
+        <div class="label label-dim">{{ session.associate?.role }}</div>
+      </div>
+      <div class="pill status" :class="statusClass">
+        <span class="dot"></span>
+        {{ statusText }}
+        <span v-if="sync.queued" class="queued">&middot; {{ sync.queued }} queued</span>
+      </div>
+      <button class="lock-btn label" @click="lock">Lock</button>
+    </template>
+
+    <template v-else>
+      <div class="ph-boutique label label-dim ellipsis">{{ session.boutique?.name }}</div>
+      <div class="spacer"></div>
+      <div class="pill status" :class="statusClass">
+        <span class="dot"></span>
+        {{ statusText }}<span v-if="sync.queued" class="queued"> &middot; {{ sync.queued }}</span>
+      </div>
+      <button class="menu-btn" :class="{ open: layout.navOpen }" aria-label="Menu" @click="layout.navOpen = !layout.navOpen">
+        <span></span><span></span><span></span>
+        <span v-if="sync.errored && !layout.navOpen" class="menu-badge"></span>
       </button>
-    </nav>
-    <div class="spacer"></div>
-    <div class="associate">
-      <div class="assoc-name ellipsis">{{ session.associate?.full_name }}</div>
-      <div class="label label-dim">{{ session.associate?.role }}</div>
-    </div>
-    <div class="pill status" :class="statusClass">
-      <span class="dot"></span>
-      {{ statusText }}
-      <span v-if="sync.queued" class="queued">&middot; {{ sync.queued }} queued</span>
-    </div>
-    <button class="lock-btn label" @click="lock">Lock</button>
+    </template>
+
+    <Teleport to="body">
+      <div v-if="layout.phone && layout.navOpen" class="drawer-backdrop" @click.self="layout.navOpen = false">
+        <nav class="drawer">
+          <div class="drawer-head">
+            <div class="assoc-name ellipsis">{{ session.associate?.full_name }}</div>
+            <div class="label label-dim">{{ session.associate?.role }} &middot; {{ session.boutique?.boutique_name }}</div>
+          </div>
+          <button v-for="n in nav" :key="n.name" class="drawer-btn" :class="{ active: isActive(n.name) }" @click="go(n.name)">
+            {{ n.label }}
+            <span v-if="n.name === 'queue' && sync.errored" class="badge crit">{{ sync.errored }}</span>
+          </button>
+          <button class="drawer-btn lock" @click="lock">Lock</button>
+        </nav>
+      </div>
+    </Teleport>
   </header>
 </template>
 
 <style scoped>
 .topbar {
-  height: var(--topbar-h);
-  flex: 0 0 var(--topbar-h);
+  height: calc(var(--topbar-h) + var(--safe-top));
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 0 0 0 24px;
+  padding: var(--safe-top) 0 0 24px;
   border-bottom: var(--line-w) solid var(--line);
   background: var(--ground);
 }
@@ -79,6 +112,7 @@ function lock() {
   letter-spacing: 0.3em;
   margin-right: -0.3em;
   white-space: nowrap;
+  color: var(--accent);
 }
 .vline {
   width: var(--line-w);
@@ -114,8 +148,8 @@ function lock() {
   color: var(--text);
 }
 .nav-btn.active {
-  color: var(--text);
-  border-bottom-color: var(--platinum);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 .badge {
   display: inline-block;
@@ -152,5 +186,97 @@ function lock() {
 .lock-btn:hover {
   color: var(--text);
   background: var(--surface);
+}
+
+/* ---------- phone ---------- */
+.topbar.phone {
+  gap: 12px;
+  padding-left: 16px;
+}
+.topbar.phone .wordmark {
+  font-size: 15px;
+}
+.ph-boutique {
+  min-width: 0;
+}
+.menu-btn {
+  position: relative;
+  width: 56px;
+  height: var(--topbar-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-left: var(--line-w) solid var(--line);
+}
+.menu-btn span:not(.menu-badge) {
+  width: 20px;
+  height: 1.5px;
+  background: var(--muted);
+  transition: transform var(--t-fast), opacity var(--t-fast);
+}
+.menu-btn.open span:nth-child(1) {
+  transform: translateY(6.5px) rotate(45deg);
+}
+.menu-btn.open span:nth-child(2) {
+  opacity: 0;
+}
+.menu-btn.open span:nth-child(3) {
+  transform: translateY(-6.5px) rotate(-45deg);
+}
+.menu-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 7px;
+  height: 7px;
+  background: var(--crit);
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(11, 11, 10, 0.7);
+}
+.drawer {
+  position: absolute;
+  top: calc(var(--topbar-h) + var(--safe-top));
+  right: 0;
+  width: min(300px, 86vw);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: var(--line-w) solid var(--line-strong);
+  padding-bottom: var(--safe-bottom);
+}
+.drawer-head {
+  padding: 16px;
+  border-bottom: var(--line-w) solid var(--line);
+}
+.drawer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 0 16px;
+  text-align: left;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  border-bottom: var(--line-w) solid var(--line);
+  border-left: 3px solid transparent;
+}
+.drawer-btn.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+.drawer-btn.lock {
+  margin-top: auto;
+  border-top: var(--line-w) solid var(--line);
+  color: var(--crit);
 }
 </style>

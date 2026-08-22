@@ -93,10 +93,10 @@ const peak = computed(() => visible.value.reduce((a, b) => (b.net > a.net ? b : 
 .svg { width: 100%; height: 100%; display: block; min-height: 0; }
 .grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .axis { stroke: var(--dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.bar { fill: var(--muted); transition: y 0.4s ease, height 0.4s ease; }
+.bar { fill: var(--accent-deep); transition: y 0.4s ease, height 0.4s ease; }
 .bar.future { fill: var(--line); }
-.bar.current { fill: var(--platinum); }
-.hl { fill: rgba(233, 236, 230, 0.04); }
+.bar.current { fill: var(--accent); }
+.hl { fill: var(--accent-soft); }
 .ylabels { position: absolute; left: 0; top: 0; bottom: 0; width: 48px; pointer-events: none; }
 .ylabels span {
   position: absolute;

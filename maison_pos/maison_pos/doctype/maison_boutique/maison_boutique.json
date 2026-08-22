@@ -24,7 +24,9 @@
   "stripe_location_id",
   "column_break_devices",
   "printer_ip",
-  "printer_model"
+  "printer_model",
+  "section_pos",
+  "show_product_images"
  ],
  "fields": [
   {
@@ -145,13 +147,34 @@
    "fieldname": "printer_model",
    "fieldtype": "Data",
    "label": "Receipt Printer Model"
+  },
+  {
+   "fieldname": "section_pos",
+   "fieldtype": "Section Break",
+   "label": "POS"
+  },
+  {
+   "default": "0",
+   "description": "Show item images on Sell tiles at this boutique (overrides Maison POS Settings default).",
+   "fieldname": "show_product_images",
+   "fieldtype": "Check",
+   "label": "Show product images on tiles"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [
-  {"link_doctype": "Maison Associate", "link_fieldname": "boutique"},
-  {"link_doctype": "Maison Device Heartbeat", "link_fieldname": "boutique"},
-  {"link_doctype": "Maison Price Change Request", "link_fieldname": "boutique"}
+  {
+   "link_doctype": "Maison Associate",
+   "link_fieldname": "boutique"
+  },
+  {
+   "link_doctype": "Maison Device Heartbeat",
+   "link_fieldname": "boutique"
+  },
+  {
+   "link_doctype": "Maison Price Change Request",
+   "link_fieldname": "boutique"
+  }
  ],
  "modified": "2026-08-22 00:00:00.000000",
  "modified_by": "Administrator",
@@ -160,11 +183,44 @@
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Maison Head Office", "share": 1, "write": 1},
-  {"read": 1, "report": 1, "role": "Maison Regional", "write": 1},
-  {"read": 1, "role": "Maison Manager"},
-  {"read": 1, "role": "Maison Associate"}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Maison Head Office",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Maison Regional",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Maison Manager"
+  },
+  {
+   "read": 1,
+   "role": "Maison Associate"
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

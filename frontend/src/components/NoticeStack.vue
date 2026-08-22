@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useSyncStore } from '@/stores/sync'
+import { useScanStore } from '@/stores/scan'
 
 const sync = useSyncStore()
+const scan = useScanStore()
 const router = useRouter()
+
+function act(n: { id: number; action?: { action: string } }) {
+  if (n.action?.action === 'search') scan.searchPending()
+  else if (n.action?.action === 'queue') router.push({ name: 'queue' })
+  sync.dismiss(n.id)
+}
 </script>
 
 <template>
@@ -13,7 +21,8 @@ const router = useRouter()
         <div class="notice-title">{{ n.title }}</div>
         <div v-if="n.detail" class="notice-detail">{{ n.detail }}</div>
       </div>
-      <button v-if="n.kind === 'crit'" class="notice-btn label" @click="router.push({ name: 'queue' }); sync.dismiss(n.id)">Queue</button>
+      <button v-if="n.action" class="notice-btn label accent" @click="act(n)">{{ n.action.label }}</button>
+      <button v-else-if="n.kind === 'crit'" class="notice-btn label" @click="router.push({ name: 'queue' }); sync.dismiss(n.id)">Queue</button>
       <button class="notice-btn label" @click="sync.dismiss(n.id)">Close</button>
     </div>
   </div>
@@ -26,6 +35,7 @@ const router = useRouter()
   bottom: 16px;
   width: 420px;
   max-width: calc(100vw - 32px);
+  margin-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -69,5 +79,17 @@ const router = useRouter()
 }
 .notice-btn:hover {
   color: var(--text);
+}
+.notice-btn.accent {
+  color: var(--accent);
+}
+@media (max-width: 767px) {
+  .notices {
+    right: 12px;
+    left: 12px;
+    top: calc(var(--topbar-h) + var(--safe-top) + 8px);
+    bottom: auto;
+    width: auto;
+  }
 }
 </style>

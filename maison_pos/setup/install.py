@@ -106,8 +106,11 @@ def create_workflow() -> None:
 
 
 def create_print_format() -> None:
+	"""Insert the receipt print format, or refresh its HTML when the fixture changed."""
 	for row in _load_fixture("print_format.json"):
 		if frappe.db.exists("Print Format", row["name"]):
+			if frappe.db.get_value("Print Format", row["name"], "html") != row.get("html"):
+				frappe.db.set_value("Print Format", row["name"], "html", row.get("html"))
 			continue
 		doc = frappe.get_doc(row)
 		doc.flags.ignore_permissions = True
@@ -130,4 +133,5 @@ def after_migrate() -> None:
 	create_custom_fields_from_fixture()
 	create_role_permissions()
 	create_modes_of_payment()
+	create_print_format()
 	frappe.db.commit()

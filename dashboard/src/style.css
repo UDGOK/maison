@@ -1,11 +1,19 @@
 :root {
-  --ground: #0a1410;
-  --surface: #0f1c16;
-  --line: #1e3128;
-  --text: #e9ece6;
-  --muted: #9fb3a6;
-  --dim: #6f8579;
-  --platinum: #e9ece6;
+  /* Monolith Gold — onyx + champagne gold (v0.2) */
+  --ground: #0b0b0a;
+  --surface: #141311;
+  --surface-2: #1b1916;
+  --line: #26231f;
+  --line-strong: #36322c;
+  --text: #efe8da;
+  --muted: #b3aa99;
+  --dim: #7d7668;
+  --accent: #c9a96e;
+  --accent-deep: #a8884e;
+  --accent-soft: rgba(201, 169, 110, 0.14);
+  --ink-on-accent: #0b0b0a;
+  /* legacy alias */
+  --platinum: var(--accent);
   --good: #7fa98a;
   --warn: #d3a55b;
   --crit: #c4736a;
@@ -90,7 +98,7 @@ body {
 }
 
 @keyframes rowflash {
-  0% { background: rgba(233, 236, 230, 0.16); }
+  0% { background: var(--accent-soft); }
   100% { background: transparent; }
 }
 

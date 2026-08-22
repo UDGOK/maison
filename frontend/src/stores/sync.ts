@@ -4,6 +4,7 @@ import { db, type QueueRow, type ReceiptSnapshot } from '@/db'
 import { QueueReplayer } from '@/sync/replay'
 import { useSessionStore } from './session'
 import { useCatalogStore } from './catalog'
+import { replayUploads } from '@/images/uploads'
 
 export interface SyncNotice {
   id: number
@@ -11,6 +12,8 @@ export interface SyncNotice {
   title: string
   detail?: string
   offline_uuid?: string
+  /** optional action button (v0.2: "Search" on unknown scans) */
+  action?: { label: string; action: 'search' | 'queue' }
 }
 
 interface SyncState {
@@ -23,6 +26,9 @@ interface SyncState {
   notices: SyncNotice[]
   heartbeatTimer: number | null
   replayTimer: number | null
+  /** v0.2 — queued product-image uploads */
+  uploadsPending: number
+  uploadsReplaying: boolean
 }
 
 export const replayer = new QueueReplayer(db, api)
@@ -37,7 +43,9 @@ export const useSyncStore = defineStore('sync', {
     replaying: false,
     notices: [],
     heartbeatTimer: null,
-    replayTimer: null
+    replayTimer: null,
+    uploadsPending: 0,
+    uploadsReplaying: false
   }),
   getters: {
     online: (s) => s.browserOnline && s.serverReachable,
@@ -58,6 +66,7 @@ export const useSyncStore = defineStore('sync', {
         })
       }
       await this.loadQueue()
+      await this.countUploads()
       await this.heartbeat()
       this.heartbeatTimer = window.setInterval(() => void this.heartbeat(), 60_000)
       // Every 5 s: replay when reachable; while unreachable, probe with a heartbeat every 15 s
@@ -95,6 +104,7 @@ export const useSyncStore = defineStore('sync', {
           void this.replay()
           void useCatalogStore().refresh()
         }
+        void this.replayUploads()
       } catch {
         this.serverReachable = false
       }
@@ -139,10 +149,29 @@ export const useSyncStore = defineStore('sync', {
       await replayer.discard(offline_uuid)
       await this.loadQueue()
     },
-    notify(kind: SyncNotice['kind'], title: string, detail?: string, offline_uuid?: string) {
+    /** v0.2 — drain queued product-image uploads (manager tile edits made offline). */
+    async replayUploads() {
+      if (this.uploadsReplaying || !this.serverReachable) return
+      this.uploadsReplaying = true
+      try {
+        const out = await replayUploads()
+        this.uploadsPending = out.pending
+        for (const u of out.done) {
+          useCatalogStore().setItemImage(u.item_code, u.url)
+          this.notify('good', `Photo uploaded for ${u.item_code}`)
+        }
+        for (const f of out.failed) this.notify('crit', `Photo upload failed for ${f.item_code}`, f.error)
+      } finally {
+        this.uploadsReplaying = false
+      }
+    },
+    async countUploads() {
+      this.uploadsPending = await db.uploads.count()
+    },
+    notify(kind: SyncNotice['kind'], title: string, detail?: string, offline_uuid?: string, action?: SyncNotice['action']) {
       const id = ++noticeSeq
-      this.notices.push({ id, kind, title, detail, offline_uuid })
-      setTimeout(() => this.dismiss(id), kind === 'crit' ? 12000 : 5000)
+      this.notices.push({ id, kind, title, detail, offline_uuid, action })
+      setTimeout(() => this.dismiss(id), kind === 'crit' ? 12000 : action ? 9000 : 5000)
     },
     dismiss(id: number) {
       this.notices = this.notices.filter((n) => n.id !== id)

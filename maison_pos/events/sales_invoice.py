@@ -5,6 +5,7 @@ from __future__ import annotations
 import frappe
 from frappe import _
 
+from maison_pos.identifiers import new_receipt_token
 from maison_pos.utils import publish_sale, touch_last_seen
 
 
@@ -31,6 +32,14 @@ def validate(doc, method: str | None = None) -> None:
 				_("Offline UUID {0} already used by {1}").format(doc.maison_offline_uuid, dup),
 				frappe.DuplicateEntryError,
 			)
+
+
+def before_submit(doc, method: str | None = None) -> None:
+	"""Allocate the public receipt token (``/r/<token>``) for POS invoices."""
+	if not doc.get("is_pos"):
+		return
+	if not doc.get("maison_receipt_token"):
+		doc.maison_receipt_token = new_receipt_token()
 
 
 def on_submit(doc, method: str | None = None) -> None:

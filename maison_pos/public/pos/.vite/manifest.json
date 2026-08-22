@@ -1,6 +1,6 @@
 {
-  "_Keypad-DAZ1zxXB.js": {
-    "file": "assets/Keypad-DAZ1zxXB.js",
+  "_Keypad-BYN-fZwF.js": {
+    "file": "assets/Keypad-BYN-fZwF.js",
     "name": "Keypad",
     "imports": [
       "index.html"
@@ -13,22 +13,22 @@
     "file": "assets/Keypad-DUt8D4mf.css",
     "src": "_Keypad-DUt8D4mf.css"
   },
-  "_Modal-CAMfuqt-.css": {
-    "file": "assets/Modal-CAMfuqt-.css",
-    "src": "_Modal-CAMfuqt-.css"
+  "_Modal-C5dCUw3F.css": {
+    "file": "assets/Modal-C5dCUw3F.css",
+    "src": "_Modal-C5dCUw3F.css"
   },
-  "_Modal-LktlRgET.js": {
-    "file": "assets/Modal-LktlRgET.js",
+  "_Modal-DWkp9UQm.js": {
+    "file": "assets/Modal-DWkp9UQm.js",
     "name": "Modal",
     "imports": [
       "index.html"
     ],
     "css": [
-      "assets/Modal-CAMfuqt-.css"
+      "assets/Modal-C5dCUw3F.css"
     ]
   },
   "index.html": {
-    "file": "assets/index-0L_Uh93n.js",
+    "file": "assets/index-BtDyqdLd.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -40,39 +40,47 @@
       "src/views/ReceiptView.vue",
       "src/views/QueueView.vue",
       "src/views/ShiftView.vue",
-      "src/views/SettingsView.vue"
+      "src/views/SettingsView.vue",
+      "node_modules/@zxing/browser/esm/index.js"
     ],
     "css": [
-      "assets/index-WP9OFDas.css"
+      "assets/index-CdQXtUGq.css"
     ]
   },
+  "node_modules/@zxing/browser/esm/index.js": {
+    "file": "assets/index-CeMVrtWz.js",
+    "name": "index",
+    "src": "node_modules/@zxing/browser/esm/index.js",
+    "isDynamicEntry": true
+  },
   "src/views/ClientView.vue": {
-    "file": "assets/ClientView-CylMvrpA.js",
+    "file": "assets/ClientView-DL7WBDiq.js",
     "name": "ClientView",
     "src": "src/views/ClientView.vue",
     "isDynamicEntry": true,
     "imports": [
-      "index.html"
+      "index.html",
+      "_Keypad-BYN-fZwF.js"
     ],
     "css": [
-      "assets/ClientView-D8L2pwyK.css"
+      "assets/ClientView-DaBxsvYP.css"
     ]
   },
   "src/views/PayView.vue": {
-    "file": "assets/PayView-HgA9rnaU.js",
+    "file": "assets/PayView-BLQ1IjJ3.js",
     "name": "PayView",
     "src": "src/views/PayView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Keypad-DAZ1zxXB.js"
+      "_Keypad-BYN-fZwF.js"
     ],
     "css": [
-      "assets/PayView-CbFb1aL9.css"
+      "assets/PayView-ClYftCYB.css"
     ]
   },
   "src/views/QueueView.vue": {
-    "file": "assets/QueueView-DbvOi64E.js",
+    "file": "assets/QueueView-BuM8yI9f.js",
     "name": "QueueView",
     "src": "src/views/QueueView.vue",
     "isDynamicEntry": true,
@@ -84,33 +92,34 @@
     ]
   },
   "src/views/ReceiptView.vue": {
-    "file": "assets/ReceiptView-BvVCdVQA.js",
+    "file": "assets/ReceiptView-o4vy67sJ.js",
     "name": "ReceiptView",
     "src": "src/views/ReceiptView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Modal-LktlRgET.js"
+      "_Modal-DWkp9UQm.js"
     ],
     "css": [
-      "assets/ReceiptView-Dwr789nP.css"
+      "assets/ReceiptView-CXxue9Mm.css"
     ]
   },
   "src/views/SellView.vue": {
-    "file": "assets/SellView-GeFFAMak.js",
+    "file": "assets/SellView-BlDt9lFQ.js",
     "name": "SellView",
     "src": "src/views/SellView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Modal-LktlRgET.js"
+      "_Modal-DWkp9UQm.js",
+      "_Keypad-BYN-fZwF.js"
     ],
     "css": [
-      "assets/SellView-CYMw0N-o.css"
+      "assets/SellView-C8f-HxZk.css"
     ]
   },
   "src/views/SettingsView.vue": {
-    "file": "assets/SettingsView-D0sTVQkd.js",
+    "file": "assets/SettingsView-Dlq9vGaK.js",
     "name": "SettingsView",
     "src": "src/views/SettingsView.vue",
     "isDynamicEntry": true,
@@ -118,11 +127,11 @@
       "index.html"
     ],
     "css": [
-      "assets/SettingsView-CPhX8LC4.css"
+      "assets/SettingsView-DxnlQGoI.css"
     ]
   },
   "src/views/ShiftView.vue": {
-    "file": "assets/ShiftView-Ds5EVIOH.js",
+    "file": "assets/ShiftView-B0tMWtSN.js",
     "name": "ShiftView",
     "src": "src/views/ShiftView.vue",
     "isDynamicEntry": true,
@@ -134,16 +143,16 @@
     ]
   },
   "src/views/UnlockView.vue": {
-    "file": "assets/UnlockView-B__i5BWm.js",
+    "file": "assets/UnlockView-CUccSU4U.js",
     "name": "UnlockView",
     "src": "src/views/UnlockView.vue",
     "isDynamicEntry": true,
     "imports": [
       "index.html",
-      "_Keypad-DAZ1zxXB.js"
+      "_Keypad-BYN-fZwF.js"
     ],
     "css": [
-      "assets/UnlockView-CsLkV5pd.css"
+      "assets/UnlockView-B3m0frGA.css"
     ]
   }
 }

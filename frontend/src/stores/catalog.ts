@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { api, type Bootstrap, type Item, type LoyaltyProgram, type PricingRule, type TaxRow } from '@/api'
+import { api, DEFAULT_SETTINGS, normalizeSettings, type Bootstrap, type Item, type LoyaltyProgram, type PosSettings, type PricingRule, type TaxRow } from '@/api'
 import { db, getSetting, setSetting } from '@/db'
 import { useSessionStore } from './session'
 
@@ -13,6 +13,12 @@ interface CatalogState {
   departments: string[]
   taxes: TaxRow[]
   loyalty: LoyaltyProgram | null
+  /** v0.2 — scannable code → item_code */
+  barcodes: Record<string, string>
+  /** v0.2 — merged POS settings from bootstrap */
+  settings: PosSettings
+  /** v0.2 — device-level override of settings.show_product_images (null = follow boutique) */
+  imagesOverride: boolean | null
   version: string | null
   loading: boolean
   error: string | null
@@ -29,6 +35,9 @@ export const useCatalogStore = defineStore('catalog', {
     departments: [],
     taxes: [],
     loyalty: null,
+    barcodes: {},
+    settings: { ...DEFAULT_SETTINGS },
+    imagesOverride: null,
     version: null,
     loading: false,
     error: null
@@ -47,19 +56,25 @@ export const useCatalogStore = defineStore('catalog', {
       }
       return (code: string): number => rules.get(code)?.rate ?? s.prices[code] ?? 0
     },
-    loaded: (s) => s.items.length > 0
+    loaded: (s) => s.items.length > 0,
+    /** Effective "show product images": device override, else boutique/global setting. */
+    showImages: (s) => (s.imagesOverride === null ? !!s.settings.show_product_images : s.imagesOverride),
+    /** Receipt QR base: settings, else the current origin (dev / mock). */
+    receiptQrBase: (s) => s.settings.receipt_qr_base_url || (typeof location !== 'undefined' ? location.origin : '')
   },
   actions: {
     /** Hydrate from Dexie (instant, offline). */
     async restore() {
-      const [items, prices, rules, serials, stock] = await Promise.all([
+      const [items, prices, rules, serials, stock, barcodes] = await Promise.all([
         db.catalog.toArray(),
         db.prices.toArray(),
         db.pricing_rules.toArray(),
         db.serials.toArray(),
-        db.stock.toArray()
+        db.stock.toArray(),
+        db.barcodes.toArray()
       ])
       this.items = items
+      this.barcodes = Object.fromEntries(barcodes.map((b) => [b.code, b.item_code]))
       this.prices = Object.fromEntries(prices.map((p) => [p.item_code, p.rate]))
       this.pricing_rules = rules
       this.serials = Object.fromEntries(serials.map((s) => [s.item_code, s.serials]))
@@ -69,10 +84,12 @@ export const useCatalogStore = defineStore('catalog', {
       this.departments = meta.departments || []
       this.taxes = meta.taxes || []
       this.loyalty = meta.loyalty || null
+      this.settings = normalizeSettings(meta.settings)
       this.version = meta.version || null
+      this.imagesOverride = await getSetting<boolean | null>('show_images_override', null)
     },
     async persist() {
-      await db.transaction('rw', [db.catalog, db.prices, db.pricing_rules, db.serials, db.stock, db.settings], async () => {
+      await db.transaction('rw', [db.catalog, db.prices, db.pricing_rules, db.serials, db.stock, db.settings, db.barcodes], async () => {
         await db.catalog.clear()
         await db.catalog.bulkPut(JSON.parse(JSON.stringify(this.items)))
         await db.prices.clear()
@@ -83,6 +100,8 @@ export const useCatalogStore = defineStore('catalog', {
         await db.serials.bulkPut(Object.entries(this.serials).map(([item_code, serials]) => ({ item_code, serials: [...serials] })))
         await db.stock.clear()
         await db.stock.bulkPut(Object.entries(this.stock).map(([item_code, qty]) => ({ item_code, qty })))
+        await db.barcodes.clear()
+        await db.barcodes.bulkPut(Object.entries(this.barcodes).map(([code, item_code]) => ({ code, item_code })))
         // JSON round-trip strips Vue reactive proxies, which IndexedDB cannot structured-clone
         // (this surfaced as "DataCloneError" on every persist while item_groups held objects).
         await setSetting('catalog_meta', {
@@ -90,6 +109,7 @@ export const useCatalogStore = defineStore('catalog', {
           departments: JSON.parse(JSON.stringify(this.departments)),
           taxes: JSON.parse(JSON.stringify(this.taxes)),
           loyalty: this.loyalty ? JSON.parse(JSON.stringify(this.loyalty)) : null,
+          settings: JSON.parse(JSON.stringify(this.settings)),
           version: this.version
         })
       })
@@ -104,7 +124,36 @@ export const useCatalogStore = defineStore('catalog', {
       this.departments = b.departments
       this.taxes = b.taxes
       this.loyalty = b.loyalty_program
+      this.barcodes = b.barcodes || {}
+      this.settings = normalizeSettings(b.settings)
       this.version = b.version
+    },
+    /** Device-level image toggle (Settings); null follows the boutique setting. */
+    async setImagesOverride(v: boolean | null) {
+      this.imagesOverride = v
+      await setSetting('show_images_override', v)
+    },
+    /** After an upload succeeds (or optimistically): update the tile image. */
+    setItemImage(item_code: string, url: string | null) {
+      const it = this.items.find((i) => i.item_code === item_code)
+      if (it) it.image = url
+      void this.persist()
+    },
+    /**
+     * Resolve a scanned product code locally (Dexie-backed map): EAN/Code-128 barcode → item,
+     * serial label → item + serial. Also accepts a bare item_code.
+     */
+    resolveCode(code: string): { item: Item; serial_no?: string } | null {
+      const c = code.trim()
+      if (!c) return null
+      const byBarcode = this.barcodes[c] ?? this.barcodes[c.toUpperCase()]
+      const item_code = byBarcode ?? (this.byCode[c] ? c : this.byCode[c.toUpperCase()] ? c.toUpperCase() : null)
+      if (!item_code) return null
+      const item = this.byCode[item_code]
+      if (!item) return null
+      const serialPool = this.serials[item_code] || []
+      const serial = serialPool.find((s) => s === c || s === c.toUpperCase())
+      return serial ? { item, serial_no: serial } : { item }
     },
     /** Full bootstrap for a boutique; also primes the session (boutique + associates). */
     async bootstrap(boutique: string) {
@@ -149,6 +198,8 @@ export const useCatalogStore = defineStore('catalog', {
         if (d.departments?.length) this.departments = d.departments
         if (d.taxes?.length) this.taxes = d.taxes
         if (d.loyalty_program) this.loyalty = d.loyalty_program
+        if (d.barcodes && Object.keys(d.barcodes).length) this.barcodes = { ...this.barcodes, ...d.barcodes }
+        if (d.settings) this.settings = normalizeSettings(d.settings)
         this.version = d.version
         await this.persist()
         return true

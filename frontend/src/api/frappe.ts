@@ -4,7 +4,7 @@
  * into the page as `window.csrf_token` (see maison_pos/www/pos.py).
  */
 import { stripHtml } from '@/utils/text'
-import { ApiError, type MaisonApi } from './types'
+import { ApiError, type Customer, type MaisonApi } from './types'
 
 declare global {
   interface Window {
@@ -74,20 +74,52 @@ async function call<T>(method: string, args: Record<string, unknown> = {}, opts:
   return (body?.message ?? body) as T
 }
 
+/** Multipart POST (file uploads). Same error handling as `call`. */
+async function upload<T>(method: string, fields: Record<string, string>, file: Blob, filename: string): Promise<T> {
+  const fd = new FormData()
+  for (const [k, v] of Object.entries(fields)) fd.append(k, v)
+  fd.append('file', file, filename)
+  let res: Response
+  try {
+    res = await fetch(BASE + method, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf() },
+      body: fd
+    })
+  } catch (e) {
+    throw new ApiError((e as Error).message || 'Network error', 'NETWORK', 0)
+  }
+  let body: any = null
+  try {
+    body = await res.json()
+  } catch {
+    /* ignore */
+  }
+  if (!res.ok) {
+    const message = body?.exception ? stripHtml(String(body.exception).split('\n').pop()) || `${res.status}` : `${res.status} ${res.statusText}`
+    throw new ApiError(message, res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
+  }
+  return (body?.message ?? body) as T
+}
+
 export const frappeApi: MaisonApi = {
   catalog: {
     bootstrap: (boutique) => call('catalog.bootstrap', { boutique }, { get: true }),
-    delta: (boutique, since) => call('catalog.delta', { boutique, since }, { get: true })
+    delta: (boutique, since) => call('catalog.delta', { boutique, since }, { get: true }),
+    upload_item_image: (item_code, file, filename = 'item.jpg') => upload('catalog.upload_item_image', { item_code }, file, filename)
   },
   customers: {
     search: (q, limit = 20) => call('customers.search', { q, limit }),
+    lookup: async (code) => (await call<Customer | null>('customers.lookup', { code })) || null,
     upsert: (customer) => call('customers.upsert', { customer }),
     history: (customer, limit = 20) => call('customers.history', { customer, limit })
   },
   sales: {
     submit_batch: (invoices) => call('sales.submit_batch', { invoices }),
     list: (boutique, date) => call('sales.list', { boutique, date }),
-    void: (invoice, reason) => call('sales.void', { invoice, reason })
+    void: (invoice, reason) => call('sales.void', { invoice, reason }),
+    receipt: (token) => call('sales.receipt', { token }, { get: true })
   },
   stripe_terminal: {
     connection_token: (boutique) => call('stripe_terminal.connection_token', { boutique }),

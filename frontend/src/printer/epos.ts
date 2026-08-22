@@ -6,6 +6,7 @@
 import type { ReceiptSnapshot } from '@/db'
 import { fmtAmount } from '@/utils/money'
 import { fmtDateTime } from '@/utils/device'
+import { receiptUrl } from '@/scan/payloads'
 
 export const COLS = 48
 
@@ -62,6 +63,13 @@ export class EposBuilder {
     this.parts.push('<pulse drawer="drawer_1" time="pulse_100"/>')
     return this
   }
+  /** ESC/POS 2D symbol — QR Code model 2, EC level M, module width 5 (≈ 29 mm at 203 dpi). */
+  qr(data: string, opts: { level?: 'L' | 'M' | 'Q' | 'H'; width?: number; align?: 'left' | 'center' | 'right' } = {}) {
+    if (opts.align) this.parts.push(`<text align="${opts.align}"/>`)
+    this.parts.push(`<symbol type="qrcode_model_2" level="${opts.level || 'M'}" width="${opts.width ?? 5}">${escapeXml(data)}</symbol>`)
+    if (opts.align && opts.align !== 'left') this.parts.push('<text align="left"/>')
+    return this
+  }
   build(): string {
     return (
       '<?xml version="1.0" encoding="utf-8"?>' +
@@ -74,7 +82,26 @@ export class EposBuilder {
 }
 
 /** Render a receipt snapshot to ePOS-Print XML matching the SPEC receipt layout. */
-export function buildReceiptXml(r: ReceiptSnapshot, meta: { invoice_name?: string; offline_uuid: string; posting_datetime: string; openDrawer?: boolean }): string {
+export interface ReceiptMeta {
+  invoice_name?: string
+  offline_uuid: string
+  posting_datetime: string
+  openDrawer?: boolean
+  /** v0.2 — when present (and QR enabled) prints `${receipt_qr_base_url}/r/${token}` as a QR */
+  receipt_token?: string
+  receipt_qr_base_url?: string
+  receipt_qr_enabled?: boolean
+}
+
+/** QR content for a receipt, or null when no token / disabled. */
+export function receiptQrContent(meta: Pick<ReceiptMeta, 'receipt_token' | 'receipt_qr_base_url' | 'receipt_qr_enabled'>, fallbackBase = ''): string | null {
+  if (meta.receipt_qr_enabled === false || !meta.receipt_token) return null
+  const base = meta.receipt_qr_base_url || fallbackBase
+  if (!base) return null
+  return receiptUrl(base, meta.receipt_token)
+}
+
+export function buildReceiptXml(r: ReceiptSnapshot, meta: ReceiptMeta): string {
   const b = new EposBuilder()
   b.text('MAISON', { align: 'center', bold: true, w: 2, h: 2 })
   b.text(r.boutique_name.toUpperCase(), { align: 'center' })
@@ -86,6 +113,7 @@ export function buildReceiptXml(r: ReceiptSnapshot, meta: { invoice_name?: strin
   b.text(lr('DATE', fmtDateTime(meta.posting_datetime)))
   b.text(lr('ASSOCIATE', r.associate_name))
   if (r.customer_name) b.text(lr('CLIENT', `${r.customer_name}${r.customer_tier ? ' / ' + r.customer_tier.toUpperCase() : ''}`))
+  if (r.customer_client_number) b.text(lr('CLIENT NO', r.customer_client_number))
   b.line()
   for (const l of r.lines) {
     for (const w of wrap(l.item_name.toUpperCase())) b.text(w, { bold: true })
@@ -124,6 +152,12 @@ export function buildReceiptXml(r: ReceiptSnapshot, meta: { invoice_name?: strin
   b.feed(1)
   b.text('THANK YOU FOR VISITING MAISON', { align: 'center' })
   b.text('Exchanges within 30 days with receipt.', { align: 'center' })
+  const qr = receiptQrContent({ ...meta, receipt_qr_base_url: meta.receipt_qr_base_url || r.receipt_qr_base_url })
+  if (qr) {
+    b.feed(1)
+    b.qr(qr, { level: 'M', width: 5, align: 'center' })
+    b.text('SCAN FOR YOUR DIGITAL RECEIPT', { align: 'center' })
+  }
   b.text(meta.offline_uuid, { align: 'center' })
   b.feed(2)
   b.cut()

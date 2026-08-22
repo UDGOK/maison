@@ -11,26 +11,54 @@ from frappe.query_builder import DocType
 from frappe.query_builder.functions import Max
 from frappe.utils import cint, flt
 
+from maison_pos.identifiers import CUSTOMER_QR_PREFIX, digits_only, is_client_number, normalize_client_number
 from maison_pos.scoping import assert_roles, get_user_boutique, is_unrestricted
 from maison_pos.scoping import ALL_MAISON_ROLES
 
-CUSTOMER_FIELDS = ["name", "customer_name", "mobile_no", "email_id", "customer_group", "territory", "loyalty_program", "modified"]
-UPSERT_ALLOWED = {"customer_name", "mobile_no", "email_id", "customer_group", "territory", "loyalty_program", "gender", "customer_type"}
+CUSTOMER_FIELDS = [
+	"name",
+	"customer_name",
+	"mobile_no",
+	"email_id",
+	"customer_group",
+	"territory",
+	"loyalty_program",
+	"maison_client_number",
+	"maison_face_consent",
+	"modified",
+]
+UPSERT_ALLOWED = {
+	"customer_name",
+	"mobile_no",
+	"email_id",
+	"customer_group",
+	"territory",
+	"loyalty_program",
+	"gender",
+	"customer_type",
+	"maison_face_consent",
+}
+MIN_PHONE_DIGITS = 4
 
 
-def _loyalty(customer: str, company: Optional[str] = None) -> tuple[float, Optional[str]]:
-	"""(points, tier_name) for a customer; tolerant of no loyalty program."""
+def _loyalty(customer: str, company: Optional[str] = None) -> tuple[float, Optional[str], float]:
+	"""(points, tier_name, points_value) for a customer; tolerant of no loyalty program.
+
+	``points_value`` is the redeemable currency value: points × conversion factor.
+	"""
 	loyalty_program = frappe.db.get_value("Customer", customer, "loyalty_program")
 	if not loyalty_program:
-		return 0.0, None
+		return 0.0, None, 0.0
 	try:
 		from erpnext.accounts.doctype.loyalty_program.loyalty_program import get_loyalty_program_details_with_points
 
 		d = get_loyalty_program_details_with_points(customer, loyalty_program=loyalty_program, company=company, silent=True)
-		return flt(d.get("loyalty_points")), d.get("tier_name")
+		points = flt(d.get("loyalty_points"))
+		factor = flt(d.get("conversion_factor"))
+		return points, d.get("tier_name"), flt(points * factor, 2)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "maison loyalty lookup")
-		return 0.0, None
+		return 0.0, None, 0.0
 
 
 def _last_visits(customers: list[str]) -> dict[str, dict[str, Any]]:
@@ -60,7 +88,7 @@ def _serialize(rows: list[dict[str, Any]], company: Optional[str] = None) -> lis
 	visits = _last_visits([r["name"] for r in rows])
 	result = []
 	for r in rows:
-		points, tier = _loyalty(r["name"], company)
+		points, tier, points_value = _loyalty(r["name"], company)
 		v = visits.get(r["name"], {})
 		result.append(
 			{
@@ -70,7 +98,10 @@ def _serialize(rows: list[dict[str, Any]], company: Optional[str] = None) -> lis
 				"email_id": r.get("email_id"),
 				"customer_group": r.get("customer_group"),
 				"loyalty_program": r.get("loyalty_program"),
+				"client_number": r.get("maison_client_number"),
+				"face_consent": cint(r.get("maison_face_consent")),
 				"loyalty_points": points,
+				"points_value": points_value,
 				"tier": tier,
 				"last_visit": v.get("last_visit"),
 				"last_boutique": v.get("last_boutique"),
@@ -80,28 +111,95 @@ def _serialize(rows: list[dict[str, Any]], company: Optional[str] = None) -> lis
 	return result
 
 
+def _phone_regexp(digits: str) -> str:
+	"""REGEXP matching *digits* in ``mobile_no`` regardless of formatting (``+1 (212) 555-0100``)."""
+	return "[^0-9]*".join(digits)
+
+
+def _customer_rows(criterion, limit: int) -> list[dict[str, Any]]:
+	C = DocType("Customer")
+	q = (
+		frappe.qb.from_(C)
+		.select(*[C[f] for f in CUSTOMER_FIELDS])
+		.where(C.disabled == 0)
+		.orderby(C.modified, order=frappe.qb.desc)
+		.limit(limit)
+	)
+	if criterion is not None:
+		q = q.where(criterion)
+	return q.run(as_dict=True)
+
+
 @frappe.whitelist()
 def search(q: str = "", limit: int = 20) -> list[dict[str, Any]]:
-	"""Search customers by name / mobile / email (min 2 chars). Empty q returns recently modified."""
+	"""Search customers by client number, phone (digits only, 4+), email or name (min 2 chars).
+
+	Empty *q* returns the most recently modified customers. Returns rows with
+	``client_number``, ``loyalty_points``, ``points_value``, ``tier`` and last visit.
+	"""
 	assert_roles(*ALL_MAISON_ROLES, "System Manager")
 	limit = min(max(cint(limit) or 20, 1), 100)
 	q = (q or "").strip()
+	if q.upper().startswith(CUSTOMER_QR_PREFIX):
+		q = q[len(CUSTOMER_QR_PREFIX) :].strip()
 	if q and len(q) < 2:
 		return []
-	filters = {"disabled": 0}
-	or_filters = None
+	criterion = None
 	if q:
+		C = DocType("Customer")
 		like = f"%{q}%"
-		or_filters = [["customer_name", "like", like], ["mobile_no", "like", like], ["email_id", "like", like], ["name", "like", like]]
-	rows = frappe.get_all(
-		"Customer",
-		filters=filters,
-		or_filters=or_filters,
-		fields=CUSTOMER_FIELDS,
-		order_by="modified desc",
-		limit=limit,
-	)
-	return _serialize(rows)
+		criterion = (
+			C.customer_name.like(like)
+			| C.email_id.like(like)
+			| C.name.like(like)
+			| C.maison_client_number.like(f"%{normalize_client_number(q)}%")
+		)
+		digits = digits_only(q)
+		# "phone-like" input: mostly digits (allow + ( ) - . and spaces) and at least 4 digits
+		if digits and len(digits) >= MIN_PHONE_DIGITS and len(digits) >= len(q) - 6:
+			criterion = criterion | C.mobile_no.regexp(_phone_regexp(digits))
+		else:
+			criterion = criterion | C.mobile_no.like(like)
+	return _serialize(_customer_rows(criterion, limit))
+
+
+@frappe.whitelist()
+def lookup(code: str) -> Optional[dict[str, Any]]:
+	"""Exact-match lookup for a scanned / typed code.
+
+	Accepts a client number (``MC123456``), a client QR payload (``MC:<customer_id>`` or
+	``MC:MC123456``), a full phone number (formatting ignored) or an email. Returns the same
+	row shape as ``search`` or ``None`` when nothing matches exactly.
+	"""
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	code = (code or "").strip()
+	if not code:
+		return None
+	name: Optional[str] = None
+	if code.upper().startswith(CUSTOMER_QR_PREFIX):
+		payload = code[len(CUSTOMER_QR_PREFIX) :].strip()
+		if frappe.db.exists("Customer", payload):
+			name = payload
+		else:
+			code = payload
+	if not name and is_client_number(code):
+		name = frappe.db.get_value("Customer", {"maison_client_number": normalize_client_number(code), "disabled": 0}, "name")
+	if not name and "@" in code:
+		name = frappe.db.get_value("Customer", {"email_id": code, "disabled": 0}, "name")
+	if not name:
+		digits = digits_only(code)
+		if digits and len(digits) >= 7:
+			C = DocType("Customer")
+			rows = _customer_rows(C.mobile_no.regexp(_phone_regexp(digits)), 5)
+			exact = [r["name"] for r in rows if digits_only(r.get("mobile_no")).endswith(digits)]
+			if len(exact) == 1:
+				name = exact[0]
+	if not name and frappe.db.exists("Customer", {"name": code, "disabled": 0}):
+		name = code
+	if not name:
+		return None
+	row = frappe.db.get_value("Customer", name, CUSTOMER_FIELDS, as_dict=True)
+	return _serialize([row])[0] if row else None
 
 
 @frappe.whitelist()

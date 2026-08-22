@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_tiles",
+  "show_product_images_default",
+  "scan_enabled",
+  "column_break_tiles",
+  "loyalty_lookup_enabled",
+  "section_receipt",
+  "receipt_qr_enabled",
+  "receipt_qr_base_url",
+  "section_recognition",
+  "face_recognition_enabled",
+  "face_recognition_note"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_tiles",
+   "fieldtype": "Section Break",
+   "label": "Sell screen"
+  },
+  {
+   "default": "0",
+   "description": "Default for boutiques; Maison Boutique.show_product_images overrides per store.",
+   "fieldname": "show_product_images_default",
+   "fieldtype": "Check",
+   "label": "Show product images on tiles (default)"
+  },
+  {
+   "default": "1",
+   "description": "Keyboard-wedge and camera barcode / QR scanning in the POS.",
+   "fieldname": "scan_enabled",
+   "fieldtype": "Check",
+   "label": "Barcode / QR scanning"
+  },
+  {
+   "fieldname": "column_break_tiles",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Client number / phone / QR lookup on the Sell screen.",
+   "fieldname": "loyalty_lookup_enabled",
+   "fieldtype": "Check",
+   "label": "Loyalty client lookup"
+  },
+  {
+   "fieldname": "section_receipt",
+   "fieldtype": "Section Break",
+   "label": "Receipt"
+  },
+  {
+   "default": "1",
+   "fieldname": "receipt_qr_enabled",
+   "fieldtype": "Check",
+   "label": "Print QR code on receipts"
+  },
+  {
+   "description": "Base URL used in the receipt QR (<base>/r/<token>). Leave empty to use the site URL.",
+   "fieldname": "receipt_qr_base_url",
+   "fieldtype": "Data",
+   "label": "Receipt QR base URL"
+  },
+  {
+   "fieldname": "section_recognition",
+   "fieldtype": "Section Break",
+   "label": "Client recognition"
+  },
+  {
+   "default": "0",
+   "description": "Coming soon. Requires per-client opt-in consent (Customer.maison_face_consent). See README: Facial recognition legal notice.",
+   "fieldname": "face_recognition_enabled",
+   "fieldtype": "Check",
+   "label": "Client recognition (camera) — coming soon",
+   "read_only": 1
+  },
+  {
+   "fieldname": "face_recognition_note",
+   "fieldtype": "HTML",
+   "options": "<p class=\"text-muted\">Facial recognition is not implemented. The toggle is reserved; any future provider must be opt-in per client with stored consent (BIPA / CCPA).</p>"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison POS Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "email": 1, "print": 1, "read": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "email": 1, "print": 1, "read": 1, "role": "Maison Head Office", "share": 1, "write": 1},
+  {"read": 1, "role": "Maison Regional"},
+  {"read": 1, "role": "Maison Manager"},
+  {"read": 1, "role": "Maison Associate"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

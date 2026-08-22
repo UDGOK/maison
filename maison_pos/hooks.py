@@ -16,6 +16,8 @@ required_apps = ["erpnext"]
 website_route_rules = [
 	{"from_route": "/pos/<path:app_path>", "to_route": "pos"},
 	{"from_route": "/maison-dashboard/<path:app_path>", "to_route": "maison-dashboard"},
+	# public receipt page (token from the QR printed on the receipt)
+	{"from_route": "/r/<token>", "to_route": "r"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -42,8 +44,13 @@ fixtures = [
 doc_events = {
 	"Sales Invoice": {
 		"validate": "maison_pos.events.sales_invoice.validate",
+		"before_submit": "maison_pos.events.sales_invoice.before_submit",
 		"on_submit": "maison_pos.events.sales_invoice.on_submit",
 		"on_cancel": "maison_pos.events.sales_invoice.on_cancel",
+	},
+	"Customer": {
+		"before_insert": "maison_pos.events.customer.before_insert",
+		"validate": "maison_pos.events.customer.validate",
 	},
 }
 
@@ -78,6 +85,7 @@ jinja = {
 	"methods": [
 		"maison_pos.utils.get_receipt_context",
 		"maison_pos.utils.format_money",
+		"maison_pos.utils.receipt_qr_svg",
 	],
 }
 

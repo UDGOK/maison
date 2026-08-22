@@ -7,6 +7,8 @@ import { useSessionStore } from './stores/session'
 import { useCatalogStore } from './stores/catalog'
 import { usePrinterStore } from './stores/printer'
 import { useSyncStore } from './stores/sync'
+import { useLayoutStore } from './stores/layout'
+import { useScanStore } from './stores/scan'
 
 async function boot() {
   const app = createApp(App)
@@ -22,6 +24,8 @@ async function boot() {
   app.use(router)
   await router.isReady()
   app.mount('#app')
+  useLayoutStore().start()
+  useScanStore().startWedge()
   void useSyncStore().start()
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) void registerServiceWorker()

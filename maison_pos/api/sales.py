@@ -22,7 +22,7 @@ from frappe.utils import cint, flt, getdate, nowdate
 
 from maison_pos.maison_pos.doctype.maison_sync_log import maison_sync_log as synclog
 from maison_pos.scoping import assert_boutique_access, assert_roles, is_manager_or_above, ALL_MAISON_ROLES
-from maison_pos.utils import parse_datetime
+from maison_pos.utils import parse_datetime, receipt_payload
 
 # ---------------------------------------------------------------------------
 # structured errors
@@ -273,6 +273,16 @@ def _existing_invoice_for_uuid(offline_uuid: str) -> Optional[str]:
 	)
 
 
+def _duplicate_result(offline_uuid: str, invoice_name: str) -> dict[str, Any]:
+	"""Replay result: the device may have missed the first response, so return the token too."""
+	return {
+		"offline_uuid": offline_uuid,
+		"status": "duplicate",
+		"invoice_name": invoice_name,
+		"receipt_token": frappe.db.get_value("Sales Invoice", invoice_name, "maison_receipt_token"),
+	}
+
+
 def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 	"""Process a single POSInvoice inside its own savepoint. Never raises."""
 	offline_uuid = (payload.get("offline_uuid") or "").strip()
@@ -283,10 +293,10 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 	existing = _existing_invoice_for_uuid(offline_uuid)
 	if existing:
 		synclog.record(offline_uuid, "Duplicate", invoice=existing, boutique=payload.get("boutique"), device_id=payload.get("device_id"))
-		return {"offline_uuid": offline_uuid, "status": "duplicate", "invoice_name": existing}
+		return _duplicate_result(offline_uuid, existing)
 	log = synclog.get_log(offline_uuid)
 	if log and log["status"] == "Success" and log["invoice"] and frappe.db.exists("Sales Invoice", log["invoice"]):
-		return {"offline_uuid": offline_uuid, "status": "duplicate", "invoice_name": log["invoice"]}
+		return _duplicate_result(offline_uuid, log["invoice"])
 
 	savepoint = f"maison_batch_{idx}"
 	frappe.db.savepoint(savepoint)
@@ -317,6 +327,7 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 			"grand_total": flt(si.grand_total),
 			"rounded_total": flt(si.rounded_total),
 			"change_amount": flt(si.change_amount),
+			"receipt_token": si.get("maison_receipt_token"),
 		}
 	except Exception as exc:  # noqa: BLE001 - we translate every failure into a result row
 		frappe.db.rollback(save_point=savepoint)
@@ -520,3 +531,30 @@ def get(invoice: str) -> dict[str, Any]:
 	doc = frappe.get_doc("Sales Invoice", invoice)
 	assert_boutique_access(doc.get("maison_boutique"))
 	return doc.as_dict()
+
+
+# ---------------------------------------------------------------------------
+# public receipt (QR on the printed receipt)
+# ---------------------------------------------------------------------------
+def get_invoice_by_token(token: str):
+	"""Submitted (or cancelled) POS Sales Invoice for a receipt *token*; raises DoesNotExistError."""
+	token = (token or "").strip()
+	if not token or len(token) > 32:
+		frappe.throw(_("Receipt not found"), frappe.DoesNotExistError)
+	name = frappe.db.get_value("Sales Invoice", {"maison_receipt_token": token, "docstatus": ("in", (1, 2))}, "name")
+	if not name:
+		frappe.throw(_("Receipt not found"), frappe.DoesNotExistError)
+	return frappe.get_doc("Sales Invoice", name)
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def receipt(token: str) -> dict[str, Any]:
+	"""Guest endpoint: JSON receipt for the token printed in the receipt QR.
+
+	Only data already on the paper receipt is returned (boutique, datetime, lines, totals,
+	payment last4, masked client number and points) — never the customer's name or contact.
+	"""
+	doc = get_invoice_by_token(token)
+	if not doc.get("is_pos"):
+		frappe.throw(_("Receipt not found"), frappe.DoesNotExistError)
+	return receipt_payload(doc)

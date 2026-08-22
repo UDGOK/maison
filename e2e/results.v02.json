@@ -1,0 +1,126 @@
+{
+  "results": [
+    {
+      "step": "manager uploads item image via catalog.upload_item_image",
+      "ok": true,
+      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"http://maison.localhost:8000/files/AC-012-e7e42d.png\",\"file_url\":\"/files/AC-012-e7e42d.png\",\"file_name\":\"AC-012-bbfb56.png\"}"
+    },
+    {
+      "step": "uploaded image URL is served",
+      "ok": true,
+      "detail": "200 image/png"
+    },
+    {
+      "step": "bootstrap has settings/barcodes/images",
+      "ok": true,
+      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"http://maison.localhost:8000\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0} ean=2004103867421→BR-006 serial=BR-004-CHI-002 image=http://maison.localhost:8000/files/AC-012-e7e42d.png"
+    },
+    {
+      "step": "customers.search rows carry client_number / loyalty_points / points_value / tier",
+      "ok": true,
+      "detail": "Mei-Lin Chen MC528952 pts=231353 value=231353 tier=Patron"
+    },
+    {
+      "step": "associate login",
+      "ok": true,
+      "detail": "chi.oak.a1@maison.example"
+    },
+    {
+      "step": "images toggle shows tile photo for item with image",
+      "ok": true,
+      "detail": "src=http://maison.localhost:8000/files/AC-012-e7e42d.png naturalWidth=64"
+    },
+    {
+      "step": "images toggle off hides photos",
+      "ok": true,
+      "detail": "tiles with photo: 0"
+    },
+    {
+      "step": "wedge scan EAN adds item",
+      "ok": true,
+      "detail": "2004103867421 → Classic Wedding Band 2mm Platinum; basket: Classic Wedding Band 2mm Platinum"
+    },
+    {
+      "step": "wedge scan serial adds that exact serial",
+      "ok": true,
+      "detail": "BR-004-CHI-002 (Halo Cushion 1.2ct Rose Gold); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Halo Cushion 1.2ct Rose GoldBR-004-CHI-002$19,800.00×"
+    },
+    {
+      "step": "client № keypad lookup attaches client with points",
+      "ok": true,
+      "detail": "Mei-Lin ChenPatronClient №MC528952Points 231,353 ($231,353.00)Last visit Aug 22, 2026 Redeem points up to 23,979Detach"
+    },
+    {
+      "step": "receipt screen shows QR and receipt link",
+      "ok": true,
+      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=http://maison.localhost:8000/r/3mNQlmYPRFzZCrNE"
+    },
+    {
+      "step": "GET /r/<token> as guest returns 200 with boutique name",
+      "ok": true,
+      "detail": "200 len=335765"
+    },
+    {
+      "step": "guest sales.receipt JSON has boutique, lines, totals and no PII",
+      "ok": true,
+      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••952\",\"tier\":\"Patron\",\"points_earned\":11989,\"points_balance\":243342}"
+    },
+    {
+      "step": "GET /r/<bad token> is 404",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "step": "iPhone: phone layout with bottom-sheet summary bar",
+      "ok": true,
+      "detail": "basket.phone=true summary-bar=1"
+    },
+    {
+      "step": "iPhone: no horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth-clientWidth=0"
+    },
+    {
+      "step": "iPhone: add item via tile, bottom sheet expands with the line",
+      "ok": true,
+      "detail": "Silk Pocket Square"
+    },
+    {
+      "step": "iPhone: sheet controls ≥48px tall",
+      "ok": true,
+      "detail": "all ok"
+    },
+    {
+      "step": "iPhone: cash pay → receipt synced with QR + link",
+      "ok": true,
+      "detail": "Synced link=http://maison.localhost:8000/r/276Zt3zx7W_mUNXf"
+    },
+    {
+      "step": "iPhone: receipt screen has no horizontal overflow",
+      "ok": true,
+      "detail": "scrollWidth-clientWidth=0"
+    }
+  ],
+  "console": [
+    {
+      "tag": "pos",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CONNECTION_RESET"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_RESET"
+    },
+    {
+      "tag": "phone",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CONNECTION_RESET"
+    },
+    {
+      "tag": "phone",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_RESET"
+    }
+  ]
+}

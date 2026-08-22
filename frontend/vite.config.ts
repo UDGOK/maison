@@ -52,13 +52,14 @@ export default defineConfig(({ command }) => ({
         start_url: '/pos/',
         scope: '/pos/',
         display: 'standalone',
-        orientation: 'landscape',
-        theme_color: '#0A1410',
-        background_color: '#0A1410',
+        orientation: 'any',
+        theme_color: '#0B0B0A',
+        background_color: '#0B0B0A',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
         ]
       },
       workbox: {

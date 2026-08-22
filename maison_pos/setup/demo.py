@@ -25,6 +25,7 @@ import datetime as _dt
 
 from frappe.utils import add_days, flt, get_time, getdate, nowdate
 
+from maison_pos.identifiers import assign_client_number, ean13_for
 from maison_pos.setup.install import after_install
 
 COMPANY = "Maison"
@@ -470,12 +471,31 @@ def ensure_items() -> None:
 					"maison_certificate_no": f"GIA-{random.randint(1_000_000, 9_999_999)}" if carat else None,
 					"maison_appraisal_value": round(rate * 1.25, 2) if carat else 0,
 					"maison_taxable": 1,
-					"maison_image_url": f"/assets/maison_pos/pos/img/{code}.jpg",
+					"maison_barcode": ean13_for(code),
+					"barcodes": [{"barcode": ean13_for(code), "barcode_type": "EAN"}],
 					"item_defaults": [{"company": COMPANY, "default_warehouse": f"{BOUTIQUES[0]['code']} - {ABBR}"}],
 				}
 			)
+		ensure_item_barcode(code)
 		if not frappe.db.exists("Item Price", {"item_code": code, "price_list": PRICE_LIST, "selling": 1}):
 			_insert({"doctype": "Item Price", "item_code": code, "price_list": PRICE_LIST, "price_list_rate": rate, "selling": 1, "currency": CURRENCY})
+
+
+def ensure_item_barcode(code: str) -> str:
+	"""Deterministic EAN-13 on ``Item.maison_barcode`` (+ Item Barcode row) for an existing item.
+
+	Serialized pieces carry Code-128 labels whose value is the serial number itself, so no
+	extra data is stored for them: ``catalog.bootstrap`` maps every serial into ``barcodes``.
+	"""
+	ean = ean13_for(code)
+	if frappe.db.get_value("Item", code, "maison_barcode") != ean:
+		frappe.db.set_value("Item", code, "maison_barcode", ean, update_modified=False)
+	if not frappe.db.exists("Item Barcode", {"parent": code, "barcode": ean}):
+		item = frappe.get_doc("Item", code)
+		item.append("barcodes", {"barcode": ean, "barcode_type": "EAN"})
+		item.flags.ignore_permissions = True
+		item.save()
+	return ean
 
 
 def _serials_for(code: str, boutique: str, n: int) -> list[str]:
@@ -723,6 +743,15 @@ def rebase_stock(days_back: int = DEMO_STOCK_DAYS_BACK, posting_time: str = DEMO
 def ensure_customers() -> None:
 	for name, mobile, email in CUSTOMERS:
 		ensure_customer(name, mobile, email)
+	ensure_client_numbers()
+
+
+def ensure_client_numbers() -> int:
+	"""Backfill ``maison_client_number`` on every customer that has none (new ones get it on insert)."""
+	missing = frappe.get_all("Customer", filters={"maison_client_number": ("in", ("", None))}, pluck="name")
+	for name in missing:
+		assign_client_number(name)
+	return len(missing)
 
 
 def ensure_user(email: str, first: str, last: str, roles: list[str]) -> str:

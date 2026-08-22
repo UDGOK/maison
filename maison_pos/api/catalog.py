@@ -11,9 +11,10 @@ import frappe
 from frappe import _
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
-from frappe.utils import flt, get_datetime, now_datetime
+from frappe.utils import flt, get_datetime, get_url, now_datetime
 
-from maison_pos.scoping import assert_boutique_access
+from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
+from maison_pos.scoping import assert_boutique_access, is_manager_or_above
 from maison_pos.utils import parse_datetime
 
 ITEM_FIELDS = [
@@ -35,7 +36,7 @@ ITEM_FIELDS = [
 	"maison_certificate_no",
 	"maison_appraisal_value",
 	"maison_taxable",
-	"maison_image_url",
+	"maison_barcode",
 	"modified",
 ]
 
@@ -63,6 +64,7 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 		"stripe_location_id": doc.stripe_location_id,
 		"printer_ip": doc.printer_ip,
 		"printer_model": doc.printer_model,
+		"show_product_images": int(doc.get("show_product_images") or 0),
 		"currency": frappe.get_cached_value("Company", doc.company, "default_currency"),
 	}
 
@@ -121,13 +123,48 @@ def _item_groups() -> list[str]:
 	return [r.name for r in rows]
 
 
+def absolute_file_url(url: Optional[str]) -> Optional[str]:
+	"""Absolute URL for an Item image (``/files/..`` or ``/private/files/..``); ``None`` when unset."""
+	if not url:
+		return None
+	url = str(url).strip()
+	if url.startswith(("http://", "https://", "data:")):
+		return url
+	return get_url(url)
+
+
 def _items(since: Optional[str] = None) -> list[dict[str, Any]]:
 	filters: dict[str, Any] = {"is_sales_item": 1}
 	if since:
 		filters["modified"] = (">=", since)
 	else:
 		filters["disabled"] = 0
-	return frappe.get_all("Item", filters=filters, fields=ITEM_FIELDS, order_by="item_name")
+	rows = frappe.get_all("Item", filters=filters, fields=ITEM_FIELDS, order_by="item_name")
+	for r in rows:
+		r["image"] = absolute_file_url(r.get("image"))
+	return rows
+
+
+def _barcodes(items: list[dict[str, Any]], serials: dict[str, list[str]]) -> dict[str, str]:
+	"""``{code: item_code}`` for every scannable code.
+
+	Sources: ``Item.maison_barcode``, the standard ``Item Barcode`` child table and every
+	serial number in *serials* (serial labels are Code-128 of the serial itself, so a scan
+	of a serial resolves to ``item_code`` here and to the exact serial via ``serials``).
+	"""
+	out: dict[str, str] = {}
+	codes = [r["item_code"] for r in items]
+	for r in items:
+		if r.get("maison_barcode"):
+			out[str(r["maison_barcode"]).strip()] = r["item_code"]
+	if codes:
+		for row in frappe.get_all("Item Barcode", filters={"parent": ("in", codes)}, fields=["parent", "barcode"]):
+			if row.barcode:
+				out.setdefault(str(row.barcode).strip(), row.parent)
+	for item_code, serial_list in serials.items():
+		for serial in serial_list:
+			out.setdefault(serial, item_code)
+	return out
 
 
 def _prices(price_list: str, since: Optional[str] = None) -> dict[str, float]:
@@ -243,19 +280,23 @@ def bootstrap(boutique: str) -> dict[str, Any]:
 	pos_profile = _pos_profile_dict(b["pos_profile"])
 	price_list = pos_profile["selling_price_list"] or "Standard Selling"
 	version = now_datetime()
+	items = _items()
+	serials = _serials(b["warehouse"])
 
 	return {
 		"boutique": b,
 		"associates": _associates(boutique),
 		"pos_profile": pos_profile,
+		"settings": get_pos_settings(boutique),
 		"taxes": _taxes(b["tax_template"]),
 		"modes_of_payment": _modes_of_payment(pos_profile),
 		"item_groups": _item_groups(),
 		"departments": DEPARTMENTS,
-		"items": _items(),
+		"items": items,
 		"prices": _prices(price_list),
 		"pricing_rules": _pricing_rules(b["warehouse"]),
-		"serials": _serials(b["warehouse"]),
+		"serials": serials,
+		"barcodes": _barcodes(items, serials),
 		"stock": _stock(b["warehouse"]),
 		"loyalty_program": _loyalty_program(b["company"]),
 		"version": version.isoformat(),
@@ -286,21 +327,90 @@ def delta(boutique: str, since: str) -> dict[str, Any]:
 	for r in sold_serials:
 		removed.setdefault(r.item_code, []).append(r.name)
 
+	items = _items(since_s)
+	serials = _serials(b["warehouse"], since_s)
+
 	return {
 		"boutique": b,
 		"pos_profile": pos_profile,
+		"settings": get_pos_settings(boutique),
 		"taxes": _taxes(b["tax_template"]),
 		"modes_of_payment": _modes_of_payment(pos_profile),
 		"item_groups": _item_groups(),
 		"departments": DEPARTMENTS,
-		"items": _items(since_s),
+		"items": items,
 		"prices": _prices(price_list, since_s),
 		"pricing_rules": _pricing_rules(b["warehouse"], since_s),
-		"serials": _serials(b["warehouse"], since_s),
+		"serials": serials,
+		"barcodes": _barcodes(items, serials),
 		"serials_removed": removed,
 		"stock": _stock(b["warehouse"], since_s),
 		"loyalty_program": _loyalty_program(b["company"]),
 		"deleted": _deleted_since("Item", since_s),
 		"since": since_s,
 		"version": version.isoformat(),
+	}
+
+
+# ---------------------------------------------------------------------------
+# item image upload (Manager+)
+# ---------------------------------------------------------------------------
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_item_image(item_code: str, file: Any = None) -> dict[str, Any]:
+	"""Attach an image to *item_code* and set ``Item.image``. Multipart field ``file``.
+
+	Maison Manager / Head Office / System Manager only. Returns
+	``{"item_code", "image", "file_url", "file_name"}`` where ``image`` is absolute.
+	"""
+	if not is_manager_or_above():
+		frappe.throw(_("Only Maison Managers may change product images"), frappe.PermissionError)
+	item_code = (item_code or "").strip()
+	if not item_code or not frappe.db.exists("Item", item_code):
+		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
+
+	upload = None
+	if getattr(frappe, "request", None) is not None and frappe.request.files:
+		upload = frappe.request.files.get("file") or next(iter(frappe.request.files.values()), None)
+	if upload is None:
+		frappe.throw(_("No file uploaded (multipart field 'file')"), frappe.ValidationError)
+
+	content = upload.stream.read()
+	if not content:
+		frappe.throw(_("Uploaded file is empty"), frappe.ValidationError)
+	if len(content) > MAX_IMAGE_BYTES:
+		frappe.throw(_("Image larger than 5 MB"), frappe.ValidationError)
+
+	import mimetypes
+
+	content_type = (upload.content_type or "").split(";")[0].strip().lower() or (mimetypes.guess_type(upload.filename or "")[0] or "")
+	if content_type not in IMAGE_TYPES:
+		frappe.throw(_("Only JPEG, PNG or WebP images are accepted"), frappe.ValidationError)
+
+	safe_code = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in item_code)
+	file_name = f"{safe_code}-{frappe.generate_hash(length=6)}{IMAGE_TYPES[content_type]}"
+	file_doc = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": file_name,
+			"attached_to_doctype": "Item",
+			"attached_to_name": item_code,
+			"attached_to_field": "image",
+			"is_private": 0,
+			"content": content,
+		}
+	)
+	file_doc.flags.ignore_permissions = True
+	file_doc.save()
+
+	frappe.db.set_value("Item", item_code, "image", file_doc.file_url)
+	frappe.clear_document_cache("Item", item_code)
+	return {
+		"item_code": item_code,
+		"image": absolute_file_url(file_doc.file_url),
+		"file_url": file_doc.file_url,
+		"file_name": file_doc.file_name,
 	}

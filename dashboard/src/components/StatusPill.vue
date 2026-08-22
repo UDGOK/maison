@@ -39,7 +39,7 @@ const label = computed(() => {
   background: var(--dim);
 }
 .online .dot { background: var(--good); }
-.online { color: var(--good); border-color: rgba(127, 169, 138, 0.4); }
+.online { color: var(--accent); border-color: var(--accent); }
 .offline .dot { background: var(--crit); }
 .offline { color: var(--crit); border-color: rgba(196, 115, 106, 0.4); }
 .pending_approval .dot { background: var(--warn); }

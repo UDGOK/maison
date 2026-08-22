@@ -52,8 +52,58 @@ export interface Item {
   maison_appraisal_value?: number
   maison_department: string
   maison_taxable: 0 | 1
-  maison_image_url?: string
+  /** Standard ERPNext Item.image (absolute URL) or null — v0.2 replaces maison_image_url. */
+  image?: string | null
+  /** Custom unique barcode (maison_barcode); standard Item Barcode rows are merged into `barcodes`. */
+  maison_barcode?: string
   disabled?: 0 | 1
+}
+
+/** Maison POS Settings (global) merged with the boutique overrides — v0.2 `bootstrap.settings`. */
+export interface PosSettings {
+  show_product_images: boolean
+  scan_enabled: boolean
+  receipt_qr_enabled: boolean
+  /** Absolute site URL; QR content is `${receipt_qr_base_url}/r/${token}`. */
+  receipt_qr_base_url: string
+  loyalty_lookup_enabled: boolean
+}
+
+/** Backend `catalog.upload_item_image` result: `image` is the absolute URL now on `Item.image`. */
+export interface UploadItemImageResult {
+  item_code: string
+  image: string
+  file_url?: string
+  file_name?: string
+}
+
+/**
+ * The backend returns Check fields as ints (0/1); coerce every flag to a real boolean so
+ * strict comparisons (`=== false`) behave. Unknown keys are dropped.
+ */
+export function normalizeSettings(raw?: Partial<Record<keyof PosSettings, unknown>> | null): PosSettings {
+  const r = raw || {}
+  const flag = (k: keyof PosSettings): boolean => {
+    const v = r[k]
+    if (v === undefined || v === null || v === '') return DEFAULT_SETTINGS[k] as boolean
+    if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true'
+    return !!v
+  }
+  return {
+    show_product_images: flag('show_product_images'),
+    scan_enabled: flag('scan_enabled'),
+    receipt_qr_enabled: flag('receipt_qr_enabled'),
+    receipt_qr_base_url: String(r.receipt_qr_base_url || DEFAULT_SETTINGS.receipt_qr_base_url).replace(/\/+$/, ''),
+    loyalty_lookup_enabled: flag('loyalty_lookup_enabled')
+  }
+}
+
+export const DEFAULT_SETTINGS: PosSettings = {
+  show_product_images: false,
+  scan_enabled: true,
+  receipt_qr_enabled: true,
+  receipt_qr_base_url: '',
+  loyalty_lookup_enabled: true
 }
 
 export interface PricingRule {
@@ -88,6 +138,13 @@ export interface Bootstrap {
   serials: Record<string, string[]>
   stock: Record<string, number>
   loyalty_program: LoyaltyProgram
+  /**
+   * v0.2 — every scannable code → item_code: `maison_barcode`, standard Item Barcode rows and
+   * every serial number (Code-128 label = serial no). Serial codes are also present in `serials`.
+   */
+  barcodes: Record<string, string>
+  /** v0.2 — merged Maison POS Settings (boutique overrides global). */
+  settings: PosSettings
   version: string
 }
 
@@ -101,9 +158,17 @@ export interface Customer {
   mobile_no?: string
   email_id?: string
   loyalty_points: number
-  tier: string
+  /** v0.2 — redeemable currency value of the balance (points × conversion factor), from the backend. */
+  points_value?: number
+  tier: string | null
   last_visit?: string
   last_boutique?: string
+  /** v0.2 — printed loyalty number `maison_client_number` (e.g. MC482910), unique. */
+  client_number?: string
+  /** v0.2 — reserved for recognition; never populated by the POS. */
+  maison_face_id?: string
+  maison_face_consent?: 0 | 1
+  maison_face_consent_on?: string
 }
 
 export interface CustomerHistoryRow {
@@ -147,8 +212,25 @@ export interface SubmitResult {
   offline_uuid: string
   status: SubmitStatus
   invoice_name?: string
+  /** v0.2 — Sales Invoice `maison_receipt_token` (16-char urlsafe); QR = `${base}/r/${token}`. */
+  receipt_token?: string
   error?: string
   error_code?: string
+}
+
+/** v0.2 — guest `sales.receipt(token)` payload (no PII beyond what is printed). */
+export interface PublicReceipt {
+  token: string
+  invoice: string
+  boutique: string
+  boutique_name: string
+  posting_datetime: string
+  lines: { item_name: string; qty: number; rate: number; amount: number; serial_no?: string }[]
+  net_total: number
+  total_taxes: number
+  grand_total: number
+  currency: string
+  payments: { mode_of_payment: string; amount: number; last4?: string }[]
 }
 
 export interface SalesSummaryRow {
@@ -205,9 +287,14 @@ export interface MaisonApi {
   catalog: {
     bootstrap(boutique: string): Promise<Bootstrap>
     delta(boutique: string, since: string): Promise<Delta>
+    /** v0.2 — multipart upload (Maison Manager+); attaches a File to the Item and sets Item.image. */
+    upload_item_image(item_code: string, file: Blob, filename?: string): Promise<UploadItemImageResult>
   }
   customers: {
+    /** v0.2 — also matches client number, phone digits (last 4+), email, name. */
     search(q: string, limit?: number): Promise<Customer[]>
+    /** v0.2 — exact match on client number / phone / QR payload (`MC:<customer_id>`); null when none. */
+    lookup(code: string): Promise<Customer | null>
     upsert(customer: Partial<Customer>): Promise<{ name: string }>
     history(customer: string, limit?: number): Promise<CustomerHistoryRow[]>
   }
@@ -215,6 +302,8 @@ export interface MaisonApi {
     submit_batch(invoices: POSInvoice[]): Promise<{ results: SubmitResult[] }>
     list(boutique: string, date: string): Promise<SalesList>
     void(invoice: string, reason: string): Promise<{ credit_note: string }>
+    /** v0.2 — guest endpoint; JSON of a receipt by token. */
+    receipt(token: string): Promise<PublicReceipt>
   }
   stripe_terminal: {
     connection_token(boutique: string): Promise<{ secret: string }>

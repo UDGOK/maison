@@ -1,10 +1,38 @@
 <script setup lang="ts">
 /** 80 mm receipt — used for on-screen preview and for window.print() fallback. */
+import { ref, watch } from 'vue'
+import QRCode from 'qrcode'
 import type { QueueRow } from '@/db'
 import { fmtAmount } from '@/utils/money'
 import { fmtDateTime } from '@/utils/device'
+import { receiptQrContent } from '@/printer/epos'
+import { useCatalogStore } from '@/stores/catalog'
 
-defineProps<{ row: QueueRow }>()
+const props = defineProps<{ row: QueueRow }>()
+const catalog = useCatalogStore()
+const qrSrc = ref('')
+const qrUrl = ref('')
+
+watch(
+  () => [props.row.receipt_token, props.row.receipt.receipt_qr_base_url, catalog.settings.receipt_qr_enabled],
+  async () => {
+    const url = receiptQrContent(
+      { receipt_token: props.row.receipt_token, receipt_qr_enabled: catalog.settings.receipt_qr_enabled, receipt_qr_base_url: props.row.receipt.receipt_qr_base_url },
+      catalog.receiptQrBase
+    )
+    qrUrl.value = url || ''
+    if (!url) {
+      qrSrc.value = ''
+      return
+    }
+    try {
+      qrSrc.value = await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 0, width: 240, color: { dark: '#000000', light: '#ffffff' } })
+    } catch {
+      qrSrc.value = ''
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -21,6 +49,7 @@ defineProps<{ row: QueueRow }>()
     <div v-if="row.receipt.customer_name" class="r-kv">
       <span>Client</span><span>{{ row.receipt.customer_name }}<template v-if="row.receipt.customer_tier"> / {{ row.receipt.customer_tier }}</template></span>
     </div>
+    <div v-if="row.receipt.customer_client_number" class="r-kv"><span>Client No</span><span>{{ row.receipt.customer_client_number }}</span></div>
     <div class="r-rule"></div>
     <div v-for="(l, i) in row.receipt.lines" :key="i" class="r-line">
       <div class="r-item">{{ l.item_name }}</div>
@@ -59,6 +88,10 @@ defineProps<{ row: QueueRow }>()
     <div class="r-foot">
       <div class="r-center r-caps">Thank you for visiting Maison</div>
       <div class="r-center">Exchanges within 30 days with receipt.</div>
+      <div v-if="qrSrc" class="r-qr">
+        <img :src="qrSrc" alt="Receipt QR" width="96" height="96" />
+        <div class="r-center r-caps">Scan for your digital receipt</div>
+      </div>
       <div class="r-center r-uuid">{{ row.offline_uuid }}</div>
     </div>
   </div>
@@ -150,5 +183,17 @@ defineProps<{ row: QueueRow }>()
   font-size: 8px;
   color: #555;
   margin-top: 6px;
+}
+.r-qr {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.r-qr img {
+  width: 26mm;
+  height: 26mm;
+  image-rendering: pixelated;
 }
 </style>

@@ -16,7 +16,7 @@ defineProps<{ feed: SaleEvent[] }>()
         <div class="line1">
           <span class="num time">{{ fmtTime(s.posting_datetime) }}</span>
           <span class="display code">{{ s.boutique }}</span>
-          <span class="tier" :class="(s.tier ?? '').toLowerCase()">{{ s.tier ?? s.customer_name ?? 'Guest' }}</span>
+          <span class="tier" :class="(s.tier ?? '').toLowerCase()" :title="s.tier">{{ s.customer_name ?? s.tier ?? 'Guest' }}</span>
           <span class="display num amt">{{ fmtMoney(s.net) }}</span>
         </div>
         <div class="line2">
@@ -39,7 +39,7 @@ defineProps<{ feed: SaleEvent[] }>()
 .time { color: var(--dim); font-size: 13px; letter-spacing: 0.04em; }
 .code { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; }
 .tier { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
-.tier.gold, .tier.platinum { color: var(--warn); }
+.tier.gold, .tier.platinum { color: var(--accent); }
 .tier.noir { color: var(--text); }
 .amt { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
 .line2 { display: flex; justify-content: space-between; gap: 12px; margin-top: 3px; color: var(--muted); font-weight: 300; font-size: 14px; }

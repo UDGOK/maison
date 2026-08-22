@@ -1,0 +1,116 @@
+{% extends "templates/web.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block navbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block head_include %}
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B0B0A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Unbounded:wght@800;900&display=swap" rel="stylesheet">
+<style>
+  /* Monolith Gold — self-contained */
+  :root { --ground:#0B0B0A; --surface:#141311; --surface-2:#1B1916; --line:#26231F; --line-strong:#36322C;
+          --text:#EFE8DA; --muted:#B3AA99; --dim:#7D7668; --accent:#C9A96E; --accent-deep:#A8884E; --accent-soft:rgba(201,169,110,.14);
+          --good:#7FA98A; --warn:#D3A55B; --crit:#C4736A; }
+  html, body { background: var(--ground) !important; color: var(--text); margin: 0; min-height: 100%;
+          font-family: Jost, "Helvetica Neue", Arial, sans-serif; font-weight: 300; font-variant-numeric: tabular-nums; }
+  body > .navbar, body > footer, .page-header, .page-breadcrumbs, .web-footer, .navbar { display: none !important; }
+  .page_content, .container, .page-content-wrapper, .web-page-content, main { background: transparent !important; padding: 0 !important; margin: 0 !important; max-width: none !important; }
+  .mg { max-width: 440px; margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) 20px calc(32px + env(safe-area-inset-bottom)); }
+  .mg-wordmark { font-family: Unbounded, "Arial Black", Arial, sans-serif; font-weight: 900; font-size: 28px; letter-spacing: -.02em; text-transform: uppercase; color: var(--accent); text-align: center; }
+  .mg-sub { text-align: center; font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .mg-meta { text-align: center; font-size: 13px; color: var(--dim); }
+  .mg-card { background: var(--surface); border: 1px solid var(--line); margin-top: 20px; padding: 16px; }
+  .mg-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; }
+  .mg-row .l { flex: 1 1 auto; color: var(--muted); }
+  .mg-row .r { flex: 0 0 auto; text-align: right; white-space: nowrap; color: var(--text); }
+  .mg-label { font-size: 11px; letter-spacing: .25em; text-transform: uppercase; color: var(--dim); }
+  .mg-rule { border-top: 1px solid var(--line-strong); margin: 10px 0; }
+  .mg-line { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .mg-line:last-child { border-bottom: 0; }
+  .mg-line .name { font-weight: 500; color: var(--text); }
+  .mg-line .detail { font-size: 12px; color: var(--dim); padding-left: 12px; }
+  .mg-total { font-family: Unbounded, "Arial Black", Arial, sans-serif; font-weight: 800; font-size: 22px; text-transform: uppercase; color: var(--accent); }
+  .mg-status { display: inline-block; border: 1px solid var(--accent); color: var(--accent); font-size: 11px; letter-spacing: .25em; text-transform: uppercase; padding: 4px 10px; margin: 14px auto 0; }
+  .mg-status.crit { border-color: var(--crit); color: var(--crit); }
+  .mg-qr { text-align: center; margin-top: 20px; }
+  .mg-qr img { width: 128px; height: 128px; background: var(--surface-2); padding: 8px; border: 1px solid var(--line); }
+  .mg-foot { margin-top: 20px; text-align: center; font-size: 12px; color: var(--dim); line-height: 1.6; }
+  .mg-foot a { color: var(--accent); text-decoration: none; }
+  .mg-404 { text-align: center; margin-top: 64px; color: var(--muted); }
+  @media print { html, body { background: #fff !important; color: #000; } .mg-card { border-color: #000; background: #fff; } .mg-row .r, .mg-line .name { color: #000; } .mg-total, .mg-wordmark { color: #000; } }
+</style>
+{% endblock %}
+{% block page_content %}
+<div class="mg">
+  <div class="mg-wordmark">Maison</div>
+  {% if not receipt %}
+    <div class="mg-404">
+      <div class="mg-label">Receipt</div>
+      <p style="margin-top:12px">This receipt link is not valid or has expired.</p>
+    </div>
+  {% else %}
+    <div class="mg-sub">{{ receipt.boutique.name }}</div>
+    <div class="mg-meta">{{ receipt.boutique.address_line or "" }}{% if receipt.boutique.city %}{% if receipt.boutique.address_line %}, {% endif %}{{ receipt.boutique.city }}{% endif %}</div>
+    {% if receipt.boutique.phone %}<div class="mg-meta">{{ receipt.boutique.phone }}</div>{% endif %}
+    <div style="text-align:center">
+      {% if receipt.status == "cancelled" %}<span class="mg-status crit">Cancelled</span>
+      {% elif receipt.status == "return" %}<span class="mg-status crit">Return / credit note</span>
+      {% else %}<span class="mg-status">Paid</span>{% endif %}
+    </div>
+
+    <div class="mg-card">
+      <div class="mg-row"><span class="l mg-label">Receipt</span><span class="r">{{ receipt.invoice }}</span></div>
+      <div class="mg-row"><span class="l mg-label">Date</span><span class="r">{{ posting_label }}</span></div>
+      {% if receipt.associate_name %}<div class="mg-row"><span class="l mg-label">Associate</span><span class="r">{{ receipt.associate_name }}</span></div>{% endif %}
+      {% if receipt.client.present and receipt.client.client_number_masked %}
+        <div class="mg-row"><span class="l mg-label">Client №</span><span class="r">{{ receipt.client.client_number_masked }}{% if receipt.client.tier %} · {{ receipt.client.tier }}{% endif %}</span></div>
+      {% endif %}
+    </div>
+
+    <div class="mg-card">
+      {% for line in receipt.lines %}
+        <div class="mg-line">
+          <div class="mg-row" style="padding:0"><span class="l name">{{ line.item_name }}</span><span class="r">{{ money(line.amount) }}</span></div>
+          {% if line.qty != 1 %}<div class="detail">{{ line.qty|int if line.qty == line.qty|int else line.qty }} × {{ money(line.rate) }}</div>{% endif %}
+          {% if line.serials %}<div class="detail">Serial {{ line.serials|join(", ") }}</div>{% endif %}
+          {% if line.certificate_no %}<div class="detail">Cert. {{ line.certificate_no }}</div>{% endif %}
+          {% if line.discount_amount %}<div class="detail">Discount −{{ money(line.discount_amount * line.qty) }}</div>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="mg-rule"></div>
+      <div class="mg-row"><span class="l mg-label">Subtotal</span><span class="r">{{ money(receipt.totals.net_total) }}</span></div>
+      {% for t in receipt.totals.taxes %}<div class="mg-row"><span class="l mg-label">{{ t.description }}</span><span class="r">{{ money(t.amount) }}</span></div>{% endfor %}
+      {% if receipt.totals.discount_amount %}<div class="mg-row"><span class="l mg-label">Discount</span><span class="r">−{{ money(receipt.totals.discount_amount) }}</span></div>{% endif %}
+      {% if receipt.totals.loyalty_amount %}<div class="mg-row"><span class="l mg-label">Loyalty redeemed</span><span class="r">−{{ money(receipt.totals.loyalty_amount) }} ({{ receipt.totals.loyalty_points|int }} pts)</span></div>{% endif %}
+      {% if receipt.totals.rounding_adjustment %}<div class="mg-row"><span class="l mg-label">Rounding</span><span class="r">{{ money(receipt.totals.rounding_adjustment) }}</span></div>{% endif %}
+      <div class="mg-row mg-total"><span class="l" style="color:var(--accent)">Total</span><span class="r" style="color:var(--accent)">{{ money(receipt.totals.grand_total) }}</span></div>
+      <div class="mg-rule"></div>
+      {% for p in receipt.payments %}
+        <div class="mg-row">
+          <span class="l mg-label">{{ p.mode_of_payment }}{% if p.card_brand or p.last4 %} · {{ p.card_brand or "" }}{% if p.last4 %} •••• {{ p.last4 }}{% endif %}{% endif %}</span>
+          <span class="r">{{ money(p.amount) }}</span>
+        </div>
+        {% if p.approval_code %}<div class="detail mg-label" style="letter-spacing:.1em">Approval {{ p.approval_code }}</div>{% endif %}
+      {% endfor %}
+      {% if receipt.totals.change_amount %}<div class="mg-row"><span class="l mg-label">Change</span><span class="r">{{ money(receipt.totals.change_amount) }}</span></div>{% endif %}
+      {% if receipt.client.present and (receipt.client.points_earned or receipt.client.points_balance) %}
+        <div class="mg-rule"></div>
+        {% if receipt.client.points_earned %}<div class="mg-row"><span class="l mg-label">Points earned</span><span class="r">{{ receipt.client.points_earned|int }}</span></div>{% endif %}
+        <div class="mg-row"><span class="l mg-label">Points balance</span><span class="r">{{ receipt.client.points_balance|int }}</span></div>
+      {% endif %}
+    </div>
+
+    {% if qr %}
+      <div class="mg-qr"><img src="{{ qr }}" alt="Receipt QR" width="128" height="128"></div>
+    {% endif %}
+
+    <div class="mg-foot">
+      <div>Thank you for choosing Maison.</div>
+      <div>Exchanges within 30 days with receipt. Bespoke and engraved pieces are final sale.</div>
+      {% if receipt.boutique.email %}<div><a href="mailto:{{ receipt.boutique.email }}">{{ receipt.boutique.email }}</a></div>{% endif %}
+      {% if receipt.notes %}<div style="margin-top:8px">{{ receipt.notes }}</div>{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

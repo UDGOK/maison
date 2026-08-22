@@ -1,19 +1,25 @@
-/* Monolith design system — tokens. Dark only. */
+/* Monolith Gold design system — tokens. Onyx ground + champagne gold accent. Dark only. */
 :root {
-  --ground: #0a1410;
-  --surface: #0f1c16;
-  --surface-2: #132419;
-  --line: #1e3128;
-  --line-strong: #2c4537;
-  --text: #e9ece6;
-  --muted: #9fb3a6;
-  --dim: #6f8579;
-  --platinum: #e9ece6;
-  --platinum-2: #cfd5ce;
+  --ground: #0b0b0a;
+  --surface: #141311;
+  --surface-2: #1b1916;
+  --line: #26231f;
+  --line-strong: #36322c;
+  --text: #efe8da;
+  --muted: #b3aa99;
+  --dim: #7d7668;
+  /* accent: champagne gold — buttons, active states, big numerals */
+  --accent: #c9a96e;
+  --accent-deep: #a8884e;
+  --accent-soft: rgba(201, 169, 110, 0.14);
+  --ink-on-accent: #0b0b0a;
+  /* legacy aliases (v0.1 components): platinum now resolves to the gold accent */
+  --platinum: var(--accent);
+  --platinum-2: var(--accent-deep);
+  --ink-on-platinum: var(--ink-on-accent);
   --good: #7fa98a;
   --warn: #d3a55b;
   --crit: #c4736a;
-  --ink-on-platinum: #0a1410;
 
   --font-display: 'Unbounded', 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
   --font-body: 'Jost', 'Futura', 'Helvetica Neue', Arial, sans-serif;
@@ -29,6 +35,15 @@
   --topbar-h: 56px;
   --rail-w: 176px;
   --panel-w: 360px;
+
+  /* iOS safe areas (0 on desktop) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* phone breakpoint (portrait phones ≥ 375 px) */
+  --phone-max: 767px;
 
   --t-fast: 120ms;
   --t-base: 200ms;

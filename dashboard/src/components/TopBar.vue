@@ -52,8 +52,8 @@ const date = computed(() => fmtDate(now.value))
   gap: 10px;
   height: 28px;
   padding: 0 12px;
-  border: 1px solid rgba(127, 169, 138, 0.45);
-  color: var(--good);
+  border: 1px solid var(--accent);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.25em;

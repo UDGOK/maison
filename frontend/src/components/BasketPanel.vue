@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore, type CartLine } from '@/stores/cart'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
+import { useScanStore } from '@/stores/scan'
+import { useLayoutStore } from '@/stores/layout'
+import { useSyncStore } from '@/stores/sync'
 import { fmtMoney, fmtInt } from '@/utils/money'
 import { fmtDate } from '@/utils/device'
 import Modal from './Modal.vue'
+import Keypad from './Keypad.vue'
 
 const cart = useCartStore()
 const session = useSessionStore()
 const catalog = useCatalogStore()
+const scan = useScanStore()
+const layout = useLayoutStore()
+const sync = useSyncStore()
 const router = useRouter()
 
 const editing = ref<CartLine | null>(null)
@@ -18,6 +25,53 @@ const discPct = ref('')
 const discAmt = ref('')
 const redeemOpen = ref(false)
 const redeemPts = ref('')
+
+// ---- client number lookup
+const clientNo = ref('')
+const padOpen = ref(false)
+const looking = ref(false)
+const lookupError = ref('')
+const pointsValue = computed(() =>
+  cart.customer ? (typeof cart.customer.points_value === 'number' ? cart.customer.points_value : cart.customer.loyalty_points * (catalog.loyalty?.conversion_factor || 0)) : 0
+)
+const redeemOn = computed(() => cart.loyalty_points_redeemed > 0)
+
+function padKey(k: string) {
+  lookupError.value = ''
+  if (k === 'clear') clientNo.value = ''
+  else if (k === 'back') clientNo.value = clientNo.value.slice(0, -1)
+  else if (clientNo.value.length < 12) clientNo.value += k
+}
+async function lookup() {
+  const code = clientNo.value.trim()
+  if (!code) return
+  looking.value = true
+  lookupError.value = ''
+  try {
+    // Digits-only input is a client number unless prefixed: MC + 6 digits is the printed form.
+    const candidates = /^\d{6}$/.test(code) ? [`MC${code}`, code] : [code]
+    let c = null
+    for (const cand of candidates) {
+      c = await scan.lookupCustomer(cand)
+      if (c) break
+    }
+    if (c) {
+      cart.setCustomer(c)
+      clientNo.value = ''
+      padOpen.value = false
+    } else lookupError.value = 'No client with that number'
+  } finally {
+    looking.value = false
+  }
+}
+async function scanClient() {
+  const c = await scan.scanClient()
+  if (c) cart.setCustomer(c)
+}
+function toggleRedeem() {
+  if (!cart.customer || !cart.maxRedeemable) return
+  cart.redeem(redeemOn.value ? 0 : cart.maxRedeemable)
+}
 
 function openLine(l: CartLine) {
   editing.value = l
@@ -38,78 +92,139 @@ function pay(mode: 'cash' | 'card') {
   if (!cart.lines.length) return
   router.push({ name: 'pay', query: { mode } })
 }
+function charge() {
+  if (!cart.lines.length) return
+  layout.openSheet()
+}
 </script>
 
 <template>
-  <aside class="basket">
-    <!-- client card -->
-    <button class="client" @click="router.push({ name: 'client' })">
-      <template v-if="cart.customer">
-        <div class="between">
-          <div class="client-name display ellipsis">{{ cart.customer.customer_name }}</div>
-          <span class="pill pill-platinum">{{ cart.customer.tier }}</span>
-        </div>
-        <div class="client-meta">
-          <span><span class="label-dim label">Points</span> <span class="num-inline">{{ fmtInt(cart.customer.loyalty_points) }}</span></span>
-          <span v-if="cart.customer.last_visit"><span class="label-dim label">Last visit</span> {{ fmtDate(cart.customer.last_visit) }}</span>
-        </div>
-      </template>
-      <template v-else>
-        <div class="between">
-          <div class="client-name display dim">Walk-in</div>
-          <span class="label">Add client</span>
-        </div>
-      </template>
+  <aside class="basket" :class="{ phone: layout.phone, expanded: layout.sheetExpanded }">
+    <!-- phone: collapsed summary bar -->
+    <button v-if="layout.phone && !layout.sheetExpanded" class="summary-bar" :disabled="!cart.lines.length && !cart.customer" @click="layout.openSheet()">
+      <span class="sum-left">
+        <span class="label">{{ cart.count }} item{{ cart.count === 1 ? '' : 's' }}</span>
+        <span v-if="cart.customer" class="sum-client ellipsis">{{ cart.customer.customer_name }}</span>
+        <span v-else class="sum-client dim">Walk-in</span>
+      </span>
+      <span class="sum-total num">{{ fmtMoney(cart.totals.grand_total, session.currency) }}</span>
+      <span class="sum-cta display" :class="{ off: !cart.lines.length }" @click.stop="charge">Charge</span>
     </button>
 
-    <!-- lines -->
-    <div class="lines scroll">
-      <div v-if="!cart.lines.length" class="empty">
-        <div class="label label-dim">Basket empty</div>
+    <template v-if="layout.sheetExpanded">
+      <div v-if="layout.phone" class="sheet-head">
+        <span class="section-title">Basket · {{ cart.count }}</span>
+        <button class="label close-sheet" @click="layout.closeSheet()">Close</button>
       </div>
-      <div v-for="l in cart.lines" :key="l.id" class="line">
-        <button class="line-main" @click="openLine(l)">
-          <div class="line-name ellipsis">{{ l.item_name }}</div>
-          <div class="line-sub">
-            <span v-if="l.serial_no" class="good">{{ l.serial_no }}</span>
-            <span v-else>{{ l.qty }} &times; {{ fmtMoney(l.rate, session.currency) }}</span>
-            <span v-if="l.discount_amount" class="warn">&minus;{{ fmtMoney(l.discount_amount, session.currency) }}</span>
-            <span v-if="!l.taxable" class="dim">No tax</span>
+
+      <!-- client card -->
+      <div class="client">
+        <template v-if="cart.customer">
+          <div class="between">
+            <button class="client-name display ellipsis" @click="router.push({ name: 'client' })">{{ cart.customer.customer_name }}</button>
+            <span class="pill pill-accent">{{ cart.customer.tier }}</span>
           </div>
-        </button>
-        <div class="line-right">
-          <div class="line-amt num">{{ fmtMoney(l.qty * l.rate - l.discount_amount, session.currency) }}</div>
-          <div v-if="!l.serial_no" class="qty">
-            <button class="qty-btn" @click="cart.setQty(l.id, l.qty - 1)" aria-label="Less">&minus;</button>
-            <span class="qty-n">{{ l.qty }}</span>
-            <button class="qty-btn" @click="cart.setQty(l.id, l.qty + 1)" aria-label="More">+</button>
+          <div class="client-no">
+            <span class="label">Client №</span>
+            <span class="num accent">{{ cart.customer.client_number || '—' }}</span>
           </div>
-          <button v-else class="qty-btn rm" @click="cart.remove(l.id)" aria-label="Remove">&times;</button>
+          <div class="client-meta">
+            <span><span class="label-dim label">Points</span> <span class="num-inline">{{ fmtInt(cart.customer.loyalty_points) }}</span> <span class="dim">({{ fmtMoney(pointsValue, session.currency) }})</span></span>
+            <span v-if="cart.customer.last_visit"><span class="label-dim label">Last visit</span> {{ fmtDate(cart.customer.last_visit) }}</span>
+          </div>
+          <div class="client-actions">
+            <button class="redeem" :class="{ on: redeemOn }" :disabled="!cart.maxRedeemable" @click="toggleRedeem">
+              <span class="switch" :class="{ on: redeemOn }"></span>
+              <span class="redeem-txt">
+                Redeem points
+                <span class="dim small">{{ redeemOn ? fmtInt(cart.loyalty_points_redeemed) + ' pts · −' + fmtMoney(cart.totals.loyalty_amount, session.currency) : cart.maxRedeemable ? 'up to ' + fmtInt(cart.maxRedeemable) : 'nothing to redeem' }}</span>
+              </span>
+            </button>
+            <button class="label detach" @click="cart.setCustomer(null)">Detach</button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="between">
+            <button class="client-name display dim" @click="router.push({ name: 'client' })">Walk-in</button>
+            <button class="label link client-search" @click="router.push({ name: 'client' })">Search</button>
+          </div>
+          <div class="cn-row">
+            <label class="label" for="client-no">Client №</label>
+            <div class="cn-input">
+              <span class="cn-prefix num">MC</span>
+              <input
+                id="client-no"
+                v-model="clientNo"
+                class="input num cn-field"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="000000"
+                maxlength="12"
+                @focus="padOpen = true"
+                @keydown.enter.prevent="lookup"
+              />
+              <button v-if="catalog.settings.scan_enabled" class="cn-btn" title="Scan client card" aria-label="Scan client card" @click="scanClient">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4" /><rect x="8" y="8" width="8" height="8" /></svg>
+              </button>
+              <button class="cn-btn go" :disabled="!clientNo.trim() || looking" @click="lookup">{{ looking ? '…' : 'Find' }}</button>
+            </div>
+            <div v-if="lookupError" class="crit small">{{ lookupError }}</div>
+            <div v-else-if="!sync.online" class="dim small">Offline — cached clients only</div>
+          </div>
+          <Keypad v-if="padOpen" class="cn-pad" @key="padKey" />
+          <button v-if="padOpen" class="label link hide-pad" @click="padOpen = false">Hide keypad</button>
+        </template>
+      </div>
+
+      <!-- lines -->
+      <div class="lines scroll">
+        <div v-if="!cart.lines.length" class="empty">
+          <div class="label label-dim">Basket empty</div>
+        </div>
+        <div v-for="l in cart.lines" :key="l.id" class="line">
+          <button class="line-main" @click="openLine(l)">
+            <div class="line-name ellipsis">{{ l.item_name }}</div>
+            <div class="line-sub">
+              <span v-if="l.serial_no" class="good">{{ l.serial_no }}</span>
+              <span v-else>{{ l.qty }} &times; {{ fmtMoney(l.rate, session.currency) }}</span>
+              <span v-if="l.discount_amount" class="warn">&minus;{{ fmtMoney(l.discount_amount, session.currency) }}</span>
+              <span v-if="!l.taxable" class="dim">No tax</span>
+            </div>
+          </button>
+          <div class="line-right">
+            <div class="line-amt num">{{ fmtMoney(l.qty * l.rate - l.discount_amount, session.currency) }}</div>
+            <div v-if="!l.serial_no" class="qty">
+              <button class="qty-btn" @click="cart.setQty(l.id, l.qty - 1)" aria-label="Less">&minus;</button>
+              <span class="qty-n">{{ l.qty }}</span>
+              <button class="qty-btn" @click="cart.setQty(l.id, l.qty + 1)" aria-label="More">+</button>
+            </div>
+            <button v-else class="qty-btn rm" @click="cart.remove(l.id)" aria-label="Remove">&times;</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- totals -->
-    <div class="totals">
-      <div class="trow"><span class="label">Subtotal</span><span>{{ fmtMoney(cart.totals.gross, session.currency) }}</span></div>
-      <div v-if="cart.totals.discount" class="trow"><span class="label">Discount</span><span class="warn">&minus;{{ fmtMoney(cart.totals.discount, session.currency) }}</span></div>
-      <div class="trow"><span class="label">Tax {{ catalog.taxRate }}%</span><span>{{ fmtMoney(cart.totals.total_taxes, session.currency) }}</span></div>
-      <button class="trow loyalty" :disabled="!cart.customer || !cart.maxRedeemable" @click="redeemPts = String(cart.loyalty_points_redeemed || cart.maxRedeemable); redeemOpen = true">
-        <span class="label">Loyalty<span v-if="cart.loyalty_points_redeemed"> &middot; {{ fmtInt(cart.loyalty_points_redeemed) }} pts</span></span>
-        <span :class="cart.totals.loyalty_amount ? 'good' : 'dim'">{{ cart.totals.loyalty_amount ? '−' + fmtMoney(cart.totals.loyalty_amount, session.currency) : 'Redeem' }}</span>
-      </button>
-      <div class="hr"></div>
-      <div class="total">
-        <span class="label">Total</span>
-        <span class="total-amt num">{{ fmtMoney(cart.totals.grand_total, session.currency) }}</span>
+      <!-- totals -->
+      <div class="totals">
+        <div class="trow"><span class="label">Subtotal</span><span>{{ fmtMoney(cart.totals.gross, session.currency) }}</span></div>
+        <div v-if="cart.totals.discount" class="trow"><span class="label">Discount</span><span class="warn">&minus;{{ fmtMoney(cart.totals.discount, session.currency) }}</span></div>
+        <div class="trow"><span class="label">Tax {{ catalog.taxRate }}%</span><span>{{ fmtMoney(cart.totals.total_taxes, session.currency) }}</span></div>
+        <button class="trow loyalty" :disabled="!cart.customer || !cart.maxRedeemable" @click="redeemPts = String(cart.loyalty_points_redeemed || cart.maxRedeemable); redeemOpen = true">
+          <span class="label">Loyalty<span v-if="cart.loyalty_points_redeemed"> &middot; {{ fmtInt(cart.loyalty_points_redeemed) }} pts</span></span>
+          <span :class="cart.totals.loyalty_amount ? 'good' : 'dim'">{{ cart.totals.loyalty_amount ? '−' + fmtMoney(cart.totals.loyalty_amount, session.currency) : 'Adjust' }}</span>
+        </button>
+        <div class="hr"></div>
+        <div class="total">
+          <span class="label">Total</span>
+          <span class="total-amt num">{{ fmtMoney(cart.totals.grand_total, session.currency) }}</span>
+        </div>
       </div>
-    </div>
 
-    <div class="pay">
-      <button class="btn btn-primary btn-big" :disabled="!cart.lines.length" @click="pay('cash')">Cash</button>
-      <button class="btn btn-primary btn-big" :disabled="!cart.lines.length" @click="pay('card')">Card</button>
-    </div>
-    <button v-if="cart.lines.length" class="clear label" @click="cart.clear()">Clear basket</button>
+      <div class="pay">
+        <button class="btn btn-primary btn-big" :disabled="!cart.lines.length" @click="pay('cash')">Cash</button>
+        <button class="btn btn-primary btn-big" :disabled="!cart.lines.length" @click="pay('card')">Card</button>
+      </div>
+      <button v-if="cart.lines.length" class="clear label" @click="cart.clear()">Clear basket</button>
+    </template>
 
     <Modal v-if="editing" :title="editing.item_name" width="440px" @close="editing = null">
       <div class="stack">
@@ -165,24 +280,31 @@ function pay(mode: 'cash' | 'card') {
   background: var(--surface);
 }
 .client {
-  display: block;
-  width: 100%;
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 14px 16px;
   border-bottom: var(--line-w) solid var(--line);
   color: var(--text);
 }
-.client:hover {
-  background: var(--surface-2);
-}
 .client-name {
   font-size: 15px;
   min-width: 0;
+  text-align: left;
+  padding: 0;
+  min-height: 0;
+  color: var(--text);
+}
+.client-no {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 15px;
 }
 .client-meta {
   display: flex;
   gap: 18px;
-  margin-top: 8px;
+  flex-wrap: wrap;
   font-size: 13px;
   color: var(--muted);
 }
@@ -191,6 +313,117 @@ function pay(mode: 'cash' | 'card') {
 }
 .num-inline {
   color: var(--text);
+}
+.client-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.redeem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.redeem-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.small {
+  font-size: 12px;
+}
+.detach {
+  padding: 0 4px;
+  min-width: 0;
+  color: var(--dim);
+}
+.detach:hover {
+  color: var(--crit);
+}
+.link {
+  padding: 0 4px;
+  min-width: 0;
+  min-height: 32px;
+  color: var(--accent);
+}
+.cn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cn-input {
+  display: flex;
+  align-items: stretch;
+  border: var(--line-w) solid var(--line-strong);
+  background: var(--ground);
+}
+.cn-input:focus-within {
+  border-color: var(--accent);
+}
+.cn-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 12px;
+  font-size: 18px;
+  color: var(--dim);
+}
+.cn-field {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  padding: 0 8px;
+}
+.cn-field::placeholder {
+  letter-spacing: 0.08em;
+}
+.cn-btn {
+  min-width: 48px;
+  padding: 0 12px;
+  border-left: var(--line-w) solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cn-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.cn-btn:hover {
+  color: var(--accent);
+}
+.cn-btn.go {
+  color: var(--ink-on-accent);
+  background: var(--accent);
+}
+.cn-btn.go:disabled {
+  background: transparent;
+  color: var(--dim);
+}
+.cn-pad {
+  margin-top: 2px;
+}
+.cn-pad :deep(.key) {
+  height: 52px;
+}
+.hide-pad {
+  align-self: flex-end;
 }
 .lines {
   flex: 1;
@@ -291,6 +524,7 @@ function pay(mode: 'cash' | 'card') {
 }
 .total-amt {
   font-size: 26px;
+  color: var(--accent);
 }
 .pay {
   display: grid;
@@ -304,5 +538,104 @@ function pay(mode: 'cash' | 'card') {
 }
 .clear:hover {
   color: var(--crit);
+}
+
+/* ---------- phone: bottom sheet ---------- */
+.basket.phone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  flex: none;
+  border-left: 0;
+  border-top: var(--line-w) solid var(--line-strong);
+  z-index: 20;
+  padding-bottom: var(--safe-bottom);
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+}
+.basket.phone.expanded {
+  top: 0;
+  border-top: 0;
+}
+.summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  padding: 0 0 0 16px;
+  color: var(--text);
+  text-align: left;
+}
+.summary-bar:disabled {
+  opacity: 1;
+}
+.sum-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.sum-client {
+  font-size: 14px;
+}
+.sum-total {
+  font-size: 20px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.sum-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 104px;
+  padding: 0 18px;
+  background: var(--accent);
+  color: var(--ink-on-accent);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+.sum-cta.off {
+  background: var(--surface-2);
+  color: var(--dim);
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 16px;
+  min-height: 52px;
+  border-bottom: var(--line-w) solid var(--line);
+}
+.close-sheet {
+  padding: 0 12px;
+  color: var(--accent);
+}
+.phone .pay {
+  padding-bottom: 12px;
+}
+.phone .lines {
+  min-height: 96px;
+}
+/* phone: every control in the sheet is a finger target (SPEC_v0.2 §4: ≥48 px) */
+.phone .client-name,
+.phone .link,
+.phone .detach,
+.phone .hide-pad,
+.phone .trow.loyalty,
+.phone .close-sheet {
+  min-height: 48px;
+}
+.phone .qty-btn {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+}
+.phone .line {
+  min-height: 56px;
 }
 </style>

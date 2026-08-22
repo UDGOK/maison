@@ -112,6 +112,7 @@ export class QueueReplayer {
           await this.db.queue.update(r.offline_uuid, {
             status: 'ok',
             invoice_name: res.invoice_name,
+            receipt_token: res.receipt_token ?? r.receipt_token,
             sent_at: new Date(this.now()).toISOString(),
             error: undefined,
             error_code: undefined

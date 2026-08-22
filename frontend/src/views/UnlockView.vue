@@ -215,4 +215,42 @@ function fail() {
 .hint {
   font-size: 14px;
 }
+.brand .wordmark {
+  color: var(--accent);
+}
+@media (max-width: 767px) {
+  .unlock {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    overflow: auto;
+  }
+  .left {
+    flex-direction: row;
+    align-items: center;
+    padding: calc(16px + var(--safe-top)) 20px 16px;
+    border-right: 0;
+    border-bottom: var(--line-w) solid var(--line);
+  }
+  .brand .wordmark {
+    font-size: 28px;
+  }
+  .brand .label {
+    margin-top: 6px;
+  }
+  .left-foot {
+    text-align: right;
+    gap: 4px;
+  }
+  .left-foot .label {
+    font-size: 9px;
+  }
+  .right {
+    align-items: flex-start;
+    padding: 20px 16px calc(20px + var(--safe-bottom));
+  }
+  .panel {
+    max-width: none;
+    gap: 16px;
+  }
+}
 </style>

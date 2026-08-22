@@ -9,6 +9,7 @@ readme = "maison_pos/README_BACKEND.md"
 dynamic = ["version"]
 dependencies = [
     "stripe>=7.0,<12",
+    "segno>=1.6,<2",
 ]
 
 [build-system]

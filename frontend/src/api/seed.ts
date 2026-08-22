@@ -151,6 +151,51 @@ const RAW: Seed[] = [
   ['SV-APP-040', 'Appraisal Service', 'Accessories', 'Fine', 150, 0, '', '', '', 0]
 ]
 
+/* ---------- v0.2: placeholder product images (SVG data URIs), EAN-13 barcodes ---------- */
+
+const IMG_PALETTE: Record<string, [string, string]> = {
+  Rings: ['#2a2420', '#c9a96e'],
+  Necklaces: ['#1f2226', '#d8d3c6'],
+  Bracelets: ['#26201c', '#b98f5a'],
+  Earrings: ['#20242a', '#e6dfd0'],
+  Watches: ['#1a1c1f', '#9aa3ad'],
+  'High Jewelry': ['#2b2117', '#e3c27f'],
+  Accessories: ['#1d1b18', '#8f8677']
+}
+
+/** Solid-colour SVG "product photo" with a monogram — small enough to ship inline in the seed. */
+export function placeholderImage(code: string, name: string, group: string): string {
+  const [bg, fg] = IMG_PALETTE[group] || ['#1b1916', '#c9a96e']
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'>` +
+    `<rect width='600' height='450' fill='${bg}'/>` +
+    `<circle cx='300' cy='205' r='120' fill='none' stroke='${fg}' stroke-width='3' opacity='.55'/>` +
+    `<circle cx='300' cy='205' r='78' fill='none' stroke='${fg}' stroke-width='1.5' opacity='.35'/>` +
+    `<text x='300' y='228' text-anchor='middle' font-family='Arial Black,Arial,sans-serif' font-weight='900' font-size='64' fill='${fg}'>${initials}</text>` +
+    `<text x='300' y='405' text-anchor='middle' font-family='Arial,sans-serif' font-size='22' letter-spacing='6' fill='${fg}' opacity='.7'>${code}</text>` +
+    `</svg>`
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+}
+
+/** EAN-13 check digit. */
+export function ean13CheckDigit(d12: string): string {
+  let sum = 0
+  for (let i = 0; i < 12; i++) sum += parseInt(d12[i], 10) * (i % 2 === 0 ? 1 : 3)
+  return String((10 - (sum % 10)) % 10)
+}
+
+/** Deterministic EAN-13 for a seed index: prefix 200 (internal) + 9-digit body + check. */
+export function ean13For(index: number): string {
+  const body = `200${String(100000 + index * 7331).padStart(9, '0')}`.slice(0, 12)
+  return body + ean13CheckDigit(body)
+}
+
 export const ITEMS: Item[] = RAW.map(([code, name, group, dept, , serial, metal, carat, stones, taxable], i) => ({
   item_code: code,
   item_name: name,
@@ -165,8 +210,35 @@ export const ITEMS: Item[] = RAW.map(([code, name, group, dept, , serial, metal,
   maison_appraisal_value: serial ? Math.round(RAW[i][4] * 1.35) : undefined,
   maison_department: dept,
   maison_taxable: taxable,
-  maison_image_url: undefined
+  // ~half of the catalogue ships with a photo; the rest exercises the no-image tile
+  image: i % 2 === 0 ? placeholderImage(code, name, group) : null,
+  maison_barcode: ean13For(i + 1)
 }))
+
+/** Maison POS Settings (global) — the mock boutique overrides live in `settingsFor`. */
+export const SETTINGS_GLOBAL = {
+  show_product_images_default: false,
+  scan_enabled: true,
+  receipt_qr_enabled: true,
+  receipt_qr_base_url: 'https://maison-demo.frappe.cloud',
+  loyalty_lookup_enabled: true
+}
+
+/** Per-boutique `show_product_images` (Maison Boutique check) — CHI-OAK shows photos by default. */
+export const BOUTIQUE_SHOW_IMAGES: Record<string, boolean> = { 'CHI-OAK': true, 'NYC-MAD': false, 'LA-RODEO': false }
+
+/** Barcode map for bootstrap: EAN-13 per item + every serial label (Code-128 = serial no). */
+export function barcodesFor(serials: Record<string, string[]>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const it of ITEMS) if (it.maison_barcode) out[it.maison_barcode] = it.item_code
+  for (const [code, list] of Object.entries(serials)) for (const sn of list) out[sn] = code
+  return out
+}
+
+/** `MC` + 6 digits, deterministic per seed index (the server assigns on insert). */
+export function clientNumberFor(index: number): string {
+  return `MC${String(482910 + index * 1373).slice(-6).padStart(6, '0')}`
+}
 
 export const PRICES: Record<string, number> = Object.fromEntries(RAW.map((r) => [r[0], r[4]]))
 
@@ -213,6 +285,8 @@ export const CUSTOMERS: Customer[] = FIRST.map((f, i) => {
     loyalty_points: Math.round(spent * 0.12),
     tier,
     last_visit: spent ? d.toISOString() : undefined,
-    last_boutique: spent ? BOUTIQUES[i % 3].name : undefined
+    last_boutique: spent ? BOUTIQUES[i % 3].name : undefined,
+    client_number: clientNumberFor(i),
+    maison_face_consent: 0
   }
 })

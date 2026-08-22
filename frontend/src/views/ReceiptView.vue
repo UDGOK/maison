@@ -6,6 +6,9 @@ import { db, type QueueRow } from '@/db'
 import { useSyncStore } from '@/stores/sync'
 import { usePrinterStore } from '@/stores/printer'
 import { useSessionStore } from '@/stores/session'
+import { useCatalogStore } from '@/stores/catalog'
+import { useLayoutStore } from '@/stores/layout'
+import { receiptQrContent } from '@/printer/epos'
 import { fmtMoney } from '@/utils/money'
 import Receipt80 from '@/components/Receipt80.vue'
 import Modal from '@/components/Modal.vue'
@@ -15,8 +18,29 @@ const router = useRouter()
 const sync = useSyncStore()
 const printer = usePrinterStore()
 const session = useSessionStore()
+const catalog = useCatalogStore()
+const layout = useLayoutStore()
 
 const row = ref<QueueRow | null>(null)
+const copied = ref(false)
+const receiptLink = computed(() =>
+  row.value
+    ? receiptQrContent(
+        { receipt_token: row.value.receipt_token, receipt_qr_enabled: catalog.settings.receipt_qr_enabled, receipt_qr_base_url: row.value.receipt.receipt_qr_base_url },
+        catalog.receiptQrBase
+      )
+    : null
+)
+async function copyLink() {
+  if (!receiptLink.value) return
+  try {
+    await navigator.clipboard.writeText(receiptLink.value)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 1500)
+  } catch {
+    /* clipboard unavailable */
+  }
+}
 const printed = ref<'epos' | 'browser' | null>(null)
 const emailOpen = ref(false)
 const email = ref('')
@@ -56,7 +80,7 @@ function done() {
 </script>
 
 <template>
-  <div class="receipt-view">
+  <div class="receipt-view" :class="{ phone: layout.phone }">
     <div class="left no-print">
       <template v-if="row">
         <div class="head">
@@ -80,6 +104,15 @@ function done() {
           </button>
           <button class="btn btn-big" @click="email = ''; emailOpen = true">{{ emailSent ? 'Email queued' : 'Email receipt' }}</button>
           <button class="btn btn-primary btn-big" @click="done">Done</button>
+        </div>
+        <div class="link-card card">
+          <div class="label">Receipt link</div>
+          <template v-if="receiptLink">
+            <a class="link-url ellipsis" :href="receiptLink" target="_blank" rel="noopener">{{ receiptLink }}</a>
+            <button class="btn" @click="copyLink">{{ copied ? 'Copied' : 'Copy link' }}</button>
+          </template>
+          <div v-else-if="!catalog.settings.receipt_qr_enabled" class="dim small">Receipt QR disabled in POS settings.</div>
+          <div v-else class="dim small">Available once the sale has synced — the QR is added to the receipt automatically.</div>
         </div>
         <div class="print-meta muted">
           <div v-if="printer.effectiveIp">Printer {{ printer.effectiveIp }} ({{ session.boutique?.printer_model || 'ePOS' }})</div>
@@ -127,6 +160,7 @@ function done() {
   font-size: 48px;
   margin-top: 8px;
   line-height: 1;
+  color: var(--accent);
 }
 .err {
   margin-top: 18px;
@@ -144,6 +178,49 @@ function done() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.link-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+}
+.link-url {
+  font-size: 14px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.small {
+  font-size: 13px;
+}
+.link-card .btn {
+  align-self: flex-start;
+}
+.receipt-view.phone {
+  flex-direction: column;
+  overflow: auto;
+}
+.phone .left {
+  flex: none;
+  padding: 20px 16px;
+  gap: 18px;
+  overflow: visible;
+}
+.phone .big {
+  font-size: 36px;
+}
+.phone .actions .btn {
+  flex: 1 1 40%;
+}
+.phone .preview {
+  width: auto;
+  flex: none;
+  border-left: 0;
+  border-top: var(--line-w) solid var(--line);
+  padding: 20px 12px calc(20px + var(--safe-bottom));
+  overflow: visible;
 }
 .preview {
   width: 480px;

@@ -118,11 +118,14 @@ def get_receipt_context(doc) -> dict[str, Any]:
 
 	tier = None
 	points_balance = 0.0
-	if doc.customer:
+	loyalty_program = frappe.db.get_value("Customer", doc.customer, "loyalty_program") if doc.customer else None
+	if doc.customer and loyalty_program:
 		try:
 			from erpnext.accounts.doctype.loyalty_program.loyalty_program import get_loyalty_program_details_with_points
 
-			details = get_loyalty_program_details_with_points(doc.customer, company=doc.company, silent=True)
+			details = get_loyalty_program_details_with_points(
+				doc.customer, loyalty_program=loyalty_program, company=doc.company, silent=True
+			)
 			if details:
 				tier = details.get("tier_name")
 				points_balance = flt(details.get("loyalty_points"))
@@ -145,15 +148,140 @@ def get_receipt_context(doc) -> dict[str, Any]:
 		if cert:
 			certificates[row.item_code] = cert
 
+	client_number = frappe.db.get_value("Customer", doc.customer, "maison_client_number") if doc.customer else None
+	token = doc.get("maison_receipt_token")
+
 	return {
 		"boutique": boutique,
 		"associate_name": associate_name,
 		"tier": tier,
+		"client_number": client_number,
 		"points_balance": points_balance,
 		"points_earned": points_earned,
 		"certificates": certificates,
 		"requires_signature": flt(doc.grand_total) >= SIGNATURE_THRESHOLD,
 		"printed_at": now_datetime(),
+		"receipt_token": token,
+		"receipt_url": receipt_url(token) if token else None,
+		"qr_enabled": bool(token) and receipt_qr_enabled(),
+	}
+
+
+# ---------------------------------------------------------------------------
+# receipt QR
+# ---------------------------------------------------------------------------
+def receipt_qr_enabled() -> bool:
+	"""``Maison POS Settings.receipt_qr_enabled`` (defaults to on when the single was never saved)."""
+	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
+
+	return bool(get_pos_settings()["receipt_qr_enabled"])
+
+
+def receipt_url(token: str) -> str:
+	"""Public URL encoded in the receipt QR: ``<receipt_qr_base_url>/r/<token>``."""
+	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_receipt_qr_base_url
+
+	return f"{get_receipt_qr_base_url()}/r/{token}"
+
+
+def qr_svg_data_uri(content: str, scale: int = 4, dark: str = "#000000") -> str:
+	"""Render *content* as an SVG QR code data URI (segno, pure python, error level M)."""
+	import base64
+	import io
+
+	import segno
+
+	buf = io.BytesIO()
+	segno.make(content, error="m").save(buf, kind="svg", scale=scale, border=1, dark=dark, light=None, xmldecl=False, svgclass=None, lineclass=None)
+	return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def receipt_qr_svg(doc, scale: int = 4) -> str:
+	"""Jinja helper: QR data URI for a Sales Invoice (empty string when disabled / no token)."""
+	token = doc.get("maison_receipt_token") if hasattr(doc, "get") else None
+	if not token or not receipt_qr_enabled():
+		return ""
+	return qr_svg_data_uri(receipt_url(token), scale=scale)
+
+
+def receipt_payload(doc) -> dict[str, Any]:
+	"""Receipt as JSON for the public ``/r/<token>`` page and ``sales.receipt``.
+
+	No PII beyond what is printed: customer first name is omitted entirely; only the
+	client number's last 3 digits and the loyalty points are shown.
+	"""
+	ctx = get_receipt_context(doc)
+	boutique = ctx["boutique"]
+	lines = []
+	for row in doc.items:
+		serials: list[str] = []
+		if row.get("serial_no"):
+			serials = [s.strip() for s in str(row.serial_no).splitlines() if s.strip()]
+		elif row.get("serial_and_batch_bundle"):
+			serials = [
+				e for e in frappe.get_all("Serial and Batch Entry", filters={"parent": row.serial_and_batch_bundle}, pluck="serial_no") if e
+			]
+		lines.append(
+			{
+				"item_code": row.item_code,
+				"item_name": row.item_name,
+				"qty": flt(row.qty),
+				"rate": flt(row.rate),
+				"amount": flt(row.amount),
+				"discount_amount": flt(row.get("discount_amount")),
+				"serials": serials,
+				"certificate_no": ctx["certificates"].get(row.item_code),
+			}
+		)
+	payments = []
+	for p in doc.payments:
+		if not flt(p.amount):
+			continue
+		entry: dict[str, Any] = {"mode_of_payment": p.mode_of_payment, "amount": flt(p.amount)}
+		if (p.mode_of_payment or "").lower() != "cash":
+			entry["card_brand"] = doc.get("maison_card_brand")
+			entry["last4"] = doc.get("maison_card_last4")
+			entry["approval_code"] = doc.get("maison_approval_code")
+		payments.append(entry)
+	client_number = ctx["client_number"]
+	return {
+		"token": doc.get("maison_receipt_token"),
+		"invoice": doc.name,
+		"status": "cancelled" if doc.docstatus == 2 else "return" if doc.get("is_return") else "paid",
+		"company": doc.company,
+		"currency": doc.currency,
+		"boutique": {
+			"code": boutique.name if boutique else None,
+			"name": boutique.boutique_name if boutique else doc.company,
+			"address_line": boutique.address_line if boutique else None,
+			"city": boutique.city if boutique else None,
+			"phone": boutique.phone if boutique else None,
+			"email": boutique.email if boutique else None,
+		},
+		"posting_datetime": iso_with_tz(f"{doc.posting_date} {doc.posting_time}"),
+		"associate_name": ctx["associate_name"],
+		"client": {
+			"present": bool(doc.customer),
+			"client_number_masked": (f"MC•••{client_number[-3:]}" if client_number else None),
+			"tier": ctx["tier"],
+			"points_earned": flt(ctx["points_earned"]),
+			"points_balance": flt(ctx["points_balance"]),
+		},
+		"lines": lines,
+		"totals": {
+			"net_total": flt(doc.net_total),
+			"taxes": [{"description": t.description, "amount": flt(t.tax_amount)} for t in doc.taxes],
+			"total_taxes": flt(doc.total_taxes_and_charges),
+			"discount_amount": flt(doc.discount_amount),
+			"loyalty_amount": flt(doc.get("loyalty_amount")),
+			"loyalty_points": flt(doc.get("loyalty_points")),
+			"rounding_adjustment": flt(doc.rounding_adjustment),
+			"grand_total": flt(doc.rounded_total or doc.grand_total),
+			"change_amount": flt(doc.get("change_amount")),
+		},
+		"payments": payments,
+		"notes": doc.get("maison_notes"),
+		"url": receipt_url(doc.maison_receipt_token) if doc.get("maison_receipt_token") else None,
 	}
 
 

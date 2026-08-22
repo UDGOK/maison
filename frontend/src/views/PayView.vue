@@ -10,6 +10,7 @@ import type { POSInvoice } from '@/api'
 import type { ReceiptSnapshot } from '@/db'
 import { createTerminal, type CardResult, type TerminalProgress } from '@/payments/terminal'
 import { fmtMoney, round } from '@/utils/money'
+import { useLayoutStore } from '@/stores/layout'
 import Keypad from '@/components/Keypad.vue'
 
 const cart = useCartStore()
@@ -18,6 +19,7 @@ const catalog = useCatalogStore()
 const sync = useSyncStore()
 const route = useRoute()
 const router = useRouter()
+const layout = useLayoutStore()
 
 const mode = ref<'cash' | 'card'>((route.query.mode as 'cash' | 'card') || 'cash')
 const total = computed(() => cart.totals.grand_total)
@@ -130,7 +132,9 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     phone: session.boutique!.phone,
     associate_name: session.associate!.full_name,
     customer_name: cart.customer?.customer_name,
-    customer_tier: cart.customer?.tier,
+    customer_tier: cart.customer?.tier || undefined,
+    customer_client_number: cart.customer?.client_number,
+    receipt_qr_base_url: catalog.receiptQrBase,
     lines: cart.lines.map((l) => ({
       item_code: l.item_code,
       item_name: l.item_name,
@@ -172,7 +176,7 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
 </script>
 
 <template>
-  <div class="pay">
+  <div class="pay" :class="{ phone: layout.phone }">
     <div class="pay-left">
       <div class="tabs">
         <button class="tab display" :class="{ active: mode === 'cash' }" :disabled="busy" @click="mode = 'cash'">Cash</button>
@@ -182,7 +186,7 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
       <div class="amount">
         <div class="label">Amount due</div>
         <div class="due num">{{ fmtMoney(total, session.currency) }}</div>
-        <div class="muted sub">{{ cart.count }} item{{ cart.count === 1 ? '' : 's' }}<span v-if="cart.customer"> &middot; {{ cart.customer.customer_name }}</span></div>
+        <div class="muted sub">{{ cart.count }} item{{ cart.count === 1 ? '' : 's' }}<span v-if="cart.customer"> &middot; {{ cart.customer.customer_name }}<span v-if="cart.customer.client_number" class="accent"> &middot; {{ cart.customer.client_number }}</span></span></div>
       </div>
 
       <!-- CASH -->
@@ -430,5 +434,57 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
   flex-direction: column;
   gap: 8px;
   font-size: 14px;
+}
+.due {
+  color: var(--accent);
+}
+
+/* ---------- phone ---------- */
+.pay.phone {
+  flex-direction: column;
+  overflow: auto;
+}
+.phone .pay-left {
+  flex: none;
+  overflow: visible;
+  padding: 0 16px 20px;
+}
+.phone .tabs {
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.phone .tab {
+  flex: 1;
+  padding: 0;
+}
+.phone .amount {
+  padding: 20px 0 16px;
+}
+.phone .due {
+  font-size: 36px;
+}
+.phone .cash-grid {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.phone .tendered {
+  font-size: 28px;
+}
+.phone .actions {
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.phone .actions .btn {
+  min-height: 56px;
+}
+.phone .summary {
+  width: auto;
+  flex: none;
+  border-left: 0;
+  border-top: var(--line-w) solid var(--line);
+  padding-bottom: var(--safe-bottom);
+}
+.phone .sum-lines {
+  max-height: 200px;
 }
 </style>

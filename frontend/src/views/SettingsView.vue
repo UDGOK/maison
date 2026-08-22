@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
@@ -11,6 +11,8 @@ import { db } from '@/db'
 import { fmtDateTime } from '@/utils/device'
 import { buildReceiptXml } from '@/printer/epos'
 import { sendToPrinter } from '@/printer/epos'
+import { useScanStore } from '@/stores/scan'
+import { recognitionProvider } from '@/recognition/provider'
 
 const session = useSessionStore()
 const catalog = useCatalogStore()
@@ -18,6 +20,12 @@ const printer = usePrinterStore()
 const sync = useSyncStore()
 const cart = useCartStore()
 const router = useRouter()
+const scan = useScanStore()
+const recognition = recognitionProvider()
+const imagesMode = computed({
+  get: () => (catalog.imagesOverride === null ? 'boutique' : catalog.imagesOverride ? 'on' : 'off'),
+  set: (v: string) => void catalog.setImagesOverride(v === 'boutique' ? null : v === 'on')
+})
 
 const saved = ref(false)
 const refreshing = ref(false)
@@ -121,6 +129,33 @@ async function resetDevice() {
         </div>
 
         <div class="card block">
+          <div class="section-title">Display &amp; scanning</div>
+          <div class="field">
+            <label class="label">Product photos on tiles</label>
+            <select v-model="imagesMode" class="input">
+              <option value="boutique">Boutique default ({{ catalog.settings.show_product_images ? 'on' : 'off' }})</option>
+              <option value="on">Always on this device</option>
+              <option value="off">Always off this device</option>
+            </select>
+          </div>
+          <div class="kv"><span class="label">Scanning</span><span>{{ catalog.settings.scan_enabled ? 'Keyboard wedge + camera' : 'Disabled' }}</span></div>
+          <div class="kv"><span class="label">Last scan</span><span>{{ scan.last ? scan.last.code + ' → ' + scan.last.result : '—' }}</span></div>
+          <div class="kv"><span class="label">Receipt QR</span><span>{{ catalog.settings.receipt_qr_enabled ? catalog.receiptQrBase + '/r/…' : 'Disabled' }}</span></div>
+          <div class="kv"><span class="label">Client lookup</span><span>{{ catalog.settings.loyalty_lookup_enabled ? 'Client № / phone / QR' : 'Disabled' }}</span></div>
+          <div class="kv"><span class="label">Queued photos</span><span>{{ sync.uploadsPending }}</span></div>
+          <div class="row">
+            <button class="btn" :disabled="!catalog.settings.scan_enabled" @click="scan.openSheet('any')">Open scanner</button>
+          </div>
+          <label class="check soon" title="Coming soon">
+            <button class="switch" disabled aria-disabled="true" aria-label="Client recognition (camera) — coming soon"></button>
+            <span>
+              Client recognition (camera) — <span class="dim">coming soon</span>
+              <span class="dim block-note">Opt-in per client with stored consent only. Provider: {{ recognition.id }} (unavailable). See README “Facial recognition: legal notice”.</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="card block">
           <div class="section-title">Payments</div>
           <div class="kv"><span class="label">Stripe</span><span>{{ hasStripeKey ? 'Terminal SDK' : 'Simulated reader' }}</span></div>
           <div class="kv"><span class="label">Location</span><span>{{ session.boutique?.stripe_location_id || '—' }}</span></div>
@@ -177,6 +212,26 @@ async function resetDevice() {
 .check input {
   width: 20px;
   height: 20px;
-  accent-color: var(--platinum);
+  accent-color: var(--accent);
+}
+.check.soon {
+  cursor: not-allowed;
+  align-items: flex-start;
+  padding-top: 6px;
+}
+.check.soon .switch {
+  min-width: 44px;
+  min-height: 24px;
+  margin-top: 2px;
+}
+.block-note {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+@media (max-width: 767px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -8,7 +8,7 @@ demo seed and tests.
 
 - Frappe Framework v15, ERPNext v15 (`required_apps = ["erpnext"]`)
 - Python 3.10+
-- `stripe` Python SDK (installed automatically from `pyproject.toml`)
+- `stripe` Python SDK and `segno` (receipt QR, pure python) — both installed automatically from `pyproject.toml`
 
 ## Install
 
@@ -19,10 +19,15 @@ bench --site maison.localhost install-app maison_pos
 bench --site maison.localhost migrate                                # syncs fixtures (roles, custom fields, workflow, print format)
 ```
 
-`after_install` creates the four `Maison *` roles, the Item / Sales Invoice custom
-fields, the `Cash` and `Card` modes of payment, the `Maison Price Approval`
+`after_install` creates the four `Maison *` roles, the Item / Sales Invoice / Customer
+custom fields, the `Cash` and `Card` modes of payment, the `Maison Price Approval`
 workflow and the `Maison Receipt` print format. All steps are idempotent and
-`after_migrate` re-applies roles, custom fields and modes of payment.
+`after_migrate` re-applies roles, custom fields, role permissions, modes of payment and
+refreshes the receipt print format HTML. Custom fields live in
+`fixtures/custom_field.json` (synced by `bench migrate` *and* applied through
+`create_custom_fields` in `setup/install.py`, so a fresh site gets everything either way).
+The v0.2 patch `maison_pos.patches.v0_2.backfill_client_numbers` assigns a client number to
+every existing Customer.
 
 ## Demo data
 
@@ -35,8 +40,10 @@ Creates company **Maison** (abbr `MSN`, USD, Standard chart), three boutiques
 Sales Tax template, 41 items across Timepieces / High Jewellery / Bridal /
 Accessories / Services (watches, high jewellery and solitaires are serialized;
 opening stock is posted per boutique with generated serials such as
-`TP-001-NYC-001`), `Standard Selling` prices, 20 customers, loyalty program
-**Maison Collectors** (Collector / Connoisseur / Patron), and demo users.
+`TP-001-NYC-001`), `Standard Selling` prices, 20 customers (each with a `MC######` client number), loyalty
+program **Maison Collectors** (Collector / Connoisseur / Patron), and demo users. Every
+item gets a deterministic EAN-13 (`Item.maison_barcode` + an `Item Barcode` row); serial
+labels are Code-128 of the serial number itself.
 
 | Login | Role | PIN |
 | --- | --- | --- |
@@ -62,9 +69,11 @@ session or token auth (`Authorization: token api_key:api_secret`).
 
 | Endpoint | Notes |
 | --- | --- |
-| `catalog.bootstrap(boutique)` | Full snapshot: boutique, POS profile, taxes, modes of payment, item groups, departments, items, prices, pricing_rules (warehouse-scoped), serials, stock, loyalty program, `version`. |
+| `catalog.bootstrap(boutique)` | Full snapshot: boutique (incl. `show_product_images`), POS profile, `settings`, taxes, modes of payment, item groups, departments, items (with absolute `image` URL or `null`, `maison_barcode`), prices, pricing_rules (warehouse-scoped), serials, `barcodes`, stock, loyalty program, `version`. |
 | `catalog.delta(boutique, since)` | Same shape filtered by `modified >= since`, plus `deleted[]` and `serials_removed{}`. |
-| `customers.search(q, limit)` / `customers.upsert(customer)` / `customers.history(customer, limit)` | Upsert matches by mobile / email when `name` is not given. |
+| `catalog.upload_item_image(item_code, file)` | `POST` multipart (field `file`, JPEG/PNG/WebP ≤ 5 MB). Maison Manager / Head Office / System Manager. Creates a public `File` attached to the Item, sets `Item.image`; returns `{item_code, image (absolute), file_url, file_name}`. |
+| `customers.search(q, limit)` / `customers.lookup(code)` / `customers.upsert(customer)` / `customers.history(customer, limit)` | `search` matches client number, phone (digits only, 4+ digits, any formatting), email and name; rows include `client_number`, `loyalty_points`, `points_value`, `tier`. `lookup` is exact: `MC123456`, `MC:<customer_id>` / `MC:MC123456` (client QR), full phone, email → one row or `null`. Upsert matches by mobile / email when `name` is not given. |
+| `sales.receipt(token)` | **Guest**, `GET`. JSON receipt for the token printed in the receipt QR (boutique, datetime, lines, totals, payment brand/last4, masked client number, points). Same payload backs the public page `/r/<token>`. |
 | `sales.submit_batch(invoices)` | Idempotent on `offline_uuid` (`Maison Sync Log` + unique custom field). Each invoice runs in its own savepoint; failures return `status: "error"` with `error_code` (`SERIAL_UNAVAILABLE`, `PAYMENT_MISMATCH`, `PERMISSION_DENIED`, `NOT_FOUND`, `VALIDATION_ERROR`, `SERVER_ERROR`). |
 | `sales.list(boutique, date)` | X/Z report summary. |
 | `sales.void(invoice, reason)` | Manager+. Creates and submits a POS Sales Return; idempotent per invoice. |
@@ -99,9 +108,71 @@ request disables the rule.
 ## Receipt
 
 Print Format **Maison Receipt** (Jinja, Sales Invoice) renders
-`templates/print/receipt.html` at 80 mm. Boutique address / phone come from the
+`templates/print/receipt.html` at 80 mm (the same HTML is embedded in
+`fixtures/print_format.json`; keep both in sync). Boutique address / phone come from the
 `Maison Boutique` linked via `maison_boutique`; card brand / last4 / approval from
-the `maison_card_*` custom fields; signature line appears for totals ≥ 10 000.
+the `maison_card_*` custom fields; the client number (`Customer.maison_client_number`)
+and points earned / balance are printed; signature line appears for totals ≥ 10 000.
+
+### Receipt QR / public receipt
+
+On submit of a POS invoice `before_submit` stores a 16-char url-safe
+`maison_receipt_token`. The QR content is `<receipt_qr_base_url>/r/<token>`
+(`Maison POS Settings.receipt_qr_base_url`, default = site URL). The print format renders
+the QR server-side with `segno` as an SVG data URI (`receipt_qr_svg(doc)` Jinja helper;
+empty when `receipt_qr_enabled` is off). `/r/<token>` (`www/r.py` + `www/r.html`,
+`website_route_rules`) is a guest page in Monolith Gold with self-contained CSS, `noindex`,
+404 for unknown tokens. `maison_pos.api.sales.receipt?token=…` returns the JSON.
+
+## Maison POS Settings (single)
+
+| Field | Default | Used for |
+| --- | --- | --- |
+| `show_product_images_default` | 0 | Tiles show `Item.image`; `Maison Boutique.show_product_images` turns it on per store (merged into `bootstrap.settings.show_product_images`). |
+| `scan_enabled` | 1 | Keyboard-wedge / camera scanning in the PWA. |
+| `receipt_qr_enabled` | 1 | QR on printed receipts and `/r/<token>` page. |
+| `receipt_qr_base_url` | site URL | Base of the QR link. |
+| `loyalty_lookup_enabled` | 1 | Client № lookup in Sell. |
+| `face_recognition_enabled` | 0, read-only | Reserved — see below. |
+
+## Barcodes
+
+`Item.maison_barcode` (Data, unique, indexed) complements the standard `Item Barcode`
+table. `catalog.bootstrap` / `delta` return `barcodes: {code: item_code}` built from
+`maison_barcode`, every `Item Barcode` row and every active serial number in the
+boutique's warehouse (a serial label scan resolves to the item here and to the exact
+serial via `serials`). Client QR payload is `MC:<customer_id>`; invoice QR is the
+`/r/<token>` URL.
+
+## Client numbers and loyalty
+
+`Customer.maison_client_number` (`MC` + 6 digits, unique) is assigned in
+`events.customer.before_insert`; the seed and the v0.2 patch backfill existing rows.
+`customers.search` / `lookup` return `client_number`, `loyalty_points`, `points_value`
+(points × conversion factor) and `tier`.
+
+## Facial recognition: legal notice
+
+Recognition is **not** implemented. Only the scaffold exists: `Customer.maison_face_id`
+(hidden, reserved), `Customer.maison_face_consent` (Check) with
+`maison_face_consent_on` (stamped automatically when consent is recorded and cleared —
+together with `maison_face_id` — when it is withdrawn), and the read-only
+`face_recognition_enabled` toggle in Maison POS Settings.
+
+Before any provider is wired in, note:
+
+- **BIPA (Illinois, 740 ILCS 14)** — collecting a face geometry scan requires prior
+  written informed consent, a public retention / destruction policy, and prohibits sale or
+  profit from the data; statutory damages are per violation. Chicago (`CHI-OAK`) is in
+  scope.
+- **CCPA / CPRA (California)** — biometric data is "sensitive personal information":
+  notice at collection, right to limit use, right to delete.
+- Other states (Texas CUBI, Washington, New York City biometric signage law) impose
+  similar consent / signage duties.
+- The feature must therefore be **opt-in per client**, with the consent timestamp stored
+  (`maison_face_consent_on`), revocable from the Customer record, and any embedding stored
+  only against `maison_face_id` with a documented retention period. Never enable it for
+  walk-in customers or without boutique signage.
 
 ## Scheduler
 
@@ -116,7 +187,10 @@ bench --site maison.localhost run-tests --app maison_pos
 ```
 
 Tests seed the demo data inside the test transaction and cover batch
-idempotency, serial conflicts, price-change approval and boutique scoping.
+idempotency, serial conflicts, price-change approval, boutique scoping, and (v0.2,
+`tests/test_v0_2.py`) receipt tokens + the guest endpoint + QR, client number assignment /
+search / lookup, the barcode map and settings in bootstrap, and `upload_item_image`
+permissions.
 
 ## Export fixtures after editing in the desk
 
