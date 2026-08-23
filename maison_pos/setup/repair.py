@@ -299,3 +299,20 @@ def site_timezone_status() -> dict[str, Any]:
 		"now": str(now),
 		"future": {k: len(v) for k, v in _future_documents(now).items()},
 	}
+
+
+@frappe.whitelist()
+def redraw_catalog_art(commit: int = 1) -> dict[str, Any]:
+	"""Regenerate the placeholder product art in place (System Manager only). Idempotent.
+
+	The v0.6 polish pass stopped burning the brand / name / group into the generated
+	SVGs so the storefront hero overlay is the only caption. Existing sites keep their
+	file URLs — the SVG bytes are rewritten, nothing is re-attached.
+	"""
+	_assert_system_manager()
+	from maison_pos.setup.cloudchaserz import catalog
+
+	count = catalog.ensure_images(redraw=True)
+	if cint(commit):
+		frappe.db.commit()
+	return {"redrawn": count}
