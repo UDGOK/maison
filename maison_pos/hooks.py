@@ -10,7 +10,11 @@ app_email = "dev@maison.example"
 app_license = "MIT"
 # v0.4: hrms (Employee Checkin, Additional Salary / Payroll) and crm (Frappe CRM: CRM Task, Contact)
 # are installed alongside; the glue feature-detects both and degrades gracefully when absent.
-required_apps = ["erpnext", "hrms", "crm"]
+# `crm`, `webshop` and `payments` are optional: every integration point is
+# feature-detected (see maison_pos.api.crm.crm_installed / webshop.core).
+# Frappe CRM `main` currently fails `yarn install` on the Frappe Cloud v15
+# builder image, so it must not be a hard requirement.
+required_apps = ["erpnext", "hrms"]
 
 # ---------------------------------------------------------------------------
 # Website / PWA shell
