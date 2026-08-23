@@ -13,6 +13,7 @@ import WallCardView from '../components/WallCard.vue'
 import VirtualColumn from '../components/VirtualColumn.vue'
 import ShipmentSheet from '../components/ShipmentSheet.vue'
 import ApproveSheet from '../components/ApproveSheet.vue'
+import { clockHM, setSiteTimeZone, zoneLabel } from '@/utils/time' // v0.6 R
 
 const wh = useWarehouseStore()
 const now = ref(Date.now())
@@ -27,7 +28,9 @@ const columns = computed(() =>
     return { ...c, cards, units: totalUnits(cards) }
   })
 )
-const clock = computed(() => new Date(now.value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
+// v0.6 R — the board hangs in the warehouse: it shows the *site* clock, not the browser's.
+const clock = computed(() => clockHM(new Date(now.value)))
+const zone = computed(() => zoneLabel(new Date(now.value)))
 const cardHeight = computed(() => (window.innerHeight >= 1600 ? 200 : 164))
 
 function open(card: WallCard) {
@@ -65,6 +68,7 @@ function onApproved(shipment?: string) {
 
 onMounted(async () => {
   await wh.loadMe()
+  setSiteTimeZone(wh.me?.time_zone) // v0.6 R — the site zone rides on `shipping.me`
   if (wh.allowed) wh.start(true)
   tick = window.setInterval(() => (now.value = Date.now()), 1000)
 })
@@ -85,13 +89,20 @@ onBeforeUnmount(() => {
         <span class="num">{{ wh.wall.received_today }} <span class="label label-dim">received today</span></span>
         <span class="num" :class="{ warn: wh.wall.open_discrepancies }">{{ wh.wall.open_discrepancies }} <span class="label label-dim">discrepancies</span></span>
       </div>
-      <button class="toggle" :class="{ on: wh.sound }" :title="wh.sound ? 'Sound & flash on' : 'Sound & flash off'" data-testid="sound-toggle" @click="wh.setSound(!wh.sound)">
-        {{ wh.sound ? '🔔' : '🔕' }}
+      <!-- v0.6 R: a colour emoji bell was the only non-monochrome mark on the board — drawn in the
+           gold line system instead, with the "off" state struck through. -->
+      <button class="toggle" :class="{ on: wh.sound }" :title="wh.sound ? 'Sound & flash on' : 'Sound & flash off'" :aria-pressed="wh.sound" aria-label="Sound and flash" data-testid="sound-toggle" @click="wh.setSound(!wh.sound)">
+        <svg class="bell" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5v4L5 16.5h14L17.5 13V9A5.5 5.5 0 0 0 12 3.5Z" />
+          <path d="M10 19a2 2 0 0 0 4 0" />
+          <path v-if="!wh.sound" class="slash" d="M4 4l16 16" />
+        </svg>
       </button>
       <span class="pill" :class="wh.connected ? 'pill-accent' : 'pill-warn'" data-testid="wall-connection">
         <span class="dot"></span>{{ wh.connected ? 'Live' : 'Polling' }}
       </span>
-      <div class="clock num">{{ clock }}</div>
+      <!-- v0.6 R: the wall runs on the *site* clock, labelled, like every other screen -->
+      <div class="clock num" data-testid="wall-clock">{{ clock }}<span class="zone label label-dim">{{ zone }}</span></div>
     </header>
 
     <div v-if="wh.meError || (wh.me && !wh.allowed)" class="gate" data-testid="wall-gate">
@@ -158,19 +169,42 @@ onBeforeUnmount(() => {
   font-size: 22px;
 }
 .toggle {
-  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 52px;
   min-height: 52px;
   border: var(--line-w) solid var(--line);
-  opacity: 0.55;
+  color: var(--muted);
+  opacity: 0.75;
 }
 .toggle.on {
   opacity: 1;
   border-color: var(--accent);
+  color: var(--accent);
+}
+.bell {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.bell .slash {
+  stroke-width: 1.6;
 }
 .clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
   font-size: 28px;
   font-weight: 500;
+}
+.clock .zone {
+  font-size: 12px;
+  letter-spacing: 0.22em;
 }
 .pill .dot {
   width: 8px;

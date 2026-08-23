@@ -16,6 +16,7 @@ import ReportsSection from './components/ReportsSection.vue'
 import PeriodComparison from './components/PeriodComparison.vue'
 import { useDashboard } from './stores/dashboard'
 import { useBrand } from './stores/brand' // v0.6 D1
+import { fmtClock } from './lib/format' // v0.6 R — site-zone clock
 
 const d = useDashboard()
 onMounted(() => d.start())
@@ -65,7 +66,8 @@ function back() {
     <TopBar :live="d.connected" />
     <nav class="views" aria-label="Dashboard view">
       <button v-for="x in VIEWS" :key="x.v" class="view-tab label" :class="{ on: view === x.v }" :data-view="x.v" @click="setView(x.v)">{{ x.l }}</button>
-      <span class="label stamp" :title="'last reconcile'">{{ d.agg.rows.size }} {{ brand.storesLower }} · reconciled {{ d.lastReconcile ? new Date(d.lastReconcile).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—' }}</span>
+      <!-- v0.6 R: the reconcile stamp is on the site clock, like every other time on the page -->
+      <span class="label stamp" :title="'last reconcile'">{{ d.agg.rows.size }} {{ brand.storesLower }} · reconciled {{ d.lastReconcile ? fmtClock(new Date(d.lastReconcile)) : '—' }}</span>
     </nav>
     <main class="main">
       <LiveView v-if="view === 'live'" @open="openBoutique" />

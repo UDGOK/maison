@@ -18,7 +18,7 @@ from typing import Any, Optional
 import frappe
 from frappe import _
 from frappe.model.workflow import apply_workflow
-from frappe.utils import cint, flt, get_datetime, now_datetime, nowdate, nowtime
+from frappe.utils import cint, flt, get_datetime, get_system_timezone, now_datetime, nowdate, nowtime
 
 from maison_pos.scoping import (
 	assert_boutique_access,
@@ -867,6 +867,8 @@ def me() -> dict[str, Any]:
 		"brand": brand,
 		"provider": provider_name(),
 		"stores": store_boutiques(),
+		# v0.6 R — the desk and the 55" wall render every timestamp in the site zone
+		"time_zone": get_system_timezone(),
 	}
 
 

@@ -9,6 +9,7 @@ import { IS_MOCK } from '@/api'
 import Keypad from '@/components/Keypad.vue'
 import { useShiftStore, fmtMinutes, type ClockAction } from '@/stores/shift'
 import { fmtDateTime } from '@/utils/device'
+import { storeShortName } from '@/utils/text' // v0.6 R
 
 const session = useSessionStore()
 const catalog = useCatalogStore()
@@ -63,6 +64,21 @@ const brand = useBrand() // v0.6 N
  * custom property so the media queries below still win on a phone.
  */
 const wordmarkLen = computed(() => Math.max(1, (brand.wordmark || '').length))
+
+/**
+ * v0.6 R — one correct line under the wordmark.
+ *
+ * `product_name` already contains the sub-mark ("Maison POS" → "Maison POS by CloudChaserz"), so
+ * `subMark · productName` printed it twice: "MAISON POS · MAISON POS BY CLOUDCHASERZ". Print the
+ * product name alone when it already carries the sub-mark, otherwise join the two.
+ */
+const subline = computed(() => {
+  const sub = (brand.subMark || '').trim()
+  const product = (brand.productName || '').trim()
+  if (!sub) return product
+  if (!product) return sub
+  return product.toLowerCase().includes(sub.toLowerCase()) ? product : `${sub} · ${product}`
+})
 async function chooseBoutique() {
   error.value = ''
   busy.value = true
@@ -135,8 +151,14 @@ function fail() {
       <div class="brand">
         <!-- v0.6 N: brand tokens -->
         <div class="wordmark display-900" data-testid="unlock-wordmark" :style="{ '--wm-len': wordmarkLen }">{{ brand.wordmark }}</div>
-        <div class="label">{{ brand.subMark }} &middot; {{ brand.productName }}</div>
+        <!-- v0.6 R: one line — `productName` already carries the sub-mark -->
+        <div class="label subline" data-testid="unlock-subline">{{ subline }}</div>
+        <div v-if="brand.brand.tagline" class="tagline">{{ brand.brand.tagline }}</div>
         <!-- end v0.6 N -->
+        <div class="brand-foot">
+          <span class="label label-dim">{{ session.boutique?.boutique_name || 'No ' + brand.storeNoun.toLowerCase() + ' loaded' }}</span>
+          <span v-if="session.boutique?.name" class="label label-dim">&middot; {{ session.boutique.name }}</span>
+        </div>
       </div>
       <div class="left-foot">
         <div class="label label-dim">{{ sync.browserOnline ? 'Network available' : 'No network' }}</div>
@@ -148,15 +170,15 @@ function fail() {
       <div class="panel">
         <div class="field">
           <label class="label">{{ brand.storeNoun }}</label>
-          <div class="row">
-            <select v-model="selectedBoutique" class="input" :disabled="busy">
-              <option v-for="b in session.boutiqueList" :key="b.name" :value="b.name">{{ b.boutique_name }} &mdash; {{ b.city }}</option>
-              <option v-if="!session.boutiqueList.length && session.boutique" :value="session.boutique.name">{{ session.boutique.boutique_name }}</option>
-            </select>
-            <button v-if="needsBootstrap" class="btn btn-primary" :disabled="busy || !selectedBoutique" @click="chooseBoutique">
-              {{ busy ? 'Loading' : 'Load' }}
-            </button>
-          </div>
+          <!-- v0.6 R: the picker owns the full panel width — beside a "Load" button the option text
+               ("CloudChaserz Montrose — Houston, TX 77098") was cut off in the closed state -->
+          <select v-model="selectedBoutique" class="input store-select" :disabled="busy">
+            <option v-for="b in session.boutiqueList" :key="b.name" :value="b.name">{{ storeShortName(b.boutique_name, brand.name) }} &mdash; {{ b.city }}</option>
+            <option v-if="!session.boutiqueList.length && session.boutique" :value="session.boutique.name">{{ storeShortName(session.boutique.boutique_name, brand.name) }}</option>
+          </select>
+          <button v-if="needsBootstrap" class="btn btn-primary load-btn" :disabled="busy || !selectedBoutique" @click="chooseBoutique">
+            {{ busy ? 'Loading' : 'Load' }}
+          </button>
         </div>
 
         <template v-if="!needsBootstrap">
@@ -168,12 +190,13 @@ function fail() {
           </div>
 
           <div class="shift" data-testid="shift-status">
+            <!-- v0.6 R: a real box, not a hairline glyph — the shift state has to be readable across a counter -->
             <span v-if="onShift && currentShift" class="shift-line">
-              <span class="dot on"></span>
+              <span class="box on" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg></span>
               <span class="good">{{ currentShift.status === 'On break' ? 'On break' : 'On shift' }}</span>
               <span class="dim"> since {{ fmtDateTime(currentShift.clock_in) }}<span v-if="currentShift.worked_minutes"> · {{ fmtMinutes(currentShift.worked_minutes) }}</span></span>
             </span>
-            <span v-else class="shift-line"><span class="dot"></span><span class="dim">Not clocked in</span></span>
+            <span v-else class="shift-line"><span class="box" aria-hidden="true"></span><span class="dim">Not clocked in</span></span>
             <span v-if="shift.hrms" class="label label-dim">HR</span>
           </div>
           <div class="seg" role="radiogroup" aria-label="Action">
@@ -207,13 +230,37 @@ function fail() {
   overflow-x: hidden;
 }
 .left {
+  /* v0.6 R: the wordmark used to sit in the top-left corner of an otherwise empty half-screen
+     (~65% of a 1366×1024 till was blank). The lockup is centred on the column's optical middle and
+     carries the store it will unlock, so the two halves read as one composed screen. */
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-content: stretch;
   padding: 48px 56px;
   border-right: var(--line-w) solid var(--line);
   background: var(--ground);
+}
+.brand {
+  align-self: center;
+  min-width: 0;
+}
+.brand .subline {
+  margin-top: 18px;
+}
+.brand .tagline {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--muted);
+}
+.brand-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: var(--line-w) solid var(--line);
 }
 .brand .wordmark {
   /* clamped by wordmark length: 64px for MAISON (6), ~46px for CLOUDCHASERZ (12) at 1366px */
@@ -223,13 +270,11 @@ function fail() {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.brand .label {
-  margin-top: 20px;
-}
 .left-foot {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-self: end;
 }
 .right {
   display: flex;
@@ -239,11 +284,22 @@ function fail() {
   overflow: auto;
 }
 .panel {
+  /* v0.6 R: a bordered console rather than controls floating in the dark */
   width: 100%;
   max-width: 380px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 28px 26px;
+  border: var(--line-w) solid var(--line);
+  background: var(--surface);
+}
+.store-select {
+  width: 100%;
+}
+.load-btn {
+  width: 100%;
+  margin-top: 10px;
 }
 .pin {
   display: flex;
@@ -294,14 +350,29 @@ function fail() {
   align-items: center;
   gap: 8px;
 }
-.dot {
-  width: 8px;
-  height: 8px;
-  border: var(--line-w) solid var(--line-strong);
+/* v0.6 R — the shift marker is a real 18px box in the gold system (it was an 8px hairline square
+   that read as a rendering artefact on the till). */
+.box {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--line-strong);
+  background: var(--ground);
 }
-.dot.on {
-  background: var(--good);
-  border-color: var(--good);
+.box.on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.box svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--ground);
+  stroke-width: 2.2;
+  stroke-linecap: square;
 }
 .seg {
   display: flex;
@@ -343,17 +414,39 @@ function fail() {
     overflow: auto;
   }
   .left {
+    /* phone: one band across the top — the lockup shrinks, the status stays on the right */
+    display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     padding: calc(16px + var(--safe-top)) 20px 16px;
     border-right: 0;
     border-bottom: var(--line-w) solid var(--line);
   }
-  .brand .wordmark {
-    font-size: min(28px, calc((100vw - 40px) / (var(--wm-len, 6) * 1.35)));
+  .brand {
+    align-self: auto;
+    flex: 1 1 auto;
   }
-  .brand .label {
+  .brand .wordmark {
+    /* tracking is 0.12em here, so a glyph measures ~0.78x the font size; the status block on the
+       right keeps ~190px, and the mark shrinks rather than breaking "CLOUDCHASERZ" across lines */
+    font-size: min(24px, calc((100vw - 200px) / (var(--wm-len, 6) * 0.78)));
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+  .brand .subline {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .brand .subline {
     margin-top: 6px;
+  }
+  .brand .tagline,
+  .brand-foot {
+    display: none;
   }
   .left-foot {
     text-align: right;
@@ -369,6 +462,9 @@ function fail() {
   .panel {
     max-width: none;
     gap: 16px;
+    padding: 0;
+    border: 0;
+    background: transparent;
   }
 }
 </style>

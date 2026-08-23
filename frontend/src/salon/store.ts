@@ -9,6 +9,7 @@ import { salonApi, type PlaylistPiece, type SalonClient, type SalonPreferences, 
 import { clientOf, initialModel, isStale, reduce, viewOf, type IdentifyMode, type ReceiptStage, type SalonEvent, type SalonModel, type SalonView } from './reducer'
 import { connectSalonRealtime, POLL_MS, type Unsubscribe } from './transport'
 import { SALON_DEVICE_KEY, SALON_TOKEN_KEY, normalizeCode } from './pairing'
+import { setSiteTimeZone } from '@/utils/time' // v0.6 R — the display shows the boutique's clock
 
 interface SalonStoreState {
   token: string | null
@@ -123,6 +124,7 @@ export const useSalonStore = defineStore('salonDevice', {
         const pl = await salonApi.playlist(this.token)
         this.playlist = pl.playlist
         this.settings = pl.settings
+        setSiteTimeZone(pl.settings?.time_zone) // v0.6 R
         this.start()
       } catch (e) {
         if ((e as { code?: string }).code === 'AUTH' || (e as { status?: number }).status === 403) this.forget()
@@ -147,6 +149,7 @@ export const useSalonStore = defineStore('salonDevice', {
         this.session = s
         this.playlist = s.playlist || []
         this.settings = s.settings || null
+        setSiteTimeZone(s.settings?.time_zone) // v0.6 R
         this.dispatch({ type: 'paired', state: s.state, now: Date.now() })
         this.start()
         return true

@@ -31,7 +31,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, flt, get_url, getdate, now_datetime, nowdate
 
-from maison_pos.brand import get_brand, get_rewards_settings
+from maison_pos.brand import get_age_settings, get_brand, get_rewards_settings
 from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, is_manager_or_above
 
 ERR_REWARD = "REWARD_INVALID"
@@ -677,6 +677,8 @@ def program() -> dict[str, Any]:
 		"events": [{"title": e.title, "date": str(e.send_date), "link": e.content_link} for e in events],
 		"giveaways": giveaways_,
 		"signup_url": get_url("/rewards#join"),
+		# v0.6 R — the page states the legal age it is asking the customer to confirm
+		"minimum_age": get_age_settings()["minimum_age"],
 	}
 
 

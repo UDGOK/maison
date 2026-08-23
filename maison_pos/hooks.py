@@ -244,6 +244,8 @@ jinja = {
 		# v0.4 G — storefront templates (header cart count, boutiques, money formatting)
 		"maison_pos.webshop.context.shop_context",
 		"maison_pos.webshop.context.shop_money",
+		# v0.6 R — store names without the repeated brand prefix ("Broken Arrow", not "CloudChaserz Broken Arrow")
+		"maison_pos.webshop.context.shop_store_name",
 		# v0.6 N — brand tokens in every template (receipts, e-mails, shop)
 		"maison_pos.brand.get_brand",
 		"maison_pos.utils.get_brand_context",

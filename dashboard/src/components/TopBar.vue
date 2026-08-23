@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { fmtClock, fmtDate } from '../lib/format'
+import { zoneLabel } from '../lib/time' // v0.6 R
 import { useBrand } from '../stores/brand' // v0.6 D1 — the wordmark and the scope line are tenant tokens
 
 const brand = useBrand()
@@ -13,6 +14,7 @@ onMounted(() => (t = window.setInterval(() => (now.value = new Date()), 1000)))
 onBeforeUnmount(() => clearInterval(t))
 const clock = computed(() => fmtClock(now.value))
 const date = computed(() => fmtDate(now.value))
+const zone = computed(() => zoneLabel(now.value))
 </script>
 
 <template>
@@ -24,7 +26,8 @@ const date = computed(() => fmtDate(now.value))
     </div>
     <div class="right">
       <span class="label date">{{ date }}</span>
-      <span class="display clock num">{{ clock }}</span>
+      <!-- v0.6 R: the site clock, labelled — the POS, this bar and the warehouse wall now agree -->
+      <span class="display clock num" data-testid="clock">{{ clock }}<span class="label zone">{{ zone }}</span></span>
       <span class="live" :class="{ off: !live }">
         <i class="pulse" :class="{ off: !live }" />
         {{ live ? 'Live' : 'Reconnecting' }}
@@ -48,7 +51,8 @@ const date = computed(() => fmtDate(now.value))
 .scope { font-size: var(--fs-body); font-weight: 300; color: var(--muted); letter-spacing: 0.04em; }
 .right { display: flex; align-items: center; gap: 28px; }
 .date { color: var(--muted); }
-.clock { font-size: 1.333rem; font-weight: 800; letter-spacing: 0; }
+.clock { display: inline-flex; align-items: baseline; gap: 0.5rem; font-size: 1.333rem; font-weight: 800; letter-spacing: 0; }
+.clock .zone { color: var(--dim); font-weight: 500; }
 .live {
   display: inline-flex;
   align-items: center;

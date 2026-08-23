@@ -10,6 +10,7 @@ import { warehouseApi, type Discrepancy, type PurchaseOrder, type ReplenishmentR
 import { useWarehouseStore } from '@/stores/warehouse'
 import { installWedgeListener } from '@/scan/wedge'
 import { fmtDateTime } from '@/utils/device'
+import { setSiteTimeZone } from '@/utils/time' // v0.6 R
 import { fmtMoney } from '@/utils/money'
 import { ageTier, fmtAge, liveAge, sortCards, type WallCard } from '../wall'
 import ApproveSheet from '../components/ApproveSheet.vue'
@@ -130,6 +131,7 @@ const cardFor = (s: Shipment) => ({ ...s, kind: 'shipment' }) as WallCard
 
 onMounted(async () => {
   await wh.loadMe()
+  setSiteTimeZone(wh.me?.time_zone) // v0.6 R — desk timestamps on the site clock
   if (wh.allowed) {
     wh.start(false)
     await load()

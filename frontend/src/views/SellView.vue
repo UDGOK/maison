@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
 import { useCartStore } from '@/stores/cart'
@@ -45,6 +45,57 @@ watch(
   (n) => layout.syncSheet(n)
 )
 
+/**
+ * v0.6 R — department chips: a horizontal scroller with no affordance clipped "Kratom" to "KR" at
+ * 1366 px, which reads as a broken label rather than as more content. A fade on whichever side has
+ * hidden chips (plus arrow buttons) makes the strip legibly scrollable, and no label is ever cut
+ * without a visible cue.
+ */
+const chipsEl = ref<HTMLElement | null>(null)
+const railEl = ref<HTMLElement | null>(null)
+const chipsOverflowStart = ref(false)
+const chipsOverflowEnd = ref(false)
+const railOverflowStart = ref(false)
+const railOverflowEnd = ref(false)
+function edges(el: HTMLElement | null): [boolean, boolean] {
+  if (!el) return [false, false]
+  const max = el.scrollWidth - el.clientWidth
+  return [el.scrollLeft > 2, max > 2 && el.scrollLeft < max - 2]
+}
+function measureChips() {
+  ;[chipsOverflowStart.value, chipsOverflowEnd.value] = edges(chipsEl.value)
+}
+function measureRail() {
+  ;[railOverflowStart.value, railOverflowEnd.value] = edges(railEl.value)
+}
+function measureAll() {
+  measureChips()
+  measureRail()
+}
+function scrollChips(dir: 1 | -1) {
+  const el = chipsEl.value
+  if (!el) return
+  el.scrollBy({ left: dir * Math.max(160, el.clientWidth * 0.7), behavior: 'smooth' })
+}
+let scrollerObserver: ResizeObserver | null = null
+onMounted(async () => {
+  await nextTick()
+  measureAll()
+  if (typeof ResizeObserver !== 'undefined') {
+    scrollerObserver = new ResizeObserver(measureAll)
+    if (chipsEl.value) scrollerObserver.observe(chipsEl.value)
+    if (railEl.value) scrollerObserver.observe(railEl.value)
+  }
+})
+onBeforeUnmount(() => scrollerObserver?.disconnect())
+watch(
+  () => [catalog.departments.length, catalog.item_groups.length, layout.phone],
+  async () => {
+    await nextTick()
+    measureAll()
+  }
+)
+
 function availableSerials(code: string) {
   return (catalog.serials[code] || []).filter((s) => !cart.usedSerials.has(s))
 }
@@ -71,7 +122,9 @@ function toggleImages() {
 
 <template>
   <div class="sell" :class="{ phone: layout.phone }">
-    <nav class="rail scroll" :class="{ 'rail-chips': layout.phone }">
+    <!-- v0.6 R: on the phone the group rail is the same kind of horizontal scroller as the department
+         chips — it gets the same fade so a half-visible group reads as "scroll", not as a cut label -->
+    <nav ref="railEl" class="rail scroll" :class="{ 'rail-chips': layout.phone, 'fade-start': layout.phone && railOverflowStart, 'fade-end': layout.phone && railOverflowEnd }" @scroll="measureRail">
       <button class="rail-btn display" :class="{ active: group === null }" @click="group = null">All</button>
       <button v-for="g in catalog.item_groups" :key="g" class="rail-btn display" :class="{ active: group === g }" @click="group = g">
         {{ g }}
@@ -81,11 +134,16 @@ function toggleImages() {
 
     <section class="center">
       <div class="toolbar">
-        <div class="chips scroll-x">
-          <button class="chip" :class="{ active: department === null }" @click="department = null">All depts</button>
-          <button v-for="d in catalog.departments" :key="d" class="chip" :class="{ active: department === d }" @click="department = department === d ? null : d">
-            {{ d }}
-          </button>
+        <!-- v0.6 R: fade + arrows so a clipped chip reads as "scroll for more", never as a cut label -->
+        <div class="chips-wrap" :class="{ 'fade-start': chipsOverflowStart, 'fade-end': chipsOverflowEnd }">
+          <button v-if="chipsOverflowStart" class="chip-nav start label" aria-label="Scroll departments left" @click="scrollChips(-1)">&lsaquo;</button>
+          <div ref="chipsEl" class="chips scroll-x" @scroll="measureChips">
+            <button class="chip" :class="{ active: department === null }" @click="department = null">All depts</button>
+            <button v-for="d in catalog.departments" :key="d" class="chip" :class="{ active: department === d }" @click="department = department === d ? null : d">
+              {{ d }}
+            </button>
+          </div>
+          <button v-if="chipsOverflowEnd" class="chip-nav end label" aria-label="Scroll departments right" @click="scrollChips(1)">&rsaquo;</button>
         </div>
         <div class="tools">
           <div class="search">
@@ -190,6 +248,13 @@ function toggleImages() {
   padding: 12px 16px;
   border-bottom: var(--line-w) solid var(--line);
 }
+.chips-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
 .chips {
   display: flex;
   gap: 6px;
@@ -197,12 +262,61 @@ function toggleImages() {
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 28px;
 }
 .chips::-webkit-scrollbar {
   display: none;
 }
 .chips > .chip {
   flex: 0 0 auto; /* never shrink: labels were overlapping in the scroll strip */
+  scroll-snap-align: start;
+}
+/* the fade is a mask so the chips underneath keep their own colours */
+.chips-wrap.fade-end .chips {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent 100%);
+}
+.chips-wrap.fade-start .chips {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px);
+  mask-image: linear-gradient(to right, transparent 0, #000 44px);
+}
+.chips-wrap.fade-start.fade-end .chips {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+}
+.rail-chips.fade-end {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent 100%);
+}
+.rail-chips.fade-start {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px);
+}
+.rail-chips.fade-start.fade-end {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
+}
+.chip-nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--accent);
+  background: linear-gradient(to right, var(--ground) 55%, transparent);
+}
+.chip-nav.start {
+  left: 0;
+}
+.chip-nav.end {
+  right: 0;
+  background: linear-gradient(to left, var(--ground) 55%, transparent);
 }
 .tools {
   display: flex;

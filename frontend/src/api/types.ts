@@ -23,6 +23,9 @@ export interface Boutique {
   readers?: BoutiqueReader[]
   /** v0.4 E — returns in Damaged condition land here */
   damaged_warehouse?: string
+  /** v0.6 N/R — the store's IANA zone ("America/Chicago"); every clock on the till renders in it */
+  timezone?: string
+  region?: string
 }
 
 /** v0.4 A — `Maison Boutique Reader` row. */

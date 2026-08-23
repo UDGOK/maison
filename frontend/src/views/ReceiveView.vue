@@ -13,7 +13,8 @@ import { useSyncStore } from '@/stores/sync'
 import { useScanStore } from '@/stores/scan'
 import { useCatalogStore } from '@/stores/catalog'
 import { useInventoryStore } from '@/stores/inventory'
-import { fmtDateTime } from '@/utils/device'
+import { fmtDateTime, fmtDateTimeZoned } from '@/utils/device'
+import { plural } from '@/utils/text' // v0.6 R
 import CountSheet, { type Counted } from '@/warehouse/components/CountSheet.vue'
 import Modal from '@/components/Modal.vue'
 
@@ -125,13 +126,14 @@ async function sendRequest() {
 
 <template>
   <div class="page">
-    <div class="page-body">
+    <div class="page-body receive-body">
       <div class="between" style="margin-bottom: 18px; flex-wrap: wrap; gap: 10px">
         <div>
           <div class="page-title">Receive</div>
           <div class="muted" style="margin-top: 4px; font-size: 13px">
             <!-- the store code, not the raw ERPNext warehouse: "OK-SAP - CCZ" leaks the company abbreviation into user-facing copy -->
-            {{ session.boutique?.boutique_name }} · {{ session.boutique?.name }}<span v-if="inbound"> · as of {{ fmtDateTime(inbound.as_of) }}</span>
+            <!-- v0.6 R: the stamp says what it is and which clock it is on (the store's) -->
+            {{ session.boutique?.boutique_name }} · {{ session.boutique?.name }}<span v-if="inbound"> · data as of {{ fmtDateTimeZoned(inbound.as_of) }}</span>
           </div>
         </div>
         <div class="row">
@@ -165,7 +167,7 @@ async function sendRequest() {
             <div class="section-title">From the warehouse</div>
             <span class="pill" :class="inbound?.shipments.length ? 'pill-accent' : ''">{{ inbound?.shipments.length || 0 }} in transit</span>
           </div>
-          <div v-if="!inbound?.shipments.length" class="label label-dim" style="padding: 8px 0">Nothing on its way right now.</div>
+          <div v-if="!inbound?.shipments.length" class="empty label label-dim">Nothing on its way right now.</div>
           <button v-for="s in inbound?.shipments || []" :key="s.name" class="ship" :data-testid="`inbound-${s.name}`" @click="openShipment = s">
             <div class="between">
               <span style="font-weight: 500">{{ s.name }}<span v-if="s.priority && s.priority !== 'Normal'" class="accent"> ⚑</span></span>
@@ -188,7 +190,7 @@ async function sendRequest() {
             <div class="section-title">Vendor deliveries (POs)</div>
             <span class="pill">{{ inbound?.purchase_orders.length || 0 }} open</span>
           </div>
-          <div v-if="!inbound?.purchase_orders.length" class="label label-dim" style="padding: 8px 0">No purchase orders addressed to this store.</div>
+          <div v-if="!inbound?.purchase_orders.length" class="empty label label-dim">No purchase orders addressed to this store.</div>
           <button v-for="po in inbound?.purchase_orders || []" :key="po.name" class="ship" :data-testid="`po-${po.name}`" @click="openPo = po">
             <div class="between"><span style="font-weight: 500">{{ po.name }}</span><span class="num">{{ Math.round(po.per_received) }}%</span></div>
             <div class="label label-dim" style="margin-top: 4px">{{ po.supplier_name || po.supplier }} · expected {{ po.schedule_date }} · {{ po.items.length }} lines</div>
@@ -200,10 +202,10 @@ async function sendRequest() {
             <div class="section-title">My requests</div>
             <span class="pill" :class="inbound?.open_requests ? 'pill-warn' : ''">{{ inbound?.open_requests || 0 }} pending</span>
           </div>
-          <div v-if="!requests.length" class="label label-dim" style="padding: 8px 0">No replenishment requests yet — use the low-stock list on Shift or "Request from warehouse".</div>
+          <div v-if="!requests.length" class="empty label label-dim">No replenishment requests yet — use the low-stock list on Shift or "Request from warehouse".</div>
           <div v-for="r in requests" :key="r.name" class="trow small" :data-testid="`req-${r.name}`">
             <div class="between">
-              <span>{{ r.name }} <span class="muted">· {{ r.items }} items · {{ r.units }} u</span></span>
+              <span>{{ r.name }} <span class="muted">· {{ plural(r.items, 'item') }} · {{ r.units }} u</span></span>
               <span class="pill" :class="r.status === 'Pending Approval' ? 'pill-warn' : r.status === 'Rejected' ? 'pill-crit' : 'pill-good'">{{ r.status }}</span>
             </div>
             <div class="label label-dim" style="margin-top: 2px">
@@ -258,16 +260,43 @@ async function sendRequest() {
 </template>
 
 <style scoped>
+/**
+ * v0.6 R — the three cards used to be 140 px tall at the top of a 1024 px screen with ~740 px of
+ * dark nothing under them, which reads as a half-built page. The columns now fill the screen (the
+ * same board shape as the warehouse wall) and each empty state sits in the middle of its column,
+ * so a store with nothing inbound looks *finished and empty* rather than unfinished.
+ */
+.receive-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .cols {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
+  flex: 1;
+  min-height: 320px;
+  align-items: stretch;
 }
 .block {
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+  overflow: auto;
+}
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px 8px;
+  max-width: 34ch;
+  margin: 0 auto;
+  line-height: 1.6;
 }
 .result {
   margin-bottom: 16px;

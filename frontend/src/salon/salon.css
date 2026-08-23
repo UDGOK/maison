@@ -299,10 +299,19 @@
   min-height: 56px;
   cursor: pointer;
 }
+/* v0.6 R — the client-facing consent boxes are the biggest of the lot (they are read at arm's
+   length on an iPad); the base checkbox style supplies the tick and the focus ring. */
 .s-check input {
+  flex: 0 0 26px;
   width: 26px;
   height: 26px;
-  accent-color: var(--s-gold);
+}
+.s-check input[type='checkbox']:checked::after {
+  left: 8px;
+  top: 3px;
+  width: 8px;
+  height: 14px;
+  border-width: 0 3px 3px 0;
 }
 
 /* keypad */

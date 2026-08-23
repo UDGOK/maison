@@ -8,7 +8,7 @@ import TrendingTable from './TrendingTable.vue'
 import TopByStore from './TopByStore.vue'
 import GroupHeatmap from '../insights/GroupHeatmap.vue'
 import { fetchProductTrends, fetchTopProducts } from '../../api'
-import { fmtInt } from '../../lib/format'
+import { fmtInt, fmtStamp } from '../../lib/format'
 import { useDashboard } from '../../stores/dashboard'
 import type { ProductTrends, TopProducts, TrendPeriod } from '../../types'
 
@@ -55,7 +55,9 @@ function load() {
 onMounted(load)
 watch([sub, period, group, badge, boutique, by], load)
 const boutiqueCodes = computed(() => [...d.agg.rows.keys()].sort())
-const computedAt = computed(() => (trends.value?.last_run?.computed_at ?? top.value?.last_run?.computed_at ?? '').slice(0, 16))
+const computedAt = computed(() => trends.value?.last_run?.computed_at ?? top.value?.last_run?.computed_at ?? null)
+// v0.6 R — the toolbar stamp says what it is; "—" alone read as a broken clock next to a live one
+const stamp = computed(() => (computedAt.value ? `Data as of ${fmtStamp(computedAt.value)}` : 'Trend data not precomputed yet'))
 const heatCells = computed(() => top.value?.matrix ?? [])
 </script>
 
@@ -88,7 +90,8 @@ const heatCells = computed(() => top.value?.matrix ?? [])
           <button class="btn ghost" :class="{ on: by === 'units' }" @click="by = 'units'">By units</button>
         </div>
       </template>
-      <span class="label meta">precomputed · {{ computedAt || '—' }}<template v-if="loadMs !== null"> · loaded in {{ loadMs }} ms</template></span>
+      <!-- v0.6 R: say what the stamp is (it is not "now") and put it on the site clock -->
+        <span class="label meta" :title="computedAt ? `Trend table last precomputed ${computedAt}` : 'The Maison Product Trend table has not been built yet'">{{ stamp }}<template v-if="loadMs !== null"> · loaded in {{ loadMs }} ms</template></span>
     </header>
     <div v-if="error" class="label err">{{ error }}</div>
     <div class="body">

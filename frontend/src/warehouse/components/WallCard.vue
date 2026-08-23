@@ -25,8 +25,9 @@ const tracking = computed(() => ('tracking_no' in props.card ? props.card.tracki
     </div>
     <div class="store ellipsis">{{ card.boutique_name || card.boutique }}</div>
     <div class="meta">
-      <span class="num">{{ card.items }} <span class="label label-dim">items</span></span>
-      <span class="num">{{ card.units }} <span class="label label-dim">units</span></span>
+      <!-- v0.6 R: "1 items" / "1 units" read as a bug on a 55" board -->
+      <span class="num">{{ card.items }} <span class="label label-dim">{{ card.items === 1 ? 'item' : 'items' }}</span></span>
+      <span class="num">{{ card.units }} <span class="label label-dim">{{ card.units === 1 ? 'unit' : 'units' }}</span></span>
       <span v-if="carrier" class="carrier ellipsis">{{ carrier }}</span>
       <span v-else-if="card.kind === 'shipment'" class="label label-dim">{{ card.status }}</span>
     </div>

@@ -383,29 +383,74 @@ SHORT_DESCRIPTIONS = {
 }
 
 
-def _attach_visual(item) -> Optional[str]:
-	from maison_pos.setup.cloudchaserz.art import product_svg
+def _write_svg(file_doc, svg: str) -> None:
+	"""Replace a File's bytes in place — the URL keeps working.
 
+	v0.6 R — deleting and re-inserting the File would hand out a new, hashed URL and leave every
+	copy of the old one (``Website Item.website_image``, cached catalogue snapshots) pointing at the
+	stale drawing. Rewriting the bytes under the same name updates every surface at once.
+	"""
+	import hashlib
+
+	blob = svg.encode("utf-8")
+	with open(file_doc.get_full_path(), "wb") as fh:
+		fh.write(blob)
+	frappe.db.set_value("File", file_doc.name, {"file_size": len(blob), "content_hash": hashlib.md5(blob).hexdigest()}, update_modified=False)
+
+
+def _redraw_visuals(item, svg: str) -> int:
+	"""Rewrite every generated SVG this item is shown through (Item.image + Website Item)."""
+	urls = {item.image}
+	if frappe.db.exists("DocType", "Website Item"):
+		wi = frappe.db.get_value("Website Item", {"item_code": item.item_code}, ["website_image", "thumbnail"], as_dict=True)
+		if wi:
+			urls |= {wi.get("website_image"), wi.get("thumbnail")}
+	n = 0
+	for url in {u for u in urls if u and str(u).endswith(".svg")}:
+		name = frappe.db.get_value("File", {"file_url": url}, "name")
+		if not name:
+			continue
+		_write_svg(frappe.get_doc("File", name), svg)
+		n += 1
+	return n
+
+
+def _attach_visual(item) -> Optional[str]:
 	file_name = f"cloudchaserz-{item.item_code.lower()}.svg"
 	existing = frappe.db.get_value("File", {"attached_to_doctype": "Item", "attached_to_name": item.item_code, "file_name": file_name}, "file_url")
 	if existing:
 		return existing
-	meta = ITEM_META.get(item.item_code, {})
-	svg = product_svg(item.item_code, item.item_name, item.item_group, meta.get("brand"), meta.get("flavor"))
+	svg = _item_svg(item)
 	f = frappe.get_doc({"doctype": "File", "file_name": file_name, "attached_to_doctype": "Item", "attached_to_name": item.item_code, "attached_to_field": "image", "is_private": 0, "content": svg})
 	f.flags.ignore_permissions = True
 	f.insert()
 	return f.file_url
 
 
-def ensure_images() -> int:
-	"""Generated SVG art on every item (also used by the POS tiles)."""
+def _item_svg(item) -> str:
+	from maison_pos.setup.cloudchaserz.art import product_svg
+
+	meta = ITEM_META.get(item.item_code, {})
+	return product_svg(item.item_code, item.item_name, item.item_group, meta.get("brand"), meta.get("flavor"))
+
+
+def ensure_images(redraw: bool = False) -> int:
+	"""Generated SVG art on every item (also used by the POS tiles and the shop).
+
+	``redraw=1`` re-renders art that already exists, in place, so a change to the drawing itself
+	reaches a site that is already seeded (v0.6 R dropped the caption burned into every picture)::
+
+	    bench --site <site> execute maison_pos.setup.cloudchaserz.catalog.ensure_images \\
+	        --kwargs "{'redraw': 1}"
+	"""
 	n = 0
 	for i in ITEMS:
 		if not frappe.db.exists("Item", i["code"]):
 			continue
 		item = frappe.get_doc("Item", i["code"])
 		if item.image:
+			if redraw and _redraw_visuals(item, _item_svg(item)):
+				n += 1
 			continue
 		url = _attach_visual(item)
 		if url:

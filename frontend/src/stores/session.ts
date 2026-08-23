@@ -3,6 +3,7 @@ import { api, type Associate, type Boutique } from '@/api'
 import { db, getSetting, setSetting } from '@/db'
 import { sha256Hex } from '@/utils/hash'
 import { deviceId } from '@/utils/device'
+import { setSiteTimeZone } from '@/utils/time' // v0.6 R — one clock, the store's zone
 
 const UNLOCK_KEY = 'maison.unlock'
 
@@ -35,6 +36,7 @@ export const useSessionStore = defineStore('session', {
     /** Restore the last boutique + associates from Dexie so PIN unlock works offline. */
     async restore() {
       this.boutique = await getSetting<Boutique | null>('boutique', null)
+      setSiteTimeZone(this.boutique?.timezone) // cached zone survives an offline reload
       this.associates = await getSetting<Associate[]>('associates', [])
       this.boutiqueList = await getSetting('boutiqueList', [])
       // Survive an accidental reload within the same browsing session (8 h cap).
@@ -65,6 +67,7 @@ export const useSessionStore = defineStore('session', {
     /** Called by the catalog store after a successful bootstrap. */
     async setBoutique(boutique: Boutique, associates: Associate[]) {
       this.boutique = boutique
+      setSiteTimeZone(boutique.timezone)
       this.associates = associates
       await setSetting('boutique', JSON.parse(JSON.stringify(boutique)))
       await setSetting('associates', JSON.parse(JSON.stringify(associates)))

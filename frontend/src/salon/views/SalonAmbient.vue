@@ -7,13 +7,15 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useSalonStore } from '../store'
 import PieceVisual from '../components/PieceVisual.vue'
+import { clockHM, formatInSiteZone } from '@/utils/time' // v0.6 R
 
 const salon = useSalonStore()
 const idx = ref(0)
 let timer = 0
 const piece = computed(() => salon.playlist[idx.value % Math.max(1, salon.playlist.length)] || null)
-const date = computed(() => new Date(salon.now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }))
-const time = computed(() => new Date(salon.now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
+// v0.6 R — client-facing display: the boutique's clock, never the pairing device's
+const date = computed(() => formatInSiteZone(new Date(salon.now), { weekday: 'long', day: 'numeric', month: 'long' }))
+const time = computed(() => clockHM(new Date(salon.now)))
 
 function schedule() {
   clearTimeout(timer)

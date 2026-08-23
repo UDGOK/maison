@@ -1,0 +1,76 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "02 unlock screen at 1366x1024 has no horizontal overflow (D2)",
+   "ok": true,
+   "detail": "scrollWidth=1366 clientWidth=1366 body.scrollWidth=1366 unlock-panel right edge=1366"
+  },
+  {
+   "step": "01 POS sell screen at 1366x1024 unlocked at HOU-MTR with items in the basket, no horizontal overflow",
+   "ok": true,
+   "detail": "2 basket line(s); scrollWidth=1366 clientWidth=1366 body.scrollWidth=1366"
+  },
+  {
+   "step": "04 the 21+ verification sheet opens for an age-restricted item",
+   "ok": true,
+   "detail": "DSP-002 (Geek Bar Pulse 15K — Blue Razz Ice) → \"CHECK ID · 21+\""
+  },
+  {
+   "step": "cleanup: the 1366 till basket is empty",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "03 iPhone 390x844 sell screen renders with no horizontal overflow",
+   "ok": true,
+   "detail": "scrollWidth=390 clientWidth=390"
+  },
+  {
+   "step": "05 dashboard visible text is CloudChaserz-branded (CLOUDCHASERZ + Store/Stores, no \"Maison\"/\"Boutique\") — D1",
+   "ok": true,
+   "detail": "CLOUDCHASERZ=true Store(s)=true stray=[]"
+  },
+  {
+   "step": "05 Live tab shows exactly 11 store cards (HOU-WH warehouse excluded) — D4",
+   "ok": true,
+   "detail": "11 cards: HOU-MTR, OK-ETUL, OK-OWA, OK-STUL, OK-YALE, OK-SAP, OK-BIX, OK-MUS, OK-BA, OK-JENKS, OK-MINGO"
+  },
+  {
+   "step": "06 Products → Trending renders CloudChaserz SKUs with numbers",
+   "ok": true,
+   "detail": "60 rows · first=\"01 HKA-012 CocoUrth Coconut Coals 72 pc (flats) Hookah & Shisha 61 1 +6000% +275% 792 1 17% 34 TRENDING UP\""
+  },
+  {
+   "step": "07 /warehouse-wall renders as warehouse@ at 1920x1080 with at least one card",
+   "ok": true,
+   "detail": "1 card(s); scrollWidth=1920 clientWidth=1920"
+  },
+  {
+   "step": "cleanup: the warehouse board is back to empty (created shipment cancelled)",
+   "ok": true,
+   "detail": "{\"pending_approval\":0,\"to_pick\":0,\"packing\":0,\"ready\":0,\"shipped_today\":0}"
+  },
+  {
+   "step": "08 /rewards (guest) shows the exact rewards copy ($1 = 1 point; $5/100, $10/200, $15/300)",
+   "ok": true,
+   "detail": "CLOUDCHASERZ MAISON POS ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & PAPERS STORES REWARDS SIGN IN BAG 0 "
+  },
+  {
+   "step": "09 /shop (guest) at 1366x1024 renders CloudChaserz with no horizontal overflow",
+   "ok": true,
+   "detail": "scrollWidth=1366 clientWidth=1366 body.scrollWidth=1366"
+  },
+  {
+   "step": "10 POS Receive screen renders for the HOU-MTR manager with no horizontal overflow",
+   "ok": true,
+   "detail": "scrollWidth=1366 clientWidth=1366"
+  },
+  {
+   "step": "cleanup: no pending requests / open shipments / disabled demo users left behind",
+   "ok": true,
+   "detail": "pending requests=[] open shipments=[] disabled users=[]"
+  }
+ ],
+ "console": []
+}

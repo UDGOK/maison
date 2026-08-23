@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import frappe
@@ -33,11 +34,24 @@ def iso_with_tz(value: Any) -> Optional[str]:
 	return dt.isoformat()
 
 
+_SYMBOL_GAP = re.compile(r"^([^\w\s]+)\s+(?=[\d\-\u2212])")
+
+
+def tighten_currency_symbol(text: str) -> str:
+	"""``$ 69.99`` → ``$69.99``.
+
+	v0.6 R — ``frappe.utils.fmt_money`` puts a space after a symbol prefix, which reads as a typo on
+	a price tag and showed up on every storefront and receipt surface. Only a *symbol* prefix is
+	tightened; a currency written as a word or as a suffix ("6.900,00 €") is returned unchanged.
+	"""
+	return _SYMBOL_GAP.sub(r"\1", text or "")
+
+
 def format_money(value: float, currency: Optional[str] = None) -> str:
 	"""Format a number as a currency string for receipts (``$12,345.00``)."""
 	from frappe.utils import fmt_money
 
-	return fmt_money(flt(value), currency=currency or frappe.defaults.get_global_default("currency") or "USD")
+	return tighten_currency_symbol(fmt_money(flt(value), currency=currency or frappe.defaults.get_global_default("currency") or "USD"))
 
 
 def invoice_summary(doc) -> dict[str, Any]:

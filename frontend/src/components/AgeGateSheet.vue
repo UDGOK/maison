@@ -103,7 +103,8 @@ watch(
             </div>
 
             <div v-if="age.mode === 'scan'" class="pane">
-              <div class="label label-dim">Scan the PDF417 barcode on the back of the driver’s licence / state ID</div>
+              <!-- v0.6 R: the pair never breaks — "ID" alone on a second line read as a stray word -->
+              <div class="label label-dim">Scan the PDF417 barcode on the back of the driver’s licence / state&nbsp;ID</div>
               <form class="capture-form" @submit.prevent="submitCapture">
                 <textarea ref="captureEl" v-model="capture" class="input capture" rows="3" data-testid="age-capture" placeholder="Point the scanner at the ID — the code lands here" autocomplete="off" spellcheck="false"></textarea>
                 <div class="row">

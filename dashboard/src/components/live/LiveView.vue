@@ -75,17 +75,20 @@ const sorts: { k: LiveSortKey; l: string }[] = [
 <style scoped>
 .live { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; height: 100%; }
 .boards { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(26rem, 1fr); min-height: 0; }
-.list { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; }
-.toolbar { display: flex; align-items: center; gap: 1rem; padding: 0.8rem var(--pad-x); border-bottom: 1px solid var(--line); }
+/* v0.6 R: without `min-width: 0` this grid item could not shrink below the toolbar's min-content
+   (~985 px), so at 1366 the whole list — rows, status pills and all — overflowed its own column and
+   ran across the hourly chart beside it. The toolbar wraps instead. */
+.list { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; min-width: 0; }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.7rem 1rem; padding: 0.8rem var(--pad-x); border-bottom: 1px solid var(--line); min-width: 0; }
 .count { color: var(--muted); }
-.search { width: 12rem; margin-left: auto; }
-.hdr { display: grid; grid-template-columns: 2rem minmax(0, 1.4fr) 1fr 0.6fr 0.5fr minmax(0, 2.4fr) 11rem; gap: 1rem; padding: 0.5rem var(--pad-x); border-bottom: 1px solid var(--line); }
+.search { width: 12rem; min-width: 8rem; margin-left: auto; }
+.hdr { display: grid; grid-template-columns: 2rem minmax(0, 2fr) 1fr 0.6fr 0.5fr minmax(0, 2fr) 11rem; gap: 1rem; padding: 0.5rem var(--pad-x); border-bottom: 1px solid var(--line); }
 .cards { min-height: 0; }
 .side { display: grid; grid-template-rows: minmax(14rem, 1fr) auto; min-height: 0; border-left: 1px solid var(--line); }
 .side :deep(.chart) { border-bottom: 1px solid var(--line); }
 @media (max-width: 1600px) {
   .boards { grid-template-columns: minmax(0, 1.5fr) minmax(22rem, 1fr); }
-  .hdr { grid-template-columns: 1.6rem minmax(0, 1.3fr) 0.9fr 0.5fr 0.4fr minmax(0, 2fr) 9rem; gap: 0.7rem; }
+  .hdr { grid-template-columns: 1.6rem minmax(0, 1.9fr) 0.9fr 0.5fr 0.4fr minmax(0, 1.7fr) 9rem; gap: 0.7rem; }
 }
 @media (max-width: 1100px) {
   .boards { grid-template-columns: 1fr; }

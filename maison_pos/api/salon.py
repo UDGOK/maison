@@ -31,7 +31,7 @@ from typing import Any, Optional
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, cint, flt, get_datetime, now_datetime
+from frappe.utils import add_to_date, cint, flt, get_datetime, get_system_timezone, now_datetime
 
 from maison_pos.identifiers import digits_only
 from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_associate
@@ -453,6 +453,8 @@ def salon_settings(boutique: str) -> dict[str, Any]:
 		"feedback_enabled": cint(s.get("feedback_enabled", 1) if "feedback_enabled" in s else 1),
 		"receipt_qr_base_url": s.get("receipt_qr_base_url"),
 		"currency": frappe.get_cached_value("Company", frappe.db.get_value("Maison Boutique", boutique, "company"), "default_currency"),
+		# v0.6 R — the client display runs on the boutique's clock, not the paired iPad's
+		"time_zone": frappe.db.get_value("Maison Boutique", boutique, "timezone") or get_system_timezone(),
 		# --- v0.6 N/Q — brand tokens, welcome line, rewards copy + age gate for the "Please present your ID" state ---
 		"brand": s.get("brand"),
 		"welcome_line": _welcome_line(b.get("boutique_name")),

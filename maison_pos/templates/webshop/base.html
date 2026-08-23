@@ -75,7 +75,8 @@
 			</div>
 			<div class="col">
 				<h5>{{ shop.store_noun }}s</h5>
-				{% for b in shop.boutiques %}<a href="/shop/boutiques#{{ b.name }}">{{ b.boutique_name }} &middot; {{ (b.city or '').split(',')[0] }}</a>{% endfor %}
+				{#- v0.6 R: drop the repeated brand prefix and keep the city on one line (it used to wrap "Broken Arrow" onto two) -#}
+				{% for b in shop.boutiques %}{% set nm = shop_store_name(b.boutique_name, shop.brand_name) %}{% set ct = (b.city or '').split(',')[0].strip() %}<a href="/shop/boutiques#{{ b.name }}"><span class="nm">{{ nm }}</span>{% if ct and ct|lower != nm|lower %} <span class="ct">{{ ct }}</span>{% endif %}</a>{% endfor %}
 			</div>
 			<div class="col">
 				<h5>Client services</h5>

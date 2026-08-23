@@ -69,7 +69,8 @@
 			{% endif %}
 			<label class="consent"><input type="checkbox" id="rw-consent-email" name="consent_email" checked> E-mail me promotions, new arrivals, giveaways and event invites.</label>
 			<label class="consent"><input type="checkbox" id="rw-consent-sms" name="consent_sms"> Text me (SMS) about promotions and my rewards. Msg &amp; data rates may apply. Reply STOP to opt out.</label>
-			<label class="consent"><input type="checkbox" id="rw-consent" name="consent" required> I am 21 or older and I agree to the {{ p.program_name }} terms. {{ p.brand.brand_name }} keeps my name, contact details and purchase history to run the program.</label>
+			{# v0.6 R — the age/terms consent is the one box that gates the sign-up: it gets its own block and a "Required" label #}
+			<label class="consent required" for="rw-consent"><input type="checkbox" id="rw-consent" name="consent" required aria-required="true"><span><span class="req">Required</span>I am {{ p.minimum_age or 21 }} or older and I agree to the {{ p.program_name }} terms. {{ p.brand.brand_name }} keeps my name, contact details and purchase history to run the program.</span></label>
 			<button type="submit" id="rw-submit" data-testid="rewards-join">Join {{ p.program_name }}</button>
 			<div class="ok" id="rw-ok" style="display:none" data-testid="rewards-ok"></div>
 			<div class="err" id="rw-err" style="display:none"></div>

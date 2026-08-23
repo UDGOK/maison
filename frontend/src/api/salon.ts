@@ -146,6 +146,8 @@ export interface SalonSettings {
   feedback_enabled: 0 | 1
   receipt_qr_base_url?: string
   currency?: string
+  /** v0.6 R — the boutique's IANA zone; the client display runs on the boutique's clock */
+  time_zone?: string
 }
 
 export interface SalonSession {

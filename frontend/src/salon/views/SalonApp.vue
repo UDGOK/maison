@@ -22,6 +22,7 @@ import SalonInvite from './SalonInvite.vue'
 import SalonConsent from './SalonConsent.vue'
 import SalonConcierge from './SalonConcierge.vue'
 import SalonIdCheck from './SalonIdCheck.vue' // v0.6 N
+import { clockHM } from '@/utils/time' // v0.6 R
 
 const salon = useSalonStore()
 const route = useRoute()
@@ -47,7 +48,7 @@ const views = {
 } as const
 const current = computed(() => views[salon.view])
 const dimmed = computed(() => salon.view !== 'ambient' && salon.view !== 'pair')
-const clock = computed(() => new Date(salon.now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
+const clock = computed(() => clockHM(new Date(salon.now))) // v0.6 R — the boutique's clock
 
 function onResize() {
   ambient?.resize()

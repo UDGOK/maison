@@ -7,7 +7,8 @@ import { computed } from 'vue'
 import StatusPill from '../StatusPill.vue'
 import { deriveStatus } from '../../lib/aggregate'
 import type { BoutiqueAgg } from '../../lib/aggregate'
-import { fmtInt, fmtMoney } from '../../lib/format'
+import { fmtInt, fmtMoney, storeShortName } from '../../lib/format'
+import { useBrand } from '../../stores/brand' // v0.6 R
 
 const props = defineProps<{ row: BoutiqueAgg; index: number; now: number; flashing: boolean; selected: boolean }>()
 defineEmits<{ select: [code: string] }>()
@@ -23,6 +24,9 @@ const ago = computed(() => {
   return new Date(ls.ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 })
 const vs = computed(() => props.row.vs_last_week_pct)
+// v0.6 R — drop the brand prefix: "CloudChaserz Montrose" → "Montrose" (the full name is the title)
+const brand = useBrand()
+const shortName = computed(() => storeShortName(props.row.name, brand.name))
 </script>
 
 <template>
@@ -30,7 +34,7 @@ const vs = computed(() => props.row.vs_last_week_pct)
     <span class="num idx">{{ String(index + 1).padStart(2, '0') }}</span>
     <span class="name">
       <span class="display code">{{ row.boutique }}</span>
-      <span class="city">{{ row.name }}</span>
+      <span class="city" :title="row.name">{{ shortName }}</span>
     </span>
     <span class="num r net">{{ fmtMoney(row.net) }}</span>
     <span class="num r vs" :class="vs === null ? 'flat' : vs >= 0 ? 'up' : 'down'">{{ vs === null ? '—' : `${vs >= 0 ? '+' : '−'}${Math.abs(vs).toFixed(0)}%` }}</span>
@@ -54,7 +58,9 @@ const vs = computed(() => props.row.vs_last_week_pct)
 <style scoped>
 .bcard {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1.4fr) 1fr 0.6fr 0.5fr minmax(0, 2.4fr) 11rem;
+  /* v0.6 R: the name column carries the only distinguishing text on the row — it gets the width
+     the last-sale column was spending on an already-ellipsised item name. */
+  grid-template-columns: 2rem minmax(0, 2fr) 1fr 0.6fr 0.5fr minmax(0, 2fr) 11rem;
   align-items: center;
   gap: 1rem;
   height: 100%;
@@ -84,6 +90,6 @@ const vs = computed(() => props.row.vs_last_week_pct)
 .dot { color: var(--dim); }
 .st { justify-self: end; }
 @media (max-width: 1600px) {
-  .bcard { grid-template-columns: 1.6rem minmax(0, 1.3fr) 0.9fr 0.5fr 0.4fr minmax(0, 2fr) 9rem; gap: 0.7rem; }
+  .bcard { grid-template-columns: 1.6rem minmax(0, 1.9fr) 0.9fr 0.5fr 0.4fr minmax(0, 1.7fr) 9rem; gap: 0.7rem; }
 }
 </style>

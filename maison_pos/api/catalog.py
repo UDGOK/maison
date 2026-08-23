@@ -11,7 +11,7 @@ import frappe
 from frappe import _
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
-from frappe.utils import flt, get_datetime, get_url, now_datetime
+from frappe.utils import flt, get_datetime, get_system_timezone, get_url, now_datetime
 
 from maison_pos.brand import get_brand  # v0.6 N
 from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
@@ -114,7 +114,9 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 		"boutique_type": doc.get("boutique_type") or "Store",
 		"is_warehouse": int(doc.get("is_warehouse") or 0),
 		"region": doc.get("region"),
-		"timezone": doc.get("timezone") or "America/Chicago",
+		# v0.6 R — every clock on the till renders in this zone; a store without its own zone falls
+		# back to the *site* zone rather than a hard-coded American one.
+		"timezone": doc.get("timezone") or get_system_timezone(),
 		"hours": _parse_hours(doc.get("hours")),
 		"state": doc.get("state"),
 		"zip": doc.get("zip"),

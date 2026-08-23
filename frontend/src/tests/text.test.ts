@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { stripHtml } from '@/utils/text'
+import { plural, storeShortName, stripHtml } from '@/utils/text'
 
 describe('stripHtml', () => {
   it('leaves plain text alone', () => {
@@ -12,5 +12,33 @@ describe('stripHtml', () => {
   })
   it('handles null/undefined', () => {
     expect(stripHtml(undefined)).toBe('')
+  })
+})
+
+// --- v0.6 R -----------------------------------------------------------------------------------
+describe('storeShortName', () => {
+  it('drops the repeated brand prefix so the distinguishing word survives a tight column', () => {
+    expect(storeShortName('CloudChaserz Montrose', 'CloudChaserz')).toBe('Montrose')
+    expect(storeShortName('CloudChaserz Broken Arrow', 'CloudChaserz')).toBe('Broken Arrow')
+    expect(storeShortName('CloudChaserz — Yale', 'CloudChaserz')).toBe('Yale')
+  })
+  it('keeps names that do not start with the brand, and never returns empty', () => {
+    expect(storeShortName('Montrose', 'CloudChaserz')).toBe('Montrose')
+    expect(storeShortName('CloudChaserz', 'CloudChaserz')).toBe('CloudChaserz')
+    expect(storeShortName('Maison Chicago Oak Street', 'Maison')).toBe('Chicago Oak Street')
+    expect(storeShortName('', 'CloudChaserz')).toBe('')
+  })
+  it('is case-insensitive about the prefix', () => {
+    expect(storeShortName('CLOUDCHASERZ Bixby', 'CloudChaserz')).toBe('Bixby')
+  })
+})
+
+describe('plural', () => {
+  it('agrees with the count', () => {
+    expect(plural(1, 'item')).toBe('1 item')
+    expect(plural(2, 'item')).toBe('2 items')
+    expect(plural(0, 'item')).toBe('0 items')
+    expect(plural(1, 'discrepancy', 'discrepancies')).toBe('1 discrepancy')
+    expect(plural(3, 'discrepancy', 'discrepancies')).toBe('3 discrepancies')
   })
 })

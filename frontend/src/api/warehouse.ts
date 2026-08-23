@@ -254,6 +254,8 @@ export interface WarehouseMe {
   brand: { brand_name: string; wordmark_text: string; product_name: string; [k: string]: unknown }
   provider: string
   stores: string[]
+  /** v0.6 R — the site's IANA zone; every clock on the warehouse screens renders in it */
+  time_zone?: string
 }
 
 export interface PickListLine {

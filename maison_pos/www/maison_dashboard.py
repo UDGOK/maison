@@ -43,8 +43,13 @@ def get_context(context) -> None:
     context.no_cache = 1
     from maison_pos.brand import get_brand  # v0.6 N
 
+    from frappe.utils import get_system_timezone  # v0.6 R
+
     brand = get_brand()
     context.brand = brand
+    # v0.6 R — the dashboard clock is the *site* clock: a head-office browser in another zone used
+    # to print its own time next to a POS and a wall board showing the shops' time.
+    context.site = {"time_zone": get_system_timezone()}
     context.title = f"{brand['wordmark_text']} · Command"
     context.built = False
     context.dashboard_head = ""

@@ -62,20 +62,33 @@ def _tint(flavor: str | None, code: str) -> str:
 	return palette[_seed(code) % len(palette)]
 
 
-def _frame(inner: str, code: str, name: str, group: str, brand: str | None, tint: str) -> str:
-	brand_line = escape((brand or "").upper())
-	name_line = escape(name if len(name) <= 34 else name[:33] + "…")
-	return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
+def _frame(inner: str, code: str, name: str, group: str, brand: str | None, tint: str, caption: bool = False) -> str:
+	"""The art itself. ``caption`` is off by default (v0.6 R).
+
+	The art used to burn the brand / product name / group into the bottom of every picture. Every
+	surface that shows the picture already prints those three strings in HTML next to it — the shop
+	hero overlays them bottom-left over the image, the product card and the POS tile print them
+	underneath — so the caption was at best duplicated and, on the hero, two captions overlapped
+	each other. The picture is now just the picture; the page owns the words.
+	"""
+	title = escape(f"{name} — {group}")
+	tail = ""
+	if caption:
+		brand_line = escape((brand or "").upper())
+		name_line = escape(name if len(name) <= 34 else name[:33] + "…")
+		tail = f"""
+<text x="300" y="520" text-anchor="middle" font-family="Jost, Helvetica, Arial, sans-serif" font-size="13" letter-spacing="5" fill="{GOLD}">{brand_line}</text>
+<text x="300" y="548" text-anchor="middle" font-family="Jost, Helvetica, Arial, sans-serif" font-size="17" fill="{TEXT}">{name_line}</text>
+<text x="300" y="572" text-anchor="middle" font-family="Jost, Helvetica, Arial, sans-serif" font-size="11" letter-spacing="4" fill="{DIM}">{escape(group.upper())}</text>"""
+	return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="{title}">
+<title>{title}</title>
 <defs>
 <radialGradient id="g{_seed(code) % 1000}" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="{SURFACE}"/><stop offset="1" stop-color="{GROUND}"/></radialGradient>
 <linearGradient id="t{_seed(code) % 1000}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{tint}" stop-opacity=".95"/><stop offset="1" stop-color="{tint}" stop-opacity=".45"/></linearGradient>
 </defs>
 <rect width="{W}" height="{H}" fill="url(#g{_seed(code) % 1000})"/>
 <rect x="24" y="24" width="{W-48}" height="{H-48}" fill="none" stroke="{LINE}" stroke-width="1"/>
-<g>{inner}</g>
-<text x="300" y="520" text-anchor="middle" font-family="Jost, Helvetica, Arial, sans-serif" font-size="13" letter-spacing="5" fill="{GOLD}">{brand_line}</text>
-<text x="300" y="548" text-anchor="middle" font-family="Jost, Helvetica, Arial, sans-serif" font-size="17" fill="{TEXT}">{name_line}</text>
-<text x="300" y="572" text-anchor="middle" font-family="Jost, Helvetica, Arial, sans-serif" font-size="11" letter-spacing="4" fill="{DIM}">{escape(group.upper())}</text>
+<g>{inner}</g>{tail}
 </svg>"""
 
 
@@ -214,7 +227,7 @@ def _service(tint: str, code: str, name: str) -> str:
 	return f"""<circle cx="300" cy="280" r="110" fill="none" stroke="{GOLD}" stroke-width="1.5"/><path d="M250 280 L290 320 L360 240" fill="none" stroke="{GOLD}" stroke-width="6" stroke-linecap="round"/>"""
 
 
-def product_svg(item_code: str, item_name: str, item_group: str, brand: str | None = None, flavor: str | None = None, puffs: int | None = None, ml: float | None = None) -> str:
+def product_svg(item_code: str, item_name: str, item_group: str, brand: str | None = None, flavor: str | None = None, puffs: int | None = None, ml: float | None = None, caption: bool = False) -> str:
 	tint = _tint(flavor, item_code)
 	n = item_name.lower()
 	if item_group == "Disposables":
@@ -249,4 +262,4 @@ def product_svg(item_code: str, item_name: str, item_group: str, brand: str | No
 		inner = _service(tint, item_code, item_name)
 	else:
 		inner = _accessory(tint, item_code, item_name)
-	return _frame(inner, item_code, item_name, item_group, brand, tint)
+	return _frame(inner, item_code, item_name, item_group, brand, tint, caption=caption)

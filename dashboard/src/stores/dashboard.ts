@@ -100,8 +100,22 @@ export const useDashboard = defineStore('dashboard', () => {
     void version.value
     return chainTotals(agg.value)
   })
-  const cardPct = computed(() => (totals.value.net > 0 ? (totals.value.card / totals.value.net) * 100 : 0))
-  const cashPct = computed(() => (totals.value.net > 0 ? (totals.value.cash / totals.value.net) * 100 : 0))
+  /**
+   * v0.6 R — card / cash as a share of **gross tender volume**, not a signed share of net.
+   *
+   * The old `card / net` reads correctly only on a day that is all sales. A store whose day so far
+   * is returns (card −317, cash 804, net 513) produced "−62% / 157%": two numbers that are each
+   * wrong, do not sum to 100, and overflowed their cell. Worse, a net of exactly 0 (sales cancelled
+   * out by returns) printed "0% / 0%" while money had plainly moved both ways.
+   *
+   * Gross volume — |card| + |cash| — is the money that actually crossed the counter in either
+   * direction, so the split always reads 0–100 %, always sums to 100, and answers the question the
+   * tile is really asking ("how do people pay here?") identically on a selling day and on a
+   * returns day. The signed amounts stay in the sub-line underneath, where the direction matters.
+   */
+  const tenderGross = computed(() => Math.abs(totals.value.card) + Math.abs(totals.value.cash))
+  const cardPct = computed(() => (tenderGross.value > 0 ? (Math.abs(totals.value.card) / tenderGross.value) * 100 : 0))
+  const cashPct = computed(() => (tenderGross.value > 0 ? (Math.abs(totals.value.cash) / tenderGross.value) * 100 : 0))
   // NB: the reducer mutates arrays in place; computeds must return fresh references, otherwise
   // Vue ≥ 3.4 sees an unchanged value and skips notifying the template.
   const hours = computed<HourBucket[]>(() => {
