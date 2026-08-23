@@ -3,6 +3,9 @@ import { ref } from 'vue'
 import { fmtCompact, fmtInt } from '../../lib/format'
 import { createTransfer, dismissSuggestion } from '../../insights/api'
 import type { RebalanceMove } from '../../insights/types'
+import { useBrand } from '../../stores/brand' // v0.6 D1
+
+const brand = useBrand()
 
 defineProps<{ moves: RebalanceMove[]; days: number }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -67,7 +70,7 @@ function cover(d: number | null): string {
             <span class="label ok">{{ done[m.name] }}</span>
           </template>
           <template v-else>
-            <button class="act" :disabled="busy === m.name || m.can_transfer === false" :title="m.can_transfer === false ? 'Managers of the boutiques involved (or Head Office) only' : 'Submit a Material Transfer'" @click="transfer(m)">
+            <button class="act" :disabled="busy === m.name || m.can_transfer === false" :title="m.can_transfer === false ? `Managers of the ${brand.storesLower} involved (or Head Office) only` : 'Submit a Material Transfer'" @click="transfer(m)">
               {{ busy === m.name ? '…' : 'Create transfer' }}
             </button>
             <button class="act ghost" :disabled="busy === m.name || m.can_transfer === false" title="Dismiss" @click="dismiss(m)">×</button>

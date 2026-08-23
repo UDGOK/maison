@@ -52,6 +52,17 @@ onMounted(async () => {
 })
 
 const brand = useBrand() // v0.6 N
+
+/**
+ * v0.6 D2 — the wordmark must shrink with its glyph count.
+ *
+ * The unlock screen is `minmax(0, 1fr) 480px`; the left column therefore gets
+ * `100vw - 480px - 112px` (padding) of room. A display glyph at `letter-spacing: 0.3em`
+ * measures ~1.35x the font size, so a 12-glyph wordmark ("CLOUDCHASERZ") needs ~1033px at the
+ * old fixed 64px and pushed the panel 147px off a 1366x1024 till. The length goes to CSS as a
+ * custom property so the media queries below still win on a phone.
+ */
+const wordmarkLen = computed(() => Math.max(1, (brand.wordmark || '').length))
 async function chooseBoutique() {
   error.value = ''
   busy.value = true
@@ -123,7 +134,7 @@ function fail() {
     <div class="left">
       <div class="brand">
         <!-- v0.6 N: brand tokens -->
-        <div class="wordmark display-900" data-testid="unlock-wordmark">{{ brand.wordmark }}</div>
+        <div class="wordmark display-900" data-testid="unlock-wordmark" :style="{ '--wm-len': wordmarkLen }">{{ brand.wordmark }}</div>
         <div class="label">{{ brand.subMark }} &middot; {{ brand.productName }}</div>
         <!-- end v0.6 N -->
       </div>
@@ -190,9 +201,13 @@ function fail() {
 .unlock {
   height: 100%;
   display: grid;
-  grid-template-columns: 1fr 480px;
+  /* v0.6 D2: a bare `1fr` track has `min-width: auto`, so the left column could not shrink below
+     the min-content width of the wordmark and pushed the PIN panel off a 1366px till. */
+  grid-template-columns: minmax(0, 1fr) 480px;
+  overflow-x: hidden;
 }
 .left {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -201,9 +216,12 @@ function fail() {
   background: var(--ground);
 }
 .brand .wordmark {
-  font-size: 64px;
-  letter-spacing: 0.3em;
+  /* clamped by wordmark length: 64px for MAISON (6), ~46px for CLOUDCHASERZ (12) at 1366px */
+  font-size: clamp(20px, calc((100vw - 620px) / (var(--wm-len, 6) * 1.35)), 64px);
+  letter-spacing: clamp(0.1em, calc(0.3em - (var(--wm-len, 6) - 8) * 0.02em), 0.3em);
   line-height: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .brand .label {
   margin-top: 20px;
@@ -332,7 +350,7 @@ function fail() {
     border-bottom: var(--line-w) solid var(--line);
   }
   .brand .wordmark {
-    font-size: 28px;
+    font-size: min(28px, calc((100vw - 40px) / (var(--wm-len, 6) * 1.35)));
   }
   .brand .label {
     margin-top: 6px;

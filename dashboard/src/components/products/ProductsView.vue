@@ -13,6 +13,8 @@ import { useDashboard } from '../../stores/dashboard'
 import type { ProductTrends, TopProducts, TrendPeriod } from '../../types'
 
 const d = useDashboard()
+import { useBrand } from '../../stores/brand' // v0.6 D1
+const brand = useBrand()
 type Sub = 'trending' | 'top'
 const sub = ref<Sub>((new URLSearchParams(window.location.search).get('sub') as Sub) || 'trending')
 const period = ref<TrendPeriod>('7d')
@@ -61,8 +63,8 @@ const heatCells = computed(() => top.value?.matrix ?? [])
   <div class="products">
     <header class="toolbar">
       <div class="seg subs">
-        <button class="btn" :class="{ on: sub === 'trending' }" data-sub="trending" @click="sub = 'trending'">Trending in stores</button>
-        <button class="btn" :class="{ on: sub === 'top' }" data-sub="top" @click="sub = 'top'">Top products by store</button>
+        <button class="btn" :class="{ on: sub === 'trending' }" data-sub="trending" @click="sub = 'trending'">Trending in {{ brand.storesLower }}</button>
+        <button class="btn" :class="{ on: sub === 'top' }" data-sub="top" @click="sub = 'top'">Top products by {{ brand.storeLower }}</button>
       </div>
       <div class="seg">
         <button v-for="p in ['7d', '28d'] as TrendPeriod[]" :key="p" class="btn ghost" :class="{ on: period === p }" @click="period = p">{{ p }}</button>
@@ -77,8 +79,8 @@ const heatCells = computed(() => top.value?.matrix ?? [])
         </div>
       </template>
       <template v-else>
-        <select v-model="boutique" class="input" aria-label="Boutique">
-          <option value="all">All boutiques</option>
+        <select v-model="boutique" class="input" :aria-label="brand.store">
+          <option value="all">All {{ brand.storesLower }}</option>
           <option v-for="b in boutiqueCodes" :key="b" :value="b">{{ b }}</option>
         </select>
         <div class="seg">

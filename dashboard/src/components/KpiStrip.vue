@@ -6,6 +6,9 @@
 import AnimatedNumber from './AnimatedNumber.vue'
 import { fmtInt, fmtMoney, fmtPct } from '../lib/format'
 import type { LiveTotals } from '../types'
+import { useBrand } from '../stores/brand' // v0.6 D1
+
+const brand = useBrand()
 
 defineProps<{ totals: LiveTotals; cardPct: number; cashPct: number; pending: number; lowStock: number; feedbackOpen: number; online?: number; boutiques?: number }>()
 
@@ -25,7 +28,7 @@ function delta(p: number | null | undefined): string {
     <div class="kpi">
       <span class="label">Invoices</span>
       <span class="display value"><AnimatedNumber :value="totals.invoices" :format="fmtInt" /></span>
-      <span class="sub num">{{ online ?? 0 }} / {{ boutiques ?? 0 }} boutiques online</span>
+      <span class="sub num">{{ online ?? 0 }} / {{ boutiques ?? 0 }} {{ brand.storesLower }} online</span>
     </div>
     <div class="kpi">
       <span class="label">Card / Cash</span>

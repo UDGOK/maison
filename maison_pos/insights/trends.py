@@ -254,7 +254,11 @@ def compute_trends(commit: bool = True, today: Any = None) -> dict[str, Any]:
 	``bench --site X execute maison_pos.insights.trends.compute_trends``
 	"""
 	started = time.time()
-	boutiques = frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name")
+	from maison_pos.scoping import warehouse_boutiques
+
+	# v0.6 D4 — the head-office warehouse is not a shop and must not get a trend column
+	_warehouses = warehouse_boutiques()
+	boutiques = [b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name") if b not in _warehouses]
 	sales = load_sales_buckets(boutiques, today)
 	stock = load_stock(boutiques)
 	codes = sorted({s["item_code"] for s in sales} | {k[0] for k in stock})

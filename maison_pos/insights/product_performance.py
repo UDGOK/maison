@@ -153,7 +153,11 @@ def load_stock(boutiques: list[str]) -> tuple[dict[tuple[str, str], float], dict
 def product_performance(days: Optional[int] = None, boutiques: Optional[list[str]] = None) -> dict[str, Any]:
 	"""Full performance payload: items × boutiques, heatmap, top / slow movers, rebalance list."""
 	from_date, to_date, days = _period(days)
-	boutiques = boutiques or frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name")
+	from maison_pos.scoping import warehouse_boutiques
+
+	# v0.6 D4 — shops only; the head-office warehouse row is not a store
+	_warehouses = warehouse_boutiques()
+	boutiques = boutiques or [b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name") if b not in _warehouses]
 	sales = load_sales(from_date, to_date, boutiques)
 	stock, _wh = load_stock(boutiques)
 	codes = sorted({r.item_code for r in sales} | {k[0] for k in stock.keys()})

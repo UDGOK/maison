@@ -558,6 +558,9 @@ def void(invoice: str, reason: str) -> dict[str, Any]:
 			"update_stock": 1,
 			"pos_profile": src.pos_profile,
 			"maison_boutique": src.get("maison_boutique"),
+			# v0.6 D3 — see events.sales_invoice.stamp_store: a return with no `set_warehouse`
+			# slips past the per-user Warehouse User Permission
+			"set_warehouse": src.get("set_warehouse") or frappe.db.get_value("Maison Boutique", src.get("maison_boutique"), "warehouse"),
 			"maison_associate": frappe.db.get_value("Maison Associate", {"user": frappe.session.user}, "name"),
 			"maison_notes": _("VOID: {0}").format(reason),
 			"maison_offline_uuid": None,

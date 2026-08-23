@@ -2,17 +2,17 @@
  "base": "http://cc.localhost:8001",
  "store": "OK-SAP",
  "item": "GLS-001",
- "shipment": "MSH-2026-00020",
+ "shipment": "MSH-2026-00022",
  "results": [
   {
    "step": "store manager requests stock from the warehouse on Receive",
    "ok": true,
-   "detail": "MRR-2026-00019 (GLS-001 ×6)"
+   "detail": "MRR-2026-00021 (GLS-001 ×6)"
   },
   {
    "step": "request is Pending Approval with a draft Material Transfer",
    "ok": true,
-   "detail": "Pending Approval MR=MAT-MR-2026-00009 from=HOU-WH - CCZ to=OK-SAP - CCZ"
+   "detail": "Pending Approval MR=MAT-MR-2026-00010 from=HOU-WH - CCZ to=OK-SAP - CCZ"
   },
   {
    "step": "/warehouse desk opens for the Maison Warehouse Admin",
@@ -27,7 +27,7 @@
   {
    "step": "approval creates a Maison Shipment for the store",
    "ok": true,
-   "detail": "MSH-2026-00020 status=Pending lines=[[\"GLS-001\",4]]"
+   "detail": "MSH-2026-00022 status=Pending lines=[[\"GLS-001\",4]]"
   },
   {
    "step": "approved quantity is the edited one, not the requested one",
@@ -37,17 +37,17 @@
   {
    "step": "the approved shipment appears as a card on the 1920×1080 wall over realtime",
    "ok": true,
-   "detail": "OK-SAP 0m CloudChaserz Sapulpa 1 ITEMS 4 UNITS PENDING MSH-2026-00020 PICK"
+   "detail": "OK-SAP 0m CloudChaserz Sapulpa 1 ITEMS 4 UNITS PENDING MSH-2026-00022 PICK"
   },
   {
    "step": "the wall card carries the store code and the unit count",
    "ok": true,
-   "detail": "OK-SAP 0m CloudChaserz Sapulpa 1 ITEMS 4 UNITS PENDING MSH-2026-00020 PICK"
+   "detail": "OK-SAP 0m CloudChaserz Sapulpa 1 ITEMS 4 UNITS PENDING MSH-2026-00022 PICK"
   },
   {
    "step": "auto-print of the packing list fired on the wall (window.__maisonLastWallPrint)",
    "ok": true,
-   "detail": "{\"kind\":\"packing_list\",\"url\":\"/printview?doctype=Maison%20Shipment&name=MSH-2026-00020&format=Maison%20Packing%20List&no_letterhead=1\",\"shipment\":\"MSH-2026-00020\",\"at\":\"2026-08-23T06:13:04.942Z\",\"via\":\"dry\"}"
+   "detail": "{\"kind\":\"packing_list\",\"url\":\"/printview?doctype=Maison%20Shipment&name=MSH-2026-00022&format=Maison%20Packing%20List&no_letterhead=1\",\"shipment\":\"MSH-2026-00022\",\"at\":\"2026-08-23T09:12:41.324Z\",\"via\":\"dry\"}"
   },
   {
    "step": "rate shopping returns options sorted cheapest-first",
@@ -62,27 +62,27 @@
   {
    "step": "buying the (simulated) label returns a tracking number and a label URL",
    "ok": true,
-   "detail": "simulated USPS Ground Advantage $15.71 9400842580923540389662"
+   "detail": "simulated USPS Ground Advantage $15.71 9400117379240156714154"
   },
   {
    "step": "shipping posts the Material Transfer HQ → In Transit",
    "ok": true,
-   "detail": "status=Shipped HQ 225→221, In Transit 0→4 (SE MAT-STE-2026-00063)"
+   "detail": "status=Shipped HQ 246→242, In Transit 0→4 (SE MAT-STE-2026-00067)"
   },
   {
    "step": "store manager receives the shipment with a scan on Receive",
    "ok": true,
-   "detail": "scanned 2004044408837 ×4: COUNTED · 2004044408837 | MSH-2026-00020 · RECEIVED DISMISS Stock Entry MAT-STE-2026-00064"
+   "detail": "scanned 2004044408837 ×4: COUNTED · 2004044408837 | MSH-2026-00022 · RECEIVED DISMISS Stock Entry MAT-STE-2026-00068"
   },
   {
    "step": "the shipment is Received",
    "ok": true,
-   "detail": "Received received_at=2026-08-23T01:13:22.142314"
+   "detail": "Received received_at=2026-08-23T04:12:59.051298"
   },
   {
    "step": "stock balances moved: HQ ↓, In Transit back to 0, store ↑",
    "ok": true,
-   "detail": "HQ 225→221, In Transit 0→0, OK-SAP 27→31 (+4)"
+   "detail": "HQ 246→242, In Transit 0→0, OK-SAP 31→35 (+4)"
   }
  ],
  "console": [

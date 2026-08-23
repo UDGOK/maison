@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { fmtClock, fmtDate } from '../lib/format'
+import { useBrand } from '../stores/brand' // v0.6 D1 — the wordmark and the scope line are tenant tokens
+
+const brand = useBrand()
 
 defineProps<{ live: boolean }>()
 
@@ -15,9 +18,9 @@ const date = computed(() => fmtDate(now.value))
 <template>
   <header class="top">
     <div class="brand">
-      <span class="display wordmark">Maison</span>
+      <span class="display wordmark" data-testid="wordmark">{{ brand.wordmark }}</span>
       <span class="sep" />
-      <span class="scope">Today · All Boutiques</span>
+      <span class="scope" data-testid="scope">{{ brand.scope }}</span>
     </div>
     <div class="right">
       <span class="label date">{{ date }}</span>

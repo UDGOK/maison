@@ -234,3 +234,55 @@ POST /api/method/maison_pos.api.insights.compute                     {"narrative
 
 Then: `/pos` · `/warehouse` · `/warehouse-wall` · `/maison-dashboard` · `/shop` · `/rewards` ·
 `/salon`.
+
+## 7. Site time zone — moving a seeded site safely
+
+`System Settings.time_zone` drives every server-side day boundary: the dashboard's "today", the
+hourly buckets, `posting_time` on each sale. A fresh Frappe Cloud site leaves it unset and falls
+back to the host's zone (`Asia/Kolkata`), which reads 13:27 while Houston reads 02:57.
+
+**Set the zone before seeding whenever you can.** Re-timezoning a site *after* the stock and the
+history are seeded is what broke the first cloud run: the seed posts the opening-stock receipts at
+"now", so moving the site west leaves those receipts dated in the *future*, and every POS sale is
+then refused with `NegativeStockError` / `SerialNoExistsInFutureTransactionError`.
+
+If the site is already seeded, do not set the zone by hand — use the repair helper, which does all
+three steps in one transaction and proves the result:
+
+```bash
+bench --site <site> execute maison_pos.setup.repair.set_site_timezone \
+  --kwargs "{'tz': 'America/Chicago'}"
+```
+
+or, on a managed host, as a System Manager:
+
+```
+POST /api/method/maison_pos.setup.repair.set_site_timezone   {"tz": "America/Chicago"}
+GET  /api/method/maison_pos.setup.repair.site_timezone_status
+```
+
+It:
+
+1. validates `tz` against the tz database and writes `System Settings.time_zone`;
+2. runs the existing `maison_pos.setup.demo.rebase_stock`, which back-dates the demo opening-stock
+   receipts (under the CloudChaserz globals when that seed is present);
+3. pulls anything still dated after the new wall clock back to it — Stock Entries, Sales Invoices
+   and every ledger row they wrote (Stock Ledger, Serial and Batch Bundle, GL, Payment Ledger) —
+   and reposts valuation from the earlier of the two datetimes;
+4. **verifies**: the returned `future` block lists any document still dated ahead of the clock, and
+   `ok` is `false` when it is not empty.
+
+```json
+{"time_zone": "America/Chicago", "previous": null, "clamped": ["Sales Invoice ACC-SINV-…"],
+ "future": {}, "ok": true}
+```
+
+The helper is idempotent — running it twice is a no-op — and `site_timezone_status()` is a
+read-only check to run before and after.
+
+### Other repairs
+
+| Helper | What it fixes |
+|---|---|
+| `maison_pos.setup.repair.reset_walk_in_loyalty()` | The POS-Profile default customer ("Walk-in Customer") had been enrolled by a loyalty programme with `auto_opt_in` and accrued a point per dollar on every anonymous basket. Clears its `loyalty_program`, tier and client number, deletes its Loyalty Point Entries and unstamps `loyalty_program` on its invoices. Idempotent. The code paths are guarded now (`maison_pos.events.customer`, `maison_pos.events.sales_invoice`, `maison_pos.api.rewards`), so the seed cannot recreate it. |
+| `bench --site <site> migrate` | Runs `maison_pos.patches.v0_6.backfill_return_store_stamp`: return credit notes created before v0.6 carry no `set_warehouse` (ERPNext blanks it), so the per-user Warehouse User Permission missed them. The patch stamps the store and the warehouse on the existing rows; the list query is scoped on `maison_boutique` independently. |

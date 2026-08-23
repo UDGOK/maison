@@ -52,11 +52,49 @@ def get_user_boutique(user: Optional[str] = None) -> Optional[str]:
 
 
 def get_allowed_boutiques(user: Optional[str] = None) -> list[str]:
-	"""List of boutique codes the user can see (all enabled boutiques when unrestricted)."""
+	"""List of boutique codes the user can see (all enabled boutiques when unrestricted).
+
+	This is the **access** list: it deliberately still contains the head-office warehouse row
+	(``is_warehouse = 1``) because a Head Office user may act on it. Anything that presents a
+	list of *shops* to a human — dashboard boards, store columns, reports — must use
+	:func:`get_retail_boutiques` instead (v0.6 defect D4).
+	"""
 	if is_unrestricted(user):
 		return frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name")
 	boutique = get_user_boutique(user)
 	return [boutique] if boutique else []
+
+
+def _meta_has(doctype: str, fieldname: str) -> bool:
+	try:
+		return frappe.get_meta(doctype).has_field(fieldname)
+	except Exception:  # pragma: no cover — doctype missing on an old site
+		return False
+
+
+def warehouse_boutiques() -> set[str]:
+	"""Codes of the ``Maison Boutique`` rows that are warehouses, not shops.
+
+	Mirrors ``maison_pos.api.rewards`` (the only place that got this right in v0.6): a row counts
+	as a warehouse when ``is_warehouse = 1`` **or** ``boutique_type = "Warehouse"``. Both fields
+	are v0.6 custom fields, so they are feature-detected for sites seeded before v0.6.
+	"""
+	names: set[str] = set()
+	for field, value in (("is_warehouse", 1), ("boutique_type", "Warehouse")):
+		if _meta_has("Maison Boutique", field):
+			names.update(frappe.get_all("Maison Boutique", filters={field: value}, pluck="name"))
+	return names
+
+
+def get_retail_boutiques(user: Optional[str] = None) -> list[str]:
+	"""Like :func:`get_allowed_boutiques`, minus the warehouse rows (v0.6 defect D4).
+
+	Every retail aggregation — the Live board, the boutiques table, Top products by store, the
+	period comparison, the trend/insight tables — lists shops, so ``HOU-WH`` must never appear
+	as a twelfth store.
+	"""
+	warehouses = warehouse_boutiques()
+	return [b for b in get_allowed_boutiques(user) if b not in warehouses]
 
 
 def assert_boutique_access(boutique: Optional[str], user: Optional[str] = None) -> str:
@@ -114,6 +152,39 @@ def _boutique_condition(doctype: str, user: Optional[str]) -> str:
 	if not boutique:
 		return "1=0"
 	return f"`tab{doctype}`.`boutique` = {frappe.db.escape(boutique)}"
+
+
+def is_store_scoped(user: Optional[str] = None) -> bool:
+	"""True when *user* is a store user whose lists must be narrowed to their own store.
+
+	Head Office / Regional / System Manager / Administrator are unrestricted, and so is anybody
+	who holds no Maison store role at all (a portal shopper, an accountant, a plain Stock User):
+	their access is whatever core Frappe permissions say. Only ``Maison Manager`` /
+	``Maison Associate`` are pinned to ``Maison Associate.boutique``.
+	"""
+	if is_unrestricted(user):
+		return False
+	return bool(SCOPED_ROLES & set(frappe.get_roles(_user(user))))
+
+
+def _own_boutique_condition(doctype: str, field: str, user: Optional[str], allow_blank: bool = True) -> str:
+	"""``<doctype>.<field>`` must be the caller's own store (rows with no store stay visible).
+
+	*allow_blank* keeps documents that carry no store stamp at all visible — those are not store
+	data (head-office invoices, webshop orders not routed to a shop). Every row that **is**
+	stamped is filtered, which is what closes the v0.6 D3 leak; the accompanying backfill patch
+	(`maison_pos.patches.v0_6.backfill_return_store_stamp`) makes sure returns are stamped.
+	"""
+	if not is_store_scoped(user):
+		return ""
+	boutique = get_user_boutique(user)
+	if not boutique:
+		return "1=0"
+	col = f"`tab{doctype}`.`{field}`"
+	own = f"{col} = {frappe.db.escape(boutique)}"
+	if not allow_blank:
+		return own
+	return f"({own} or {col} is null or {col} = '')"
 
 
 def price_change_request_query(user: Optional[str] = None) -> str:
@@ -320,7 +391,7 @@ def receiving_discrepancy_has_permission(doc, ptype: str = "read", user: Optiona
 
 def _warehouse_field_condition(doctype: str, fields: tuple[str, ...], user: Optional[str]) -> str:
 	"""Desk lists of stock documents: a store manager only sees rows touching their own warehouses."""
-	if is_supply_unrestricted(user):
+	if is_supply_unrestricted(user) or not is_store_scoped(user):
 		return ""
 	names = _store_warehouses(user)
 	if not names:
@@ -346,7 +417,7 @@ def purchase_order_query(user: Optional[str] = None) -> str:
 
 
 def _stock_doc_has_permission(doc, fields: tuple[str, ...], user: Optional[str]) -> bool:
-	if is_supply_unrestricted(user):
+	if is_supply_unrestricted(user) or not is_store_scoped(user):
 		return True
 	names = set(_store_warehouses(user))
 	if not names:
@@ -386,3 +457,48 @@ def age_check_query(user: Optional[str] = None) -> str:
 def giveaway_entry_query(user: Optional[str] = None) -> str:
 	return _boutique_condition("Maison Giveaway Entry", user)
 # --- end v0.6 N/Q ---
+
+
+# ---------------------------------------------------------------------------
+# v0.6 D3 — the generic REST surface (`frappe.client.get_list`, `/api/resource/...`)
+#
+# Store scoping for sales used to rely *only* on the per-user Warehouse User Permission, which
+# matches a Sales Invoice through `set_warehouse`. Credit notes are created by
+# `erpnext...make_sales_return`, which clears `set_warehouse` (a return may put lines back into
+# more than one warehouse), so every store's **return** invoices were listable by any store
+# manager. Two independent fixes: returns are now stamped (`maison_pos.events.sales_invoice`,
+# `maison_pos.api.returns`, backfill patch v0_6.backfill_return_store_stamp) *and* the list
+# query itself is narrowed here, which no longer depends on the stamp at all.
+# ---------------------------------------------------------------------------
+def sales_invoice_query(user: Optional[str] = None) -> str:
+	"""A store user lists only their own store's invoices — sales *and* credit notes."""
+	return _own_boutique_condition("Sales Invoice", "maison_boutique", user)
+
+
+def sales_invoice_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	if not is_store_scoped(user):
+		return True
+	boutique = get_user_boutique(user)
+	if not boutique:
+		return False
+	own = doc.get("maison_boutique")
+	return not own or own == boutique
+
+
+def sales_order_query(user: Optional[str] = None) -> str:
+	"""Webshop / click-and-collect orders carry the same ``maison_boutique`` stamp."""
+	return _own_boutique_condition("Sales Order", "maison_boutique", user)
+
+
+def sales_order_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return sales_invoice_has_permission(doc, ptype, user)
+
+
+def delivery_note_query(user: Optional[str] = None) -> str:
+	"""Delivery Notes have no ``maison_boutique``; scope them by the store's own warehouses."""
+	return _warehouse_field_condition("Delivery Note", ("set_warehouse",), user)
+
+
+def delivery_note_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _stock_doc_has_permission(doc, ("set_warehouse",), user)
+# --- end v0.6 D3 ---

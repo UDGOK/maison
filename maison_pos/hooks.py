@@ -201,6 +201,14 @@ permission_query_conditions = {
 	"Purchase Receipt": "maison_pos.scoping.purchase_receipt_query",
 	"Purchase Order": "maison_pos.scoping.purchase_order_query",
 	# --- end v0.6 O/P ---
+	# --- v0.6 D3 — the generic REST list surface. `Sales Invoice` used to rely only on the
+	# per-user Warehouse User Permission, which credit notes escape (no `set_warehouse`), so a
+	# store manager could list every other store's returns through `frappe.client.get_list` /
+	# `/api/resource/Sales Invoice`. Scoped on `maison_boutique` here, independently of the stamp.
+	"Sales Invoice": "maison_pos.scoping.sales_invoice_query",
+	"Sales Order": "maison_pos.scoping.sales_order_query",
+	"Delivery Note": "maison_pos.scoping.delivery_note_query",
+	# --- end v0.6 D3 ---
 }
 
 has_permission = {
@@ -216,6 +224,11 @@ has_permission = {
 	"Purchase Receipt": "maison_pos.scoping.purchase_receipt_has_permission",
 	"Purchase Order": "maison_pos.scoping.purchase_order_has_permission",
 	# --- end v0.6 O/P ---
+	# --- v0.6 D3 — `frappe.client.get` / `/api/resource/<dt>/<name>` on another store's document
+	"Sales Invoice": "maison_pos.scoping.sales_invoice_has_permission",
+	"Sales Order": "maison_pos.scoping.sales_order_has_permission",
+	"Delivery Note": "maison_pos.scoping.delivery_note_has_permission",
+	# --- end v0.6 D3 ---
 }
 
 # ---------------------------------------------------------------------------

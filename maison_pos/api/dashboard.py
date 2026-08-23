@@ -26,7 +26,10 @@ from frappe.utils import add_days, add_to_date, cint, flt, get_datetime, getdate
 
 from maison_pos.api.recognition import recognition_counts
 from maison_pos.maison_pos.doctype.maison_device_heartbeat.maison_device_heartbeat import upsert_heartbeat
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_allowed_boutiques, is_unrestricted
+# v0.6 D4 — every board on this page lists *shops*: `get_retail_boutiques` is
+# `get_allowed_boutiques` minus the head-office warehouse row (`HOU-WH` used to show up as a
+# twelfth store on Live and on Top-by-store, permanently at $0 / OFFLINE).
+from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_retail_boutiques, is_unrestricted
 from maison_pos.tasks import STALE_AFTER_SECONDS
 from maison_pos.utils import iso_with_tz, publish_heartbeat
 
@@ -105,7 +108,7 @@ def live_summary(date: Optional[str] = None, nocache: int = 0) -> dict[str, Any]
 
 
 def _live_summary(day: _dt.date) -> dict[str, Any]:
-	boutiques = get_allowed_boutiques()
+	boutiques = get_retail_boutiques()
 	meta = _boutique_meta(boutiques)
 	b_tuple = tuple(boutiques) or ("__none__",)
 	last_week = add_days(day, -7)
@@ -401,7 +404,7 @@ def _sales_rows(boutiques: list[str], limit: int, with_items: bool = True, date:
 def recent_sales(limit: int = 20, boutique: Optional[str] = None) -> list[dict[str, Any]]:
 	"""Latest submitted POS invoices (chain-wide or one boutique) — initial fill before socket events."""
 	assert_roles(*ALL_MAISON_ROLES, "System Manager")
-	boutiques = [assert_boutique_access(boutique)] if boutique else get_allowed_boutiques()
+	boutiques = [assert_boutique_access(boutique)] if boutique else get_retail_boutiques()
 	return _sales_rows(boutiques, cint(limit) or 20)
 
 
@@ -409,7 +412,7 @@ def recent_sales(limit: int = 20, boutique: Optional[str] = None) -> list[dict[s
 def ticker(limit: int = 10) -> list[dict[str, Any]]:
 	"""Compact chain-wide ticker rows: boutique, amount, top item, tier, ts (no PII)."""
 	assert_roles(*ALL_MAISON_ROLES, "System Manager")
-	rows = _sales_rows(get_allowed_boutiques(), min(cint(limit) or 10, 50))
+	rows = _sales_rows(get_retail_boutiques(), min(cint(limit) or 10, 50))
 	from maison_pos.utils import customer_tier
 
 	return [
@@ -727,7 +730,7 @@ def top_products(boutique: Optional[str] = "all", by: str = "net", period: Any =
 	if boutique and boutique.lower() != "all":
 		boutiques = [assert_boutique_access(boutique)]
 	else:
-		boutiques = get_allowed_boutiques()
+		boutiques = get_retail_boutiques()
 	key = f"{TRENDS_CACHE_PREFIX}:top:{','.join(boutiques)}:{by}:{period}:{n}"
 
 	def build() -> dict[str, Any]:
@@ -783,7 +786,7 @@ def clients_overview(boutique: Optional[str] = None, tiers: Any = None, limit: i
 	assert_roles(*ALL_MAISON_ROLES, "System Manager")
 	if boutique or not is_unrestricted():
 		boutique = assert_boutique_access(boutique)
-	boutiques = [boutique] if boutique else get_allowed_boutiques()
+	boutiques = [boutique] if boutique else get_retail_boutiques()
 	day = getdate(nowdate())
 	from_30 = add_days(day, -30)
 	tier_filter = [t for t in (tiers if isinstance(tiers, list) else (frappe.parse_json(tiers) if isinstance(tiers, str) and tiers.startswith("[") else (tiers or "").split(","))) if t]

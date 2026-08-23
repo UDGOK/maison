@@ -9,6 +9,7 @@ Skipped when the site is not being served (e.g. CI without ``bench start``).
 
 from __future__ import annotations
 
+import json
 import unittest
 
 import frappe
@@ -16,7 +17,7 @@ import requests
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt, nowdate, nowtime
 
-from maison_pos.tests.helpers import ensure_demo_data
+from maison_pos.tests.helpers import ensure_demo_data, ensure_stock, pos_invoice
 from maison_pos.tests.test_v0_6_warehouse import ITEM, WH_ADMIN, ensure_warehouse_admin
 
 PWD = "maison123"
@@ -89,6 +90,37 @@ class TestScopingHTTP(FrappeTestCase):
 		frappe.set_user(WH_ADMIN)
 		shipping.ship(sh.name)
 		frappe.set_user("Administrator")
+		# --- v0.6 D3 — a sale and its **credit note** in store B. A credit note used to carry no
+		# `set_warehouse` (erpnext blanks it), so the per-user Warehouse User Permission never
+		# matched it and store A's manager could list every other store's returns.
+		from maison_pos.api import returns as returns_api
+		from maison_pos.api import sales as sales_api
+
+		ensure_stock("AC-012", STORE_B, 4)
+		payload = pos_invoice(boutique=STORE_B, items=[{"item_code": "AC-012", "qty": 1, "rate": 160}])
+		res = sales_api.submit_batch([payload])["results"][0]
+		assert res["status"] == "ok", res
+		cls.sale_b = res["invoice_name"]
+		cls.credit_note_b = returns_api.return_items(
+			cls.sale_b,
+			[{"item_code": "AC-012", "qty": 1, "reason": "Change of mind", "condition": "Sellable"}],
+			refund_method="cash",
+			reason="Change of mind",
+		)["credit_note"]
+		# a second credit note with the warehouse stripped back off — exactly the shape of the rows
+		# that already exist on a site seeded before the fix. It proves the new
+		# `permission_query_conditions` entry closes the leak on its own, with no stamp to help.
+		res2 = sales_api.submit_batch([pos_invoice(boutique=STORE_B, items=[{"item_code": "AC-012", "qty": 1, "rate": 160}])])["results"][0]
+		assert res2["status"] == "ok", res2
+		cls.legacy_sale_b = res2["invoice_name"]
+		cls.legacy_credit_note_b = returns_api.return_items(
+			cls.legacy_sale_b,
+			[{"item_code": "AC-012", "qty": 1, "reason": "Change of mind", "condition": "Sellable"}],
+			refund_method="cash",
+			reason="Change of mind",
+		)["credit_note"]
+		frappe.db.set_value("Sales Invoice", cls.legacy_credit_note_b, "set_warehouse", None, update_modified=False)
+		cls.store_b_warehouse = frappe.db.get_value("Maison Boutique", STORE_B, "warehouse")
 		frappe.db.commit()
 		cls.manager_a = frappe.db.get_value("Maison Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "user")
 		cls.manager_b = frappe.db.get_value("Maison Associate", {"boutique": STORE_B, "role": "Manager", "enabled": 1}, "user")
@@ -96,6 +128,18 @@ class TestScopingHTTP(FrappeTestCase):
 	@classmethod
 	def tearDownClass(cls):
 		frappe.set_user("Administrator")
+		try:
+			for name in (cls.legacy_credit_note_b, cls.legacy_sale_b, cls.credit_note_b, cls.sale_b):
+				if name and frappe.db.exists("Sales Invoice", name):
+					si = frappe.get_doc("Sales Invoice", name)
+					if si.docstatus == 1:
+						si.flags.ignore_permissions = True
+						si.cancel()
+					si.delete(ignore_permissions=True)
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(frappe.get_traceback(), "v0.6 scoping http invoice cleanup")
 		try:
 			sh = frappe.get_doc("Maison Shipment", cls.shipment_b)
 			for se_name in (sh.stock_entry_receive, sh.stock_entry_damaged, sh.stock_entry_ship):
@@ -201,6 +245,131 @@ class TestScopingHTTP(FrappeTestCase):
 		r = w.get("maison_pos.api.catalog.bootstrap", boutique=STORE_A)
 		self.assertEqual(r.status_code, 403)
 		self.assertTrue(w.get("maison_pos.api.shipping.me").json()["message"]["warehouse_admin"])
+
+	# ------------------------------------------------------- v0.6 D3: the REST list surface
+	def _names(self, r) -> list[str]:
+		self.assertEqual(r.status_code, 200, r.text[:300])
+		return [x["name"] for x in r.json()["message"]]
+
+	def test_returns_are_stamped_with_their_store_and_warehouse(self):
+		"""The stamp itself: `make_sales_return` blanks `set_warehouse`, `stamp_store` puts it back."""
+		cn = frappe.db.get_value("Sales Invoice", self.credit_note_b, ["maison_boutique", "set_warehouse", "is_return"], as_dict=True)
+		self.assertEqual(cn.is_return, 1)
+		self.assertEqual(cn.maison_boutique, STORE_B)
+		self.assertEqual(cn.set_warehouse, self.store_b_warehouse)
+
+	def test_manager_a_cannot_list_store_b_return_invoices(self):
+		"""D3: the leak the cloud run found — 10 other stores' credit notes over `get_list`."""
+		a = self.client(self.manager_a)
+		# 1. plain list
+		names = self._names(a.get("frappe.client.get_list", doctype="Sales Invoice", fields='["name"]', limit_page_length=2000))
+		self.assertNotIn(self.credit_note_b, names)
+		self.assertNotIn(self.sale_b, names)
+		# 2. the exact probe from the cloud run: every invoice of another store
+		r = a.get(
+			"frappe.client.get_list",
+			doctype="Sales Invoice",
+			filters=f'[["maison_boutique", "!=", "{STORE_A}"]]',
+			fields='["name", "maison_boutique", "is_return", "grand_total"]',
+			limit_page_length=2000,
+		)
+		self.assertEqual(r.status_code, 200, r.text[:300])
+		self.assertEqual([row for row in r.json()["message"]], [], "another store's invoices are listable")
+		# 3. returns only — the rows that carried no warehouse stamp
+		r = a.get(
+			"frappe.client.get_list",
+			doctype="Sales Invoice",
+			filters='[["is_return", "=", 1]]',
+			fields='["name", "maison_boutique"]',
+			limit_page_length=2000,
+		)
+		self.assertEqual(r.status_code, 200, r.text[:300])
+		self.assertEqual({row["maison_boutique"] for row in r.json()["message"]} - {STORE_A, None, ""}, set())
+		# 4. the REST resource endpoint takes the same query conditions
+		res = a.s.get(
+			f"{self.base}/api/resource/Sales Invoice",
+			params={"filters": '[["is_return", "=", 1]]', "fields": '["name","maison_boutique"]', "limit_page_length": 2000},
+			timeout=30,
+		)
+		self.assertEqual(res.status_code, 200, res.text[:300])
+		self.assertNotIn(self.credit_note_b, [row["name"] for row in res.json()["data"]])
+		# 5. and the single-document read is refused
+		self.assertEqual(a.get("frappe.client.get", doctype="Sales Invoice", name=self.credit_note_b).status_code, 403)
+		self.assertEqual(a.s.get(f"{self.base}/api/resource/Sales Invoice/{self.credit_note_b}", timeout=30).status_code, 403)
+
+	def test_an_unstamped_legacy_return_is_still_invisible(self):
+		"""The query condition carries the leak on its own: no `set_warehouse`, still not listable.
+
+		Without this the suite would pass on the *stamp* alone (the backfill patch gives every
+		existing row a warehouse, which the User Permission then matches) and would not notice if
+		the `permission_query_conditions` entry were dropped again.
+		"""
+		self.assertIsNone(frappe.db.get_value("Sales Invoice", self.legacy_credit_note_b, "set_warehouse"))
+		a = self.client(self.manager_a)
+		names = self._names(a.get("frappe.client.get_list", doctype="Sales Invoice", fields='["name"]', filters='[["is_return", "=", 1]]', limit_page_length=2000))
+		self.assertNotIn(self.legacy_credit_note_b, names)
+		res = a.s.get(
+			f"{self.base}/api/resource/Sales Invoice",
+			params={"filters": '[["is_return", "=", 1]]', "fields": '["name"]', "limit_page_length": 2000},
+			timeout=30,
+		)
+		self.assertEqual(res.status_code, 200, res.text[:300])
+		self.assertNotIn(self.legacy_credit_note_b, [row["name"] for row in res.json()["data"]])
+		self.assertEqual(a.get("frappe.client.get", doctype="Sales Invoice", name=self.legacy_credit_note_b).status_code, 403)
+		# store B's own manager still sees it
+		b = self.client(self.manager_b)
+		self.assertIn(self.legacy_credit_note_b, self._names(b.get("frappe.client.get_list", doctype="Sales Invoice", fields='["name"]', filters='[["is_return", "=", 1]]', limit_page_length=2000)))
+
+	def test_manager_b_still_sees_their_own_sale_and_credit_note(self):
+		b = self.client(self.manager_b)
+		names = self._names(b.get("frappe.client.get_list", doctype="Sales Invoice", fields='["name"]', filters='[["is_return", "=", 1]]', limit_page_length=2000))
+		self.assertIn(self.credit_note_b, names)
+		r = b.get("frappe.client.get", doctype="Sales Invoice", name=self.credit_note_b)
+		self.assertEqual(r.status_code, 200, r.text[:300])
+		self.assertEqual(r.json()["message"]["maison_boutique"], STORE_B)
+		res = b.s.get(f"{self.base}/api/resource/Sales Invoice/{self.sale_b}", timeout=30)
+		self.assertEqual(res.status_code, 200, res.text[:300])
+
+	def test_head_office_is_unrestricted_on_every_scoped_doctype(self):
+		"""Head Office keeps the chain-wide view the scoping is meant to leave alone."""
+		hq = self.client("hq@maison.example")
+		names = self._names(hq.get("frappe.client.get_list", doctype="Sales Invoice", fields='["name"]', filters='[["is_return", "=", 1]]', limit_page_length=2000))
+		self.assertIn(self.credit_note_b, names)
+		self.assertEqual(hq.get("frappe.client.get", doctype="Sales Invoice", name=self.credit_note_b).status_code, 200)
+
+	def test_every_store_scoped_doctype_is_narrowed_over_rest(self):
+		"""The full audit list: no scoped doctype leaks another store's rows to a store manager."""
+		a = self.client(self.manager_a)
+		own = frappe.db.get_value("Maison Boutique", STORE_A, "warehouse")
+		other = frappe.db.get_value("Maison Boutique", STORE_B, "warehouse")
+		# doctypes stamped with a `boutique` / `maison_boutique` field
+		for doctype, field in (
+			("Sales Invoice", "maison_boutique"),
+			("Sales Order", "maison_boutique"),
+			("Maison Shipment", "boutique"),
+			("Maison Replenishment Request", "boutique"),
+			("Maison Stock Alert", "boutique"),
+			("Maison Cycle Count", "boutique"),
+			("Maison Feedback", "boutique"),
+			("Maison Age Check", "boutique"),
+		):
+			r = a.get("frappe.client.get_list", doctype=doctype, fields=f'["name", "{field}"]', limit_page_length=2000)
+			self.assertEqual(r.status_code, 200, f"{doctype}: {r.status_code} {r.text[:200]}")
+			foreign = {row[field] for row in r.json()["message"]} - {STORE_A, None, ""}
+			self.assertEqual(foreign, set(), f"{doctype} leaked {foreign}")
+		# stock documents are scoped by the store's own warehouses instead
+		for doctype, fields in (
+			("Delivery Note", ("set_warehouse",)),
+			("Stock Entry", ("from_warehouse", "to_warehouse")),
+			("Material Request", ("set_warehouse", "set_from_warehouse")),
+			("Purchase Receipt", ("set_warehouse",)),
+		):
+			field_list = json.dumps(["name", *fields])
+			r = a.get("frappe.client.get_list", doctype=doctype, fields=field_list, limit_page_length=2000)
+			self.assertEqual(r.status_code, 200, f"{doctype}: {r.status_code} {r.text[:200]}")
+			for row in r.json()["message"]:
+				self.assertNotIn(other, [row.get(f) for f in fields], f"{doctype} {row['name']} touches {other}")
+				self.assertTrue(any(row.get(f) == own for f in fields), f"{doctype} {row['name']} touches neither store")
 
 	def test_guest_gets_nothing(self):
 		s = requests.Session()

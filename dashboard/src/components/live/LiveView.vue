@@ -12,10 +12,12 @@ import LiveTicker from './LiveTicker.vue'
 import BoutiqueDrillIn from './BoutiqueDrillIn.vue'
 import LowStockTile from '../LowStockTile.vue'
 import { useDashboard } from '../../stores/dashboard'
+import { useBrand } from '../../stores/brand' // v0.6 D1
 import type { BoutiqueAgg, LiveSortKey } from '../../lib/aggregate'
 
 defineEmits<{ open: [code: string] }>()
 const d = useDashboard()
+const brand = useBrand()
 const currentHour = computed(() => new Date(d.now).getHours())
 const remPx = ref(parseFloat(getComputedStyle(document.documentElement).fontSize) || 15)
 const rowHeight = computed(() => Math.round(3.733 * remPx.value))
@@ -35,20 +37,20 @@ const sorts: { k: LiveSortKey; l: string }[] = [
     <section class="boards">
       <div class="list">
         <header class="toolbar">
-          <span class="label">Top boutiques today</span>
+          <span class="label">Top {{ brand.storesLower }} today</span>
           <span class="label count">{{ d.ranked.length }} / {{ d.agg.rows.size }}</span>
           <div class="seg">
             <button class="btn ghost" :class="{ on: !d.region }" @click="d.region = null">All</button>
             <button v-for="r in d.regions" :key="r" class="btn ghost" :class="{ on: d.region === r }" @click="d.region = d.region === r ? null : r">{{ r }}</button>
           </div>
-          <input v-model="d.query" class="input search" type="search" placeholder="Code or name" aria-label="Search boutiques" />
+          <input v-model="d.query" class="input search" type="search" placeholder="Code or name" :aria-label="`Search ${brand.storesLower}`" />
           <div class="seg">
             <button v-for="s in sorts" :key="s.k" class="btn" :class="{ on: d.sort === s.k }" @click="d.sort = s.k">{{ s.l }}</button>
           </div>
         </header>
         <div class="hdr">
           <span class="label">#</span>
-          <span class="label">Boutique</span>
+          <span class="label">{{ brand.store }}</span>
           <span class="label r">Net</span>
           <span class="label r">vs LW</span>
           <span class="label r">Tickets</span>

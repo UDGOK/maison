@@ -4,7 +4,7 @@
  * Tabs: Live (default) · Boutiques · Products · Clients · Insights · Reports.
  * The Live store starts once for the whole app (socket events keep flowing on every tab).
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import TopBar from './components/TopBar.vue'
 import LiveView from './components/live/LiveView.vue'
 import BoutiquesView from './components/boutiques/BoutiquesView.vue'
@@ -15,22 +15,26 @@ import InsightsPanel from './components/insights/InsightsPanel.vue'
 import ReportsSection from './components/ReportsSection.vue'
 import PeriodComparison from './components/PeriodComparison.vue'
 import { useDashboard } from './stores/dashboard'
+import { useBrand } from './stores/brand' // v0.6 D1
 
 const d = useDashboard()
 onMounted(() => d.start())
 onBeforeUnmount(() => d.dispose())
 
 type View = 'live' | 'boutiques' | 'products' | 'clients' | 'insights' | 'reports'
-const VIEWS: { v: View; l: string }[] = [
+const brand = useBrand()
+// the "Boutiques" tab is the tenant's plural store noun ("Stores" on CloudChaserz)
+const VIEWS = computed<{ v: View; l: string }[]>(() => [
   { v: 'live', l: 'Live' },
-  { v: 'boutiques', l: 'Boutiques' },
+  { v: 'boutiques', l: brand.stores },
   { v: 'products', l: 'Products' },
   { v: 'clients', l: 'Clients' },
   { v: 'insights', l: 'Insights' },
   { v: 'reports', l: 'Reports' },
-]
+])
+const VIEW_KEYS: View[] = ['live', 'boutiques', 'products', 'clients', 'insights', 'reports']
 const params = new URLSearchParams(window.location.search)
-const view = ref<View>((VIEWS.find((x) => x.v === params.get('view'))?.v as View) || 'live')
+const view = ref<View>((VIEW_KEYS.find((v) => v === params.get('view')) as View) || 'live')
 const boutique = ref<string | null>(params.get('boutique'))
 function sync() {
   const url = new URL(window.location.href)
@@ -61,7 +65,7 @@ function back() {
     <TopBar :live="d.connected" />
     <nav class="views" aria-label="Dashboard view">
       <button v-for="x in VIEWS" :key="x.v" class="view-tab label" :class="{ on: view === x.v }" :data-view="x.v" @click="setView(x.v)">{{ x.l }}</button>
-      <span class="label stamp" :title="'last reconcile'">{{ d.agg.rows.size }} boutiques · reconciled {{ d.lastReconcile ? new Date(d.lastReconcile).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—' }}</span>
+      <span class="label stamp" :title="'last reconcile'">{{ d.agg.rows.size }} {{ brand.storesLower }} · reconciled {{ d.lastReconcile ? new Date(d.lastReconcile).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—' }}</span>
     </nav>
     <main class="main">
       <LiveView v-if="view === 'live'" @open="openBoutique" />

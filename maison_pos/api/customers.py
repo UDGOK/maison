@@ -47,6 +47,11 @@ def _loyalty(customer: str, company: Optional[str] = None) -> tuple[float, Optio
 
 	``points_value`` is the redeemable currency value: points × conversion factor.
 	"""
+	from maison_pos.api.rewards import is_walk_in
+
+	# v0.6 D5 — the walk-in placeholder never carries a member card
+	if is_walk_in(customer):
+		return 0.0, None, 0.0
 	loyalty_program = frappe.db.get_value("Customer", customer, "loyalty_program")
 	if not loyalty_program:
 		return 0.0, None, 0.0
@@ -136,6 +141,11 @@ def _phone_regexp(digits: str) -> str:
 	return "[^0-9]*".join(digits)
 
 
+def _walk_in_customers() -> list[str]:
+	"""POS-Profile default customers — placeholders that must not appear in a client list (D5)."""
+	return [c for c in frappe.get_all("POS Profile", pluck="customer") if c]
+
+
 def _customer_rows(criterion, limit: int) -> list[dict[str, Any]]:
 	C = DocType("Customer")
 	q = (
@@ -145,9 +155,14 @@ def _customer_rows(criterion, limit: int) -> list[dict[str, Any]]:
 		.orderby(C.modified, order=frappe.qb.desc)
 		.limit(limit)
 	)
+	# v0.6 D5 — "Walk-in Customer" used to head the default POS client list
+	walk_ins = _walk_in_customers()
+	if walk_ins:
+		q = q.where(C.name.notin(walk_ins))
 	if criterion is not None:
 		q = q.where(criterion)
-	return q.run(as_dict=True)
+	rows = q.run(as_dict=True)
+	return [r for r in rows if not str(r.get("customer_name") or "").lower().startswith("walk-in")]
 
 
 @frappe.whitelist()

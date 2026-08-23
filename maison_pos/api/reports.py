@@ -17,7 +17,7 @@ from frappe import _
 from frappe.utils import cint, flt, nowdate
 
 from maison_pos.reports import normalize_filters, period_bounds, period_totals
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_roles, get_allowed_boutiques, is_unrestricted
+from maison_pos.scoping import ALL_MAISON_ROLES, assert_roles, get_retail_boutiques, is_unrestricted
 
 REPORTS: list[dict[str, str]] = [
 	{"name": "Maison Sales Tax Summary", "group": "Tax", "description": "Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings."},
@@ -112,7 +112,7 @@ def period_comparison(boutique: Optional[str] = None, company: Optional[str] = N
 
 		boutiques = [assert_boutique_access(boutique)]
 	else:
-		boutiques = get_allowed_boutiques()
+		boutiques = get_retail_boutiques()  # v0.6 D4 — the warehouse row is not a shop
 	out = {}
 	for kind in ("today_vs_same_weekday", "wtd", "mtd", "ytd"):
 		cf, ct, pf, pt, label = period_bounds(kind, date)

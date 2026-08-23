@@ -314,7 +314,14 @@ def _build_credit_note(src, lines: list[dict[str, Any]], boutique: str, reason: 
 	cn.update(
 		{
 			"update_stock": 1,
-			"set_warehouse": None,
+			# v0.6 D3 — `make_sales_return` blanks `set_warehouse`; a credit note with no warehouse
+			# escapes the per-user Warehouse User Permission, which is how other stores' returns
+			# became listable over `frappe.client.get_list`. Put the store's selling warehouse
+			# back (a Damaged line still routes to the damaged warehouse on the row itself, and
+			# ERPNext re-clears the header field when the rows disagree — `events.sales_invoice.
+			# stamp_store` restores it in `before_submit`). `maison_pos.scoping.sales_invoice_query`
+			# scopes the list independently of this stamp.
+			"set_warehouse": frappe.db.get_value("Maison Boutique", boutique, "warehouse"),
 			"pos_profile": src.pos_profile,
 			"maison_boutique": boutique,
 			"maison_associate": (get_associate() or {}).get("name"),

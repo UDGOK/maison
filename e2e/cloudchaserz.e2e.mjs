@@ -188,6 +188,38 @@ async function addTile(page, code) {
   await q.fill('')
 }
 
+// ---- D2: the unlock screen fits every till width, with the 12-glyph CLOUDCHASERZ wordmark ----
+// `grid-template-columns: 1fr 480px` could not shrink below the min-content width of the
+// wordmark (64px / 0.3em tracking = 1033px for 12 glyphs), so the store picker, Load button and
+// PIN keypad were clipped and the page scrolled sideways by 147px at 1366x1024.
+for (const vp of [{ width: 1366, height: 1024 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
+  const { ctx: uctx, page: upage } = await posPage(ASSOC_A, vp, `unlock-${vp.width}`)
+  await upage.goto('/pos/unlock')
+  await upage.waitForSelector('[data-testid=unlock-wordmark]', { timeout: 25000 })
+  await upage.waitForSelector('.unlock select.input', { timeout: 25000 })
+  const m = await upage.evaluate(() => {
+    const de = document.documentElement
+    const wm = document.querySelector('[data-testid=unlock-wordmark]')
+    const panel = document.querySelector('.unlock .panel')
+    const wr = wm.getBoundingClientRect()
+    const pr = panel ? panel.getBoundingClientRect() : { right: 0 }
+    return {
+      overflow: de.scrollWidth - de.clientWidth,
+      wordmark: (wm.textContent || '').trim(),
+      wmRight: Math.round(wr.right),
+      panelRight: Math.round(pr.right),
+      vw: de.clientWidth
+    }
+  })
+  record(
+    `unlock ${vp.width}x${vp.height}: scrollWidth <= clientWidth and nothing clips (D2)`,
+    m.overflow <= 0 && m.wmRight <= m.vw + 1 && m.panelRight <= m.vw + 1 && m.wordmark === 'CLOUDCHASERZ',
+    `scrollWidth-clientWidth=${m.overflow}; "${m.wordmark}" ends at ${m.wmRight}, panel at ${m.panelRight}, viewport ${m.vw}`
+  )
+  if (vp.width === 1366) await shot(upage, 'pos-unlock-1366-fits')
+  await uctx.close()
+}
+
 const { ctx: ctxA, page: pos } = await posPage(ASSOC_A, { width: 1366, height: 1024 }, 'pos')
 await unlockPos(pos, ASSOC_A, STORE_A)
 const wordmark = (await pos.locator('.topbar').innerText()).replace(/\s+/g, ' ').trim()

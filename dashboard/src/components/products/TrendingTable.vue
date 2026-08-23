@@ -2,6 +2,9 @@
 /** "Trending in stores" — chain-wide items ranked by velocity change, from precomputed trends. */
 import { fmtCompact, fmtInt, fmtMoney, fmtPct } from '../../lib/format'
 import type { TrendRow } from '../../types'
+import { useBrand } from '../../stores/brand' // v0.6 D1
+
+const brand = useBrand()
 
 defineProps<{ rows: TrendRow[]; period: '7d' | '28d' }>()
 const badgeClass = (b: string) => ({ 'Trending up': 'up', New: 'new', Cooling: 'cooling' })[b] ?? ''
@@ -19,7 +22,7 @@ const d = (p: number | null) => (p === null ? '—' : `${p >= 0 ? '+' : '−'}${
       <span class="label r">Δ prev</span>
       <span class="label r">Δ 28 d</span>
       <span class="label r">Net</span>
-      <span class="label r">Stores</span>
+      <span class="label r">{{ brand.stores }}</span>
       <span class="label r">Sell-thr.</span>
       <span class="label r">DoH</span>
       <span class="label">Badge</span>

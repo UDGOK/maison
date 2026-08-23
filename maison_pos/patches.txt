@@ -5,3 +5,5 @@ maison_pos.patches.v0_2.backfill_client_numbers
 maison_pos.patches.v0_3.biometrics_fields
 maison_pos.patches.v0_3.match_threshold_distance
 maison_pos.patches.v0_4.crm_hr_fields
+# v0.6 D3 — returns carried no store/warehouse stamp, so the Warehouse User Permission missed them
+maison_pos.patches.v0_6.backfill_return_store_stamp

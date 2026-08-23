@@ -4,6 +4,8 @@ import { fmtCompact } from '../../lib/format'
 import type { HeatCell } from '../../insights/types'
 
 const props = defineProps<{ cells: HeatCell[]; boutiques: string[]; groups: string[]; days: number }>()
+import { useBrand } from '../../stores/brand' // v0.6 D1
+const brand = useBrand()
 
 const lookup = computed(() => {
   const m = new Map<string, HeatCell>()
@@ -31,7 +33,7 @@ const colTotals = computed(() => Object.fromEntries(props.boutiques.map((b) => [
 <template>
   <section class="card">
     <header class="head">
-      <span class="label">Revenue · item group × boutique</span>
+      <span class="label">Revenue · item group × {{ brand.storeLower }}</span>
       <span class="label meta">last {{ days }} days · index vs chain average</span>
     </header>
     <div class="grid" :style="{ gridTemplateColumns: `minmax(150px, 1.2fr) repeat(${boutiques.length}, minmax(0, 1fr)) 90px` }">

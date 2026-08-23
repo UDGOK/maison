@@ -1,0 +1,437 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "run": "IIP0Y",
+ "store_a": "HOU-MTR",
+ "store_b": "OK-SAP",
+ "wh_store": "OK-SAP",
+ "artifacts": {
+  "invoices": [
+   "ACC-SINV-2026-03040",
+   "ACC-SINV-2026-03041",
+   "ACC-SINV-2026-03042",
+   "ACC-SINV-2026-03043",
+   "ACC-SINV-2026-03044",
+   "ACC-SINV-2026-03045"
+  ],
+  "shipments": [
+   "MSH-2026-00012"
+  ],
+  "requests": [
+   "MRR-2026-00011"
+  ],
+  "customers": [
+   "CC Rewards IIP0Y"
+  ],
+  "shots": [
+   "01-pos-unlock-1366.png",
+   "02-pos-cloudchaserz-1366.png",
+   "03-pos-receipt-qr.png",
+   "04-public-receipt-390.png",
+   "05-pos-cloudchaserz-iphone-390.png",
+   "06-pos-age-gate.png",
+   "07-pos-age-blocked-under21.png",
+   "08-pos-age-passed.png",
+   "09-pos-age-receipt.png",
+   "10-pos-reward-picker.png",
+   "11-pos-reward-applied.png",
+   "12-pos-receive-screen.png",
+   "13-pos-receive-request-modal.png",
+   "14-warehouse-desk.png",
+   "15-warehouse-approve.png",
+   "16-warehouse-wall-1920.png",
+   "17-warehouse-wall-shipped-1920.png",
+   "18-pos-receive-count-sheet.png",
+   "19-pos-receive-confirmed.png",
+   "20-dashboard-live-1920.png",
+   "21-dashboard-live-after-sale-1920.png",
+   "22-dashboard-products-trending-1920.png",
+   "23-dashboard-products-top-1920.png",
+   "24-shop-1440.png",
+   "25-rewards-1440.png",
+   "26-salon-pair-1024.png",
+   "27-salon-ambient-1024.png",
+   "28-salon-identify-1024.png",
+   "29-salon-basket-mirror-1024.png"
+  ]
+ },
+ "results": [
+  {
+   "step": "site is the seeded CloudChaserz tenant (11 stores + HOU-WH, 160 items, 3,002 history invoices)",
+   "ok": true,
+   "detail": "company=CloudChaserz stores=12 items=160 history=3002 program=CloudChaserz Rewards"
+  },
+  {
+   "step": "brand tokens are CloudChaserz (Smoke Shop vertical, CLOUDCHASERZ wordmark, \"Maison POS\" sub-mark)",
+   "ok": true,
+   "detail": "{\"brand\":\"CloudChaserz\",\"wordmark\":\"CLOUDCHASERZ\",\"sub\":\"Maison POS\",\"vertical\":\"Smoke Shop\",\"tagline\":\"Elevate Your Smoking Experience\",\"program\":\"CloudChaserz Rewards\"}"
+  },
+  {
+   "step": "Frappe CRM is NOT installed and every CRM touchpoint degrades gracefully",
+   "ok": true,
+   "detail": "apps=erpnext,hrms,payments,webshop,maison_pos,frappe; crm.profile=200 installed=false; crm.tasks=200; log_interaction=ok 52md59hvqi"
+  },
+  {
+   "step": "unlock screen is branded CLOUDCHASERZ and offers the associate their own store by name",
+   "ok": true,
+   "detail": "CLOUDCHASERZ · 1 store(s) offered to hou.mtr.a1@cloudchaserz.example: CloudChaserz Montrose — Houston, TX 77098"
+  },
+  {
+   "step": "the unlock screen fits the 1366x1024 POS viewport (no horizontal overflow)",
+   "ok": false,
+   "detail": "viewport 1366px, unlock panel column ends at 1513px, page scrollWidth-clientWidth=147"
+  },
+  {
+   "step": "POS top bar: CLOUDCHASERZ wordmark first, \"Maison POS\" only as the sub-mark, store code shown",
+   "ok": true,
+   "detail": "wordmark=\"CLOUDCHASERZ MAISON POS\" topbar=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK\""
+  },
+  {
+   "step": "the store NAME renders in the top bar above the compact breakpoint",
+   "ok": true,
+   "detail": "CloudChaserz Montrose"
+  },
+  {
+   "step": "POS attaches a seeded CloudChaserz client to the basket",
+   "ok": true,
+   "detail": "Carlos Mendoza"
+  },
+  {
+   "step": "a non-restricted item rings straight into the basket (no age gate)",
+   "ok": true,
+   "detail": "HKA-012 CocoUrth Coconut Coals 72 pc (flats) @ 12.99"
+  },
+  {
+   "step": "cash sale completes and syncs to the cloud site",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03040 total=14.06"
+  },
+  {
+   "step": "receipt carries the QR and the public receipt link",
+   "ok": true,
+   "detail": "qr=data:image/png;base64,iV… link=https://cloudchaserz.frappe.cloud/r/scfXDvoACBH_qNj6"
+  },
+  {
+   "step": "receipt carries the CloudChaserz Rewards points line",
+   "ok": true,
+   "detail": "program on receipt=true earned=12 balance=24 next=\"NEXT REWARD 5.00 off at 100 pts (76 to go)\""
+  },
+  {
+   "step": "guest GET /r/<token> returns 200 and renders the CloudChaserz receipt",
+   "ok": true,
+   "detail": "200 len=342072 brandOnPage=true"
+  },
+  {
+   "step": "guest GET /r/<bad token> is 404",
+   "ok": true,
+   "detail": "404"
+  },
+  {
+   "step": "iPhone 390x844: the rebranded POS has no horizontal overflow",
+   "ok": true,
+   "detail": "scrollWidth-clientWidth=0"
+  },
+  {
+   "step": "age.verify_scan refuses an under-21 licence",
+   "ok": true,
+   "detail": "{\"ok\":false,\"outcome\":\"Underage\",\"age\":19,\"message\":\"Under 21 — sale of age-restricted items refused\"}"
+  },
+  {
+   "step": "age.verify_scan refuses an expired licence",
+   "ok": true,
+   "detail": "{\"ok\":false,\"outcome\":\"Expired\",\"message\":\"ID expired — ask for a valid ID\"}"
+  },
+  {
+   "step": "age.verify_scan passes a valid 21+ licence and logs a Maison Age Check",
+   "ok": true,
+   "detail": "{\"ok\":true,\"outcome\":\"Verified\",\"age\":34,\"method\":\"Scan\",\"check\":\"63c0lfsksv\"}"
+  },
+  {
+   "step": "the age check stores no PII beyond the masked initials",
+   "ok": true,
+   "detail": "{\"name\":\"63c0lfsksv\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"initials\":\"AR\",\"boutique\":\"HOU-MTR\",\"issuer\":\"TX\",\"age_years\":34,\"ts\":\"2026-08-23 13:26:48.046746\"}"
+  },
+  {
+   "step": "ringing a 21+ item raises the age gate before it reaches the basket",
+   "ok": true,
+   "detail": "CHECK ID · 21+"
+  },
+  {
+   "step": "an under-21 date of birth is refused at the counter and the item is not sold",
+   "ok": true,
+   "detail": "CONTINUE WITHOUT"
+  },
+  {
+   "step": "an expired ID is refused at the counter and the item is not sold",
+   "ok": true,
+   "detail": "CONTINUE WITHOUT"
+  },
+  {
+   "step": "a valid 21+ AAMVA scan passes the gate and the item is rung up",
+   "ok": true,
+   "detail": "WALK-IN SEARCH CLIENT № MC FIND ✦ 1 PROMO −$3.75 Geek Bar Pulse 15K — Blue Razz Ice 1 × $24.99 ✦ −$3.75 $21.24 − 1 + SUBTOTAL $24.99 PROMOTIONS −$3.75 TAX 8.25%"
+  },
+  {
+   "step": "the age-verified sale completes and the invoice carries the age check",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03041 age_verified=1 check=a3fqgrkghd total=22.99 (basket 22.99)"
+  },
+  {
+   "step": "the programme exposes the three fixed tiers ($5/100, $10/200, $15/300)",
+   "ok": true,
+   "detail": "100pt→$5, 200pt→$10, 300pt→$15"
+  },
+  {
+   "step": "the /rewards sign-up creates a member on the CloudChaserz programme",
+   "ok": true,
+   "detail": "CC Rewards IIP0Y MC610760 CloudChaserz Rewards"
+  },
+  {
+   "step": "$1 spent = 1 point earned on the net amount (not the taxed total), and >= 100 points unlock the tier",
+   "ok": true,
+   "detail": "net $129.9 (taxed $140.62) → 129 pts; affordable=100 (invoice ACC-SINV-2026-03042)"
+  },
+  {
+   "step": "the POS offers only the tiers the client can afford ($5 / 100 points is offered)",
+   "ok": true,
+   "detail": "CC Rewards IIP0Y has 129 points. One reward per transaction. $5.00 off 100 POINTS Next: $10 off at 200 points (71 to go)"
+  },
+  {
+   "step": "picking the $5 / 100-point tier takes $5 off the basket at the counter",
+   "ok": true,
+   "detail": "56.25 → 51.25 · \"REWARD · 100 PTS −$5.00\""
+  },
+  {
+   "step": "the invoice records the $5 loyalty discount and the redeemed tier",
+   "ok": true,
+   "detail": "ACC-SINV-2026-03043 loyalty_amount=5 points=100 tier=RT-100-00001 total=56.25"
+  },
+  {
+   "step": "100 points are deducted from the balance on redemption",
+   "ok": true,
+   "detail": "129 → 75 (the same sale also earns ~47)"
+  },
+  {
+   "step": "returning the line reverses the points and releases the redeemed reward (never negative)",
+   "ok": true,
+   "detail": " credit note ACC-SINV-2026-03044; points 75 → 124"
+  },
+  {
+   "step": "manager of HOU-MTR is refused OK-SAP data on every maison_pos endpoint",
+   "ok": true,
+   "detail": "bootstrap=403 · alerts=403 · inbound=403 · replenishment_requests=403 · shipments=403 · requests_list=403"
+  },
+  {
+   "step": "the mirror holds: manager of OK-SAP is refused HOU-MTR",
+   "ok": true,
+   "detail": "bootstrap(HOU-MTR) → 403"
+  },
+  {
+   "step": "a manager still gets their own store",
+   "ok": true,
+   "detail": "bootstrap(HOU-MTR) → 200"
+  },
+  {
+   "step": "the live dashboard shows manager A only their own store",
+   "ok": true,
+   "detail": "by_boutique=HOU-MTR"
+  },
+  {
+   "step": "unscoped calls narrow to the caller's own store rather than the whole chain",
+   "ok": true,
+   "detail": "shipments=0 alerts.boutiques=[\"HOU-MTR\"]"
+  },
+  {
+   "step": "OK-SAP has a low-stock line to replenish",
+   "ok": true,
+   "detail": "item=DEV-006 on hand=3 open alerts=0 barcode=2003553313403"
+  },
+  {
+   "step": "store manager requests replenishment from the warehouse on the POS Receive screen",
+   "ok": true,
+   "detail": "MRR-2026-00011 (DEV-006 x6)"
+  },
+  {
+   "step": "the request is Pending Approval with a draft Material Transfer",
+   "ok": true,
+   "detail": "Pending Approval MR=MAT-MR-2026-00004 HOU-WH - CCZ → OK-SAP - CCZ"
+  },
+  {
+   "step": "/warehouse desk opens for the Maison Warehouse Admin",
+   "ok": true,
+   "detail": "CLOUDCHASERZ WAREHOUSE HOU-WH REQUESTS SHIPMENTS DISCREPANCIES STOCK VENDOR POS OPEN WALL HEAD OFFICE POLLING SIGN OUT REPLENISHMENT REQUEST"
+  },
+  {
+   "step": "/warehouse-wall opens and connects",
+   "ok": true,
+   "detail": "POLLING at first paint"
+  },
+  {
+   "step": "warehouse admin approves the request on /warehouse (quantity edited)",
+   "ok": true,
+   "detail": "MRR-2026-00011 → 4"
+  },
+  {
+   "step": "approval creates a Maison Shipment for the store",
+   "ok": true,
+   "detail": "MSH-2026-00012 status=Pending lines=[[\"DEV-006\",4]]"
+  },
+  {
+   "step": "the approved quantity is the edited one",
+   "ok": true,
+   "detail": "approved 4 (requested 6)"
+  },
+  {
+   "step": "the approved shipment appears as a card on the 1920x1080 wall over realtime",
+   "ok": true,
+   "detail": "OK-SAP 0m CloudChaserz Sapulpa 1 ITEMS 4 UNITS PENDING MSH-2026-00012 PICK"
+  },
+  {
+   "step": "the wall card carries the store code and the unit count",
+   "ok": true,
+   "detail": "OK-SAP 0m CloudChaserz Sapulpa 1 ITEMS 4 UNITS PENDING MSH-2026-00012 PICK"
+  },
+  {
+   "step": "auto-print of the packing list fired on the wall (window.__maisonLastWallPrint)",
+   "ok": true,
+   "detail": "{\"kind\":\"packing_list\",\"url\":\"/printview?doctype=Maison%20Shipment&name=MSH-2026-00012&format=Maison%20Packing%20List&no_letterhead=1\",\"shipment\":\"MSH-2026-00012\",\"at\":\"2026-08-23T07:57:50.168Z\",\"via\":\"dry\"}"
+  },
+  {
+   "step": "the wall upgrades to the LIVE realtime transport",
+   "ok": true,
+   "detail": "\"POLLING\" at first paint → \"LIVE\" once the card landed"
+  },
+  {
+   "step": "rate shopping returns options sorted cheapest-first (simulated provider)",
+   "ok": true,
+   "detail": "USPS Ground Advantage $15.71 3d | UPS Ground $23.45 3d | FedEx Home Delivery $24.36 3d | USPS Priority Mail $25.01 2d | FedEx 2Day $51.68 2d | UPS 2nd Day Air $51.74 2d | USPS Priority Mail Express $69.19 1d | UPS Next Day Air Saver $95.11 1d"
+  },
+  {
+   "step": "the cheapest rate is pre-selected",
+   "ok": true,
+   "detail": "selected USPS Ground Advantage $15.71 provider=simulated"
+  },
+  {
+   "step": "buying the (simulated) label returns a tracking number and a label URL",
+   "ok": true,
+   "detail": "simulated USPS Ground Advantage $15.71 9400016071039279356086"
+  },
+  {
+   "step": "shipping posts the Material Transfer HQ → In Transit",
+   "ok": true,
+   "detail": "status=Shipped HQ 55→51, In Transit 0→4"
+  },
+  {
+   "step": "store manager receives the shipment with a barcode scan on the POS Receive screen",
+   "ok": true,
+   "detail": "scanned 2003553313403 x4: COUNTED · 2003553313403 | MSH-2026-00012 · RECEIVED DISMISS Stock Entry MAT-STE-2026-00045"
+  },
+  {
+   "step": "the shipment is Received",
+   "ok": true,
+   "detail": "Received received_at=2026-08-23T13:27:58.137242"
+  },
+  {
+   "step": "stock balances actually moved: HQ down, In Transit back to 0, store up",
+   "ok": true,
+   "detail": "HQ 55→51, In Transit 0→0, OK-SAP 3→7 (+4)"
+  },
+  {
+   "step": "Live tab shows a store-level card for each of the 11 CloudChaserz stores",
+   "ok": true,
+   "detail": "12 cards: HOU-MTR, OK-ETUL, HOU-WH, OK-OWA, OK-STUL, OK-YALE, OK-SAP, OK-BIX, OK-MUS, OK-BA, OK-JENKS, OK-MINGO"
+  },
+  {
+   "step": "the Command dashboard is branded CloudChaserz and speaks the tenant's store noun",
+   "ok": false,
+   "detail": "wordmark rendered \"Maison\" but window.maison_brand.wordmark_text = \"CLOUDCHASERZ\" (store_noun \"Store\"); scope \"Today · All Boutiques\"; tabs Live · Boutiques · Products · Clients · Insights · Reports"
+  },
+  {
+   "step": "the store cards carry real numbers (code, city name, net, tickets, last sale)",
+   "ok": true,
+   "detail": "01 HOU-MTR CloudChaserz Montrose 866 +1052% 24 RETURN · CocoUrth Coconut Coals 72 pc (flats) · -56 · 28 s ago ONLINE"
+  },
+  {
+   "step": "a new sale updates the right store card within a few seconds",
+   "ok": true,
+   "detail": "HOU-MTR card + ticker updated 893 ms after the POS response (ACC-SINV-2026-03045, last=\"CocoUrth Coconut Coals 72 pc (flats)\")"
+  },
+  {
+   "step": "Products → Trending renders CloudChaserz products with real numbers",
+   "ok": true,
+   "detail": "60 rows · precomputed · 2026-08-23 13:15 · loaded in 99 ms · first=\"01 HKA-012 CocoUrth Coconut Coals 72 pc (flats) Hookah & Shisha 37 1 +3600% +261% 481 1 7% 87 TRENDING UP\""
+  },
+  {
+   "step": "Products → Top by store renders per-store lists with real numbers",
+   "ok": true,
+   "detail": "12 stores (HOU-MTR, HOU-WH, OK-BA, OK-BIX, OK-ETUL) · 132 matrix cells · first=\"01 CocoUrth Coconut Coals 72 pc (flats) 481 34%\""
+  },
+  {
+   "step": "/shop renders branded CloudChaserz with the smoke-shop catalogue",
+   "ok": true,
+   "detail": "stray \"Maison\" strings outside asset paths: 1 (the \"Maison POS\" sub-mark) · CLOUDCHASERZ MAISON POS ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & C"
+  },
+  {
+   "step": "/rewards renders branded CloudChaserz with the exact programme copy ($1 = 1 point; $5/100, $10/200, $15/300)",
+   "ok": true,
+   "detail": "CLOUDCHASERZ MAISON POS ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & PAPERS STORES REWARDS SIGN IN BAG 0 CLOUDCHASERZ · ELEVA"
+  },
+  {
+   "step": "/rewards lists the member perks (birthday, monthly promotions, new arrivals, giveaways)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "the Salon display is branded CloudChaserz",
+   "ok": true,
+   "detail": "CLOUDCHASERZ CLOUDCHASERZ NOT PAIRED 7:58 AM CLIENT DISPLAY PAIR WITH THE POINT OF SALE Enter the six-digit code shown under Settings · Clie"
+  },
+  {
+   "step": "/salon pairs with the POS from the pairing code",
+   "ok": true,
+   "detail": "code 152972 → session eb1217c75153d1b233abd0d255698453"
+  },
+  {
+   "step": "/salon mirrors the basket on the identify screen while the client is still unknown",
+   "ok": true,
+   "detail": "Meanwhile, your associate has set aside CocoUrth Coconut Coals 72 pc (flats) · $12.99 NOT NOW — SHOW MY PIECES"
+  },
+  {
+   "step": "/salon mirrors the POS basket (focus piece, lines and total match)",
+   "ok": true,
+   "detail": "focus=\"COCOURTH COCONUT COALS 72 PC (FLATS)\" salon $28.12 vs POS $28.12"
+  },
+  {
+   "step": "cleanup: the demo POS basket is empty and the Salon is unpaired",
+   "ok": true,
+   "detail": "basket lines=0"
+  },
+  {
+   "step": "cleanup: no half-finished basket left on the verification till",
+   "ok": true,
+   "detail": "lines=0 at start of cleanup"
+  }
+ ],
+ "notes": [
+  {
+   "step": "the unlock screen prints the sub-mark twice",
+   "detail": "\"MAISON POS · MAISON POS BY CLOUDCHASERZ\" — UnlockView.vue renders `{{ brand.subMark }} · {{ brand.productName }}`, and productName already contains the sub-mark (\"Maison POS by CloudChaserz\")."
+  },
+  {
+   "step": "DEFECT: the POS \"Walk-in Customer\" placeholder is itself enrolled in CloudChaserz Rewards",
+   "detail": "Customer \"Walk-in Customer\" (the default customer on all 12 POS Profiles) carries loyalty_program=CloudChaserz Rewards, client number MC990463 and 61045 points (~$3052 redeemable), accrued from the 3,002 seeded history invoices. Cause: the seeded Loyalty Program has auto_opt_in=1 (maison_pos/setup/cloudchaserz/rewards.py:53), so ERPNext enrols the walk-in on its first invoice; maison_pos/api/rewards.py::_is_walk_in guards giveaways but not accrual. Counter effect: an anonymous basket shows \"WALK-IN CUSTOMER · MEMBER · 61045 POINTS · 3 rewards available\" and the walk-in tops the default client "
+  },
+  {
+   "step": "DEFECT: generic `frappe.client.get_list` on Sales Invoice leaks other stores' credit notes to a store manager",
+   "detail": "10 rows visible to hou.mtr.manager@cloudchaserz.example: OK-MINGO, OK-YALE, OK-OWA, OK-SAP, OK-JENKS, OK-BIX, OK-BA, OK-STUL, OK-MUS — all is_return=1 (return credit notes carry no set_warehouse, so the Warehouse User Permission does not match them and no permission_query_conditions hook exists for Sales Invoice). The maison_pos API layer itself is correctly 403."
+  },
+  {
+   "step": "DEFECT (cosmetic): the HOU-WH warehouse boutique is listed as a 12th \"store\" card on the Live tab",
+   "detail": "maison_pos/api/dashboard.py::_live_summary uses get_allowed_boutiques() without filtering is_warehouse / boutique_type=\"Warehouse\" (maison_pos/api/rewards.py:583 does filter it). It always reads $0 / no sale, which reads as a dead store on the wall."
+  },
+  {
+   "step": "the Salon (and dashboard) clock is browser-local, not store-local",
+   "detail": "Salon shows \"7:58 AM\" while the site clock is 2026-08-23 13:26:55.946726 — the greeting (\"Good morning/evening\") is derived from it, so a client display in a different timezone to the browser greets the wrong part of the day. Same class as the v0.1 dashboard-clock observation."
+  }
+ ],
+ "console": []
+}

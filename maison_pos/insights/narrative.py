@@ -117,7 +117,11 @@ def build_numbers(period_end: Optional[_dt.date] = None, days: int = 7) -> dict[
 	start = add_days(end, -days + 1)
 	prev_end = add_days(start, -1)
 	prev_start = add_days(prev_end, -days + 1)
-	boutiques = frappe.get_all("Maison Boutique", filters={"enabled": 1}, fields=["name", "boutique_name", "city"], order_by="name")
+	from maison_pos.scoping import warehouse_boutiques
+
+	# v0.6 D4 — shops only
+	_warehouses = warehouse_boutiques()
+	boutiques = [b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, fields=["name", "boutique_name", "city"], order_by="name") if b.name not in _warehouses]
 	codes = [b.name for b in boutiques]
 	cur = _totals(str(start), str(end), codes)
 	prev = _totals(str(prev_start), str(prev_end), codes)

@@ -11,6 +11,8 @@ import { useDashboard } from '../../stores/dashboard'
 import type { BoutiqueDetail } from '../../types'
 
 const props = defineProps<{ boutique: string }>()
+import { useBrand } from '../../stores/brand' // v0.6 D1
+const brand = useBrand()
 defineEmits<{ back: [] }>()
 const d = useDashboard()
 const detail = ref<BoutiqueDetail | null>(null)
@@ -42,7 +44,7 @@ const maxItem = computed(() => Math.max(1, ...(detail.value?.top_items.map((t) =
 <template>
   <div class="page">
     <header class="head">
-      <button class="btn" @click="$emit('back')">← Boutiques</button>
+      <button class="btn" @click="$emit('back')">← {{ brand.stores }}</button>
       <span class="display code">{{ boutique }}</span>
       <span class="city">{{ live?.name ?? detail?.row?.name ?? '' }}</span>
       <StatusPill v-if="live" :status="deriveStatus(live.last_seen, d.now, live.pending_approvals, live.queued)" :queued="live.queued" />

@@ -15,12 +15,14 @@ import type { BoutiqueTableRow } from '../../types'
 
 defineEmits<{ open: [code: string] }>()
 const d = useDashboard()
+import { useBrand } from '../../stores/brand' // v0.6 D1
+const brand = useBrand()
 const rows = ref<BoutiqueTableRow[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 type Col = { k: keyof BoutiqueTableRow | 'status'; l: string; num?: boolean; fmt?: (r: BoutiqueTableRow) => string; w: string }
 const cols: Col[] = [
-  { k: 'boutique', l: 'Boutique', w: 'minmax(0, 1.6fr)' },
+  { k: 'boutique', l: brand.store, w: 'minmax(0, 1.6fr)' },
   { k: 'net', l: 'Net today', num: true, fmt: (r) => fmtMoney(live(r).net), w: '1fr' },
   { k: 'vs_last_week_pct', l: 'vs LW', num: true, fmt: (r) => pctLabel(live(r).vs_last_week_pct), w: '0.6fr' },
   { k: 'wtd_net', l: 'WTD', num: true, fmt: (r) => fmtCompact(r.wtd_net), w: '0.7fr' },
@@ -94,7 +96,7 @@ const keyOf = (r: BoutiqueTableRow) => r.boutique
 <template>
   <div class="boutiques">
     <header class="toolbar">
-      <span class="label">Boutiques</span>
+      <span class="label">{{ brand.stores }}</span>
       <span class="label count">{{ rows.length }} · sorted by {{ cols.find((c) => c.k === sortKey)?.l }} {{ sortDir === -1 ? '↓' : '↑' }}</span>
       <span v-if="error" class="label err">{{ error }}</span>
       <button class="btn" @click="load">Refresh</button>

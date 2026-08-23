@@ -162,6 +162,9 @@ def apply_to_invoice(si, payload: dict[str, Any]) -> None:
 	if len(names) > 1 and not settings["reward_allow_stacking"]:
 		raise RewardError(_("Only one reward can be redeemed per transaction"))
 	customer = si.customer
+	# v0.6 D5 — the POS-Profile default customer is a placeholder, never a member
+	if is_walk_in(customer):
+		raise RewardError(_("{0} is not a rewards member").format(customer or _("Walk-in")))
 	program = frappe.db.get_value("Customer", customer, "loyalty_program")
 	if not program:
 		raise RewardError(_("{0} is not a rewards member").format(customer))
@@ -211,6 +214,9 @@ def tiers(customer: Optional[str] = None, boutique: Optional[str] = None) -> dic
 	if boutique:
 		boutique = assert_boutique_access(boutique)
 		company = frappe.db.get_value("Maison Boutique", boutique, "company")
+	# v0.6 D5 — an anonymous basket has no member card: no balance, no affordable tier
+	if is_walk_in(customer):
+		customer = None
 	program = frappe.db.get_value("Customer", customer, "loyalty_program") if customer else None
 	all_tiers = reward_tiers(program=program, company=company)
 	balance = points_balance(customer, program, company) if customer and program else 0.0
@@ -234,7 +240,8 @@ def receipt_extras(doc) -> dict[str, Any]:
 		t = frappe.db.get_value("Maison Reward Tier", doc.maison_reward_tier, ["title", "points", "amount"], as_dict=True)
 		if t:
 			out["reward_tier"] = {"title": t.title, "points": cint(t.points), "amount": flt(t.amount)}
-	program = frappe.db.get_value("Customer", doc.customer, "loyalty_program") if doc.customer else None
+	# v0.6 D5 — an anonymous receipt never prints a member card
+	program = frappe.db.get_value("Customer", doc.customer, "loyalty_program") if doc.customer and not is_walk_in(doc.customer) else None
 	if program:
 		out["points_balance"] = points_balance(doc.customer, program, doc.company)
 		if doc.docstatus == 1:
@@ -273,6 +280,14 @@ def rebase_points_on_net(doc) -> None:
 	"""
 	program = doc.get("loyalty_program")
 	if not program or doc.get("is_return"):
+		return
+	# v0.6 D5 — `Sales Invoice.loyalty_program` is `fetch_from: customer.loyalty_program`, so an
+	# auto-opted-in walk-in placeholder would accrue on every anonymous basket. Drop whatever
+	# ERPNext just wrote and unstamp the invoice so a later return cannot re-create it.
+	if is_walk_in(doc.customer):
+		frappe.db.delete("Loyalty Point Entry", {"invoice_type": doc.doctype, "invoice": doc.name})
+		frappe.db.set_value(doc.doctype, doc.name, "loyalty_program", None, update_modified=False)
+		doc.loyalty_program = None
 		return
 	# A redeeming invoice carries TWO entries: the accrual and a negative redemption row pointing at
 	# the entries it consumed (`redeem_against`). Only the accrual is re-priced.
@@ -349,12 +364,29 @@ def on_return_submit(doc, method: Optional[str] = None) -> None:
 		frappe.db.set_value("Maison Giveaway Entry", name, "reversed", 1, update_modified=False)
 
 
-def _is_walk_in(customer: Optional[str]) -> bool:
-	if not customer:
+def is_walk_in(customer: Optional[str] = None, customer_name: Optional[str] = None) -> bool:
+	"""True for the anonymous placeholder client (v0.6 D5).
+
+	A customer is a walk-in when it is the default customer of *any* POS Profile, or when its
+	name starts with "Walk-in" ("Walk-in Customer" / "Walk-in Client" across the two seeds).
+	The placeholder must never accrue or redeem points, never head the POS client list and never
+	print as a member on an anonymous receipt: a loyalty programme with ``auto_opt_in`` enrols
+	whoever appears on an invoice, which is how the seeded site ended up with a "Walk-in Customer"
+	holding 61,045 points.
+
+	*customer_name* lets an unsaved ``Customer`` document be tested before it has a name.
+	"""
+	if customer_name and str(customer_name).strip().lower().startswith("walk-in"):
 		return True
+	if not customer:
+		return not customer_name  # no client attached at all == a walk-in basket
 	if frappe.db.get_value("POS Profile", {"customer": customer}, "name"):
 		return True
 	return (frappe.db.get_value("Customer", customer, "customer_name") or "").lower().startswith("walk-in")
+
+
+#: legacy private alias (kept so nothing that imported it breaks)
+_is_walk_in = is_walk_in
 
 
 @frappe.whitelist()

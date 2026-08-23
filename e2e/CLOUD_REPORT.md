@@ -378,3 +378,168 @@ the WASM path end to end (the WebGL path is not covered by this sandbox).
    ("No photograph is stored"); noting it only because an associate may wonder whether the camera is on.
 5. `state.backend` is not exposed by the `__maisonRecognitionTest` hook (the script prints `backend=null`); cosmetic for the
    harness only.
+
+---
+
+## v0.6 CloudChaserz cloud run (2026-08-23, 13:15–13:29 site time)
+
+Site: **`https://cloudchaserz.frappe.cloud`** (bench-46369). Apps live: `frappe`, `erpnext`, `payments`,
+`webshop`, `hrms`, `maison_pos` — **Frappe CRM is deliberately absent** and every CRM touchpoint was
+re-verified as feature-detected (below). Seed confirmed via `maison_pos.setup.cloudchaserz.status`:
+11 stores + `HOU-WH`, 160 items, `CloudChaserz Rewards`, 3,002 history invoices, insights precomputed
+(`2026-08-23 13:15`).
+
+Script: new **`/home/claude/maison/e2e/cloudchaserz.cloud.e2e.mjs`** (no app source under `maison_pos/`,
+`frontend/` or `dashboard/` was touched by this run). Screenshots: **`/home/claude/maison/e2e/cloud-shots-v06/`**
+(29). Raw results: **`results.v06.cloud.json`**, log: **`cloud-run-v06.log`**.
+
+```bash
+# fresh Administrator sid → /tmp/ccsid
+curl -s -X POST https://cloud.frappe.io/api/method/press.api.site.login \
+  -H "Authorization: Token <press-token>" -H 'Content-Type: application/json' \
+  -d '{"name":"cloudchaserz.frappe.cloud","reason":"v0.6 verification"}' \
+  | python3 -c "import sys,json;open('/tmp/ccsid','w').write(json.load(sys.stdin)['message']['sid'])"
+
+cd /home/claude/maison/e2e
+BRIDGE=1 NODE_USE_ENV_PROXY=1 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 \
+BASE=https://cloudchaserz.frappe.cloud ADMIN_SID=$(cat /tmp/ccsid) \
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node cloudchaserz.cloud.e2e.mjs
+```
+
+**Result: 69 / 71 checks passed, 0 console errors or page errors across 11 browser contexts.**
+The two failures are real product defects, not harness problems (D1 and D2 below); every functional
+area in the brief passed end to end.
+
+### Results by area
+
+| # | Area | Result | Evidence |
+|---|------|--------|----------|
+| 0 | Tenant + brand tokens + CRM-absent degradation | **PASS** (3/3) | `brand_name=CloudChaserz`, `wordmark_text=CLOUDCHASERZ`, `sub_mark=Maison POS`, `vertical=Smoke Shop`, `store_noun=Store`; `crm.profile` 200 with `crm.installed=false`, `crm.tasks` 200, `crm.log_interaction` wrote `52md59hvqi` with no `crm` app present |
+| 1 | POS: login → PIN unlock → brand → item → cash sale → receipt QR + points → guest `/r/` | **PASS** (10/11) | `hou.mtr.a1@` / PIN 2580 at HOU-MTR; top bar `CLOUDCHASERZ · Maison POS · HOU-MTR`, store name `CloudChaserz Montrose` (≥1400 px); cash sale **`ACC-SINV-2026-03040`** $14.06 → `Synced`; receipt QR is a PNG data-URI + link `/r/scfXDvoACBH_qNj6`; rewards block `CLOUDCHASERZ REWARDS · POINTS EARNED 12 · BALANCE 24 · NEXT REWARD $5.00 at 100 pts (76 to go)`; guest `GET /r/<token>` **200**, `GET /r/<bad>` **404**; iPhone 390×844 no horizontal overflow. **1 fail — D2** (`01-…`, `02-…`, `03-…`, `04-…`, `05-…`) |
+| 2 | Age gate (21+) | **PASS** (9/9) | API: under-21 → `Underage` "Under 21 — sale of age-restricted items refused"; expired → `Expired`; valid → `Verified` age 34, `Maison Age Check 63c0lfsksv` storing only `initials=AR, issuer=TX, age_years=34` (no name/address/licence no.). UI: tapping `DSP-002` raised the gate **before** the basket; under-21 DOB and expired ID both refused with 0 basket lines; a **valid AAMVA PDF417 payload through the Scan-ID tab** passed and the item rang up; sale **`ACC-SINV-2026-03041`** carries `maison_age_verified=1`, `maison_age_check=a3fqgrkghd` (`06-…`, `07-…`, `08-…`, `09-…`) |
+| 3 | Rewards $5/100 redeem + return reversal | **PASS** (8/8) | Tiers `100→$5, 200→$10, 300→$15`; member `CC Rewards IIP0Y` (`MC610760`) earned **129 pts on $129.90 net** (not the $140.62 taxed total) via `ACC-SINV-2026-03042`; the POS tier picker offered only the affordable tier; picking it took the basket **$56.25 → $51.25**; invoice **`ACC-SINV-2026-03043`** `loyalty_amount=5, loyalty_points=100, maison_reward_tier=RT-100-00001`; balance 129 → 75; credit note **`ACC-SINV-2026-03044`** put it back to 124 (never negative) (`10-…`, `11-…`) |
+| 4 | Store scoping over HTTP | **PASS** (5/5) | `hou.mtr.manager@` → **403 `PermissionError: You are not permitted to act on boutique OK-SAP`** on `catalog.bootstrap`, `inventory.alerts`, `inventory.inbound`, `inventory.replenishment_requests`, `shipping.shipments`, `shipping.requests_list`; mirror holds for `ok.sap.manager@` → HOU-MTR; own store still 200; `dashboard.live_summary` returns `by_boutique=[HOU-MTR]` only; unscoped `shipments` / `alerts` narrow to the caller. **See D3 for a leak outside the `maison_pos` API surface** |
+| 5 | Warehouse replenishment loop | **PASS** (14/14) | `ok.sap.manager@` requested `DEV-006 ×6` from the **POS Receive** screen → **`MRR-2026-00011`** (Pending Approval, `MAT-MR-2026-00004`, HOU-WH → OK-SAP); `warehouse@` approved on `/warehouse` with the qty edited to 4 → **`MSH-2026-00012`**; the 1920×1080 wall showed the card over realtime (`OK-SAP · CloudChaserz Sapulpa · 1 ITEMS 4 UNITS · PENDING`) and `window.__maisonLastWallPrint` fired `{kind: "packing_list", shipment: MSH-2026-00012}`; the wall transport went `POLLING` → **`LIVE`**; 8 simulated rates **cheapest-first** (USPS Ground Advantage $15.71 → UPS Next Day Air Saver $95.11) with the cheapest pre-selected; label bought (`9400016071039279356086`); ship posted HQ 55→51 / In Transit 0→4; the store manager **received it by scanning EAN `2003553313403` four times** on Receive (`MAT-STE-2026-00045`); final balances HQ 51, In Transit 0, OK-SAP 3→7 (`12-…` … `19-…`) |
+| 6 | Dashboard `/maison-dashboard` as `hq@` | **PASS on data (4/5), FAIL on brand — D1** | Live tab renders a store card for **all 11 stores** (plus HOU-WH, see D4) with real numbers (`01 HOU-MTR CloudChaserz Montrose 866 +1052% 24 · RETURN CocoUrth Coconut Coals · −56 · 28 s ago · ONLINE`); a new POS sale moved the HOU-MTR card **893 ms** after the POS response (`ACC-SINV-2026-03045`); Products → Trending 60 rows from the precomputed table in 99 ms with real CloudChaserz SKUs; Products → Top by store 12 store columns + 132 matrix cells (`20-…` … `23-…`) |
+| 7 | `/shop`, `/rewards`, `/salon` | **PASS** (7/7) | `/shop` fully CloudChaserz (hero "Order online. Pick up in store today.", 11 category tiles, "Where to find us" with all 11 addresses); `/rewards` carries the exact copy — **"Earn 1 point for every $1 you spend"**, **"$5 off at 100 points"**, **"$10 off at 200 points"**, **"$15 off at 300 points"** — plus all four member perks, the live giveaway and the join form; the only "Maison" string on either page is the intentional `Maison POS` sub-mark. `/salon` paired from code `152972` (session `eb1217c7…`), mirrored the walk-in basket on the identify screen ("Meanwhile, your associate has set aside CocoUrth Coconut Coals 72 pc (flats)") and then matched the POS exactly: **salon $28.12 = POS $28.12** (`24-…` … `29-…`) |
+
+### Screenshots reviewed (`e2e/cloud-shots-v06/`)
+
+`01-pos-unlock-1366` · `02-pos-cloudchaserz-1366` · `03-pos-receipt-qr` · `04-public-receipt-390` ·
+`05-pos-cloudchaserz-iphone-390` · `06-pos-age-gate` · `07-pos-age-blocked-under21` · `08-pos-age-passed` ·
+`09-pos-age-receipt` · `10-pos-reward-picker` · `11-pos-reward-applied` · `12-pos-receive-screen` ·
+`13-pos-receive-request-modal` · `14-warehouse-desk` · `15-warehouse-approve` · `16-warehouse-wall-1920` ·
+`17-warehouse-wall-shipped-1920` · `18-pos-receive-count-sheet` · `19-pos-receive-confirmed` ·
+`20-dashboard-live-1920` · `21-dashboard-live-after-sale-1920` · `22-dashboard-products-trending-1920` ·
+`23-dashboard-products-top-1920` · `24-shop-1440` · `25-rewards-1440` · `26-salon-pair-1024` ·
+`27-salon-ambient-1024` · `28-salon-identify-1024` · `29-salon-basket-mirror-1024`
+
+All 29 were opened and read. The POS, receipt, age gate, reward picker, Receive, warehouse desk, wall,
+shop, rewards and salon screens are all correctly CloudChaserz-branded and typographically clean.
+
+### Defects found
+
+**D1 — the Command dashboard is still branded "Maison" (v0.6 N regression, most visible defect).**
+`/maison-dashboard` renders the wordmark **`Maison`**, the scope line **`Today · All Boutiques`** and a
+**`BOUTIQUES`** nav tab / **`All boutiques`** filter, on a tenant whose `store_noun` is `Store`. The brand
+payload is already on the page — the Jinja shell injects
+`window.maison_brand = {"wordmark_text": "CLOUDCHASERZ", "store_noun": "Store", …}`
+(`maison_pos/www/maison-dashboard.html:12`) and the tab title is correctly `CLOUDCHASERZ · Command` — but the
+Vue SPA never reads it: `dashboard/src/components/TopBar.vue:18-20` hard-codes `<span class="display
+wordmark">Maison</span>` and `Today · All Boutiques`, and "boutique" appears 164 times across
+`dashboard/src/**/*.vue`. Every other surface (POS, unlock, receipt, warehouse desk, 55" wall, `/shop`,
+`/rewards`, `/salon`) took the brand tokens correctly. Fix: read `window.maison_brand` in the dashboard
+TopBar (wordmark + `store_noun` for the scope line and the Boutiques tab/column headings). Evidence:
+`20-dashboard-live-1920.png`, `22-…`, `23-…`.
+
+**D2 — the unlock screen overflows the 1366×1024 POS viewport by 147 px.**
+`UnlockView.vue` uses `grid-template-columns: 1fr 480px`; a grid `1fr` track has `min-width: auto`, so the
+left column cannot shrink below the min-content width of `.brand .wordmark` (`font-size: 64px;
+letter-spacing: 0.3em`). "CLOUDCHASERZ" is 12 glyphs — measured min-content **1033 px** — so the 480 px
+panel column ends at **x = 1513 px** and `document.documentElement.scrollWidth − clientWidth = 147`. The
+store picker, Load button and PIN keypad are clipped off the right edge and the page scrolls sideways; the
+screen needs ≥ 1513 px to fit. Not a problem for "MAISON" (6 glyphs ≈ 560 px), i.e. this is triggered by the
+longer v0.6 wordmark. Minimal fix: `grid-template-columns: minmax(0, 1fr) 480px` (plus a `clamp()` on the
+wordmark size for narrower tills). Evidence: `01-pos-unlock-1366.png`.
+
+**D3 — cross-store leakage outside the `maison_pos` API: 10 other-store credit notes are listable by a
+store manager.** Every `maison_pos.api.*` endpoint is correctly 403 (area 4), but the generic Frappe REST
+list is not scoped: as `hou.mtr.manager@`, `frappe.client.get_list` on `Sales Invoice` filtered
+`maison_boutique != HOU-MTR` returns **10 rows** from OK-BA, OK-BIX, OK-ETUL, OK-JENKS, OK-MINGO (×2),
+OK-MUS, OK-OWA, OK-SAP, OK-STUL, OK-YALE. All ten are `is_return=1`: store scoping for `Sales Invoice`
+relies solely on the per-user **Warehouse** User Permission (`users.py::ensure_user_permission`), and return
+credit notes carry no `set_warehouse`, so the permission never matches them. `hooks.py`
+`permission_query_conditions` covers 20 doctypes but not `Sales Invoice`. Only invoice headers leak (name,
+store, totals) — no line items or client data were reachable — but it is a genuine boundary hole. Fix:
+either set `set_warehouse` on POS credit notes or add a `Sales Invoice` entry to
+`permission_query_conditions` alongside the existing `maison_pos.scoping.*` helpers.
+
+**D4 — the `HOU-WH` warehouse is shown as a 12th "store" on the dashboard.**
+`maison_pos/api/dashboard.py::_live_summary` (and `boutiques_table`, Products → Top by store) call
+`get_allowed_boutiques()` without excluding `is_warehouse` / `boutique_type = "Warehouse"` — which
+`maison_pos/api/rewards.py:583` *does* do. HOU-WH therefore appears on the Live board permanently at
+`$0 · 0 tickets · NO SALE YET · OFFLINE`, and as a `0 NET / NO SALES IN PERIOD` column on Top by store.
+Cosmetic, but it reads as a dead store to head office. Evidence: `20-…`, `23-…`.
+
+**D5 — the "Walk-in Customer" placeholder is itself a rewards member with 61,045 points.**
+`Customer "Walk-in Customer"` — the default customer on **all 12 POS Profiles** — carries
+`loyalty_program = CloudChaserz Rewards`, client number `MC990463` and **61,045 points (≈ $3,052
+redeemable)**, accrued from the 3,002 seeded history invoices, because the seeded Loyalty Program has
+`auto_opt_in = 1` (`maison_pos/setup/cloudchaserz/rewards.py:53`) and ERPNext enrols any customer on its
+first invoice. `maison_pos/api/rewards.py::_is_walk_in` guards *giveaway* entries but not accrual or
+redemption. Counter effect: an anonymous basket renders **`WALK-IN CUSTOMER · MEMBER · 60,946 POINTS ·
+3 rewards available`** with a live Redeem switch, the walk-in heads the default POS client list, and the
+placeholder prints on anonymous receipts as `Walk-in Customer / Member · MC990463`. Left untouched (it is
+seeded state, and the loyalty ledger is consistent); the demo fix is two fields — clear
+`Walk-in Customer.loyalty_program` and `.maison_client_number` — and the product fix is to apply
+`_is_walk_in` in `rebase_points_on_net` / `apply_to_invoice`.
+
+### Smaller observations
+
+1. **Site time zone is unset.** `System Settings.time_zone` is `null`, so the site falls back to Frappe
+   Cloud's `Asia/Kolkata` (UTC+5:30) for an 11-store Texas/Oklahoma chain: the site clock read `13:27`
+   while Houston was `02:57`. Every server-side day boundary and hour bucket (dashboard "today",
+   `by_hour` peak `13:00`, `posting_time`) is therefore Indian time. Not changed here — re-timezoning a
+   site *after* the stock and 3-month history were seeded is exactly what broke run 1 on
+   `maison-demo.frappe.cloud` (Finding 1 above); it should be set before the next reseed.
+2. **Today has no seeded sales — only returns.** The seeded history ends `2026-08-22`; today's slice is
+   17 return credit notes and 0 sales, so a demo opened before anyone rings a sale shows the Live board
+   with 11 negative/offline stores (`−79, −71, −65, …`). Ringing one sale fixes it (this run's card went
+   to `866 · +1052% · 24 tickets`), but the seed should post a partial day of sales for "today".
+3. **The unlock screen prints the sub-mark twice**: `MAISON POS · MAISON POS BY CLOUDCHASERZ`.
+   `UnlockView.vue:127` renders `{{ brand.subMark }} · {{ brand.productName }}` and `product_name`
+   already contains the sub-mark.
+4. **Browser-local clocks.** The Salon and the dashboard both render `new Date()` in the *browser's*
+   locale/zone (`7:58 AM` against a site clock of `13:27`), and the Salon's "Good morning / evening"
+   greeting is derived from it. Same class as the v0.1 dashboard-clock observation; it matters more now
+   that the Salon greets clients by time of day.
+5. **Jewellery vocabulary survives in the Salon**: "ASK ABOUT THIS PIECE", "NOT NOW — SHOW MY PIECES",
+   "YOUR SELECTION" on a smoke-shop tenant. The brand system carries `store_noun` but no item noun.
+6. **The under-21 refusal is surfaced twice** — as the modal ("SALE REFUSED") and simultaneously as a
+   sync-style notice in the corner carrying a **QUEUE** action button, which is not meaningful for an age
+   refusal (`07-pos-age-blocked-under21.png`).
+7. **The compact top bar (≤ 1400 px) hides the store name** by design (`TopBar.vue:37`), so at the brief's
+   1366×1024 the bar shows `HOU-MTR` only; the full `CloudChaserz Montrose` renders from 1401 px up —
+   verified by resizing mid-run.
+8. The 55" wall reports `POLLING` at first paint and upgrades to `LIVE` a few seconds later; the approved
+   card and the auto-print both arrived over the live transport.
+9. `Maison POS Settings.consent_text` (face recognition, currently disabled) still reads "I agree that
+   **Maison** may create and store a mathematical template…" — it is not brand-tokenised.
+
+### Site state left behind (clean, demo-ready)
+
+- **Created by this run and left in place** (real, consistent records): sales `ACC-SINV-2026-03040`
+  (cash + rewards receipt), `ACC-SINV-2026-03041` (21+ verified), `ACC-SINV-2026-03042` (rewards earn),
+  `ACC-SINV-2026-03043` (reward redeemed), `ACC-SINV-2026-03045` (dashboard-live sale), credit note
+  `ACC-SINV-2026-03044`; replenishment `MRR-2026-00011` → shipment `MSH-2026-00012` (**Received**, so
+  nothing is stuck in transit and there was no test shipment left to cancel); age checks and the
+  `MAT-STE-2026-00045` receipt transfer.
+- **Reverted**: the two stock top-ups the harness makes so repeated runs do not exhaust the shelf were
+  returned with Material Issues `MAT-STE-2026-00046/00047` — `HKA-012 @ HOU-MTR` back to **23** and
+  `DSP-002 @ HOU-MTR` back to **42**, i.e. the seeded quantities.
+- **Hidden**: the five `CC Rewards …` test members created across the verification runs were set
+  `disabled = 1`, so they no longer head the POS client list (their invoices and points are untouched).
+- **Verified empty at the end**: no open shipments, no open replenishment requests, no paired Salon
+  sessions, no basket left on any till, warehouse desk and wall idle.
+- **Not touched**: all seeded stores, users, PINs, the 160-item catalogue, the 3,002 history invoices,
+  precomputed insights, the Walk-in Customer's loyalty state (D5) and the site time zone (observation 1).

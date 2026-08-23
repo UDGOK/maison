@@ -2,7 +2,7 @@
  "base": "http://cc.localhost:8001",
  "store_a": "HOU-MTR",
  "store_b": "OK-SAP",
- "customer": "CC Rewards E2E 1787465624117",
+ "customer": "CC Rewards E2E 1787476540289",
  "results": [
   {
    "step": "bootstrap.brand is the CloudChaserz tenant (Smoke Shop vertical)",
@@ -37,12 +37,27 @@
   {
    "step": "age.verify_scan passes a valid 21+ licence and logs a Maison Age Check",
    "ok": true,
-   "detail": "{\"ok\":true,\"outcome\":\"Verified\",\"age\":34,\"method\":\"Scan\",\"check\":\"6prb56e771\"}"
+   "detail": "{\"ok\":true,\"outcome\":\"Verified\",\"age\":34,\"method\":\"Scan\",\"check\":\"hcc3facjrb\"}"
   },
   {
    "step": "the age check stores no PII beyond the masked initials",
    "ok": true,
-   "detail": "{\"name\":\"6prb56e771\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"initials\":\"AR\",\"boutique\":\"HOU-MTR\"}"
+   "detail": "{\"name\":\"hcc3facjrb\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"initials\":\"AR\",\"boutique\":\"HOU-MTR\"}"
+  },
+  {
+   "step": "unlock 1366x1024: scrollWidth <= clientWidth and nothing clips (D2)",
+   "ok": true,
+   "detail": "scrollWidth-clientWidth=0; \"CLOUDCHASERZ\" ends at 829, panel at 1316, viewport 1366"
+  },
+  {
+   "step": "unlock 1024x768: scrollWidth <= clientWidth and nothing clips (D2)",
+   "ok": true,
+   "detail": "scrollWidth-clientWidth=0; \"CLOUDCHASERZ\" ends at 487, panel at 974, viewport 1024"
+  },
+  {
+   "step": "unlock 390x844: scrollWidth <= clientWidth and nothing clips (D2)",
+   "ok": true,
+   "detail": "scrollWidth-clientWidth=0; \"CLOUDCHASERZ\" ends at 277, panel at 374, viewport 390"
   },
   {
    "step": "the POS top bar is branded CloudChaserz (wordmark first, \"Maison POS\" only as the sub-mark)",
@@ -77,7 +92,7 @@
   {
    "step": "the Salon display is branded CloudChaserz",
    "ok": true,
-   "detail": "CLOUDCHASERZ CLOUDCHASERZ NOT PAIRED 6:13 AM CLIENT DISPLAY PAIR WITH THE POINT OF SALE Enter the six-digit code shown under Settings · Client display on the as"
+   "detail": "CLOUDCHASERZ CLOUDCHASERZ NOT PAIRED 9:15 AM CLIENT DISPLAY PAIR WITH THE POINT OF SALE Enter the six-digit code shown under Settings · Client display on the as"
   },
   {
    "step": "the programme exposes the three fixed tiers ($5/100, $10/200, $15/300)",
@@ -87,12 +102,12 @@
   {
    "step": "the /rewards sign-up creates a member with a client number and the CloudChaserz programme",
    "ok": true,
-   "detail": "CC Rewards E2E 1787465624117 MC862378 CloudChaserz Rewards"
+   "detail": "CC Rewards E2E 1787476540289 MC015648 CloudChaserz Rewards"
   },
   {
    "step": "$1 spent = 1 point earned on the net amount, not the taxed total",
    "ok": true,
-   "detail": "spent $159.92 net ($173.11 with tax) → 159 points (invoice ACC-SINV-2026-01031)"
+   "detail": "spent $159.92 net ($173.11 with tax) → 159 points (invoice ACC-SINV-2026-01034)"
   },
   {
    "step": "only the tiers the client can afford are offered",
@@ -102,7 +117,7 @@
   {
    "step": "redeeming the $5 / 100-point tier takes $5 off at the counter",
    "ok": true,
-   "detail": "ACC-SINV-2026-01032 loyalty_amount=5 tier=RT-100-00001 total=64.92"
+   "detail": "ACC-SINV-2026-01035 loyalty_amount=5 tier=RT-100-00001 total=64.92"
   },
   {
    "step": "100 points are deducted from the balance on redemption",
@@ -112,7 +127,7 @@
   {
    "step": "returning the sale reverses the points and releases the redeemed reward (never negative)",
    "ok": true,
-   "detail": " credit note ACC-SINV-2026-01033; points 113 → 154"
+   "detail": " credit note ACC-SINV-2026-01036; points 113 → 154"
   },
   {
    "step": "the public /rewards page renders the tiers and the perks (no unresolved template tokens)",
@@ -141,6 +156,21 @@
   }
  ],
  "console": [
+  {
+   "tag": "unlock-1366",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "unlock-1024",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "unlock-390",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
   {
    "tag": "pos",
    "type": "error",
