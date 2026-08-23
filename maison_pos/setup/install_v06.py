@@ -31,6 +31,11 @@ BRAND_DEFAULTS: dict[str, Any] = {
 	"brand_website": "https://cloudchaserzworld.com",
 	"vertical": "Smoke Shop",
 	"store_noun": "Store",
+	# v0.7 — who built the platform. Rendered as "Powered by <developer_name>" in the website
+	# footer, on the launcher and in the desk About dialog. Brand-driven so a future tenant of
+	# this platform carries the same credit without a code change.
+	"developer_name": "Futonix",
+	"developer_website": "https://futonix.com",
 }
 
 AGE_DEFAULTS: dict[str, Any] = {
@@ -67,7 +72,10 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 		{"fieldname": "support_email", "label": "Support e-mail", "fieldtype": "Data", "options": "Email", "default": BRAND_DEFAULTS["support_email"], "insert_after": "legal_name"},
 		{"fieldname": "brand_website", "label": "Website", "fieldtype": "Data", "default": BRAND_DEFAULTS["brand_website"], "insert_after": "support_email"},
 		{"fieldname": "brand_logo", "label": "Brand logo", "fieldtype": "Attach Image", "insert_after": "brand_website"},
-		{"fieldname": "head_office_boutique", "label": "Head office store", "fieldtype": "Link", "options": "Maison Boutique", "insert_after": "brand_logo"},
+		# v0.7 — platform developer credit ("Powered by ...")
+		{"fieldname": "developer_name", "label": "Developed by", "fieldtype": "Data", "default": BRAND_DEFAULTS["developer_name"], "insert_after": "brand_logo", "description": "Shown as \"Powered by <name>\" in the website footer, the launcher and the About dialog. Clear it to show no credit."},
+		{"fieldname": "developer_website", "label": "Developer website", "fieldtype": "Data", "default": BRAND_DEFAULTS["developer_website"], "insert_after": "developer_name"},
+		{"fieldname": "head_office_boutique", "label": "Head office store", "fieldtype": "Link", "options": "Maison Boutique", "insert_after": "developer_website"},
 		{"fieldname": "main_warehouse", "label": "Main warehouse", "fieldtype": "Link", "options": "Warehouse", "insert_after": "head_office_boutique"},
 		{"fieldname": "vertical", "label": "Vertical", "fieldtype": "Select", "options": "\n".join(VERTICALS), "default": BRAND_DEFAULTS["vertical"], "insert_after": "main_warehouse", "description": "Controls which product attribute fields the POS / shop show."},
 		{"fieldname": "section_v06_age", "label": "Age verification (v0.6)", "fieldtype": "Section Break", "insert_after": "vertical"},

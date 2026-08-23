@@ -31,7 +31,10 @@
   .ms-signin{display:inline-block;margin-top:24px;background:var(--accent);color:var(--ground);
     font-weight:500;letter-spacing:.2em;text-transform:uppercase;font-size:12px;padding:16px 28px}
   .ms-signin:hover{background:var(--accent-deep)}
-  .ms-foot{margin-top:40px;font-size:12px;color:var(--dim);display:flex;gap:22px;flex-wrap:wrap}
+  .ms-credit{margin-top:32px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .ms-credit a{color:var(--accent);border-bottom:1px solid var(--line-2);padding-bottom:2px}
+  .ms-credit a:hover{border-color:var(--accent)}
+  .ms-foot{margin-top:24px;font-size:12px;color:var(--dim);display:flex;gap:22px;flex-wrap:wrap}
   .ms-foot a{border-bottom:1px solid var(--line-2);padding-bottom:2px}
   .ms-foot a:hover{color:var(--accent);border-color:var(--accent)}
   @media (max-width:520px){.ms-wrap{padding:40px 18px 64px}}
@@ -63,6 +66,13 @@
     </a>
     {% endfor %}
   </div>
+
+  {% if developer_name %}
+  <div class="ms-credit">
+    Powered by
+    {% if developer_website %}<a href="{{ developer_website }}" target="_blank" rel="noreferrer noopener">{{ developer_name }}</a>{% else %}{{ developer_name }}{% endif %}
+  </div>
+  {% endif %}
 
   {% if not is_guest %}
   <div class="ms-foot">

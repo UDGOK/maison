@@ -11,10 +11,17 @@
   source headers and at /api/method/maison_pos.setup.whitelabel.attribution. See docs/white-label.md.
 -#}
 {%- set _b = maison_brand or get_brand() -%}
+<span class="text-muted">
 {%- if _b and _b.product_name -%}
 	{%- if _b.brand_website -%}
 	<a class="text-muted" href="{{ _b.brand_website }}" target="_blank" rel="noreferrer">{{ _b.product_name }}</a>
-	{%- else -%}
-	<span class="text-muted">{{ _b.product_name }}</span>
-	{%- endif -%}
+	{%- else -%}{{ _b.product_name }}{%- endif -%}
 {%- endif -%}
+{%- if _b and _b.developer_name -%}
+	{%- if _b and _b.product_name %} &middot; {% endif -%}
+	Powered by
+	{%- if _b.developer_website %}
+	<a class="maison-dev-credit" href="{{ _b.developer_website }}" target="_blank" rel="noreferrer noopener">{{ _b.developer_name }}</a>
+	{%- else %} {{ _b.developer_name }}{%- endif -%}
+{%- endif -%}
+</span>

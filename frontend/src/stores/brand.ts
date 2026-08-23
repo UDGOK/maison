@@ -25,6 +25,8 @@ export function useBrand() {
     programName: computed(() => brand.value.rewards_program_name),
     isJewellery: computed(() => brand.value.vertical === 'Jewellery'),
     isSmokeShop: computed(() => brand.value.vertical === 'Smoke Shop'),
+    developerName: computed(() => brand.value.developer_name || ''),
+    developerWebsite: computed(() => brand.value.developer_website || ''),
     /** "Thank you for visiting CloudChaserz" */
     thanks: computed(() => `Thank you for visiting ${brand.value.brand_name}`),
     /** "Join CloudChaserz Rewards" */

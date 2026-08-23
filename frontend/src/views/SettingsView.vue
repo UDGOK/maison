@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useBrand } from '@/stores/brand'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
@@ -19,6 +20,7 @@ import SalonSettingsCard from '@/components/SalonSettingsCard.vue' // v0.5 K
 import { useInventoryStore } from '@/stores/inventory' // v0.4 D
 import { buildReceiptLayout } from '@/printer/canvas' // v0.4 A
 
+const brand = useBrand() // v0.7 developer credit
 const session = useSessionStore()
 const catalog = useCatalogStore()
 const printer = usePrinterStore()
@@ -154,6 +156,12 @@ async function resetDevice() {
           <div class="row" style="margin-top: 6px">
             <button class="btn" :disabled="refreshing || !sync.browserOnline" @click="refresh">{{ refreshing ? 'Refreshing' : 'Refresh catalog' }}</button>
             <button class="btn btn-ghost" @click="session.forgetBoutique().then(() => router.push({ name: 'unlock' }))">Change boutique</button>
+          </div>
+          <!-- v0.7 — platform developer credit; hidden when the brand clears `developer_name` -->
+          <div v-if="brand.developerName" class="dev-credit">
+            Powered by
+            <a v-if="brand.developerWebsite" :href="brand.developerWebsite" target="_blank" rel="noreferrer noopener">{{ brand.developerName }}</a>
+            <span v-else>{{ brand.developerName }}</span>
           </div>
         </div>
 
@@ -337,6 +345,21 @@ async function resetDevice() {
 </template>
 
 <style scoped>
+.dev-credit {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.dev-credit a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+}
+
 .reader-preview {
   width: 192px;
   border: var(--line-w) solid var(--line);

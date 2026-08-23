@@ -24,7 +24,10 @@ export const DEFAULT_BRAND: Brand = {
   store_noun: 'Store',
   rewards_program_name: 'CloudChaserz Rewards',
   head_office_boutique: null,
-  main_warehouse: null
+  main_warehouse: null,
+  // v0.7 — who built the platform; rendered as "Powered by ..." on the Settings screen.
+  developer_name: 'Futonix',
+  developer_website: 'https://futonix.com'
 }
 
 /** The jewellery world (mock API / legacy sites) keeps its own tokens. */
@@ -64,7 +67,9 @@ export function normalizeBrand(raw?: Partial<Brand> | null): Brand {
     store_noun: str('store_noun', vertical === 'Jewellery' ? 'Boutique' : 'Store'),
     rewards_program_name: str('rewards_program_name', `${str('brand_name', DEFAULT_BRAND.brand_name)} Rewards`),
     head_office_boutique: (r.head_office_boutique as string) || null,
-    main_warehouse: (r.main_warehouse as string) || null
+    main_warehouse: (r.main_warehouse as string) || null,
+    developer_name: str('developer_name', ''),
+    developer_website: str('developer_website', '')
   }
 }
 

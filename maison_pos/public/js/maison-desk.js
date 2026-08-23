@@ -48,6 +48,15 @@ maison.whitelabel.about = function () {
 			<a href='mailto:${esc(b.support_email)}'>${esc(b.support_email)}</a></p>`
 		);
 	}
+	// v0.7 — who built the platform. Brand-driven; absent when `developer_name` is cleared.
+	if (b.developer_name) {
+		const dev = b.developer_website
+			? `<a href='${esc(b.developer_website)}' target='_blank' rel='noreferrer noopener'>${esc(
+					b.developer_name
+			  )}</a>`
+			: esc(b.developer_name);
+		rows.push(`<p class="text-muted"><i class='fa fa-code fa-fw'></i> ${__("Powered by")} ${dev}</p>`);
+	}
 
 	$(dialog.body).html(
 		`<div>

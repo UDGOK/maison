@@ -258,6 +258,9 @@ export interface Brand {
   rewards_program_name: string
   head_office_boutique?: string | null
   main_warehouse?: string | null
+  /** v0.7 — platform developer credit ("Powered by ..."), blank to hide */
+  developer_name?: string
+  developer_website?: string
 }
 
 /** `Maison Reward Tier` row — fixed redemption tiers ($5 off at 100 points, …). */

@@ -207,18 +207,46 @@ def _wordmark_html(brand: dict[str, Any]) -> str:
 	return out
 
 
+def developer_credit(brand: dict[str, Any]) -> str:
+	"""``Powered by <developer>`` — who built the platform, linked when a site is configured.
+
+	Brand-driven (``Maison POS Settings.developer_name`` / ``developer_website``) so every
+	tenant of this platform carries the credit without a code change, and clearing the field
+	removes it entirely.
+	"""
+	name = str(brand.get("developer_name") or "").strip()
+	if not name:
+		return ""
+	label = frappe.utils.escape_html(name)
+	site = str(brand.get("developer_website") or "").strip()
+	if site:
+		label = (
+			f'<a class="maison-dev-credit" href="{frappe.utils.escape_html(site)}" '
+			f'target="_blank" rel="noreferrer noopener">{label}</a>'
+		)
+	return f"Powered by {label}"
+
+
 def _powered_html(brand: dict[str, Any]) -> str:
-	"""The footer line that replaces "Powered by ERPNext": the tenant's own, or nothing."""
+	"""The footer line that replaces "Powered by ERPNext": the tenant's product, then the
+	developer credit."""
 	product = str(brand.get("product_name") or brand.get("brand_name") or "").strip()
 	website = str(brand.get("brand_website") or "").strip()
-	if not product:
+	credit = developer_credit(brand)
+	if product:
+		if website:
+			product_html = (
+				f'<a class="text-muted" href="{frappe.utils.escape_html(website)}" '
+				f'target="_blank" rel="noreferrer">{frappe.utils.escape_html(product)}</a>'
+			)
+		else:
+			product_html = f'<span class="text-muted">{frappe.utils.escape_html(product)}</span>'
+	else:
+		product_html = ""
+	parts = [p for p in (product_html, credit) if p]
+	if not parts:
 		return " "  # a single space still counts as "set", so the ERPNext include never runs
-	if website:
-		return (
-			f'<a class="text-muted" href="{frappe.utils.escape_html(website)}" '
-			f'target="_blank" rel="noreferrer">{frappe.utils.escape_html(product)}</a>'
-		)
-	return f'<span class="text-muted">{frappe.utils.escape_html(product)}</span>'
+	return '<span class="text-muted">' + " &middot; ".join(parts) + "</span>"
 
 
 def _scrubbed_banner() -> str:

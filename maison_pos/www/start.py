@@ -45,6 +45,8 @@ def get_context(context):
 	context.wordmark = brand.get("wordmark_text") or "MAISON"
 	context.product_name = brand.get("product_name") or "Maison POS"
 	context.tagline = brand.get("tagline") or ""
+	context.developer_name = brand.get("developer_name") or ""
+	context.developer_website = brand.get("developer_website") or ""
 
 	context.is_guest = frappe.session.user == "Guest"
 	context.user_name = "" if context.is_guest else (frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user)
