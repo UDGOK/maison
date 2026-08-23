@@ -1,0 +1,14 @@
+{#-
+  v0.7 white-label — never rendered in practice: `apps.py` redirects to the branded launcher
+  before this template is reached. It exists so Frappe's page router resolves `/apps` to this
+  app rather than to `frappe/www/apps.html` (the "Select an app to continue" picker, which
+  lists ERPNext / Frappe HR / Frappe CRM by name). Kept as a working fallback in case a
+  deployment disables redirects.
+-#}
+{% extends "templates/web.html" %}
+{% block title %}{{ title or "Start" }}{% endblock %}
+{% block page_content %}
+<div style="max-width:640px;margin:0 auto;padding:96px 24px;text-align:center">
+  <p><a class="btn btn-primary" href="/start">Continue</a></p>
+</div>
+{% endblock %}

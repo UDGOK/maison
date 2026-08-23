@@ -1,0 +1,9 @@
+{#-
+  v0.7 white-label — replaces ERPNext's website footer extension.
+
+  ERPNext's version renders a "Get Updates" newsletter box whose inline script calls
+  `erpnext.subscribe_to_newsletter(...)`, i.e. the framework's name is shipped into the page of
+  every non-storefront page (login, /start, 404). The tenant storefront has its own footer, so
+  this override renders nothing. `Website Settings.hide_footer_signup` is set as well, which is
+  the settings-level equivalent for sites that do not have this app's templates on the path.
+-#}

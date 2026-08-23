@@ -51,7 +51,7 @@
 	<div class="rw-join" id="join">
 		<h2>Join {{ p.program_name }}</h2>
 		<div class="hint">Free to join. Your points are tied to your phone number or e-mail and show up on every receipt.</div>
-		<form id="rw-form" novalidate>
+		<form id="rw-form" data-token="{{ csrf_token }}" novalidate>
 			<label for="rw-name">Name</label>
 			<input type="text" id="rw-name" name="name" autocomplete="name" required placeholder="First and last name">
 			<label for="rw-phone">Mobile phone</label>
@@ -105,7 +105,11 @@
 		if (!args.phone && !args.email) { err.textContent = 'Please enter a phone number or an e-mail.'; err.style.display = 'block'; return; }
 		if (!args.consent) { err.textContent = 'Please confirm you are 21+ and accept the terms.'; err.style.display = 'block'; return; }
 		btn.disabled = true;
-		fetch('/api/method/maison_pos.api.rewards.signup', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window.frappe && frappe.csrf_token) || '' }, body: JSON.stringify(args) })
+		// v0.7 white-label: the CSRF token travels in the request body (the server accepts it
+		// there as well as in a header), so this page ships no framework-named header and does
+		// not read the framework's JS global.
+		args.csrf_token = (form.dataset && form.dataset.token) || '';
+		fetch('/api/method/maison_pos.api.rewards.signup', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(args) })
 			.then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
 			.then(function (r) {
 				btn.disabled = false;

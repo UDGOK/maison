@@ -120,4 +120,4 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc-site:8000 ADMIN_PWD=adm
 ```
 
 ## Docs
-`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`
+`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **white-label**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`

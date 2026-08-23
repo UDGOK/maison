@@ -164,17 +164,46 @@ def ensure_launcher_home_page() -> None:
 
 	# Post-login destination for System Users. Frappe reads it from the apps screen
 	# (see hooks.add_to_apps_screen), so with default_app set an associate signing in
-	# lands on /start instead of the ERPNext desk. Only set when unset, so a client
+	# lands on /start instead of the admin desk. Only set when unset, so a client
 	# that has chosen its own default app is never overridden.
+	#
+	# --- v0.7 white-label ---
+	# Written at the database level rather than through `System Settings.save()`: a site seeded
+	# from the CLI can have `language` unset, and the full save then dies on MandatoryError —
+	# which this function used to swallow, leaving `default_app` empty and every login landing on
+	# the framework's app picker (which names ERPNext / Frappe HR / CRM).
 	try:
-		system_settings = frappe.get_single("System Settings")
-		if not (system_settings.get("default_app") or "").strip():
-			system_settings.default_app = "maison_pos"
-			system_settings.flags.ignore_permissions = True
-			system_settings.save(ignore_permissions=True)
+		if not (frappe.db.get_single_value("System Settings", "default_app") or "").strip():
+			frappe.db.set_single_value("System Settings", "default_app", "maison_pos")
+			frappe.db.set_default("default_app", "maison_pos")
+			frappe.cache.delete_value("system_settings")
 	except Exception:
 		# `default_app` was added in a later v15 patch level; harmless when missing
 		pass
+
+	# A site seeded from the CLI never runs the setup wizard through the UI, so the desk's
+	# `desktop:home_page` default is still "setup-wizard": opening /app bounces through
+	# /app/setup-wizard to /apps, the framework's app picker. Once setup really is complete the
+	# desk home page is the workspace — the same repair frappe's own
+	# `patches/v13_0/reset_corrupt_defaults` performs.
+	try:
+		if frappe.is_setup_complete() and frappe.db.get_default("desktop:home_page") == "setup-wizard":
+			frappe.db.set_default("desktop:home_page", "workspace")
+	except Exception:
+		pass
+
+	# Same cause, different symptom: `System Settings.language` is filled in by the setup wizard,
+	# so a CLI-created site leaves it NULL. The desk then builds an `Intl` formatter with an empty
+	# locale and dies with "RangeError: Incorrect locale information provided" — a blank /app —
+	# and every `System Settings.save()` fails its mandatory check. Fill it only when empty.
+	try:
+		if not (frappe.db.get_single_value("System Settings", "language") or "").strip():
+			frappe.db.set_single_value("System Settings", "language", "en")
+			frappe.db.set_default("language", "en")
+			frappe.cache.delete_value("system_settings")
+	except Exception:
+		pass
+	# --- end v0.7 white-label ---
 
 
 def after_install() -> None:
@@ -209,6 +238,11 @@ def after_install() -> None:
 	# --- end v0.6 O/P ---
 	# v0.6 — one URL that gets staff to their screen
 	ensure_launcher_home_page()
+	# --- v0.7 white-label — brand every Frappe/ERPNext surface from Maison POS Settings ---
+	from maison_pos.setup.whitelabel import setup_whitelabel
+
+	setup_whitelabel()
+	# --- end v0.7 white-label ---
 	frappe.db.commit()
 
 
@@ -244,4 +278,9 @@ def after_migrate() -> None:
 	# --- end v0.6 O/P ---
 	# v0.6 — one URL that gets staff to their screen
 	ensure_launcher_home_page()
+	# --- v0.7 white-label — brand every Frappe/ERPNext surface from Maison POS Settings ---
+	from maison_pos.setup.whitelabel import setup_whitelabel
+
+	setup_whitelabel()
+	# --- end v0.7 white-label ---
 	frappe.db.commit()

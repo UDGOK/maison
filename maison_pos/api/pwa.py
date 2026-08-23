@@ -52,3 +52,61 @@ def service_worker() -> Response:
 	resp.headers["Cache-Control"] = "no-cache"
 	resp.headers["X-Content-Type-Options"] = "nosniff"
 	return resp
+
+
+# --- v0.7 white-label — the installed-app identity comes from the brand, not the build ---
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def manifest() -> Response:
+	"""``manifest.webmanifest`` built from ``Maison POS Settings``.
+
+	The Vite build writes a static manifest with the app's own name in it, which would install
+	on a customer's home screen under the wrong brand. This endpoint serves the same manifest
+	with ``name`` / ``short_name`` / ``description`` (and the icons, when the tenant has
+	uploaded a logo) taken from the brand at request time, so one build serves every tenant.
+	"""
+	import json
+
+	from maison_pos.brand import get_brand
+
+	brand = get_brand()
+	product = str(brand.get("product_name") or brand.get("brand_name") or "Maison POS")
+	short = str(brand.get("brand_name") or product)
+	tagline = str(brand.get("tagline") or "")
+	store_noun = str(brand.get("store_noun") or "Store").lower()
+
+	data = {
+		"name": product,
+		"short_name": short,
+		"description": tagline or f"{short} {store_noun} point of sale",
+		"start_url": "/pos/",
+		"display": "standalone",
+		"background_color": "#0B0B0A",
+		"theme_color": "#0B0B0A",
+		"lang": "en",
+		"scope": "/pos/",
+		"orientation": "any",
+		"icons": _manifest_icons(brand),
+	}
+	body = json.dumps(data, separators=(",", ":"))
+	resp = Response(body, status=200, content_type="application/manifest+json; charset=utf-8")
+	resp.headers["Cache-Control"] = "no-cache"
+	return resp
+
+
+def _manifest_icons(brand: dict) -> list[dict]:
+	base = "/assets/maison_pos/pos/icons"
+	icons: list[dict] = []
+	logo = brand.get("brand_logo")
+	if logo and str(logo).lower().endswith(".png"):
+		# a tenant-supplied PNG can serve every size the installer asks for
+		icons.append({"src": logo, "sizes": "512x512", "type": "image/png"})
+		icons.append({"src": logo, "sizes": "512x512", "type": "image/png", "purpose": "maskable"})
+	elif logo and str(logo).lower().endswith(".svg"):
+		icons.append({"src": logo, "sizes": "any", "type": "image/svg+xml"})
+	icons += [
+		{"src": f"{base}/icon-192.png", "sizes": "192x192", "type": "image/png"},
+		{"src": f"{base}/icon-512.png", "sizes": "512x512", "type": "image/png"},
+		{"src": f"{base}/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+		{"src": f"{base}/apple-touch-icon.png", "sizes": "180x180", "type": "image/png"},
+	]
+	return icons

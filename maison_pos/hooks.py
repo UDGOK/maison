@@ -71,6 +71,28 @@ website_route_rules = [
 
 # --- v0.4 G (webshop): gold skin for every website page (login, /me, /orders, webshop item groups) ---
 web_include_css = ["/assets/maison_pos/css/maison-web.css"]
+
+# --- v0.7 white-label ---
+# Nothing in the product surface says "Frappe" or "ERPNext"; every string comes from
+# `Maison POS Settings` at render time. See `maison_pos/setup/whitelabel.py` and
+# `docs/white-label.md` (which records what must legally stay: licences and source-level
+# attribution, none of which is UI chrome).
+#
+# 1. Every www page: drop the "Login with Frappe Cloud" button, keep the tenant favicon /
+#    splash / logo / title prefix even when Website Settings has not been applied yet.
+update_website_context = ["maison_pos.setup.whitelabel.website_context"]
+# 2. Desk (`/app`): brand tokens in `frappe.boot`, and the About dialog (hard-coded to
+#    "Frappe Framework" in the framework bundle) replaced by the tenant's.
+extend_bootinfo = "maison_pos.setup.whitelabel.extend_bootinfo"
+app_include_js = ["/assets/maison_pos/js/maison-desk.js"]
+# 3. The two framework strings that sit outside every Jinja block in `frappe/templates/base.html`
+#    (`<!-- Built on Frappe … -->`, `<meta name="generator" content="frappe">`) plus the
+#    framework response headers — replaced on the response, the only place they can be reached
+#    without forking that template.
+after_request = ["maison_pos.setup.whitelabel.scrub_response"]
+# 4. Outgoing mail: `X-Frappe-Site` is set on every message by frappe/email/email_body.py.
+make_email_body_message = "maison_pos.setup.whitelabel.scrub_email_headers"
+# --- end v0.7 white-label ---
 # Website Item keeps webshop's data model; only the template + context are Maison's
 override_doctype_class = {
 	"Website Item": "maison_pos.webshop.website_item.MaisonWebsiteItem",

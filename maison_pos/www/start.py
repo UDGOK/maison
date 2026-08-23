@@ -1,7 +1,7 @@
 """Branded launcher at ``/start`` — the one URL staff need to remember.
 
-Frappe sends every System User to ``/app`` after login, so an associate who signs in
-lands on the ERPNext desk rather than the till. This page lists exactly the screens
+The framework sends every System User to ``/app`` after login, so an associate who signs in
+lands on the admin desk rather than the till. This page lists exactly the screens
 the signed-in user may open, driven by their Maison roles, in the tenant's brand.
 Guests get the sign-in prompt instead of a dead end.
 """
@@ -27,7 +27,7 @@ SCREENS: list[tuple[str, str, str, tuple[str, ...]]] = [
 	("/salon", "Client display", "The customer-facing second screen. Pair it from the till.", ()),
 	("/shop", "Online store", "The public storefront with click and collect.", ()),
 	("/rewards", "Rewards", "The public rewards programme page.", ()),
-	("/app", "Admin desk", "Full ERPNext: accounting, stock, reports, settings.",
+	("/app", "Admin desk", "Accounting, stock, reports and settings for head office.",
 		("Maison Head Office", "System Manager")),
 ]
 

@@ -1,0 +1,109 @@
+[
+ {
+  "name": "shop-root",
+  "route": "/",
+  "status": 200,
+  "title": "CloudChaserz — Elevate Your Smoking Experience",
+  "textHits": 0,
+  "htmlHitsAllowed": 117,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "login",
+  "route": "/login",
+  "status": 200,
+  "title": "CloudChaserz - Login",
+  "textHits": 0,
+  "htmlHitsAllowed": 137,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "shop",
+  "route": "/shop",
+  "status": 200,
+  "title": "CloudChaserz — Elevate Your Smoking Experience",
+  "textHits": 0,
+  "htmlHitsAllowed": 117,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "rewards",
+  "route": "/rewards",
+  "status": 200,
+  "title": "CloudChaserz Rewards — CloudChaserz",
+  "textHits": 0,
+  "htmlHitsAllowed": 117,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "404",
+  "route": "/no-such-page-at-all",
+  "status": 404,
+  "title": "CloudChaserz - Page not found",
+  "textHits": 0,
+  "htmlHitsAllowed": 117,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "receipt",
+  "route": "/r/J2kMf2IjBmie8llz",
+  "status": 200,
+  "title": "CloudChaserz · ACC-SINV-2026-00001",
+  "textHits": 0,
+  "htmlHitsAllowed": 117,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "start",
+  "route": "/start",
+  "status": 200,
+  "title": "Maison POS by CloudChaserz",
+  "textHits": 0,
+  "htmlHitsAllowed": 123,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "desk",
+  "route": "/app",
+  "status": 200,
+  "title": "Home",
+  "textHits": 0,
+  "htmlHitsAllowed": 401,
+  "htmlHitsBlocking": 0,
+  "blocking": [],
+  "ok": true
+ },
+ {
+  "name": "apps-picker",
+  "route": "/apps",
+  "landed": "http://cc.localhost:8001/start",
+  "ok": true
+ },
+ {
+  "name": "desk-about",
+  "route": "/app (About dialog)",
+  "title": "Maison POS by CloudChaserz",
+  "ok": true,
+  "blocking": []
+ },
+ {
+  "name": "headers",
+  "server": "Werkzeug/3.1.6 Python/3.11.15, Maison POS by CloudChaserz",
+  "ok": true,
+  "blocking": []
+ }
+]

@@ -78,6 +78,23 @@ def get_context(context: dict) -> dict:
     with open(index_path, encoding="utf-8") as f:
         head, body = _extract_assets(f.read())
     context.built = True
-    context.head_tags = head
+    context.head_tags = _brand_manifest(head)
     context.body_tags = body
     return context
+
+
+# --- v0.7 white-label ---
+_MANIFEST_HREF_RE = re.compile(r'(<link[^>]*rel=["\']manifest["\'][^>]*href=["\'])([^"\']+)(["\'])', re.I)
+BRANDED_MANIFEST = "/api/method/maison_pos.api.pwa.manifest"
+
+
+def _brand_manifest(head: str) -> str:
+    """Point ``<link rel="manifest">`` at the brand-driven manifest.
+
+    The Vite build bakes the app's own name into ``manifest.webmanifest``; installing the POS on
+    a home screen would then show that instead of the tenant's. ``maison_pos.api.pwa.manifest``
+    serves the same document with the name, short name, description and icons read from
+    ``Maison POS Settings`` at request time, so one build serves every tenant.
+    """
+    return _MANIFEST_HREF_RE.sub(lambda m: f"{m.group(1)}{BRANDED_MANIFEST}{m.group(3)}", head)
+# --- end v0.7 white-label ---

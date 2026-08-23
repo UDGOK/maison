@@ -1,0 +1,48 @@
+{#-
+  v0.7 white-label — branded "not found" page.
+
+  Frappe's `www/404.html` renders `/assets/frappe/images/ui-states/404.png` inside the framework's
+  default chrome. This override (installed apps are searched in reverse install order, so ours
+  wins) says the same thing in the tenant's brand, with no framework asset on the page. Every
+  string comes from `Maison POS Settings` via `maison_pos.www.error_404`.
+-#}
+{% extends "templates/web.html" %}
+
+{%- block title -%}{{ title }}{%- endblock -%}
+
+{% block head_include %}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;900&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root{--ground:#0B0B0A;--surface:#141311;--line:#26231F;--text:#EFE8DA;--muted:#B3AA99;--dim:#7D7668;--accent:#C9A96E;--accent-deep:#A8884E}
+  html,body{background:var(--ground);color:var(--text);margin:0;font-family:'Jost',system-ui,sans-serif;font-weight:300}
+  .page_content,.container,main{background:var(--ground)!important}
+  .navbar,.page-header{display:none!important}
+  .web-footer,footer{background:var(--ground)!important;border-top:1px solid var(--line)}
+  a{color:inherit;text-decoration:none}
+  .m404{max-width:720px;margin:0 auto;padding:96px 24px 120px;text-align:center}
+  .m404 .wm{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(24px,4vw,40px);letter-spacing:.18em;line-height:1}
+  .m404 .code{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(64px,14vw,132px);letter-spacing:.06em;color:var(--accent);margin:28px 0 4px;line-height:1}
+  .m404 h1{font-family:'Unbounded',sans-serif;font-weight:400;font-size:20px;letter-spacing:.04em;margin:0 0 12px}
+  .m404 p{color:var(--muted);font-size:15px;line-height:1.6;margin:0 auto 32px;max-width:44ch}
+  .m404 .go{display:inline-block;background:var(--accent);color:var(--ground);font-weight:500;letter-spacing:.2em;text-transform:uppercase;font-size:12px;padding:16px 28px}
+  .m404 .go:hover{background:var(--accent-deep)}
+  .m404 .alt{margin-top:26px;font-size:12px;color:var(--dim);display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+  .m404 .alt a{border-bottom:1px solid #36322C;padding-bottom:2px}
+  .m404 .alt a:hover{color:var(--accent);border-color:var(--accent)}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<script>window.is_404 = true;</script>
+<div class="m404">
+  <div class="wm">{{ wordmark }}</div>
+  <div class="code">404</div>
+  <h1>{{ _("There's nothing here") }}</h1>
+  <p>{{ _("The page you are looking for has moved or never existed.") }}</p>
+  <a class="go" href="/">{{ _("Back to") }} {{ brand_name }}</a>
+  <div class="alt">
+    {% for link in links %}<a href="{{ link.route }}">{{ link.label }}</a>{% endfor %}
+    {% if support_email %}<a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

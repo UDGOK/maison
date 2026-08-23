@@ -1,0 +1,20 @@
+{#-
+  v0.7 white-label — replaces ERPNext's "Powered by ERPNext" footer line.
+
+  Frappe's Jinja loader searches installed apps in reverse install order, so this file shadows
+  `erpnext/templates/includes/footer/footer_powered.html` without patching anything upstream.
+  It is the fallback for a site where `Website Settings.footer_powered` has not been set (that
+  field is what `maison_pos.setup.whitelabel.apply_whitelabel` writes, and `footer_info.html`
+  prefers it); either way the tenant's own line is rendered, never the framework's.
+
+  Licence attribution is *not* removed by this: it lives in each app's LICENSE file, in the
+  source headers and at /api/method/maison_pos.setup.whitelabel.attribution. See docs/white-label.md.
+-#}
+{%- set _b = maison_brand or get_brand() -%}
+{%- if _b and _b.product_name -%}
+	{%- if _b.brand_website -%}
+	<a class="text-muted" href="{{ _b.brand_website }}" target="_blank" rel="noreferrer">{{ _b.product_name }}</a>
+	{%- else -%}
+	<span class="text-muted">{{ _b.product_name }}</span>
+	{%- endif -%}
+{%- endif -%}
