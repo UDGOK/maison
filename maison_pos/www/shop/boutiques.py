@@ -9,5 +9,8 @@ no_cache = 1
 
 
 def get_context(context):
-	base_context(context, nav="boutiques", title="Boutiques — Maison")
+	from maison_pos.brand import get_brand  # v0.6 N
+
+	brand = get_brand()
+	base_context(context, nav="boutiques", title=f"{brand['store_noun']}s — {brand['brand_name']}")
 	context.boutiques = core.boutiques()

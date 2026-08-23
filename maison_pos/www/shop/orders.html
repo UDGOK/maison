@@ -1,7 +1,7 @@
 {% extends "maison_pos/templates/webshop/base.html" %}
 {% block shop_content %}
 <div class="mw-wrap"><div class="mw-narrow">
-	<span class="mw-label">Maison</span>
+	<span class="mw-label">{{ shop.brand_name }}</span>
 	<h1 class="mw-display lg" style="margin:10px 0 28px">Your orders</h1>
 	{% if orders %}
 	<div class="mw-orders">

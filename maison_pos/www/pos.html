@@ -6,12 +6,14 @@
     <meta name="theme-color" content="#0B0B0A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Maison" />
+    <meta name="apple-mobile-web-app-title" content="{{ brand.brand_name if brand else 'Maison' }}" />
     <title>{{ title }}</title>
     <script>
       // Injected by www/pos.py; consumed by frontend/src/api/frappe.ts
       window.csrf_token = "{{ csrf_token }}";
       window.maison_user = "{{ site_user }}";
+      // v0.6 N — brand tokens (also in catalog.bootstrap.brand; this makes the Unlock screen branded before the first bootstrap)
+      window.maison_brand = {{ (brand or {}) | tojson }};
     </script>
     {{ head_tags | safe }}
     <style>

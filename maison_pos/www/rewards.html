@@ -1,0 +1,124 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+{% set p = program %}
+<div class="mw-wrap">
+	<section class="rw-hero">
+		<div class="eyebrow">{{ p.brand.brand_name }} &middot; {{ p.brand.tagline }}</div>
+		<h1 data-testid="rewards-title">{{ p.program_name }}</h1>
+		<p class="lead">{{ p.copy.earn }} Redeem your points for money off at the counter, get a birthday gift, hear about every monthly promotion and new arrival first, enter product giveaways and receive exclusive event invites.</p>
+	</section>
+
+	<div class="rw-earn" data-testid="rewards-tiers">
+		{% for t in p.tiers %}
+		<div>
+			<div class="num">${{ '%g' | format(t.amount) }}</div>
+			<div class="lbl">off at {{ t.points }} points</div>
+			<div class="sub">{{ t.points }} points = {{ t.points }} dollars spent</div>
+		</div>
+		{% endfor %}
+	</div>
+
+	<div class="rw-section-title">How it works</div>
+	<div class="rw-list">
+		<div class="row"><span><b>Earn</b> — {{ p.copy.earn }}</span><span>1 pt / $1</span></div>
+		{% for r in p.copy.redeem %}<div class="row"><span><b>Redeem</b> — {{ r }}</span><span>at the counter</span></div>{% endfor %}
+		<div class="row"><span><b>Birthday discount</b> — {{ p.birthday.label }} coupon, issued {{ p.birthday.lead_days }} days before your birthday, valid {{ p.birthday.valid_days }} days.</span><span>yearly</span></div>
+	</div>
+
+	<div class="rw-section-title">Member perks</div>
+	<div class="rw-perks">
+		{% for perk in p.copy.perks %}
+		<div class="rw-perk"><div class="t">{{ perk.title }}</div><div class="x">{{ perk.text }}</div></div>
+		{% endfor %}
+	</div>
+
+	{% if p.giveaways %}
+	<div class="rw-section-title">Giveaways running now</div>
+	<div class="rw-list" data-testid="rewards-giveaways">
+		{% for g in p.giveaways %}<div class="row"><span><b>{{ g.title }}</b>{% if g.prize %} — {{ g.prize }}{% endif %}</span><span>{% if g.rule == 'Per visit' %}1 entry per visit{% else %}1 entry per ${{ '%g' | format(g.amount_per_entry) }}{% endif %} &middot; ends {{ g.end_date }}</span></div>{% endfor %}
+	</div>
+	{% endif %}
+
+	{% if p.events %}
+	<div class="rw-section-title">Upcoming events</div>
+	<div class="rw-list" data-testid="rewards-events">
+		{% for e in p.events %}<div class="row"><span><b>{{ e.title }}</b></span><span>{{ e.date }}{% if e.link %} &middot; <a href="{{ e.link }}" style="color:var(--mw-accent)">Details</a>{% endif %}</span></div>{% endfor %}
+	</div>
+	{% endif %}
+
+	<div class="rw-join" id="join">
+		<h2>Join {{ p.program_name }}</h2>
+		<div class="hint">Free to join. Your points are tied to your phone number or e-mail and show up on every receipt.</div>
+		<form id="rw-form" novalidate>
+			<label for="rw-name">Name</label>
+			<input type="text" id="rw-name" name="name" autocomplete="name" required placeholder="First and last name">
+			<label for="rw-phone">Mobile phone</label>
+			<input type="tel" id="rw-phone" name="phone" autocomplete="tel" placeholder="(918) 555-0100">
+			<label for="rw-email">E-mail</label>
+			<input type="email" id="rw-email" name="email" autocomplete="email" placeholder="you@example.com">
+			<label for="rw-birthday">Birthday <span style="text-transform:none;letter-spacing:0">(for your birthday gift)</span></label>
+			<input type="date" id="rw-birthday" name="birthday">
+			{% if stores %}
+			<label for="rw-store">Home store</label>
+			<select id="rw-store" name="boutique" style="width:100%;height:48px;background:var(--mw-ground);border:1px solid var(--mw-line);color:var(--mw-text);padding:0 12px;font-family:var(--mw-body);font-size:15px">
+				<option value="">Choose a store</option>
+				{% for s in stores %}<option value="{{ s.name }}">{{ s.boutique_name }} &middot; {{ (s.city or '').split(',')[0] }}</option>{% endfor %}
+			</select>
+			{% endif %}
+			<label class="consent"><input type="checkbox" id="rw-consent-email" name="consent_email" checked> E-mail me promotions, new arrivals, giveaways and event invites.</label>
+			<label class="consent"><input type="checkbox" id="rw-consent-sms" name="consent_sms"> Text me (SMS) about promotions and my rewards. Msg &amp; data rates may apply. Reply STOP to opt out.</label>
+			<label class="consent"><input type="checkbox" id="rw-consent" name="consent" required> I am 21 or older and I agree to the {{ p.program_name }} terms. {{ p.brand.brand_name }} keeps my name, contact details and purchase history to run the program.</label>
+			<button type="submit" id="rw-submit" data-testid="rewards-join">Join {{ p.program_name }}</button>
+			<div class="ok" id="rw-ok" style="display:none" data-testid="rewards-ok"></div>
+			<div class="err" id="rw-err" style="display:none"></div>
+		</form>
+	</div>
+
+	<div class="rw-legal">
+		Points are earned on the net amount paid (before tax) and never expire while your account is active. Rewards are redeemed in store, one reward per transaction. Age-restricted products (vape, e-liquid, tobacco, hookah, kratom) are sold in store only to adults 21+ with a valid government ID; rewards cannot be used to buy products where prohibited by law. Questions: <a href="mailto:{{ p.brand.support_email }}" style="color:var(--mw-accent)">{{ p.brand.support_email }}</a>.
+	</div>
+</div>
+{% endblock %}
+{% block shop_script %}
+<script>
+(function () {
+	var form = document.getElementById('rw-form');
+	if (!form) return;
+	form.addEventListener('submit', function (ev) {
+		ev.preventDefault();
+		var ok = document.getElementById('rw-ok'), err = document.getElementById('rw-err'), btn = document.getElementById('rw-submit');
+		ok.style.display = 'none'; err.style.display = 'none';
+		var args = {
+			name: document.getElementById('rw-name').value.trim(),
+			phone: document.getElementById('rw-phone').value.trim(),
+			email: document.getElementById('rw-email').value.trim(),
+			birthday: document.getElementById('rw-birthday').value || null,
+			consent_email: document.getElementById('rw-consent-email').checked ? 1 : 0,
+			consent_sms: document.getElementById('rw-consent-sms').checked ? 1 : 0,
+			consent: document.getElementById('rw-consent').checked ? 1 : 0,
+			boutique: (document.getElementById('rw-store') || {}).value || null
+		};
+		if (!args.name) { err.textContent = 'Please enter your name.'; err.style.display = 'block'; return; }
+		if (!args.phone && !args.email) { err.textContent = 'Please enter a phone number or an e-mail.'; err.style.display = 'block'; return; }
+		if (!args.consent) { err.textContent = 'Please confirm you are 21+ and accept the terms.'; err.style.display = 'block'; return; }
+		btn.disabled = true;
+		fetch('/api/method/maison_pos.api.rewards.signup', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window.frappe && frappe.csrf_token) || '' }, body: JSON.stringify(args) })
+			.then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+			.then(function (r) {
+				btn.disabled = false;
+				if (r.status >= 200 && r.status < 300 && r.body.message && r.body.message.ok) {
+					ok.textContent = 'Welcome, ' + r.body.message.customer_name + '! Your member number is ' + (r.body.message.client_number || 'on its way') + '. Show your phone number at any store to earn points.';
+					ok.style.display = 'block';
+					form.reset();
+				} else {
+					var m = (r.body && (r.body._server_messages || r.body.exception || r.body.message)) || 'Something went wrong.';
+					try { var arr = JSON.parse(m); if (arr.length) m = JSON.parse(arr[0]).message; } catch (e) {}
+					err.textContent = String(m).replace(/<[^>]+>/g, '');
+					err.style.display = 'block';
+				}
+			})
+			.catch(function () { btn.disabled = false; err.textContent = 'Network error — please try again.'; err.style.display = 'block'; });
+	});
+})();
+</script>
+{% endblock %}

@@ -22,6 +22,7 @@ from frappe.utils import cint, flt, getdate, nowdate
 
 from maison_pos.maison_pos.doctype.maison_sync_log import maison_sync_log as synclog
 from maison_pos.scoping import assert_boutique_access, assert_roles, is_manager_or_above, ALL_MAISON_ROLES
+from maison_pos.scoping import assert_can_sell  # v0.6 O/P — warehouse admins / the warehouse row never sell
 from maison_pos.utils import parse_datetime, receipt_payload
 
 # ---------------------------------------------------------------------------
@@ -59,6 +60,12 @@ class PaymentMismatchError(MaisonPOSError):
 def _error_code_for(exc: BaseException) -> str:
 	if isinstance(exc, MaisonPOSError):
 		return exc.error_code
+	# --- v0.6 N/Q ---
+	if getattr(exc, "error_code", None) in ("REWARD_INVALID",):
+		return exc.error_code  # type: ignore[return-value]
+	if exc.__class__.__name__ == "AgeVerificationError":
+		return "AGE_VERIFICATION"
+	# --- end v0.6 N/Q ---
 	if isinstance(exc, frappe.PermissionError):
 		return ERR_PERMISSION
 	if isinstance(exc, frappe.DoesNotExistError):
@@ -233,9 +240,17 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 
 	apply_coupon_to_invoice(si, payload)
 
+	# --- v0.6 N/Q — age gate for restricted items; fixed reward tiers -> loyalty redemption ---
+	from maison_pos.api.age import apply_to_invoice as apply_age_check
+	from maison_pos.api.rewards import apply_to_invoice as apply_reward_tier
+
+	apply_age_check(si, payload)
+	apply_reward_tier(si, payload)
+	# --- end v0.6 N/Q ---
+
 	# loyalty redemption
 	points = flt(payload.get("loyalty_points_redeemed"))
-	if points > 0:
+	if points > 0 and not si.get("maison_reward_tier"):
 		lp = _loyalty_details(customer, company)
 		if not lp:
 			raise MaisonPOSError(_("Customer {0} is not enrolled in a loyalty program").format(customer))
@@ -332,7 +347,7 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 	savepoint = f"maison_batch_{idx}"
 	frappe.db.savepoint(savepoint)
 	try:
-		boutique = assert_boutique_access(payload.get("boutique"))
+		boutique = assert_can_sell(payload.get("boutique"))  # v0.6 O/P
 		warehouse = frappe.get_cached_value("Maison Boutique", boutique, "warehouse")
 		check_serials_available(payload.get("items") or [], warehouse)
 

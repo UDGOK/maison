@@ -1,9 +1,9 @@
 {% extends "maison_pos/templates/webshop/base.html" %}
 {% block shop_content %}
 <div class="mw-wrap"><div class="mw-narrow">
-	<span class="mw-label gold">Maison Collectors</span>
+	<span class="mw-label gold">{{ shop.rewards_name }}</span>
 	<h1 class="mw-display lg" style="margin:10px 0 8px">{% if signed_in %}Welcome{{ ', ' ~ shop.full_name if shop.full_name else '' }}{% else %}Your points, wherever you are{% endif %}</h1>
-	<p class="mw-muted" style="margin:0 0 28px;max-width:60ch">Maison Collectors rewards every piece, in boutique or online. {% if not signed_in %}Sign in with your client number and the e-mail we hold for you, or <a href="/login?redirect-to=/shop/account">sign in to your Maison account</a>.{% endif %}</p>
+	<p class="mw-muted" style="margin:0 0 28px;max-width:60ch">{{ shop.rewards_name }} rewards every purchase, in store or online. {% if not signed_in %}Sign in with your client number and the e-mail we hold for you, or <a href="/login?redirect-to=/shop/account">sign in to your {{ shop.brand_name }} account</a>.{% endif %}</p>
 
 	<div id="mw-loyalty">
 		{% if loyalty %}{% include "maison_pos/templates/webshop/loyalty_card.html" %}{% endif %}
@@ -17,7 +17,7 @@
 			<button class="mw-btn" type="submit">Show points</button>
 		</form>
 		<div class="mw-error" id="mw-lookup-error" style="margin-top:10px"></div>
-		<div class="mw-note" style="margin-top:12px">Your client number is printed on every Maison receipt.</div>
+		<div class="mw-note" style="margin-top:12px">Your client number is printed on every {{ shop.brand_name }} receipt.</div>
 	</div>
 
 	{% if signed_in and orders %}

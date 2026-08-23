@@ -219,3 +219,170 @@ def salon_session_has_permission(doc, ptype: str = "read", user: Optional[str] =
 		return True
 	boutique = get_user_boutique(user)
 	return bool(boutique) and getattr(doc, "boutique", None) == boutique
+
+
+# ---------------------------------------------------------------------------
+# v0.6 O/P — store-manager hardening + warehouse admin
+# ---------------------------------------------------------------------------
+WAREHOUSE_ADMIN_ROLE = "Maison Warehouse Admin"
+
+
+def is_warehouse_admin(user: Optional[str] = None) -> bool:
+	"""Head-office warehouse staff: sees every store's requests / shipments, never sells."""
+	user = _user(user)
+	if user == "Administrator":
+		return True
+	return WAREHOUSE_ADMIN_ROLE in frappe.get_roles(user)
+
+
+def is_supply_unrestricted(user: Optional[str] = None) -> bool:
+	return is_unrestricted(user) or is_warehouse_admin(user)
+
+
+def assert_supply_admin(user: Optional[str] = None) -> None:
+	"""Raise unless the user is a warehouse admin / Head Office / System Manager."""
+	user = _user(user)
+	if user == "Guest":
+		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
+	if not is_supply_unrestricted(user):
+		frappe.throw(_("Warehouse admin role required"), frappe.PermissionError)
+
+
+def assert_can_sell(boutique: Optional[str], user: Optional[str] = None) -> str:
+	"""Selling = store scoping **plus**: the boutique must be a store (not the warehouse row) and
+	a user whose only Maison role is Warehouse Admin may not sell at all."""
+	user = _user(user)
+	boutique = assert_boutique_access(boutique, user)
+	roles = set(frappe.get_roles(user))
+	if user != "Administrator" and WAREHOUSE_ADMIN_ROLE in roles and not roles & (set(ALL_MAISON_ROLES) | {"System Manager"}):
+		frappe.throw(_("Warehouse admins cannot sell"), frappe.PermissionError)
+	try:
+		from maison_pos.shipping import is_warehouse_boutique
+
+		if is_warehouse_boutique(boutique):
+			frappe.throw(_("{0} is the warehouse, not a store").format(boutique), frappe.PermissionError)
+	except ImportError:  # pragma: no cover
+		pass
+	return boutique
+
+
+def _store_warehouses(user: Optional[str]) -> list[str]:
+	boutique = get_user_boutique(user)
+	if not boutique:
+		return []
+	row = frappe.db.get_value("Maison Boutique", boutique, ["warehouse", "damaged_warehouse"], as_dict=True) or {}
+	names = [w for w in (row.get("warehouse"), row.get("damaged_warehouse")) if w]
+	try:
+		transit = frappe.db.get_value("Maison Boutique", boutique, "transit_warehouse")
+		if transit:
+			names.append(transit)
+	except Exception:
+		pass
+	return names
+
+
+def _supply_condition(doctype: str, user: Optional[str]) -> str:
+	if is_supply_unrestricted(user):
+		return ""
+	return _boutique_condition(doctype, user)
+
+
+def replenishment_request_query(user: Optional[str] = None) -> str:
+	return _supply_condition("Maison Replenishment Request", user)
+
+
+def shipment_query(user: Optional[str] = None) -> str:
+	return _supply_condition("Maison Shipment", user)
+
+
+def receiving_discrepancy_query(user: Optional[str] = None) -> str:
+	return _supply_condition("Maison Receiving Discrepancy", user)
+
+
+def _supply_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	if is_supply_unrestricted(user):
+		return True
+	boutique = get_user_boutique(user)
+	return bool(boutique) and doc.get("boutique") == boutique
+
+
+def replenishment_request_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _supply_has_permission(doc, ptype, user)
+
+
+def shipment_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _supply_has_permission(doc, ptype, user)
+
+
+def receiving_discrepancy_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _supply_has_permission(doc, ptype, user)
+
+
+def _warehouse_field_condition(doctype: str, fields: tuple[str, ...], user: Optional[str]) -> str:
+	"""Desk lists of stock documents: a store manager only sees rows touching their own warehouses."""
+	if is_supply_unrestricted(user):
+		return ""
+	names = _store_warehouses(user)
+	if not names:
+		return "1=0"
+	inlist = ", ".join(frappe.db.escape(n) for n in names)
+	return "(" + " or ".join(f"`tab{doctype}`.`{f}` in ({inlist})" for f in fields) + ")"
+
+
+def stock_entry_query(user: Optional[str] = None) -> str:
+	return _warehouse_field_condition("Stock Entry", ("from_warehouse", "to_warehouse"), user)
+
+
+def material_request_query(user: Optional[str] = None) -> str:
+	return _warehouse_field_condition("Material Request", ("set_warehouse", "set_from_warehouse"), user)
+
+
+def purchase_receipt_query(user: Optional[str] = None) -> str:
+	return _warehouse_field_condition("Purchase Receipt", ("set_warehouse",), user)
+
+
+def purchase_order_query(user: Optional[str] = None) -> str:
+	return _warehouse_field_condition("Purchase Order", ("set_warehouse",), user)
+
+
+def _stock_doc_has_permission(doc, fields: tuple[str, ...], user: Optional[str]) -> bool:
+	if is_supply_unrestricted(user):
+		return True
+	names = set(_store_warehouses(user))
+	if not names:
+		return False
+	if any(doc.get(f) in names for f in fields):
+		return True
+	# header fields empty → look at the rows
+	for row in doc.get("items") or []:
+		for f in ("warehouse", "s_warehouse", "t_warehouse", "from_warehouse"):
+			if row.get(f) in names:
+				return True
+	return False
+
+
+def stock_entry_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _stock_doc_has_permission(doc, ("from_warehouse", "to_warehouse"), user)
+
+
+def material_request_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _stock_doc_has_permission(doc, ("set_warehouse", "set_from_warehouse"), user)
+
+
+def purchase_receipt_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _stock_doc_has_permission(doc, ("set_warehouse",), user)
+
+
+def purchase_order_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	return _stock_doc_has_permission(doc, ("set_warehouse",), user)
+# --- end v0.6 O/P ---
+
+
+# --- v0.6 N/Q — age checks / giveaway entries: managers + associates see their own store only ---
+def age_check_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Age Check", user)
+
+
+def giveaway_entry_query(user: Optional[str] = None) -> str:
+	return _boutique_condition("Maison Giveaway Entry", user)
+# --- end v0.6 N/Q ---

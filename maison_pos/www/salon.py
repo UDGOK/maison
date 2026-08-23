@@ -20,7 +20,11 @@ no_cache = 1
 def get_context(context: dict) -> dict:
     context.no_cache = 1
     context.no_breadcrumbs = 1
-    context.title = "Maison Salon"
+    from maison_pos.brand import brand_name, get_brand  # v0.6 N
+
+    context.brand = get_brand()
+    context.brand_name = brand_name()
+    context.title = f"{brand_name()} Salon"
     context.csrf_token = frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else ""
     context.site_user = frappe.session.user
     context.socketio_port = frappe.conf.get("socketio_port") or 9000

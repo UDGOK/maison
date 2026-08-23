@@ -9,6 +9,7 @@
   .navbar, .web-footer, footer, .page-header, .page-breadcrumbs { display: none !important; }
   .page-content, .container, .page_content, main { max-width: none !important; padding: 0 !important; margin: 0 !important; }
 </style>
+<script>window.maison_brand = {{ (brand or {}) | tojson }};</script>
 {{ dashboard_head | safe }}
 {%- endblock -%}
 

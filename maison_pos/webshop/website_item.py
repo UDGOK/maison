@@ -7,7 +7,7 @@ installed — otherwise the import of the base class fails and the hook is skipp
 from __future__ import annotations
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 try:  # pragma: no cover - import guard for sites without webshop
 	from webshop.webshop.doctype.website_item.website_item import WebsiteItem as _Base
@@ -60,6 +60,13 @@ def maison_item_context(doc, context=None) -> dict:
 			"maison_stones",
 			"maison_certificate_no",
 			"maison_department",
+			# v0.6 N
+			"maison_age_restricted",
+			"maison_brand",
+			"maison_flavor",
+			"maison_nicotine_mg",
+			"maison_volume_ml",
+			"maison_puffs",
 		],
 		as_dict=True,
 	) or frappe._dict()
@@ -91,6 +98,16 @@ def maison_item_context(doc, context=None) -> dict:
 				"stones": item.get("maison_stones"),
 				"certificate_no": item.get("maison_certificate_no"),
 				"department": item.get("maison_department"),
+				# --- v0.6 N — vertical attributes + "Available in store" for 21+ items ---
+				"age_restricted": cint(item.get("maison_age_restricted")),
+				"in_store_only": core.is_age_restricted_online_blocked(item),
+				"brand": item.get("maison_brand"),
+				"flavor": item.get("maison_flavor"),
+				"nicotine_mg": flt(item.get("maison_nicotine_mg")),
+				"volume_ml": flt(item.get("maison_volume_ml")),
+				"puffs": cint(item.get("maison_puffs")),
+				"shop_brand": __import__("maison_pos.brand", fromlist=["get_brand"]).get_brand(),
+				# --- end v0.6 N ---
 				"boutiques": core.boutiques(),
 				"rate": rate,
 				"related": related_items(doc),

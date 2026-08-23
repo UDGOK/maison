@@ -4,14 +4,16 @@
 	<div class="img">
 		{% if p.image %}<img src="{{ p.image }}" alt="{{ p.item_name }}" loading="lazy">{% else %}<div class="ph">M</div>{% endif %}
 	</div>
-	{% if p.one_off %}<span class="mw-pill gold flag">One of a kind</span>{% endif %}
+	{% if p.one_off %}<span class="mw-pill gold flag">One of a kind</span>{% elif p.age_restricted %}<span class="mw-pill flag">21+</span>{% endif %}
 	<div class="body">
 		<div class="group">{{ p.item_group }}</div>
 		<div class="name">{{ p.item_name }}</div>
-		{% if p.metal or p.carat %}<div class="meta">{{ p.metal or '' }}{% if p.carat %} &middot; {{ '%.2f' | format(p.carat) }} ct{% endif %}</div>{% endif %}
+		{% if p.metal or p.carat %}<div class="meta">{{ p.metal or '' }}{% if p.carat %} &middot; {{ '%.2f' | format(p.carat) }} ct{% endif %}</div>
+		{% elif p.brand or p.flavor or p.puffs or p.nicotine_mg %}<div class="meta">{{ p.brand or '' }}{% if p.flavor %} &middot; {{ p.flavor }}{% endif %}{% if p.puffs %} &middot; {{ p.puffs }} puffs{% endif %}{% if p.nicotine_mg %} &middot; {{ '%g' | format(p.nicotine_mg) }} mg{% endif %}{% if p.volume_ml %} &middot; {{ '%g' | format(p.volume_ml) }} ml{% endif %}</div>{% endif %}
 		<div class="bottom">
 			<span class="price">{% if p.rate %}{{ shop_money(p.rate, p.currency) }}{% else %}Price on request{% endif %}</span>
-			{% if p.web_mode == 'Enquire' %}<span class="mode enquire">Enquire</span>
+			{% if p.in_store_only %}<span class="mode enquire" title="21+ · sold in store">In store · 21+</span>
+			{% elif p.web_mode == 'Enquire' %}<span class="mode enquire">Enquire</span>
 			{% elif p.web_mode == 'Reserve-with-deposit' %}<span class="mode reserve">Reserve</span>
 			{% elif p.web_mode %}<span class="mode">{{ 'Available at ' ~ p.available_at if p.available_at else 'Order' }}</span>{% endif %}
 		</div>

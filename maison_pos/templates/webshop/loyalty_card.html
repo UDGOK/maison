@@ -1,7 +1,7 @@
 {#- expects `loyalty` (api.webshop.loyalty_lookup payload) -#}
 <div class="mw-panel" style="border-color:var(--mw-accent)">
 	<div class="head">
-		<div><span class="mw-label gold">{{ loyalty.program or 'Maison Collectors' }}</span><div class="mw-display md" style="margin-top:8px">{{ loyalty.customer_name }}</div><div class="mw-dim" style="font-size:13px;margin-top:4px">Client № {{ loyalty.client_number }} &middot; {{ loyalty.email_masked }}</div></div>
+		<div><span class="mw-label gold">{{ loyalty.program or shop.rewards_name }}</span><div class="mw-display md" style="margin-top:8px">{{ loyalty.customer_name }}</div><div class="mw-dim" style="font-size:13px;margin-top:4px">Client № {{ loyalty.client_number }} &middot; {{ loyalty.email_masked }}</div></div>
 		<span class="mw-pill gold">{{ loyalty.tier or 'Collector' }}</span>
 	</div>
 	<div class="mw-points">
@@ -12,7 +12,7 @@
 	{% if loyalty.recent %}
 	<span class="mw-label dim">Recent purchases</span>
 	<div class="mw-orders" style="margin-top:10px">
-		{% for r in loyalty.recent %}<div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:12px 0;border-bottom:1px solid var(--mw-line)"><div><div class="t" style="font-weight:500">{{ r.maison_boutique or 'Maison' }}{% if r.is_return %} &middot; return{% endif %}</div><div class="d mw-dim" style="font-size:12px">{{ frappe.utils.format_date(r.posting_date, 'd MMM yyyy') }} &middot; {{ r.name }}</div></div><div class="mw-price">{{ shop_money(r.grand_total) }}</div></div>{% endfor %}
+		{% for r in loyalty.recent %}<div style="display:grid;grid-template-columns:1fr auto;gap:16px;padding:12px 0;border-bottom:1px solid var(--mw-line)"><div><div class="t" style="font-weight:500">{{ r.maison_boutique or shop.brand_name }}{% if r.is_return %} &middot; return{% endif %}</div><div class="d mw-dim" style="font-size:12px">{{ frappe.utils.format_date(r.posting_date, 'd MMM yyyy') }} &middot; {{ r.name }}</div></div><div class="mw-price">{{ shop_money(r.grand_total) }}</div></div>{% endfor %}
 	</div>
 	{% endif %}
 </div>

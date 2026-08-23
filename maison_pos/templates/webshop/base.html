@@ -2,7 +2,7 @@
 {% extends "templates/base.html" %}
 {% set shop = shop_context() %}
 
-{% block title %}{{ title or "Maison" }}{% endblock %}
+{% block title %}{{ title or shop.brand_name }}{% endblock %}
 
 {% block favicon %}
 <link rel="shortcut icon" href="/assets/maison_pos/favicon.svg" type="image/svg+xml">
@@ -23,13 +23,14 @@
 {%- block navbar -%}
 <header class="mw-header">
 	<div class="mw-wrap">
-		<a class="mw-wordmark" href="/shop">Maison</a>
+		<a class="mw-wordmark" href="/shop">{{ shop.wordmark }}<small class="mw-submark">{{ shop.brand.sub_mark }}</small></a>
 		<nav class="mw-nav">
-			<a href="/shop/collection" class="{{ 'active' if mw_nav == 'collection' and not mw_group else '' }}">All pieces</a>
+			<a href="/shop/collection" class="{{ 'active' if mw_nav == 'collection' and not mw_group else '' }}">{{ 'All pieces' if shop.vertical == 'Jewellery' else 'All products' }}</a>
 			{% for g in shop.groups %}
 			<a href="/shop/collection?item_group={{ g.name | urlencode }}" class="{{ 'active' if mw_group == g.name else '' }}">{{ g.name }}</a>
 			{% endfor %}
-			<a href="/shop/boutiques" class="{{ 'active' if mw_nav == 'boutiques' else '' }}">Boutiques</a>
+			<a href="/shop/boutiques" class="{{ 'active' if mw_nav == 'boutiques' else '' }}">{{ shop.store_noun }}s</a>
+			<a href="/rewards" class="{{ 'active' if mw_nav == 'rewards' else '' }}">Rewards</a>
 		</nav>
 		<div class="spacer"></div>
 		<div class="mw-tools">
@@ -44,9 +45,10 @@
 	</div>
 </header>
 <nav class="mw-drawer" id="mw-drawer">
-	<a href="/shop/collection">All pieces</a>
+	<a href="/shop/collection">{{ 'All pieces' if shop.vertical == 'Jewellery' else 'All products' }}</a>
 	{% for g in shop.groups %}<a href="/shop/collection?item_group={{ g.name | urlencode }}">{{ g.name }}</a>{% endfor %}
-	<a href="/shop/boutiques">Boutiques</a>
+	<a href="/shop/boutiques">{{ shop.store_noun }}s</a>
+	<a href="/rewards">Rewards</a>
 	<a href="/cart" class="gold">Bag ({{ shop.cart_count }})</a>
 	{% if shop.signed_in %}<a href="/shop/account" class="gold">My account</a><a href="/?cmd=web_logout">Sign out</a>{% else %}<a href="/login?redirect-to=/shop/account" class="gold">Sign in</a>{% endif %}
 </nav>
@@ -64,29 +66,33 @@
 	<div class="mw-wrap">
 		<div class="cols">
 			<div class="col">
-				<div class="wm">Maison</div>
-				<div>Fine jewellery and timepieces, made in the Maison atelier.<br>Every online order is prepared and collected in one of our boutiques.</div>
+				<div class="wm">{{ shop.wordmark }}</div>
+				{% if shop.vertical == 'Jewellery' %}
+				<div>Fine jewellery and timepieces, made in the {{ shop.brand_name }} atelier.<br>Every online order is prepared and collected in one of our boutiques.</div>
+				{% else %}
+				<div>{{ shop.tagline }}.<br>Vape, glass, hookah, kratom, CBD and accessories — order online, collect in store. Must be 21+ to purchase.</div>
+				{% endif %}
 			</div>
 			<div class="col">
-				<h5>Boutiques</h5>
+				<h5>{{ shop.store_noun }}s</h5>
 				{% for b in shop.boutiques %}<a href="/shop/boutiques#{{ b.name }}">{{ b.boutique_name }} &middot; {{ (b.city or '').split(',')[0] }}</a>{% endfor %}
 			</div>
 			<div class="col">
 				<h5>Client services</h5>
-				<a href="/shop/account">Maison Collectors</a>
+				<a href="/rewards">{{ shop.rewards_name }}</a>
+				<a href="/shop/account">My account</a>
 				<a href="/shop/orders">Your orders</a>
 				<a href="/shop/boutiques">Visit us</a>
 			</div>
 			<div class="col">
-				<h5>The house</h5>
-				<a href="/shop/collection?item_group=High%20Jewellery">High jewellery</a>
-				<a href="/shop/collection?item_group=Timepieces">Timepieces</a>
-				<a href="/shop/collection?item_group=Bridal">Bridal</a>
+				<h5>{{ shop.brand_name }}</h5>
+				{% for g in shop.groups[:4] %}<a href="/shop/collection?item_group={{ g.name | urlencode }}">{{ g.name }}</a>{% endfor %}
+				{% if shop.brand.support_email %}<a href="mailto:{{ shop.brand.support_email }}">{{ shop.brand.support_email }}</a>{% endif %}
 			</div>
 		</div>
 		<div class="legal">
-			<span>&copy; Maison &middot; Prices in USD, taxes added at the boutique of collection</span>
-			<span>Click &amp; collect &middot; Enquire &middot; Reserve with deposit</span>
+			<span>&copy; {{ shop.brand.legal_name or shop.brand_name }} &middot; Prices in USD, taxes added at the {{ shop.store_noun | lower }} of collection</span>
+			<span>{% if shop.vertical == 'Jewellery' %}Click &amp; collect &middot; Enquire &middot; Reserve with deposit{% else %}Click &amp; collect &middot; 21+ only &middot; Age-restricted items are sold in store{% endif %}</span>
 		</div>
 	</div>
 </footer>

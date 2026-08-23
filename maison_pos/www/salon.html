@@ -6,13 +6,14 @@
     <meta name="theme-color" content="#0B0B0A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Maison Salon" />
+    <meta name="apple-mobile-web-app-title" content="{{ brand_name or 'Maison' }} Salon" />
     <title>{{ title }}</title>
     <script>
       // v0.5 K — the Salon is a guest page; the token lives in localStorage, not the session
       window.csrf_token = "{{ csrf_token }}";
       window.maison_user = "{{ site_user }}";
       window.maison_salon = true;
+      window.maison_brand = {{ (brand or {}) | tojson }};
       window.socketio_port = {{ socketio_port }};
       window.dev_server = {{ dev_server }};
     </script>

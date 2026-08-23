@@ -88,12 +88,13 @@ def availability(item_code: str) -> dict[str, Any]:
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
 	avail = core.availability(item_code)
 	item = frappe.db.get_value(
-		"Item", item_code, ["item_code", "has_serial_no", "is_stock_item", "maison_web_mode"], as_dict=True
+		"Item", item_code, ["item_code", "has_serial_no", "is_stock_item", "maison_web_mode", "maison_age_restricted"], as_dict=True
 	)
 	chain = sum(flt(a["qty"]) for a in avail)
 	return {
 		"item_code": item_code,
 		"web_mode": core.effective_web_mode(item, chain),
+		"in_store_only": core.is_age_restricted_online_blocked(item),  # v0.6 N
 		"chain_qty": chain,
 		"available_at": core.city_label(avail),
 		"boutiques": [{k: v for k, v in a.items() if k != "serials"} for a in avail],
@@ -139,7 +140,7 @@ def catalogue(
 		for i in frappe.get_all(
 			"Item",
 			filters={"item_code": ("in", codes)} if codes else {"item_code": "__none__"},
-			fields=["item_code", "has_serial_no", "is_stock_item", "maison_web_mode", "maison_metal", "maison_carat", "maison_stones", "maison_department"],
+			fields=["item_code", "has_serial_no", "is_stock_item", "maison_web_mode", "maison_metal", "maison_carat", "maison_stones", "maison_department", "maison_age_restricted", "maison_brand", "maison_flavor", "maison_nicotine_mg", "maison_puffs", "maison_volume_ml"],  # v0.6 N
 		)
 	}
 	out = []
@@ -168,6 +169,14 @@ def catalogue(
 				"carat": flt(item.get("maison_carat")),
 				"stones": item.get("maison_stones"),
 				"department": item.get("maison_department"),
+				# v0.6 N — smoke-shop attributes + in-store-only flag
+				"brand": item.get("maison_brand"),
+				"flavor": item.get("maison_flavor"),
+				"nicotine_mg": flt(item.get("maison_nicotine_mg")),
+				"puffs": cint(item.get("maison_puffs")),
+				"volume_ml": flt(item.get("maison_volume_ml")),
+				"age_restricted": cint(item.get("maison_age_restricted")),
+				"in_store_only": core.is_age_restricted_online_blocked(item),
 				"web_mode": web_mode,
 				"one_off": bool(item.get("has_serial_no")) and chain <= 1,
 				"chain_qty": chain,

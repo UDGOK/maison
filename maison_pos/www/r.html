@@ -58,7 +58,7 @@
 {% endblock %}
 {% block page_content %}
 <div class="mg">
-  <div class="mg-wordmark">Maison</div>
+  <div class="mg-wordmark">{{ brand.wordmark_text or brand.brand_name }}</div>
   {% if not receipt %}
     <div class="mg-404">
       <div class="mg-label">Receipt</div>
@@ -114,6 +114,11 @@
         <div class="mg-rule"></div>
         {% if receipt.client.points_earned %}<div class="mg-row"><span class="l mg-label">Points earned</span><span class="r">{{ receipt.client.points_earned|int }}</span></div>{% endif %}
         <div class="mg-row"><span class="l mg-label">Points balance</span><span class="r">{{ receipt.client.points_balance|int }}</span></div>
+        {% if receipt.client.next_reward %}<div class="mg-row" data-testid="next-reward"><span class="l mg-label">Next reward</span><span class="r">{{ money(receipt.client.next_reward.amount) }} off at {{ receipt.client.next_reward.points }} pts · {{ receipt.client.next_reward.points_needed }} to go</span></div>{% endif %}
+        {% if receipt.client.giveaway_entries %}<div class="mg-row" data-testid="giveaway-entries"><span class="l mg-label">Giveaway entries</span><span class="r">{{ receipt.client.giveaway_entries }}{% if receipt.client.giveaway %} · {{ receipt.client.giveaway.title }}{% endif %}</span></div>{% endif %}
+      {% elif not receipt.client.present %}
+        <div class="mg-rule"></div>
+        <div class="mg-fb-note">Join <b>{{ brand.rewards_program_name }}</b> — $1 = 1 point, $5 off at 100 points. <a href="/rewards" style="color:var(--accent)">Sign up</a></div>
       {% endif %}
     </div>
 
@@ -140,7 +145,7 @@
         {% if feedback.submitted %}
           <div class="mg-fb-thanks">Thank you — your feedback has been received.</div>
         {% else %}
-          <div class="mg-fb-note" style="margin-top:4px">Private to Maison head office. Never published.</div>
+          <div class="mg-fb-note" style="margin-top:4px">Private to {{ brand.brand_name }} head office. Never published.</div>
           <div class="mg-stars" role="radiogroup" aria-label="Rating">
             {% for n in [1,2,3,4,5] %}<button type="button" data-rating="{{ n }}" aria-label="{{ n }} of 5">{{ n }}</button>{% endfor %}
           </div>
@@ -185,7 +190,7 @@
     {% endif %}
 
     <div class="mg-foot">
-      <div>Thank you for choosing Maison.</div>
+      <div>Thank you for choosing {{ brand.brand_name }}.</div>
       <div>Exchanges within 30 days with receipt. Bespoke and engraved pieces are final sale.</div>
       {% if receipt.boutique.email %}<div><a href="mailto:{{ receipt.boutique.email }}">{{ receipt.boutique.email }}</a></div>{% endif %}
       {% if receipt.notes %}<div style="margin-top:8px">{{ receipt.notes }}</div>{% endif %}

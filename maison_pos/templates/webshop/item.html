@@ -37,6 +37,13 @@
 			<p class="lead">{{ (doc.short_description or '') }} {{ (doc.description or '') | striptags if not doc.short_description else '' }}</p>
 
 			<div class="mw-specs">
+				{# v0.6 N — vertical attributes #}
+				{% if m.brand %}<div><span class="k">Brand</span><span class="v">{{ m.brand }}</span></div>{% endif %}
+				{% if m.flavor %}<div><span class="k">Flavor</span><span class="v">{{ m.flavor }}</span></div>{% endif %}
+				{% if m.nicotine_mg %}<div><span class="k">Nicotine</span><span class="v">{{ '%g' | format(m.nicotine_mg) }} mg/ml</span></div>{% endif %}
+				{% if m.volume_ml %}<div><span class="k">Volume</span><span class="v">{{ '%g' | format(m.volume_ml) }} ml</span></div>{% endif %}
+				{% if m.puffs %}<div><span class="k">Puffs</span><span class="v">{{ m.puffs }}</span></div>{% endif %}
+				{% if m.age_restricted %}<div><span class="k">Age</span><span class="v">21+ · ID required</span></div>{% endif %}
 				{% if m.metal %}<div><span class="k">Metal</span><span class="v">{{ m.metal }}</span></div>{% endif %}
 				{% if m.carat %}<div><span class="k">Total weight</span><span class="v">{{ '%.2f' | format(m.carat) }} ct</span></div>{% endif %}
 				{% if m.stones %}<div><span class="k">Stones</span><span class="v">{{ m.stones }}</span></div>{% endif %}
@@ -54,7 +61,7 @@
 					{% for a in m.availability %}
 					<li class="{{ 'out' if a.qty <= 0 else '' }}">
 						<span class="b"><span>{{ a.boutique_name }}</span><span class="c">{{ a.city }}</span></span>
-						<span>{% if a.qty <= 0 %}Not in boutique{% elif m.one_off or a.qty == 1 %}In boutique{% else %}{{ a.qty | int }} available{% endif %}</span>
+						<span>{% if a.qty <= 0 %}Not in store{% elif m.one_off or a.qty == 1 %}In store{% else %}{{ a.qty | int }} available{% endif %}</span>
 					</li>
 					{% endfor %}
 				</ul>
@@ -74,20 +81,33 @@
 					<button class="mw-btn ghost" data-mw-sheet="mw-enquire">Ask the boutique</button>
 				</div>
 				<div class="mw-note">A {{ m.deposit_percent | int }}% deposit holds this piece in the boutique for 14 days; the balance is settled when you collect it.</div>
+				{% elif m.in_store_only %}
+				<div class="row">
+					<a class="mw-btn" href="/shop/boutiques">Available in store</a>
+					<button class="mw-btn ghost" data-mw-sheet="mw-enquire">Ask the store</button>
+				</div>
+				<div class="mw-note" data-testid="in-store-only">Age-restricted (21+) products are sold in store only — bring a valid government ID. {{ m.available_at and ('In stock at ' ~ m.available_at ~ '.') or '' }}</div>
 				{% else %}
 				<div class="row">
-					<button class="mw-btn" data-mw-sheet="mw-enquire">Enquire about this piece</button>
-					<a class="mw-btn ghost" href="/shop/boutiques">Visit a boutique</a>
+					<button class="mw-btn" data-mw-sheet="mw-enquire">Enquire about this {{ 'piece' if m.shop_brand.vertical == 'Jewellery' else 'product' }}</button>
+					<a class="mw-btn ghost" href="/shop/boutiques">Visit a {{ m.shop_brand.store_noun | lower }}</a>
 				</div>
-				<div class="mw-note">{% if m.one_off %}Unique pieces are presented in person. A Maison advisor will contact you to arrange a private viewing.{% else %}A Maison advisor will contact you within one working day.{% endif %}</div>
+				<div class="mw-note">{% if m.one_off %}Unique pieces are presented in person. A {{ m.shop_brand.brand_name }} advisor will contact you to arrange a private viewing.{% else %}A {{ m.shop_brand.brand_name }} advisor will contact you within one working day.{% endif %}</div>
 				{% endif %}
 			</div>
 
 			<div class="mw-assurance">
+				{% if m.shop_brand.vertical == 'Jewellery' %}
 				<div><b>Click &amp; collect</b>Prepared by your boutique, ready in 24 h.</div>
-				<div><b>Maison Collectors</b>Earn points on every piece, online and in boutique.</div>
+				<div><b>{{ m.shop_brand.rewards_program_name }}</b>Earn points on every piece, online and in boutique.</div>
 				<div><b>Atelier guarantee</b>Five years on timepieces, lifetime on settings.</div>
 				<div><b>Private viewing</b>Book an appointment with an advisor.</div>
+				{% else %}
+				<div><b>Click &amp; collect</b>Prepared by your store, ready in 2 h.</div>
+				<div><b>{{ m.shop_brand.rewards_program_name }}</b>$1 = 1 point. $5 off at 100 points.</div>
+				<div><b>21+ only</b>Valid ID checked at pick-up for age-restricted products.</div>
+				<div><b>Authentic products</b>Sourced direct from the brands we carry.</div>
+				{% endif %}
 			</div>
 		</div>
 	</section>
@@ -144,7 +164,7 @@
 			<button type="button" class="mw-boutique {{ 'selected' if loop.first and a.qty > 0 else '' }}" data-boutique="{{ a.boutique }}" {% if a.qty <= 0 %}disabled style="opacity:.45"{% endif %}>
 				<span class="radio"></span>
 				<span><span class="n">{{ a.boutique_name }}</span><span class="a">{{ a.city }}</span></span>
-				<span class="s {{ '' if a.qty > 0 else 'no' }}">{{ 'In boutique' if a.qty > 0 else 'Not here' }}</span>
+				<span class="s {{ '' if a.qty > 0 else 'no' }}">{{ 'In store' if a.qty > 0 else 'Not here' }}</span>
 			</button>
 			{% endfor %}
 		</div>

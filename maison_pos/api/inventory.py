@@ -462,3 +462,214 @@ def submit_cycle_count(boutique: str, serials: Any = None, qty: Any = None, devi
 		"stock_reconciliation": recon,
 		"clean": not missing and not unexpected and not diffs,
 	}
+
+
+# ---------------------------------------------------------------------------
+# v0.6 O — replenishment requests + receiving at the store
+# ---------------------------------------------------------------------------
+@frappe.whitelist()
+def replenish(boutique: Optional[str] = None, lines: Any = None, reason: Optional[str] = None, priority: Optional[str] = None, alert: Optional[str] = None, item: Optional[str] = None, qty: Optional[float] = None) -> dict[str, Any]:
+	"""Create a **Replenishment Request** (Maison Replenishment Request + draft Material Request,
+	type Material Transfer, from the main warehouse) for *boutique*.
+
+	``lines = [{item_code, qty, alert?}]`` — or the one-tap form ``item`` + ``qty`` (+ ``alert``) from
+	the low-stock list. Managers / associates may only request into their own store.
+	"""
+	from maison_pos.api.shipping import create_request, request_dict
+
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	boutique = assert_boutique_access(boutique)
+	if isinstance(lines, str):
+		lines = json.loads(lines or "[]")
+	lines = list(lines or [])
+	if item:
+		lines.append({"item_code": item, "qty": flt(qty) or flt(frappe.db.get_value("Maison Stock Alert", alert, "reorder_qty") if alert else 0) or 1, "alert": alert})
+	req = create_request(boutique, lines, reason=reason, priority=priority)
+	return {"request": request_dict(req), "material_request": req.material_request, "name": req.name}
+
+
+@frappe.whitelist()
+def replenishment_requests(boutique: Optional[str] = None, status: str = "all", limit: int = 50) -> dict[str, Any]:
+	"""Requests of the store (any status by default) for the POS Receive screen."""
+	from maison_pos.api.shipping import requests_list
+
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	boutique = assert_boutique_access(boutique)
+	return requests_list(status=status, boutique=boutique, limit=limit)
+
+
+@frappe.whitelist()
+def inbound(boutique: Optional[str] = None) -> dict[str, Any]:
+	"""Everything on its way to the store: warehouse shipments (Shipped) + vendor POs shipped direct."""
+	from maison_pos.api.shipping import open_purchase_orders, shipment_dict
+
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	boutique = assert_boutique_access(boutique)
+	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	names = frappe.get_all("Maison Shipment", filters={"boutique": boutique, "status": "Shipped"}, pluck="name", order_by="shipped_at asc")
+	shipments = [shipment_dict(frappe.get_doc("Maison Shipment", n)) for n in names]
+	recent_names = frappe.get_all("Maison Shipment", filters={"boutique": boutique, "status": "Received"}, pluck="name", order_by="received_at desc", limit=10)
+	recent = [shipment_dict(frappe.get_doc("Maison Shipment", n), with_lines=False) for n in recent_names]
+	pending = frappe.get_all("Maison Shipment", filters={"boutique": boutique, "status": ("in", ("Pending", "Picking", "Packed"))}, fields=["name", "status", "priority", "creation", "carrier", "service"], order_by="creation asc")
+	return {
+		"boutique": boutique,
+		"warehouse": b.warehouse,
+		"shipments": shipments,
+		"preparing": pending,
+		"purchase_orders": open_purchase_orders(b.warehouse),
+		"recent": recent,
+		"open_requests": frappe.db.count("Maison Replenishment Request", {"boutique": boutique, "status": "Pending Approval"}),
+		"as_of": now_datetime().isoformat(),
+	}
+
+
+def _post_receipt_transfer(sh, rows: list[dict], to_warehouse: str, remark: str) -> Optional[str]:
+	if not rows:
+		return None
+	company = frappe.db.get_value("Warehouse", to_warehouse, "company")
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Transfer",
+			"purpose": "Material Transfer",
+			"company": company,
+			"from_warehouse": sh.transit_warehouse,
+			"to_warehouse": to_warehouse,
+			"posting_date": nowdate(),
+			"posting_time": nowtime(),
+			"set_posting_time": 1,
+			"remarks": remark,
+			"items": [{"item_code": r["item_code"], "qty": r["qty"], "s_warehouse": sh.transit_warehouse, "t_warehouse": to_warehouse} for r in rows],
+		}
+	)
+	se.flags.ignore_permissions = True
+	se.insert()
+	se.submit()
+	return se.name
+
+
+@frappe.whitelist()
+def receive_shipment(shipment: str, lines: Any = None, final: int = 1, device_id: Optional[str] = None, notes: Optional[str] = None) -> dict[str, Any]:
+	"""Confirm receipt of a warehouse shipment at the store (scan / count).
+
+	``lines = [{item_code, received_qty, damaged_qty?}]`` — absent lines count as received in full
+	when ``final`` (default), untouched otherwise (partial receipt; call again later). Posts
+	``In Transit → store`` for intact units and ``In Transit → Damaged`` for damaged ones; short /
+	over / damaged quantities are written on the shipment lines and raise one
+	``Maison Receiving Discrepancy`` per line for the warehouse admin.
+	"""
+	from maison_pos.api.shipping import publish_wall, shipment_dict
+
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	sh = frappe.get_doc("Maison Shipment", shipment)
+	assert_boutique_access(sh.boutique)
+	if sh.status != "Shipped":
+		frappe.throw(_("Shipment {0} is {1}, not in transit").format(shipment, sh.status), frappe.ValidationError)
+	if isinstance(lines, str):
+		lines = json.loads(lines or "[]")
+	counted: dict[str, dict[str, float]] = {}
+	for raw in lines or []:
+		code = raw.get("item_code") or raw.get("item")
+		if not code:
+			continue
+		counted[code] = {"received": flt(raw.get("received_qty", raw.get("qty"))), "damaged": flt(raw.get("damaged_qty"))}
+	final = cint(final)
+	b = frappe.get_cached_doc("Maison Boutique", sh.boutique)
+	damaged_wh = b.get("damaged_warehouse")
+	good_rows: list[dict] = []
+	damaged_rows: list[dict] = []
+	discrepancies: list[str] = []
+	for line in sh.lines:
+		shipped = flt(line.shipped_qty) or flt(line.qty)
+		already = flt(line.received_qty) + flt(line.damaged_qty)
+		if line.item_code in counted:
+			got = counted[line.item_code]["received"]
+			dmg = counted[line.item_code]["damaged"]
+		elif final:
+			got, dmg = max(0.0, shipped - already), 0.0
+		else:
+			continue
+		if got < 0 or dmg < 0:
+			frappe.throw(_("Negative quantity for {0}").format(line.item_code), frappe.ValidationError)
+		remaining_in_transit = max(0.0, shipped - already)
+		# what can physically leave the transit warehouse
+		from_transit_good = min(got, remaining_in_transit)
+		from_transit_dmg = min(dmg, max(0.0, remaining_in_transit - from_transit_good))
+		if from_transit_good > 0:
+			good_rows.append({"item_code": line.item_code, "qty": from_transit_good})
+		if from_transit_dmg > 0:
+			damaged_rows.append({"item_code": line.item_code, "qty": from_transit_dmg})
+		line.received_qty = flt(line.received_qty) + got
+		line.damaged_qty = flt(line.damaged_qty) + dmg
+		total = flt(line.received_qty) + flt(line.damaged_qty)
+		line.over_qty = max(0.0, total - shipped)
+		line.short_qty = max(0.0, shipped - total) if final else 0.0
+		if final or got or dmg:
+			for kind, qty in (("Short", line.short_qty if final else 0.0), ("Damaged", dmg), ("Over", line.over_qty)):
+				if flt(qty) > 0 and not (kind == "Over" and frappe.db.exists("Maison Receiving Discrepancy", {"shipment": sh.name, "item_code": line.item_code, "type": "Over", "status": "Open"})):
+					d = frappe.get_doc(
+						{
+							"doctype": "Maison Receiving Discrepancy",
+							"shipment": sh.name,
+							"boutique": sh.boutique,
+							"item_code": line.item_code,
+							"type": kind,
+							"status": "Open",
+							"shipped_qty": shipped,
+							"received_qty": flt(line.received_qty),
+							"damaged_qty": flt(line.damaged_qty),
+							"short_qty": flt(line.short_qty),
+							"over_qty": flt(line.over_qty),
+							"reported_by": frappe.session.user,
+							"reported_at": now_datetime(),
+							"notes": notes,
+						}
+					)
+					d.flags.ignore_permissions = True
+					d.insert()
+					discrepancies.append(d.name)
+	se_good = _post_receipt_transfer(sh, good_rows, sh.to_warehouse, f"Maison Shipment {sh.name} received at {sh.boutique}")
+	se_dmg = None
+	if damaged_rows:
+		if damaged_wh:
+			se_dmg = _post_receipt_transfer(sh, damaged_rows, damaged_wh, f"Maison Shipment {sh.name} damaged on arrival at {sh.boutique}")
+		else:
+			# no Damaged warehouse on this boutique: leave the units in transit, the discrepancy tracks them
+			pass
+	if se_good:
+		sh.stock_entry_receive = se_good if not sh.stock_entry_receive else f"{sh.stock_entry_receive}"  # first receipt leg kept as the link
+	if se_dmg:
+		sh.stock_entry_damaged = se_dmg
+	if final:
+		sh.status = "Received"
+		sh.received_at = now_datetime()
+		sh.received_by = frappe.session.user
+	if notes:
+		sh.notes = ((sh.notes or "") + "\n" + notes).strip()
+	sh.flags.ignore_permissions = True
+	sh.save()
+	if sh.replenishment_request and final:
+		frappe.db.set_value("Maison Replenishment Request", sh.replenishment_request, "status", "Approved", update_modified=False)
+	publish_wall("received" if final else "partial", sh.name, boutique=sh.boutique, discrepancies=discrepancies)
+	if discrepancies:
+		for admin in frappe.get_all("Has Role", filters={"role": "Maison Warehouse Admin", "parenttype": "User"}, pluck="parent"):
+			try:
+				frappe.get_doc({"doctype": "Notification Log", "for_user": admin, "type": "Alert", "document_type": "Maison Receiving Discrepancy", "document_name": discrepancies[0], "subject": _("{0}: {1} receiving discrepancy(ies) on {2}").format(sh.boutique, len(discrepancies), sh.name)}).insert(ignore_permissions=True)
+			except Exception:
+				pass
+	out = shipment_dict(sh)
+	out.update({"stock_entry_receive": se_good, "stock_entry_damaged": se_dmg, "discrepancies": discrepancies, "final": bool(final)})
+	return out
+
+
+@frappe.whitelist()
+def receive_po(po: str, lines: Any = None, boutique: Optional[str] = None) -> dict[str, Any]:
+	"""Vendor-direct delivery at the store: Purchase Receipt against the PO (``lines = [{item_code, qty}]``)."""
+	from maison_pos.api.shipping import receive_purchase_order
+
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	boutique = assert_boutique_access(boutique)
+	warehouse = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+	if frappe.db.get_value("Purchase Order", po, "set_warehouse") != warehouse:
+		frappe.throw(_("Purchase Order {0} is not addressed to {1}").format(po, boutique), frappe.PermissionError)
+	return receive_purchase_order(po, lines, warehouse=warehouse)

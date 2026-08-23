@@ -27,7 +27,7 @@
 			<div class="row"><span>Collection</span><span>Complimentary</span></div>
 			<div class="row total"><span class="mw-label">Total excl. tax</span><span class="mw-price">{{ shop_money(cart.grand_total, cart.currency) }}</span></div>
 			<a class="mw-btn block" href="/shop/checkout">Choose a boutique</a>
-			<div class="fine">Pay online now or at the counter when you collect. Maison Collectors points are credited at collection.</div>
+			<div class="fine">Pay online now or at the counter when you collect. {{ shop.rewards_name }} points are credited at collection.</div>
 		</aside>
 	</div>
 	{% else %}

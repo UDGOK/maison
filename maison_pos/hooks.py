@@ -23,6 +23,14 @@ website_route_rules = [
 	# --- v0.5 K (salon): client-facing screen, same PWA bundle, own layout ---
 	{"from_route": "/salon/<path:app_path>", "to_route": "salon"},
 	# --- end v0.5 K ---
+	# --- v0.6 Q — public rewards page on the web shop ---
+	{"from_route": "/rewards/<path:app_path>", "to_route": "rewards"},
+	# --- end v0.6 Q ---
+	# --- v0.6 P (warehouse): admin desk + 55" wall share the POS bundle; simulated label page ---
+	{"from_route": "/warehouse/<path:app_path>", "to_route": "warehouse"},
+	{"from_route": "/warehouse-wall/<path:app_path>", "to_route": "warehouse-wall"},
+	{"from_route": "/shipping-label/<tracking_no>", "to_route": "shipping-label"},
+	# --- end v0.6 P ---
 	# --- v0.4 G (webshop): Monolith Gold storefront pages take over webshop's /cart and /all-products ---
 	{"from_route": "/cart", "to_route": "shop/cart"},
 	{"from_route": "/all-products", "to_route": "shop/collection"},
@@ -76,6 +84,10 @@ doc_events = {
 			"maison_pos.api.crm.fulfil_wishlist_on_sale",
 			# v0.4 G — web order collected at the counter -> Sales Order status Collected
 			"maison_pos.webshop.events.on_invoice_submit",
+			# --- v0.6 Q — giveaway entries (+ age-check link), entries reversed by a credit note ---
+			"maison_pos.api.rewards.on_invoice_submit",
+			"maison_pos.api.rewards.on_return_submit",
+			# --- end v0.6 Q ---
 		],
 		"on_cancel": [
 			"maison_pos.events.sales_invoice.on_cancel",
@@ -84,6 +96,8 @@ doc_events = {
 			"maison_pos.api.promotions.on_invoice_cancel",
 			# v0.4 G — collection undone
 			"maison_pos.webshop.events.on_invoice_cancel",
+			# v0.6 Q — giveaway entries reversed
+			"maison_pos.api.rewards.on_invoice_cancel",
 		],
 	},
 	# v0.4 B — wishlist alerts when a wished item arrives in a boutique warehouse
@@ -119,7 +133,11 @@ scheduler_events = {
 		"maison_pos.api.inventory.low_stock_scan",
 		# v0.5 K — salon sessions past 12 h -> Expired
 		"maison_pos.api.salon.expire_sessions",
+		# v0.6 P — carrier tracking refresh for shipped consignments
+		"maison_pos.api.shipping.refresh_tracking",
 	],
+	# v0.6 Q — "New arrivals" auto-segment campaign (weekly)
+	"weekly": ["maison_pos.api.rewards.new_arrivals_campaign"],
 	"daily": [
 		"maison_pos.tasks.purge_old_sync_logs",
 		# BIPA retention policy: destroy face templates of clients with no visit in N months
@@ -131,6 +149,10 @@ scheduler_events = {
 		# --- v0.5 M — nightly campaign attribution (last-touch 14 d + assisted 30 d + item-level) ---
 		"maison_pos.campaigns.attribution.nightly",
 		# --- end v0.5 M ---
+		# --- v0.6 Q — CloudChaserz Rewards: birthday coupons (7 d ahead), monthly promotions (acts on the 1st) ---
+		"maison_pos.api.rewards.issue_birthday_coupons",
+		"maison_pos.api.rewards.send_monthly_promotions",
+		# --- end v0.6 Q ---
 	],
 }
 
@@ -161,12 +183,35 @@ permission_query_conditions = {
 	# --- v0.5 K — a Salon (Guest) may read the one session whose token it holds, never list them ---
 	"Maison Salon Session": "maison_pos.scoping.salon_session_query",
 	# --- end v0.5 K ---
+	# --- v0.6 N/Q — age checks + giveaway entries scoped to the manager's store ---
+	"Maison Age Check": "maison_pos.scoping.age_check_query",
+	"Maison Giveaway Entry": "maison_pos.scoping.giveaway_entry_query",
+	# --- end v0.6 N/Q ---
+	# --- v0.6 O/P — supply chain docs: managers see their store, warehouse admins everything;
+	# ERPNext stock documents in the desk are narrowed to the manager's own warehouses ---
+	"Maison Replenishment Request": "maison_pos.scoping.replenishment_request_query",
+	"Maison Shipment": "maison_pos.scoping.shipment_query",
+	"Maison Receiving Discrepancy": "maison_pos.scoping.receiving_discrepancy_query",
+	"Stock Entry": "maison_pos.scoping.stock_entry_query",
+	"Material Request": "maison_pos.scoping.material_request_query",
+	"Purchase Receipt": "maison_pos.scoping.purchase_receipt_query",
+	"Purchase Order": "maison_pos.scoping.purchase_order_query",
+	# --- end v0.6 O/P ---
 }
 
 has_permission = {
 	"Maison Price Change Request": "maison_pos.scoping.price_change_request_has_permission",
 	# v0.5 K
 	"Maison Salon Session": "maison_pos.scoping.salon_session_has_permission",
+	# --- v0.6 O/P ---
+	"Maison Replenishment Request": "maison_pos.scoping.replenishment_request_has_permission",
+	"Maison Shipment": "maison_pos.scoping.shipment_has_permission",
+	"Maison Receiving Discrepancy": "maison_pos.scoping.receiving_discrepancy_has_permission",
+	"Stock Entry": "maison_pos.scoping.stock_entry_has_permission",
+	"Material Request": "maison_pos.scoping.material_request_has_permission",
+	"Purchase Receipt": "maison_pos.scoping.purchase_receipt_has_permission",
+	"Purchase Order": "maison_pos.scoping.purchase_order_has_permission",
+	# --- end v0.6 O/P ---
 }
 
 # ---------------------------------------------------------------------------
@@ -177,9 +222,14 @@ jinja = {
 		"maison_pos.utils.get_receipt_context",
 		"maison_pos.utils.format_money",
 		"maison_pos.utils.receipt_qr_svg",
+		# v0.6 P — packing list (shipment QR, line barcodes)
+		"maison_pos.api.shipping.packing_list_context",
 		# v0.4 G — storefront templates (header cart count, boutiques, money formatting)
 		"maison_pos.webshop.context.shop_context",
 		"maison_pos.webshop.context.shop_money",
+		# v0.6 N — brand tokens in every template (receipts, e-mails, shop)
+		"maison_pos.brand.get_brand",
+		"maison_pos.utils.get_brand_context",
 	],
 }
 

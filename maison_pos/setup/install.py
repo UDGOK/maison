@@ -163,6 +163,16 @@ def after_install() -> None:
 	from maison_pos.webshop.setup import after_migrate as webshop_after_migrate
 
 	webshop_after_migrate()
+	# --- v0.6 N/Q — brand settings, vertical attributes, age verification, rewards (own module) ---
+	from maison_pos.setup.install_v06 import setup_v06
+
+	setup_v06()
+	# --- end v0.6 N/Q ---
+	# --- v0.6 O/P — warehouse admin role, shipping fields, replenishment workflow, packing list, in-transit warehouses ---
+	from maison_pos.setup.install_v06_shipping import setup_v06_shipping
+
+	setup_v06_shipping()
+	# --- end v0.6 O/P ---
 	frappe.db.commit()
 
 
@@ -186,4 +196,14 @@ def after_migrate() -> None:
 	from maison_pos.webshop.setup import after_migrate as webshop_after_migrate
 
 	webshop_after_migrate()
+	# --- v0.6 N/Q — brand settings, vertical attributes, age verification, rewards (own module) ---
+	from maison_pos.setup.install_v06 import setup_v06
+
+	setup_v06()
+	# --- end v0.6 N/Q ---
+	# --- v0.6 O/P — warehouse admin role, shipping fields, replenishment workflow, packing list, in-transit warehouses ---
+	from maison_pos.setup.install_v06_shipping import setup_v06_shipping
+
+	setup_v06_shipping()
+	# --- end v0.6 O/P ---
 	frappe.db.commit()

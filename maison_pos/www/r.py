@@ -29,10 +29,14 @@ def get_context(context: dict) -> dict:
 		context.http_status_code = 404
 		context.title = _("Receipt not found")
 		context.receipt = None
+		from maison_pos.utils import get_brand_context
+
+		context.brand = get_brand_context()
 		return context
 
 	receipt = receipt_payload(doc)
-	context.title = f"Maison · {receipt['invoice']}"
+	context.brand = receipt.get("brand") or {}
+	context.title = f"{context.brand.get('brand_name', 'Maison')} · {receipt['invoice']}"
 	context.receipt = receipt
 	context.qr = qr_svg_data_uri(receipt["url"], scale=5, dark="#C9A96E") if receipt_qr_enabled() and receipt.get("url") else ""
 	context.money = lambda v: format_money(v, receipt["currency"])

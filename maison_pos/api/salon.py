@@ -453,7 +453,29 @@ def salon_settings(boutique: str) -> dict[str, Any]:
 		"feedback_enabled": cint(s.get("feedback_enabled", 1) if "feedback_enabled" in s else 1),
 		"receipt_qr_base_url": s.get("receipt_qr_base_url"),
 		"currency": frappe.get_cached_value("Company", frappe.db.get_value("Maison Boutique", boutique, "company"), "default_currency"),
+		# --- v0.6 N/Q — brand tokens, welcome line, rewards copy + age gate for the "Please present your ID" state ---
+		"brand": s.get("brand"),
+		"welcome_line": _welcome_line(b.get("boutique_name")),
+		"rewards_program_name": s.get("rewards_program_name"),
+		"rewards_copy": _rewards_copy(),
+		"minimum_age": s.get("minimum_age"),
+		# --- end v0.6 N/Q ---
 	}
+
+
+def _welcome_line(boutique_name: Optional[str]) -> str:
+	from maison_pos.brand import welcome_line
+
+	return welcome_line(boutique_name)
+
+
+def _rewards_copy() -> dict[str, Any]:
+	try:
+		from maison_pos.api.rewards import PROGRAM_COPY
+
+		return PROGRAM_COPY
+	except Exception:
+		return {}
 
 
 def playlist_for(boutique: str) -> list[dict[str, Any]]:
@@ -591,7 +613,7 @@ def signup(
 			c.flags.ignore_permissions = True
 			c.save()
 	_save_profile(customer, {"do_not_email": 0 if cint(marketing_email) else 1, "do_not_sms": 0 if cint(marketing_sms) else 1, "birthday": birthday or None})
-	_log_interaction(doc, customer, "Visit", f"Joined Maison from the Salon at {doc.boutique}" if created else f"Salon sign-up linked existing client at {doc.boutique}")
+	_log_interaction(doc, customer, "Visit", f"Joined {_brand_name()} Rewards from the Salon at {doc.boutique}" if created else f"Salon sign-up linked existing client at {doc.boutique}")
 	out = _attach_customer(doc, customer, "signup", created)
 	out["face_recognition_enabled"] = salon_settings(doc.boutique)["face_recognition_enabled"]
 	return out
@@ -791,7 +813,7 @@ def email_receipt(token: str, email: Optional[str] = None) -> dict[str, Any]:
 
 		url = receipt_url(receipt_token)
 		try:
-			frappe.sendmail(recipients=[email], subject=_("Your Maison receipt"), message=f"<p>Thank you for your visit.</p><p><a href='{url}'>{url}</a></p>", delayed=True)
+			frappe.sendmail(recipients=[email], subject=_("Your {0} receipt").format(_brand_name()), message=f"<p>Thank you for your visit.</p><p><a href='{url}'>{url}</a></p>", delayed=True)
 			sent = True
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "maison salon email receipt")
@@ -868,3 +890,10 @@ def expire_sessions() -> dict[str, Any]:
 	for n in names:
 		frappe.db.set_value(DOCTYPE, n, {"status": "Expired", "unpaired_at": now_datetime()}, update_modified=False)
 	return {"expired": len(names)}
+
+
+def _brand_name() -> str:
+	"""v0.6 N"""
+	from maison_pos.brand import brand_name
+
+	return brand_name()

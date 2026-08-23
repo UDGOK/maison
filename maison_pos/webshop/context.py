@@ -54,7 +54,20 @@ def shop_context() -> dict[str, Any]:
 				except Exception:  # noqa: BLE001
 					cart_count = 0
 	full_name = frappe.db.get_value("User", user, "full_name") if signed_in else ""
+	# --- v0.6 N — brand tokens for the storefront shell ---
+	from maison_pos.brand import get_brand, get_rewards_settings
+
+	brand = get_brand()
+	rewards_name = get_rewards_settings()["rewards_program_name"]
+	# --- end v0.6 N ---
 	return {
+		"brand": brand,
+		"brand_name": brand["brand_name"],
+		"wordmark": brand["wordmark_text"],
+		"tagline": brand["tagline"],
+		"store_noun": brand["store_noun"],
+		"rewards_name": rewards_name,
+		"vertical": brand["vertical"],
 		"enabled": enabled,
 		"signed_in": bool(signed_in),
 		"user": user if signed_in else None,

@@ -22,10 +22,10 @@ ALLOWED_ROLES = {"Maison Head Office", "Maison Regional", "System Manager"}
 def _check_access() -> None:
     """Require a logged-in user holding one of the dashboard roles."""
     if frappe.session.user in (None, "", "Guest"):
-        frappe.throw(_("Please log in to view the Maison dashboard."), frappe.PermissionError)
+        frappe.throw(_("Please log in to view the dashboard."), frappe.PermissionError)
     roles = set(frappe.get_roles(frappe.session.user))
     if not roles & ALLOWED_ROLES:
-        frappe.throw(_("You do not have permission to view the Maison dashboard."), frappe.PermissionError)
+        frappe.throw(_("You do not have permission to view the dashboard."), frappe.PermissionError)
 
 
 def _built_index() -> str | None:
@@ -41,7 +41,11 @@ def get_context(context) -> None:
     """Populate the template with the built app's head/body fragments."""
     _check_access()
     context.no_cache = 1
-    context.title = "MAISON · Live"
+    from maison_pos.brand import get_brand  # v0.6 N
+
+    brand = get_brand()
+    context.brand = brand
+    context.title = f"{brand['wordmark_text']} · Command"
     context.built = False
     context.dashboard_head = ""
     context.dashboard_body = ""

@@ -5,6 +5,7 @@
 {%- set ctx = get_receipt_context(doc) -%}
 {%- set boutique = ctx.boutique -%}
 {%- set cur = doc.currency -%}
+{%- set brand = get_brand_context() -%}
 <style>
   @page { size: 80mm auto; margin: 0; }
   .mr { width: 72mm; margin: 0 auto; padding: 4mm 0 6mm; font-family: "Jost", "Helvetica Neue", Arial, sans-serif;
@@ -35,7 +36,7 @@
 </style>
 
 <div class="mr">
-  <div class="wordmark">Maison</div>
+  <div class="wordmark">{{ brand.receipt_header }}</div>
   {% if boutique %}
     <div class="sub">{{ boutique.boutique_name }}</div>
     <div class="center meta">{{ boutique.address_line or "" }}{% if boutique.city %}{% if boutique.address_line %}, {% endif %}{{ boutique.city }}{% endif %}</div>
@@ -134,7 +135,7 @@
   {% endif %}
 
   <div class="foot">
-    <div>Thank you for choosing Maison.</div>
+    <div>Thank you for choosing {{ brand.brand_name }}.</div>
     {% if boutique and boutique.email %}<div>{{ boutique.email }}</div>{% endif %}
     <div class="label" style="margin-top:2mm">{{ doc.name }} · {{ frappe.utils.format_datetime(ctx.printed_at, "dd.MM.yy HH:mm") }}</div>
   </div>

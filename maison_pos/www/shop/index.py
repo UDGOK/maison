@@ -9,7 +9,10 @@ from maison_pos.www.shop._common import base_context
 
 
 def get_context(context):
-	base_context(context, nav="home", title="Maison — Fine jewellery & timepieces")
+	from maison_pos.brand import get_brand  # v0.6 N
+
+	brand = get_brand()
+	base_context(context, nav="home", title=f"{brand['brand_name']} — {brand['tagline']}")
 	context.featured = []
 	context.groups = []
 	context.hero = None
@@ -20,7 +23,7 @@ def get_context(context):
 		items = data["items"]
 		featured = sorted(items, key=lambda p: -(p.get("rate") or 0))
 		context.featured = [p for p in items][:8]
-		context.hero = next((p for p in items if p["item_code"] == "TP-002"), None) or (featured[0] if featured else None)
+		context.hero = next((p for p in items if p["item_code"] in ("TP-002", "DEV-003")), None) or (featured[0] if featured else None)
 		context.groups = data["item_groups"]
 		by_group = {}
 		for p in items:

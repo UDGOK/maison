@@ -5,6 +5,7 @@
 {%- set ctx = get_receipt_context(doc) -%}
 {%- set boutique = ctx.boutique -%}
 {%- set cur = doc.currency -%}
+{%- set brand = get_brand_context() -%}
 <style>
   @page { size: 80mm auto; margin: 0; }
   .mr { width: 72mm; margin: 0 auto; padding: 4mm 0 6mm; font-family: "Jost", "Helvetica Neue", Arial, sans-serif;
@@ -36,7 +37,7 @@
 </style>
 
 <div class="mr">
-  <div class="wordmark">Maison</div>
+  <div class="wordmark">{{ brand.receipt_header }}</div>
   {% if boutique %}
     <div class="sub">{{ boutique.boutique_name }}</div>
     <div class="center meta">{{ boutique.address_line or "" }}{% if boutique.city %}{% if boutique.address_line %}, {% endif %}{{ boutique.city }}{% endif %}</div>
@@ -121,9 +122,16 @@
 
   {% if doc.customer and (ctx.points_earned or ctx.points_balance) %}
     <div class="rule-soft"></div>
+    <div class="label center" style="margin-bottom:1mm">{{ brand.rewards_program_name }}</div>
     {% if ctx.points_earned %}<div class="row meta"><span class="l label">Points earned</span><span class="r">{{ ctx.points_earned|int }}</span></div>{% endif %}
     <div class="row meta"><span class="l label">Points balance</span><span class="r">{{ ctx.points_balance|int }}</span></div>
+    {% if ctx.rewards and ctx.rewards.next_reward %}<div class="row meta"><span class="l label">Next reward</span><span class="r">{{ format_money(ctx.rewards.next_reward.amount, cur) }} off at {{ ctx.rewards.next_reward.points }} pts ({{ ctx.rewards.next_reward.points_needed }} to go)</span></div>{% endif %}
+    {% if ctx.rewards and ctx.rewards.giveaway_entries %}<div class="row meta"><span class="l label">Giveaway entries</span><span class="r">{{ ctx.rewards.giveaway_entries }}{% if ctx.rewards.giveaway %} · {{ ctx.rewards.giveaway.title }}{% endif %}</span></div>{% endif %}
+  {% elif doc.customer is none or not ctx.client_number %}
+    <div class="rule-soft"></div>
+    <div class="center meta">Join {{ brand.rewards_program_name }} — $1 = 1 point. $5 off at 100 pts.</div>
   {% endif %}
+  {% if doc.maison_age_verified %}<div class="row meta"><span class="l label">Age verified</span><span class="r">{{ ctx.age_minimum }}+ · {{ doc.maison_age_method }}</span></div>{% endif %}
 
   {% if ctx.requires_signature %}
     <div class="sig">
@@ -147,8 +155,8 @@
   {% endif %}
 
   <div class="foot">
-    <div>Thank you for choosing Maison.</div>
-    <div>Exchanges within 30 days with receipt. Bespoke and engraved pieces are final sale.</div>
+    <div>Thank you for choosing {{ brand.brand_name }}.</div>
+    <div>{{ brand.receipt_footer }}</div>
     {% if boutique and boutique.email %}<div>{{ boutique.email }}</div>{% endif %}
     <div class="label" style="margin-top:2mm">{{ doc.name }} · {{ frappe.utils.format_datetime(ctx.printed_at, "dd.MM.yy HH:mm") }}</div>
   </div>

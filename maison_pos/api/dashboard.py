@@ -290,7 +290,23 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 		"recognition": recognition_counts(boutiques, day),
 		"low_stock": low_stock,
 		"returns": {"count": returns_count, "value": returns_value},
+		# --- v0.6 P — Command "Supply" tile (open requests, in transit, approve→ship hours, discrepancies) ---
+		"supply": _supply_block(),
+		# --- end v0.6 P ---
 	}
+
+
+# --- v0.6 P ---
+def _supply_block() -> dict[str, Any]:
+	if not is_unrestricted():
+		return {}
+	try:
+		from maison_pos.api.shipping import supply_summary
+
+		return supply_summary()
+	except Exception:
+		return {}
+# --- end v0.6 P ---
 
 
 def _top_items_for(invoices: list[str]) -> dict[str, str]:

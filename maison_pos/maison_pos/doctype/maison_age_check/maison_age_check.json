@@ -1,0 +1,210 @@
+{
+ "actions": [],
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "boutique",
+  "associate",
+  "device_id",
+  "column_break_a",
+  "method",
+  "outcome",
+  "ts",
+  "section_result",
+  "age_years",
+  "dob_year_ok",
+  "minimum_age",
+  "column_break_b",
+  "initials",
+  "id_expired",
+  "issuer",
+  "dob_year",
+  "section_link",
+  "sales_invoice",
+  "offline_uuid",
+  "reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "label": "Store",
+   "options": "Maison Boutique",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "associate",
+   "fieldtype": "Link",
+   "label": "Checked by",
+   "options": "Maison Associate",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "device_id",
+   "fieldtype": "Data",
+   "label": "Device"
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "method",
+   "fieldtype": "Select",
+   "label": "Method",
+   "options": "Scan\nManual",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "outcome",
+   "fieldtype": "Select",
+   "label": "Outcome",
+   "options": "Verified\nUnderage\nExpired\nUnreadable\nDeclined",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ts",
+   "fieldtype": "Datetime",
+   "label": "Checked at",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "section_result",
+   "fieldtype": "Section Break",
+   "label": "Result (masked)"
+  },
+  {
+   "fieldname": "age_years",
+   "fieldtype": "Int",
+   "label": "Age (years)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dob_year_ok",
+   "fieldtype": "Check",
+   "label": "DOB year OK",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "minimum_age",
+   "fieldtype": "Int",
+   "label": "Minimum age",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "initials",
+   "fieldtype": "Data",
+   "label": "Initials",
+   "read_only": 1,
+   "description": "First letters only \u2014 never the full name"
+  },
+  {
+   "fieldname": "id_expired",
+   "fieldtype": "Check",
+   "label": "ID expired",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "issuer",
+   "fieldtype": "Data",
+   "label": "Issuer (jurisdiction)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dob_year",
+   "fieldtype": "Int",
+   "label": "DOB year",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_link",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "offline_uuid",
+   "fieldtype": "Data",
+   "label": "Offline UUID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Maison POS",
+ "name": "Maison Age Check",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Head Office",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "Maison Regional",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Maison Manager",
+   "read": 1,
+   "report": 1,
+   "create": 1
+  },
+  {
+   "role": "Maison Associate",
+   "read": 1,
+   "create": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "hash",
+ "naming_rule": "Random"
+}

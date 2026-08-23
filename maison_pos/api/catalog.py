@@ -13,6 +13,7 @@ from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
 from frappe.utils import flt, get_datetime, get_url, now_datetime
 
+from maison_pos.brand import get_brand  # v0.6 N
 from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
 from maison_pos.scoping import assert_boutique_access, is_manager_or_above
 from maison_pos.utils import parse_datetime
@@ -37,10 +38,34 @@ ITEM_FIELDS = [
 	"maison_appraisal_value",
 	"maison_taxable",
 	"maison_barcode",
+	# --- v0.6 N — vertical attributes (smoke shop) ---
+	"maison_brand",
+	"maison_flavor",
+	"maison_nicotine_mg",
+	"maison_volume_ml",
+	"maison_puffs",
+	"maison_age_restricted",
+	"maison_msrp",
+	# --- end v0.6 N ---
 	"modified",
 ]
 
 DEPARTMENTS = ["Timepieces", "High Jewellery", "Bridal", "Accessories", "Services"]
+# v0.6 N — smoke-shop vertical departments (Item.maison_department Select gains these options)
+SMOKE_SHOP_DEPARTMENTS = ["Vape", "Glass", "Hookah", "Kratom & CBD", "Accessories", "Services"]
+
+
+def _departments() -> list[str]:
+	"""v0.6 N — departments actually used by sales items (vertical-neutral), else the legacy list."""
+	used = [
+		r.maison_department
+		for r in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0, "maison_department": ("is", "set")}, fields=["maison_department"], distinct=True)
+		if r.maison_department
+	]
+	if not used:
+		return DEPARTMENTS
+	ordered = [d for d in SMOKE_SHOP_DEPARTMENTS + DEPARTMENTS if d in used]
+	return ordered + sorted(d for d in used if d not in ordered)
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +90,15 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 		"printer_ip": doc.printer_ip,
 		"printer_model": doc.printer_model,
 		"show_product_images": int(doc.get("show_product_images") or 0),
+		# --- v0.6 N — store reality (custom fields, see setup/install_v06.py) ---
+		"boutique_type": doc.get("boutique_type") or "Store",
+		"is_warehouse": int(doc.get("is_warehouse") or 0),
+		"region": doc.get("region"),
+		"timezone": doc.get("timezone") or "America/Chicago",
+		"hours": _parse_hours(doc.get("hours")),
+		"state": doc.get("state"),
+		"zip": doc.get("zip"),
+		# --- end v0.6 N ---
 		"currency": frappe.get_cached_value("Company", doc.company, "default_currency"),
 		# v0.4 A — reader registry (Maison Boutique Reader) for the Settings reader picker / print route
 		"readers": [
@@ -81,6 +115,21 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 		],
 		"damaged_warehouse": doc.get("damaged_warehouse"),
 	}
+
+
+def _parse_hours(raw: Any) -> Optional[dict[str, str]]:
+	"""v0.6 N — ``Maison Boutique.hours`` JSON → dict (None when unset / invalid)."""
+	if not raw:
+		return None
+	if isinstance(raw, dict):
+		return raw
+	try:
+		import json
+
+		value = json.loads(raw)
+		return value if isinstance(value, dict) else None
+	except Exception:
+		return None
 
 
 def _pos_profile_dict(pos_profile: str) -> dict[str, Any]:
@@ -305,7 +354,7 @@ def bootstrap(boutique: str) -> dict[str, Any]:
 		"taxes": _taxes(b["tax_template"]),
 		"modes_of_payment": _modes_of_payment(pos_profile),
 		"item_groups": _item_groups(),
-		"departments": DEPARTMENTS,
+		"departments": _departments(),
 		"items": items,
 		"prices": _prices(price_list),
 		"pricing_rules": _pricing_rules(b["warehouse"]),
@@ -313,8 +362,24 @@ def bootstrap(boutique: str) -> dict[str, Any]:
 		"barcodes": _barcodes(items, serials),
 		"stock": _stock(b["warehouse"]),
 		"loyalty_program": _loyalty_program(b["company"]),
+		# --- v0.6 N/Q — brand tokens + fixed reward tiers ---
+		"brand": get_brand(),
+		"reward_tiers": _reward_tiers(b["company"]),
+		# --- end v0.6 N/Q ---
 		"version": version.isoformat(),
 	}
+
+
+def _reward_tiers(company: str) -> list[dict[str, Any]]:
+	"""v0.6 Q — ``Maison Reward Tier`` rows of the company's program (cheapest first)."""
+	if not frappe.db.exists("DocType", "Maison Reward Tier"):
+		return []
+	from maison_pos.api.rewards import reward_tiers
+
+	try:
+		return reward_tiers(company=company)
+	except Exception:
+		return []
 
 
 @frappe.whitelist()
@@ -351,7 +416,7 @@ def delta(boutique: str, since: str) -> dict[str, Any]:
 		"taxes": _taxes(b["tax_template"]),
 		"modes_of_payment": _modes_of_payment(pos_profile),
 		"item_groups": _item_groups(),
-		"departments": DEPARTMENTS,
+		"departments": _departments(),
 		"items": items,
 		"prices": _prices(price_list, since_s),
 		"pricing_rules": _pricing_rules(b["warehouse"], since_s),

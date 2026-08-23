@@ -69,7 +69,20 @@ RECOGNITION_DEFAULTS: dict[str, Any] = {
 
 
 class MaisonPOSSettings(Document):
+	def on_update(self) -> None:
+		# v0.6 — brand tokens are cached per request
+		try:
+			from maison_pos.brand import clear_brand_cache
+
+			clear_brand_cache()
+		except Exception:
+			pass
+
 	def validate(self) -> None:
+		# --- v0.6 N — brand / age sanity ---
+		if self.get("minimum_age") is not None and cint(self.get("minimum_age")) < 18:
+			frappe.throw(_("Minimum age cannot be below 18"), frappe.ValidationError)
+		# --- end v0.6 N ---
 		self.receipt_qr_base_url = (self.receipt_qr_base_url or "").strip().rstrip("/")
 		self.recognition_model = (self.recognition_model or "").strip() or DEFAULT_MODEL
 		if flt(self.match_threshold) <= 0 or flt(self.match_threshold) > MAX_DISTANCE_THRESHOLD:
@@ -179,6 +192,16 @@ def get_pos_settings(boutique: Optional[str] = None) -> dict[str, Any]:
 	}
 	out.update(get_recognition_settings(boutique))
 	out.update(get_operations_settings())
+	# --- v0.6 N/Q — brand tokens, age verification, rewards switches ---
+	from maison_pos.brand import get_age_settings, get_brand, get_rewards_settings, item_attribute_fields
+
+	brand = get_brand()
+	out["brand"] = brand
+	out["vertical"] = brand["vertical"]
+	out["attribute_fields"] = item_attribute_fields(brand["vertical"])
+	out.update(get_age_settings())
+	out.update(get_rewards_settings())
+	# --- end v0.6 N/Q ---
 	return out
 
 

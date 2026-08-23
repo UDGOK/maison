@@ -44,11 +44,29 @@ def effective_web_mode(item: dict[str, Any] | Any, available_qty: Optional[float
 		mode = "Buy"
 	if not cint(get("is_stock_item", 1)):
 		return "Enquire"
+	# --- v0.6 N — age-restricted items are not sold online unless Head Office enables it (PACT Act / state law) ---
+	if is_age_restricted_online_blocked(item):
+		return "Enquire"
+	# --- end v0.6 N ---
 	if cint(get("has_serial_no")) and mode == "Buy":
 		qty = available_qty if available_qty is not None else chain_stock(get("item_code") or get("name"))
 		if flt(qty) <= 1:
 			return "Enquire"
 	return mode
+
+
+def is_age_restricted_online_blocked(item: dict[str, Any] | Any) -> bool:
+	"""v0.6 N — True when the item is 21+ and ``webshop_age_restricted_sales`` is off ("Available in store")."""
+	get = item.get if isinstance(item, dict) else (lambda k, d=None: getattr(item, k, d))
+	restricted = get("maison_age_restricted")
+	if restricted is None:
+		code = get("item_code") or get("name")
+		restricted = frappe.db.get_value("Item", code, "maison_age_restricted") if code else 0
+	if not cint(restricted):
+		return False
+	from maison_pos.brand import get_age_settings
+
+	return not get_age_settings()["webshop_age_restricted_sales"]
 
 
 def deposit_for(item_code: str, rate: float) -> float:
@@ -60,14 +78,26 @@ def deposit_for(item_code: str, rate: float) -> float:
 # availability
 # ---------------------------------------------------------------------------
 def boutiques(enabled_only: bool = True) -> list[dict[str, Any]]:
-	filters = {"enabled": 1} if enabled_only else {}
-	rows = frappe.get_all(
-		"Maison Boutique",
-		filters=filters,
-		fields=["name", "boutique_name", "city", "address_line", "phone", "email", "warehouse", "company"],
-		order_by="boutique_name asc",
-	)
-	return rows
+	filters: dict[str, Any] = {"enabled": 1} if enabled_only else {}
+	fields = ["name", "boutique_name", "city", "address_line", "phone", "email", "warehouse", "company"]
+	# --- v0.6 N — the HOU-WH warehouse row is not a store: never a collection point ---
+	meta = frappe.get_meta("Maison Boutique")
+	extra = [f for f in ("is_warehouse", "boutique_type", "region", "hours", "timezone", "state", "zip") if meta.has_field(f)]
+	rows = frappe.get_all("Maison Boutique", filters=filters, fields=fields + extra, order_by="boutique_name asc")
+	out = []
+	for r in rows:
+		if cint(r.get("is_warehouse")) or r.get("boutique_type") == "Warehouse":
+			continue
+		if r.get("hours"):
+			try:
+				import json
+
+				r["hours"] = json.loads(r["hours"]) if isinstance(r["hours"], str) else r["hours"]
+			except Exception:
+				r["hours"] = None
+		out.append(r)
+	return out
+	# --- end v0.6 N ---
 
 
 def chain_stock(item_code: str) -> float:

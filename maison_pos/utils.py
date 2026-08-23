@@ -186,7 +186,20 @@ def get_receipt_context(doc) -> dict[str, Any]:
 	client_number = frappe.db.get_value("Customer", doc.customer, "maison_client_number") if doc.customer else None
 	token = doc.get("maison_receipt_token")
 
+	# --- v0.6 N/Q — rewards extras (next reward, giveaway entries) + age gate ---
+	rewards = None
+	try:
+		from maison_pos.api.rewards import receipt_extras
+
+		rewards = receipt_extras(doc)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Maison receipt rewards extras")
+	from maison_pos.brand import get_age_settings
+
+	# --- end v0.6 N/Q ---
 	return {
+		"rewards": rewards,
+		"age_minimum": get_age_settings()["minimum_age"],
 		"boutique": boutique,
 		"associate_name": associate_name,
 		"tier": tier,
@@ -301,7 +314,15 @@ def receipt_payload(doc) -> dict[str, Any]:
 			"tier": ctx["tier"],
 			"points_earned": flt(ctx["points_earned"]),
 			"points_balance": flt(ctx["points_balance"]),
+			# v0.6 Q
+			"next_reward": (ctx.get("rewards") or {}).get("next_reward"),
+			"giveaway_entries": (ctx.get("rewards") or {}).get("giveaway_entries") or 0,
+			"giveaway": (ctx.get("rewards") or {}).get("giveaway"),
+			"reward_tier": (ctx.get("rewards") or {}).get("reward_tier"),
 		},
+		# v0.6 N/Q — brand + age
+		"brand": get_brand_context(),
+		"age_verified": int(doc.get("maison_age_verified") or 0),
 		"lines": lines,
 		"totals": {
 			"net_total": flt(doc.net_total),
@@ -351,3 +372,20 @@ def parse_datetime(value: Any):
 		if "+" in value[10:]:
 			value = value[: value.index("+", 10)]
 	return get_datetime(value)
+
+
+# ---------------------------------------------------------------------------
+# v0.6 N — brand tokens for templates (receipt header / footer, e-mails, shop)
+# ---------------------------------------------------------------------------
+def get_brand_context() -> dict[str, Any]:
+	"""Jinja helper: ``brand`` dict + receipt header/footer lines."""
+	from maison_pos.brand import get_brand, get_rewards_settings
+
+	b = dict(get_brand())
+	b["receipt_header"] = b["brand_name"]
+	b["rewards_program_name"] = get_rewards_settings()["rewards_program_name"]
+	if b.get("vertical") == "Jewellery":
+		b["receipt_footer"] = "Exchanges within 30 days with receipt. Bespoke and engraved pieces are final sale."
+	else:
+		b["receipt_footer"] = "Exchanges within 30 days with receipt on unopened items. Opened vape, e-liquid and kratom products are final sale. Must be 21+ to purchase."
+	return b

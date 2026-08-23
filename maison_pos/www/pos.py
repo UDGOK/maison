@@ -57,7 +57,11 @@ def get_context(context: dict) -> dict:
 
     context.no_cache = 1
     context.no_breadcrumbs = 1
-    context.title = "Maison POS"
+    from maison_pos.brand import get_brand  # v0.6 N
+
+    brand = get_brand()
+    context.brand = brand
+    context.title = brand["product_name"]
     context.csrf_token = frappe.sessions.get_csrf_token()
     context.site_user = frappe.session.user
 
