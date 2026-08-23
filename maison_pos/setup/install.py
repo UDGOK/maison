@@ -143,6 +143,40 @@ def ensure_rounding_method() -> None:
 		frappe.clear_cache()
 
 
+def ensure_launcher_home_page() -> None:
+	"""Point the website home page at the branded ``/start`` launcher. Idempotent.
+
+	Frappe sends System Users to ``/app`` after login, so staff who sign in land on the
+	ERPNext desk instead of the till. ``/start`` lists the screens their roles allow;
+	making it the site home page means one URL gets anyone to the right place.
+	Only set when the home page is still Frappe's default, so a client that has chosen
+	its own landing page is never overridden.
+	"""
+	try:
+		settings = frappe.get_single("Website Settings")
+	except Exception:
+		return
+	current = (settings.home_page or "").strip("/")
+	if current in ("", "home", "index", "login"):
+		settings.home_page = "start"
+		settings.flags.ignore_permissions = True
+		settings.save(ignore_permissions=True)
+
+	# Post-login destination for System Users. Frappe reads it from the apps screen
+	# (see hooks.add_to_apps_screen), so with default_app set an associate signing in
+	# lands on /start instead of the ERPNext desk. Only set when unset, so a client
+	# that has chosen its own default app is never overridden.
+	try:
+		system_settings = frappe.get_single("System Settings")
+		if not (system_settings.get("default_app") or "").strip():
+			system_settings.default_app = "maison_pos"
+			system_settings.flags.ignore_permissions = True
+			system_settings.save(ignore_permissions=True)
+	except Exception:
+		# `default_app` was added in a later v15 patch level; harmless when missing
+		pass
+
+
 def after_install() -> None:
 	create_roles()
 	create_custom_fields_from_fixture()
@@ -173,6 +207,8 @@ def after_install() -> None:
 
 	setup_v06_shipping()
 	# --- end v0.6 O/P ---
+	# v0.6 — one URL that gets staff to their screen
+	ensure_launcher_home_page()
 	frappe.db.commit()
 
 
@@ -206,4 +242,6 @@ def after_migrate() -> None:
 
 	setup_v06_shipping()
 	# --- end v0.6 O/P ---
+	# v0.6 — one URL that gets staff to their screen
+	ensure_launcher_home_page()
 	frappe.db.commit()

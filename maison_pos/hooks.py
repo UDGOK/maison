@@ -19,6 +19,34 @@ required_apps = ["erpnext", "hrms"]
 # ---------------------------------------------------------------------------
 # Website / PWA shell
 # ---------------------------------------------------------------------------
+# --- v0.6: land every signed-in user on the branded launcher, not the ERPNext desk ---
+# Frappe resolves the post-login destination from the apps screen: registering the app
+# with `route` and setting System Settings.default_app = "maison_pos" (see
+# setup/install.ensure_launcher_home_page) sends staff to /start, which lists exactly
+# the screens their roles allow.
+add_to_apps_screen = [
+	{
+		"name": "maison_pos",
+		"logo": "/assets/maison_pos/pos/icons/apple-touch-icon.png",
+		"title": "Point of Sale",
+		"route": "/start",
+	}
+]
+# --- end v0.6 apps screen ---
+
+# --- v0.6: land each role on its own screen instead of the ERPNext desk ---
+# Frappe checks these in order and uses the first role the user has. Head Office
+# and Regional get the Command dashboard, the warehouse admin the shipping desk,
+# and store staff the till — so a demo login never dead-ends on /app.
+role_home_page = {
+	"Maison Head Office": "maison-dashboard",
+	"Maison Regional": "maison-dashboard",
+	"Maison Warehouse Admin": "warehouse",
+	"Maison Manager": "pos",
+	"Maison Associate": "pos",
+}
+# --- end v0.6 role home pages ---
+
 website_route_rules = [
 	{"from_route": "/pos/<path:app_path>", "to_route": "pos"},
 	{"from_route": "/maison-dashboard/<path:app_path>", "to_route": "maison-dashboard"},

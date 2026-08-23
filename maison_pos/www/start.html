@@ -1,0 +1,75 @@
+{% extends "templates/web.html" %}
+{% block title %}{{ product_name }}{% endblock %}
+
+{% block head_include %}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Jost:wght@300;400;500&display=swap">
+<style>
+  :root{
+    --ground:#0B0B0A; --surface:#141311; --line:#26231F; --line-2:#36322C;
+    --text:#EFE8DA; --muted:#B3AA99; --dim:#7D7668; --accent:#C9A96E; --accent-deep:#A8884E;
+  }
+  html,body{background:var(--ground);color:var(--text);margin:0;font-family:'Jost',system-ui,sans-serif;font-weight:300}
+  .page_content,.container,main{background:var(--ground)!important}
+  .navbar,.web-footer,footer,.page-header{display:none!important}
+  a{color:inherit;text-decoration:none}
+  .ms-wrap{max-width:1120px;margin:0 auto;padding:64px 24px 96px}
+  .ms-head{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:40px}
+  .ms-wordmark{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(28px,5vw,54px);
+    letter-spacing:.14em;line-height:1;margin:0;color:var(--text)}
+  .ms-sub{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-top:14px;font-weight:500}
+  .ms-tag{color:var(--dim);font-size:14px;margin-top:8px}
+  .ms-who{margin-top:22px;font-size:13px;color:var(--muted)}
+  .ms-who b{color:var(--text);font-weight:500}
+  .ms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+  .ms-card{background:var(--surface);padding:26px 24px;display:flex;flex-direction:column;gap:10px;min-height:132px;
+    transition:background .15s ease}
+  .ms-card:hover,.ms-card:focus-visible{background:#1B1916;outline:none}
+  .ms-card:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+  .ms-card h2{font-family:'Unbounded',sans-serif;font-weight:700;font-size:16px;letter-spacing:.02em;margin:0;color:var(--text)}
+  .ms-card p{margin:0;font-size:14px;color:var(--muted);line-height:1.5}
+  .ms-card .ms-route{margin-top:auto;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+  .ms-signin{display:inline-block;margin-top:24px;background:var(--accent);color:var(--ground);
+    font-weight:500;letter-spacing:.2em;text-transform:uppercase;font-size:12px;padding:16px 28px}
+  .ms-signin:hover{background:var(--accent-deep)}
+  .ms-foot{margin-top:40px;font-size:12px;color:var(--dim);display:flex;gap:22px;flex-wrap:wrap}
+  .ms-foot a{border-bottom:1px solid var(--line-2);padding-bottom:2px}
+  .ms-foot a:hover{color:var(--accent);border-color:var(--accent)}
+  @media (max-width:520px){.ms-wrap{padding:40px 18px 64px}}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="ms-wrap">
+  <div class="ms-head">
+    <h1 class="ms-wordmark">{{ wordmark }}</h1>
+    <div class="ms-sub">{{ product_name }}</div>
+    {% if tagline %}<div class="ms-tag">{{ tagline }}</div>{% endif %}
+    {% if is_guest %}
+      <div class="ms-who">Sign in to open the till, the dashboard or the warehouse.</div>
+      <a class="ms-signin" href="/login?redirect-to=/start">Sign in</a>
+    {% else %}
+      <div class="ms-who">Signed in as <b>{{ user_name }}</b>{% if store %} · {{ store }}{% endif %}
+        &nbsp;·&nbsp; <a href="/api/method/logout" style="color:var(--dim);border-bottom:1px solid var(--line-2)">Sign out</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="ms-grid">
+    {% for s in screens %}
+    <a class="ms-card" href="{{ s.route }}">
+      <h2>{{ s.title }}</h2>
+      <p>{{ s.blurb }}</p>
+      <span class="ms-route">{{ s.route }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if not is_guest %}
+  <div class="ms-foot">
+    <a href="/shop">Online store</a>
+    <a href="/rewards">Rewards</a>
+    <a href="/app">Admin desk</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

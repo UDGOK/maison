@@ -307,3 +307,26 @@ class TestSiteTimezoneRepair(FrappeTestCase):
 		status = repair.site_timezone_status()
 		self.assertEqual(status["time_zone"], "America/Chicago")
 		self.assertEqual(status["future"]["Stock Entry"], 0)
+
+
+class TestWarehouseNotATill(FrappeTestCase):
+	"""v0.6 R — the POS store picker must never offer a warehouse row.
+
+	`HOU-WH` is a Maison Boutique so shipments and receiving can address it. Offering it in
+	`session.me()` let someone ring a sale out of the warehouse, and left the warehouse-only
+	admin looking at a store list they could never unlock.
+	"""
+
+	def test_me_excludes_warehouse_boutiques(self):
+		from maison_pos.api import session as session_api
+		from maison_pos.scoping import warehouse_boutiques
+
+		warehouses = set(warehouse_boutiques())
+		if not warehouses:
+			self.skipTest("no warehouse boutique on this site")
+		frappe.set_user("Administrator")
+		offered = {b["name"] for b in session_api.me()["boutiques"]}
+		self.assertFalse(
+			offered & warehouses,
+			f"POS store picker offered warehouse row(s): {sorted(offered & warehouses)}",
+		)

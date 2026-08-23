@@ -52,6 +52,14 @@ onMounted(async () => {
   if (!selectedAssociate.value && session.associates.length) selectedAssociate.value = session.associates[0].name
 })
 
+/** Whose PIN the keypad is checking — shown beside the PIN label so the wrong person is obvious. */
+/** No retail till for this account (e.g. the warehouse admin) — offer their screens instead. */
+const noStores = computed(() => !session.boutiqueList.length && !session.boutique)
+
+const selectedAssociateName = computed(
+  () => session.associates.find((a) => a.name === selectedAssociate.value)?.full_name || '',
+)
+
 const brand = useBrand() // v0.6 N
 
 /**
@@ -138,7 +146,10 @@ async function tryUnlock() {
 }
 
 function fail() {
-  error.value = 'Incorrect PIN'
+  // Name the person the PIN is being checked against: every associate has their own PIN,
+  // and the commonest unlock failure is typing one associate's PIN while another is selected.
+  const who = session.associates.find((a) => a.name === selectedAssociate.value)?.full_name
+  error.value = who ? `Incorrect PIN for ${who}` : 'Incorrect PIN'
   shake.value = true
   pin.value = ''
   setTimeout(() => (shake.value = false), 400)
@@ -167,7 +178,24 @@ function fail() {
     </div>
 
     <div class="right">
-      <div class="panel">
+      <!-- v0.6 R: a warehouse-only user (the shipping admin) has no store to unlock; send them to
+           their own desk instead of a picker they can never use. -->
+      <div v-if="noStores" class="panel">
+        <div class="no-store">
+          <h2>No {{ brand.storeNoun.toLowerCase() }} to open</h2>
+          <p>
+            This account isn't assigned to a {{ brand.storeNoun.toLowerCase() }} till. If you run the
+            warehouse, your screens are the shipping desk and the wall board.
+          </p>
+          <div class="no-store-links">
+            <a class="btn btn-primary" href="/warehouse">Warehouse desk</a>
+            <a class="btn" href="/warehouse-wall">Shipping wall</a>
+            <a class="btn" href="/start">All screens</a>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="panel">
         <div class="field">
           <label class="label">{{ brand.storeNoun }}</label>
           <!-- v0.6 R: the picker owns the full panel width — beside a "Load" button the option text
@@ -205,7 +233,10 @@ function fail() {
             <button class="seg-btn label" :class="{ on: action === 'out' }" :disabled="!onShift" data-testid="action-clock-out" @click="action = 'out'">Clock out</button>
           </div>
           <div class="field">
-            <label class="label">{{ action === 'in' ? 'PIN to clock in' : action === 'out' ? 'PIN to clock out' : 'PIN' }}</label>
+            <label class="label">
+              {{ action === 'in' ? 'PIN to clock in' : action === 'out' ? 'PIN to clock out' : 'PIN' }}
+              <span v-if="selectedAssociateName" class="pin-who">&middot; {{ selectedAssociateName }}</span>
+            </label>
             <div class="pin" :class="{ shake }">
               <span v-for="i in 6" :key="i" class="pin-dot" :class="{ on: i <= pin.length, idle: i > 4 && pin.length < 4 }"></span>
             </div>
@@ -221,6 +252,38 @@ function fail() {
 </template>
 
 <style scoped>
+.no-store {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.no-store h2 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  margin: 0;
+}
+.no-store p {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.55;
+}
+.no-store-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+.no-store-links .btn {
+  text-decoration: none;
+  text-align: center;
+}
+
+.pin-who {
+  color: var(--accent);
+  letter-spacing: 0.12em;
+}
+
 .unlock {
   height: 100%;
   display: grid;

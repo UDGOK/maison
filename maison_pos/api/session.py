@@ -7,7 +7,7 @@ from typing import Any
 import frappe
 
 from maison_pos import __version__
-from maison_pos.scoping import get_allowed_boutiques, get_associate, is_unrestricted
+from maison_pos.scoping import get_allowed_boutiques, get_associate, get_retail_boutiques, is_unrestricted
 
 
 @frappe.whitelist()
@@ -17,7 +17,11 @@ def me() -> dict[str, Any]:
 	if user == "Guest":
 		frappe.throw(frappe._("Authentication required"), frappe.AuthenticationError)
 	assoc = get_associate(user)
-	boutiques = get_allowed_boutiques(user)
+	# The till sells; the warehouse does not. `HOU-WH` is a Maison Boutique so shipments and
+	# receiving can address it, but offering it in the POS store picker lets someone ring a sale
+	# out of the warehouse — and leaves a warehouse-only user (the shipping admin) staring at a
+	# store list they can never unlock. The warehouse desk lives at /warehouse instead.
+	boutiques = get_retail_boutiques(user)
 	return {
 		"user": user,
 		"full_name": frappe.db.get_value("User", user, "full_name"),
