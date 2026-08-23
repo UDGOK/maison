@@ -1,6 +1,6 @@
 {
   "base": "http://maison.localhost:8000",
-  "run": "WZF66",
+  "run": "EG6I8",
   "results": [
     {
       "step": "recognition enabled for CHI-OAK via API (Administrator)",
@@ -10,7 +10,7 @@
     {
       "step": "dashboard live_summary exposes recognition counters",
       "ok": true,
-      "detail": "{\"matched_today\":11,\"enrolled_today\":12,\"nomatch_today\":15,\"declined_today\":7,\"undone_today\":6}"
+      "detail": "{\"matched_today\":3,\"enrolled_today\":4,\"nomatch_today\":5,\"declined_today\":2,\"undone_today\":2}"
     },
     {
       "step": "tile reaches Looking (camera + models served by the bench)",
@@ -35,42 +35,42 @@
     {
       "step": "enrolment completed and client attached to the sale",
       "ok": true,
-      "detail": "3 real captures · attached \"Nadia Okafor WZF66\""
+      "detail": "3 real captures · attached \"Nadia Okafor EG6I8\""
     },
     {
       "step": "server: Customer created by phone",
       "ok": true,
-      "detail": "Nadia Okafor WZF66 MC285260 consent=1"
+      "detail": "Nadia Okafor EG6I8 MC773735 consent=1"
     },
     {
       "step": "server: Active consent (Hold-to-agree, current text version)",
       "ok": true,
-      "detail": "{\"name\":\"MBC-2026-00013\",\"captured_at\":\"2026-08-22 17:52:53.667759\",\"consent_text_version\":\"2026-08-1\",\"method\":\"Hold-to-agree\",\"boutique\":\"CHI-OAK\"}"
+      "detail": "{\"name\":\"MBC-2026-00021\",\"captured_at\":\"2026-08-23 02:01:51.334112\",\"consent_text_version\":\"2026-08-1\",\"method\":\"Hold-to-agree\",\"boutique\":\"CHI-OAK\"}"
     },
     {
       "step": "server: 3 face templates (128-d raw descriptors, no images)",
       "ok": true,
-      "detail": "status.templates=3 rows=3 ‖d‖=1.58/1.58/1.58 (raw, not unit-normalised)"
+      "detail": "status.templates=3 rows=3 ‖d‖=1.59/1.57/1.58 (raw, not unit-normalised)"
     },
     {
       "step": "server: Recognition Event Enrolled logged",
       "ok": true,
-      "detail": "1gpmm0b8gt device=dev-59cc827c"
+      "detail": "00qfkn74l1 device=dev-956b054e"
     },
     {
       "step": "same face after reload → Recognised (euclidean distance < threshold)",
       "ok": true,
-      "detail": "real detection · Nadia Okafor WZF66 d=0.105 score=0.912 threshold=0.6 source=local local d=0.105 server d=0.105"
+      "detail": "real detection · Nadia Okafor EG6I8 d=0.147 score=0.877655 threshold=0.6 source=server local d=0.147 server d=0.147"
     },
     {
       "step": "score is the display mapping 1 − d/1.2 (rounded)",
       "ok": true,
-      "detail": "score=0.912 expected=0.912"
+      "detail": "score=0.877655 expected=0.878"
     },
     {
       "step": "chip shows \"Recognised · nn %\"",
       "ok": true,
-      "detail": "Recognised · 91%"
+      "detail": "Recognised · 88%"
     },
     {
       "step": "Undo offered within 5 s",
@@ -85,7 +85,7 @@
     {
       "step": "server: Matched + Undone events logged",
       "ok": true,
-      "detail": "matched=1 (score 0.9123) undone=1 (score 0.912)"
+      "detail": "matched=1 (score 0.8777) undone=1 (score 0.8777)"
     },
     {
       "step": "different face (B) against A's templates → New client (no false match)",
@@ -95,17 +95,17 @@
     {
       "step": "decline: client created + attached WITHOUT biometrics",
       "ok": true,
-      "detail": "attached \"Theo Brandt WZF66\" · Theo Brandt WZF66 consent=0 templates=0 consents=0"
+      "detail": "attached \"Theo Brandt EG6I8\" · Theo Brandt EG6I8 consent=0 templates=0 consents=0"
     },
     {
       "step": "server: Recognition Event Declined logged",
       "ok": true,
-      "detail": "1jsrkupgv0"
+      "detail": "0en9v4rlgf"
     },
     {
       "step": "client screen shows \"Face recognition: enrolled <date>\" with manager Delete",
       "ok": true,
-      "detail": "Face recognition: enrolled Aug 22, 2026Consent on file · templates only, no imagesDelete"
+      "detail": "Face recognition: enrolled Aug 23, 2026Consent on file · templates only, no imagesDelete"
     },
     {
       "step": "after revoke the client screen shows not enrolled",
@@ -135,7 +135,7 @@
     {
       "step": "offline: enrolment queued in pending_enrolments, provisional client attached",
       "ok": true,
-      "detail": "real captures · pending=1 attached \"Offline Client WZF66\""
+      "detail": "real captures · pending=1 attached \"Offline Client EG6I8\""
     },
     {
       "step": "server: nothing created while offline",
@@ -145,12 +145,12 @@
     {
       "step": "reconnect: queue replayed → Customer + consent + 3 templates server-side; real client swapped onto the basket",
       "ok": true,
-      "detail": "pending=0 Offline Client WZF66 templates=3 consent=MBC-2026-00014 attached \"Offline Client WZF66\" after 3s"
+      "detail": "pending=0 Offline Client EG6I8 templates=3 consent=MBC-2026-00022 attached \"Offline Client EG6I8\" after 3s"
     },
     {
       "step": "dashboard live_summary.recognition counters incremented",
       "ok": true,
-      "detail": "delta {\"matched_today\":2,\"enrolled_today\":2,\"nomatch_today\":2,\"declined_today\":1,\"undone_today\":1} · now {\"matched_today\":13,\"enrolled_today\":14,\"nomatch_today\":17,\"declined_today\":8,\"undone_today\":7}"
+      "detail": "delta {\"matched_today\":2,\"enrolled_today\":2,\"nomatch_today\":2,\"declined_today\":1,\"undone_today\":1} · now {\"matched_today\":5,\"enrolled_today\":6,\"nomatch_today\":7,\"declined_today\":3,\"undone_today\":3}"
     },
     {
       "step": "recognition switched off again for the dev site",

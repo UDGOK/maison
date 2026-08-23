@@ -16,6 +16,7 @@ import { remainingMs } from '@/salon/pairing'
 import { sanitizeState } from '@/salon/mask'
 import { getSetting, setSetting } from '@/db'
 import { useCartStore } from './cart'
+import { useAgeStore } from './age' // v0.6 N
 import { useSessionStore } from './session'
 import { useCatalogStore } from './catalog'
 import { useSyncStore } from './sync'
@@ -415,6 +416,10 @@ export const useSalonPosStore = defineStore('salon', {
       const totals = { net_total: t.net_total, discount: t.discount, total_taxes: t.total_taxes, tax_rate: catalog.taxRate, loyalty_amount: t.loyalty_amount, grand_total: t.grand_total, currency: session.currency }
       const base: Record<string, unknown> = { customer, lines, totals, points_earned: cart.pointsEarned, focus_line: this.focusLine, associate_first_name: session.associate?.full_name?.split(' ')[0] }
       if (!session.unlocked) return { screen: 'idle', payload: {} }
+      // --- v0.6 N: the POS is asking for an ID → "Please present your ID" on the client display ---
+      const ageState = useAgeStore().salonState
+      if (ageState) return { screen: 'age_check', payload: { ...base, age: ageState } }
+      // --- end v0.6 N ---
       if (this.consentStep && customer) return { screen: 'consent', payload: { customer, step: this.consentStep, captured: this.consentCaptured, camera: 1 } }
       if (route === 'pay') return { screen: this.pay?.step === 'approved' ? 'approved' : 'pay', payload: { ...base, pay: this.pay || { mode: 'cash', amount: t.grand_total } } }
       if (route === 'receipt') return { screen: 'receipt', payload: { customer: this.receipt ? (this.receipt as { customer?: string }).customer || null : null, receipt: this.receipt, receipt_token: this.receipt?.receipt_token || null, sales_invoice: this.receipt?.sales_invoice || null, points_earned: this.receipt?.points_earned || 0, totals: { ...totals, grand_total: this.receipt?.grand_total ?? t.grand_total } } }
@@ -449,7 +454,7 @@ export const useSalonPosStore = defineStore('salon', {
         }
       )
       watch(
-        () => [lineSig, cart.customer?.name, cart.loyalty_points_redeemed, cart.totals.grand_total, router.currentRoute.value.name, useSessionStore().unlocked, this.pay?.step, this.receipt?.receipt_token, this.concierge, this.identifyRequested, this.consentStep],
+        () => [lineSig, cart.customer?.name, cart.loyalty_points_redeemed, cart.totals.grand_total, router.currentRoute.value.name, useSessionStore().unlocked, this.pay?.step, this.receipt?.receipt_token, this.concierge, this.identifyRequested, this.consentStep, useAgeStore().open, useAgeStore().last?.outcome, this.receipt?.next_reward, this.receipt?.giveaway_entries], // v0.6 N/Q: age gate + rewards lines
         () => this.schedule(),
         { immediate: true }
       )

@@ -22,6 +22,8 @@ import { useRecognitionStore } from '@/stores/recognition'
 import { watch } from 'vue'
 import SuggestionTiles from './SuggestionTiles.vue'
 import { useInsightsStore } from '@/stores/insights'
+import { affordableTiers, nextReward } from '@/api/v06' // v0.6 Q
+import { useBrand } from '@/stores/brand' // v0.6 N
 // --- end v0.4 H ---
 
 const cart = useCartStore()
@@ -63,7 +65,28 @@ const lookupError = ref('')
 const pointsValue = computed(() =>
   cart.customer ? (typeof cart.customer.points_value === 'number' ? cart.customer.points_value : cart.customer.loyalty_points * (catalog.loyalty?.conversion_factor || 0)) : 0
 )
-const redeemOn = computed(() => cart.loyalty_points_redeemed > 0)
+const redeemOn = computed(() => cart.loyalty_points_redeemed > 0 || cart.reward_tiers.length > 0)
+// --- v0.6 Q: fixed reward tiers ($5 / 100, $10 / 200, $15 / 300) replace free-form point redemption when the program defines them ---
+const brand = useBrand()
+const hasTiers = computed(() => catalog.reward_tiers.length > 0)
+const tiersOpen = ref(false)
+const affordable = computed(() => affordableTiers(cart.customer?.loyalty_points || 0, catalog.reward_tiers))
+const nextTier = computed(() => nextReward(cart.customer?.loyalty_points || 0, catalog.reward_tiers))
+const allowStacking = computed(() => catalog.age.reward_allow_stacking)
+function openRedeem() {
+  if (!cart.customer) return
+  if (hasTiers.value) tiersOpen.value = true
+  else {
+    redeemPts.value = String(cart.loyalty_points_redeemed || cart.maxRedeemable)
+    redeemOpen.value = true
+  }
+}
+function pickTier(t: (typeof affordable.value)[number]) {
+  if (cart.reward_tiers.some((x) => x.name === t.name)) cart.removeTier(t.name)
+  else cart.redeemTier(t, allowStacking.value)
+  if (!allowStacking.value) tiersOpen.value = false
+}
+// --- end v0.6 Q ---
 
 function padKey(k: string) {
   lookupError.value = ''
@@ -98,7 +121,14 @@ async function scanClient() {
   if (c) cart.setCustomer(c)
 }
 function toggleRedeem() {
-  if (!cart.customer || !cart.maxRedeemable) return
+  if (!cart.customer) return
+  // v0.6 Q: with fixed tiers the switch opens the tier picker (or clears the picked tier)
+  if (hasTiers.value) {
+    if (cart.reward_tiers.length) cart.redeemTier(null)
+    else tiersOpen.value = true
+    return
+  }
+  if (!cart.maxRedeemable) return
   cart.redeem(redeemOn.value ? 0 : cart.maxRedeemable)
 }
 
@@ -167,7 +197,15 @@ function charge() {
           </div>
           <TierProgress v-if="loyaltyStore.forCustomer(cart.customer.name)" :loyalty="loyaltyStore.forCustomer(cart.customer.name)" :currency="session.currency" compact class="client-tier" />
           <div class="client-actions">
-            <button class="redeem" :class="{ on: redeemOn }" :disabled="!cart.maxRedeemable" @click="toggleRedeem">
+            <!-- v0.6 Q: "Redeem" with fixed tiers when the program defines them -->
+            <button v-if="hasTiers" class="redeem" :class="{ on: redeemOn }" :disabled="!affordable.length && !cart.reward_tiers.length" data-testid="redeem-btn" @click="toggleRedeem">
+              <span class="switch" :class="{ on: redeemOn }"></span>
+              <span class="redeem-txt">
+                Redeem
+                <span class="dim small" data-testid="redeem-sub">{{ cart.reward_tiers.length ? cart.reward_tiers.map((t) => t.title).join(' + ') : affordable.length ? affordable.length + ' reward' + (affordable.length > 1 ? 's' : '') + ' available' : nextTier ? fmtInt(nextTier.points_needed) + ' pts to ' + nextTier.title : 'nothing to redeem' }}</span>
+              </span>
+            </button>
+            <button v-else class="redeem" :class="{ on: redeemOn }" :disabled="!cart.maxRedeemable" @click="toggleRedeem">
               <span class="switch" :class="{ on: redeemOn }"></span>
               <span class="redeem-txt">
                 Redeem points
@@ -272,8 +310,8 @@ function charge() {
         <div v-if="promos.promoTotal" class="trow" data-testid="promo-total"><span class="label">Promotions</span><span class="good">&minus;{{ fmtMoney(promos.promoTotal, session.currency) }}</span></div>
         <div v-if="promos.coupon && promos.couponTotal" class="trow" data-testid="coupon-total"><span class="label">Coupon {{ promos.coupon.code }}</span><span class="good">&minus;{{ fmtMoney(promos.couponTotal, session.currency) }}</span></div>
         <div class="trow"><span class="label">Tax {{ catalog.taxRate }}%</span><span>{{ fmtMoney(cart.totals.total_taxes, session.currency) }}</span></div>
-        <button class="trow loyalty" :disabled="!cart.customer || !cart.maxRedeemable" @click="redeemPts = String(cart.loyalty_points_redeemed || cart.maxRedeemable); redeemOpen = true">
-          <span class="label">Loyalty<span v-if="cart.loyalty_points_redeemed"> &middot; {{ fmtInt(cart.loyalty_points_redeemed) }} pts</span></span>
+        <button class="trow loyalty" :disabled="!cart.customer || (!cart.maxRedeemable && !hasTiers)" data-testid="loyalty-row" @click="openRedeem">
+          <span class="label">{{ hasTiers ? 'Reward' : 'Loyalty' }}<span v-if="cart.reward_tiers.length"> &middot; {{ fmtInt(cart.rewardPoints) }} pts</span><span v-else-if="cart.loyalty_points_redeemed"> &middot; {{ fmtInt(cart.loyalty_points_redeemed) }} pts</span></span>
           <span :class="cart.totals.loyalty_amount ? 'good' : 'dim'">{{ cart.totals.loyalty_amount ? '−' + fmtMoney(cart.totals.loyalty_amount, session.currency) : 'Adjust' }}</span>
         </button>
         <div class="hr"></div>
@@ -314,6 +352,24 @@ function charge() {
       </template>
     </Modal>
 
+    <!-- v0.6 Q: tier picker — only the tiers the client can afford, one per transaction unless stacking is enabled -->
+    <Modal v-if="tiersOpen" :title="'Redeem · ' + brand.programName" width="460px" @close="tiersOpen = false">
+      <div class="stack" data-testid="redeem-sheet">
+        <div class="muted">{{ cart.customer?.customer_name }} has <b>{{ fmtInt(cart.customer?.loyalty_points || 0) }} points</b>.<template v-if="!allowStacking"> One reward per transaction.</template></div>
+        <div v-if="!affordable.length" class="muted" data-testid="redeem-none">No reward yet<template v-if="nextTier"> — {{ fmtInt(nextTier.points_needed) }} more points to {{ nextTier.title }}</template>.</div>
+        <div class="tiers">
+          <button v-for="t in affordable" :key="t.name" class="tier" :class="{ on: cart.reward_tiers.some((x) => x.name === t.name) }" :data-testid="'tier-' + t.points" @click="pickTier(t)">
+            <span class="tier-amt num">{{ fmtMoney(t.amount, session.currency) }} off</span>
+            <span class="label">{{ t.points }} points</span>
+          </button>
+        </div>
+        <div v-if="nextTier && affordable.length" class="muted small">Next: {{ nextTier.title }} ({{ fmtInt(nextTier.points_needed) }} to go)</div>
+      </div>
+      <template #footer>
+        <button class="btn" data-testid="redeem-clear" @click="cart.redeemTier(null); tiersOpen = false">None</button>
+        <button class="btn btn-primary" data-testid="redeem-done" @click="tiersOpen = false">Done</button>
+      </template>
+    </Modal>
     <Modal v-if="redeemOpen" title="Redeem points" width="420px" @close="redeemOpen = false">
       <div class="stack">
         <div class="muted">
@@ -334,6 +390,31 @@ function charge() {
 </template>
 
 <style scoped>
+/* v0.6 Q — reward tier picker */
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  border: var(--line-w) solid var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.tier.on {
+  border-color: var(--accent);
+  background: rgba(201, 162, 77, 0.12);
+}
+.tier-amt {
+  font-size: 20px;
+  color: var(--accent);
+}
 .promo-row {
   padding: 0 16px 10px;
 }

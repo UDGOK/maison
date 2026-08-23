@@ -262,10 +262,50 @@ def open_giveaways(boutique: Optional[str], date: Any = None) -> list[dict[str, 
 	return [r for r in rows if not r.boutique or r.boutique == boutique]
 
 
+def rebase_points_on_net(doc) -> None:
+	"""Re-price the Loyalty Point Entry ERPNext just wrote onto the **net** amount.
+
+	The programme is "$1 = 1 point" on what the client actually spends on goods, and the public
+	copy on ``/rewards`` says so ("earned on the net amount paid (before tax)"). ERPNext accrues on
+	``grand_total - loyalty_amount``, i.e. **including** sales tax, which would quietly hand out
+	8–9.5% more points than the programme promises. ERPNext creates the entry in its own
+	``on_submit``; ours runs after it, so correct the row rather than re-implementing the accrual.
+	"""
+	program = doc.get("loyalty_program")
+	if not program or doc.get("is_return"):
+		return
+	# A redeeming invoice carries TWO entries: the accrual and a negative redemption row pointing at
+	# the entries it consumed (`redeem_against`). Only the accrual is re-priced.
+	entry = frappe.db.get_value(
+		"Loyalty Point Entry",
+		# `redeem_against` is NULL on an accrual row, and SQL `IN ('', NULL)` never matches NULL
+		{"invoice": doc.name, "invoice_type": doc.doctype, "redeem_against": ("is", "not set"), "loyalty_points": (">", 0)},
+		["name", "loyalty_points"],
+		as_dict=True,
+	)
+	if not entry:
+		return
+	collection = flt(frappe.db.get_value("Loyalty Program Collection", {"parent": program}, "collection_factor")) or 1.0
+	eligible = flt(doc.net_total) - flt(doc.get("loyalty_amount"))
+	points = cint(max(0.0, eligible) / collection)
+	if points == cint(entry.loyalty_points):
+		return
+	frappe.db.set_value(
+		"Loyalty Point Entry",
+		entry.name,
+		{"loyalty_points": points, "purchase_amount": max(0.0, eligible)},
+		update_modified=False,
+	)
+
+
 def on_invoice_submit(doc, method: Optional[str] = None) -> None:
-	"""Sales Invoice on_submit: giveaway entries for member sales; link the age-check row."""
+	"""Sales Invoice on_submit: points on the net amount, giveaway entries, age-check link."""
 	if not doc.get("is_pos") or doc.get("is_return"):
 		return
+	try:
+		rebase_points_on_net(doc)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison loyalty net rebase")
 	try:
 		from maison_pos.api.age import link_check_to_invoice
 

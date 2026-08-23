@@ -289,7 +289,28 @@ class TestRecommendations(InsightsTestCase):
 		out = api.recommend_for_basket(["AC-005"], n=3, boutique="NYC-5AV")
 		codes = [r["item_code"] for r in out["items"]]
 		self.assertNotIn("AC-005", codes)
-		self.assertEqual(codes[0], "AC-011")
+		self.assertTrue(codes, out)
+		self.assertEqual(len(codes), 3)
+		self.assertTrue(all(isinstance(r["rate"], float) and r["rate"] > 0 for r in out["items"]), out)
+		self.assertIn("in_stock", out["items"][0])
+		self.assertRegex(out["items"][0]["reason"], r"Bought with .* in \d+% of baskets")
+		# *Which* pieces come back is a property of the whole site's sales history (the history seed
+		# and every e2e run also sell AC-005), so the AC-005 ↔ AC-011 pairing is asserted against a
+		# model built from a controlled basket set instead of the live ledger. Same code path
+		# (`affinity.recommend_for_basket`), deterministic input.
+		# AC-005+AC-011 4× (lift 1.14, full pair credit), AC-005+AC-012 once (higher lift, 1/3 credit):
+		# the well-supported pairing must win — see `score(c)` in maison_pos/insights/affinity.py.
+		model = affinity.AffinityModel.from_baskets(
+			[{"AC-005", "AC-011"}] * 4 + [{"AC-005"}, {"AC-005"}, {"AC-011"}, {"AC-005", "AC-012"}, {"AC-001"}, {"AC-001"}]
+		)
+		paired = affinity.recommend_for_basket(["AC-005"], n=3, boutique="NYC-5AV", model=model)
+		paired_codes = [r["item_code"] for r in paired]
+		self.assertEqual(paired_codes[0], "AC-011")
+		self.assertNotIn("AC-005", paired_codes)
+		self.assertEqual(paired[0]["because"], "AC-005")
+		self.assertRegex(paired[0]["reason"], r"Bought with .* in \d+% of baskets")
+		# an owned piece is never proposed, even when it is the strongest pairing
+		self.assertNotIn("AC-011", [r["item_code"] for r in affinity.recommend_for_basket(["AC-005"], n=3, exclude={"AC-011"}, model=model)])
 		self.assertEqual(api.recommend_for_basket([], n=3)["items"], [])
 		# a client's owned items are not proposed as pairings either
 		self._sell("Mei-Lin Chen", [{"item_code": "AC-011", "qty": 1, "rate": 380}])

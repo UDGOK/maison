@@ -329,6 +329,17 @@ def _duplicate_result(offline_uuid: str, invoice_name: str) -> dict[str, Any]:
 	}
 
 
+# --- v0.6 Q ---
+def _rewards_extras(si) -> Optional[dict[str, Any]]:
+	try:
+		from maison_pos.api.rewards import receipt_extras
+
+		return receipt_extras(si)
+	except Exception:
+		return None
+# --- end v0.6 Q ---
+
+
 def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 	"""Process a single POSInvoice inside its own savepoint. Never raises."""
 	offline_uuid = (payload.get("offline_uuid") or "").strip()
@@ -374,6 +385,9 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 			"rounded_total": flt(si.rounded_total),
 			"change_amount": flt(si.change_amount),
 			"receipt_token": si.get("maison_receipt_token"),
+			# --- v0.6 Q — points earned / balance / next reward / giveaway entries for the POS receipt + Salon ---
+			"rewards": _rewards_extras(si),
+			# --- end v0.6 Q ---
 		}
 	except Exception as exc:  # noqa: BLE001 - we translate every failure into a result row
 		frappe.db.rollback(save_point=savepoint)

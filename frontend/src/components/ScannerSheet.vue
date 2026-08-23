@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useBrand } from '@/stores/brand' // v0.6 N
+const brand = useBrand() // v0.6 N
 /** Full-screen camera scanner. BarcodeDetector when available, @zxing/browser otherwise. */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useScanStore } from '@/stores/scan'
@@ -49,7 +51,7 @@ function submitManual() {
   <Teleport to="body">
     <div class="scanner" role="dialog" aria-label="Scanner">
       <div class="top">
-        <div class="wordmark display-900">MAISON</div>
+        <div class="wordmark display-900">{{ brand.wordmark }}</div>
         <div class="label">{{ scan.mode === 'client' ? 'Scan client card' : 'Scan product · client · invoice' }}</div>
         <button class="close label" @click="scan.closeSheet()">Close</button>
       </div>

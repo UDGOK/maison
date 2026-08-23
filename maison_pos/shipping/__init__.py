@@ -71,19 +71,35 @@ def warehouse_boutique() -> Optional[str]:
 	return None
 
 
-def get_main_warehouse(exclude: Optional[str] = None) -> str:
-	"""Source warehouse for replenishment: settings ``main_warehouse`` → ``is_warehouse`` boutique → first boutique."""
+def get_main_warehouse(exclude: Optional[str] = None, company: Optional[str] = None) -> str:
+	"""Source warehouse for replenishment: settings ``main_warehouse`` → ``is_warehouse`` boutique → first boutique.
+
+	*company* restricts the answer to warehouses of that company. A stock transfer may never cross
+	companies — ERPNext throws ``InvalidWarehouseCompany`` at insert — so when a bench happens to
+	carry more than one company (a second brand seeded onto the same site), the settings-level
+	``main_warehouse`` of the *other* company must not be handed back as the source for this
+	store's replenishment; we fall through to a warehouse the store's own company owns.
+	"""
+
+	def ok(wh: Optional[str]) -> bool:
+		if not wh or wh == exclude or not frappe.db.exists("Warehouse", wh):
+			return False
+		return not company or frappe.db.get_value("Warehouse", wh, "company") == company
+
 	if _meta_has("Maison POS Settings", "main_warehouse"):
 		wh = frappe.db.get_single_value("Maison POS Settings", "main_warehouse")
-		if wh and frappe.db.exists("Warehouse", wh) and wh != exclude:
+		if ok(wh):
 			return wh
 	wb = warehouse_boutique()
 	if wb:
 		wh = frappe.db.get_value("Maison Boutique", wb, "warehouse")
-		if wh and wh != exclude:
+		if ok(wh):
 			return wh
-	for wh in frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="warehouse", order_by="name"):
-		if wh and wh != exclude:
+	filters: dict[str, Any] = {"enabled": 1}
+	if company:
+		filters["company"] = company
+	for wh in frappe.get_all("Maison Boutique", filters=filters, pluck="warehouse", order_by="name"):
+		if ok(wh):
 			return wh
 	frappe.throw(_("No main warehouse configured (Maison POS Settings → main_warehouse)"), frappe.ValidationError)
 

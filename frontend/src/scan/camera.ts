@@ -12,7 +12,7 @@ export interface CameraScanner {
   stop(): void
 }
 
-export const NATIVE_FORMATS = ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'data_matrix', 'itf']
+export const NATIVE_FORMATS = ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'data_matrix', 'itf', 'pdf417'] // v0.6 N: pdf417 = US driver's licence (age gate)
 
 interface DetectedBarcode {
   rawValue: string

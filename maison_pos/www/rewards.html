@@ -1,11 +1,13 @@
 {% extends "maison_pos/templates/webshop/base.html" %}
 {% block shop_content %}
 {% set p = program %}
+{# `p` is a dict: use p['copy'] — p.copy would resolve to the dict.copy() builtin, not the key #}
+{% set pcopy = program['copy'] %}
 <div class="mw-wrap">
 	<section class="rw-hero">
 		<div class="eyebrow">{{ p.brand.brand_name }} &middot; {{ p.brand.tagline }}</div>
 		<h1 data-testid="rewards-title">{{ p.program_name }}</h1>
-		<p class="lead">{{ p.copy.earn }} Redeem your points for money off at the counter, get a birthday gift, hear about every monthly promotion and new arrival first, enter product giveaways and receive exclusive event invites.</p>
+		<p class="lead">{{ pcopy.earn }} Redeem your points for money off at the counter, get a birthday gift, hear about every monthly promotion and new arrival first, enter product giveaways and receive exclusive event invites.</p>
 	</section>
 
 	<div class="rw-earn" data-testid="rewards-tiers">
@@ -20,14 +22,14 @@
 
 	<div class="rw-section-title">How it works</div>
 	<div class="rw-list">
-		<div class="row"><span><b>Earn</b> — {{ p.copy.earn }}</span><span>1 pt / $1</span></div>
-		{% for r in p.copy.redeem %}<div class="row"><span><b>Redeem</b> — {{ r }}</span><span>at the counter</span></div>{% endfor %}
+		<div class="row"><span><b>Earn</b> — {{ pcopy.earn }}</span><span>1 pt / $1</span></div>
+		{% for r in pcopy.redeem %}<div class="row"><span><b>Redeem</b> — {{ r }}</span><span>at the counter</span></div>{% endfor %}
 		<div class="row"><span><b>Birthday discount</b> — {{ p.birthday.label }} coupon, issued {{ p.birthday.lead_days }} days before your birthday, valid {{ p.birthday.valid_days }} days.</span><span>yearly</span></div>
 	</div>
 
 	<div class="rw-section-title">Member perks</div>
 	<div class="rw-perks">
-		{% for perk in p.copy.perks %}
+		{% for perk in pcopy.perks %}
 		<div class="rw-perk"><div class="t">{{ perk.title }}</div><div class="x">{{ perk.text }}</div></div>
 		{% endfor %}
 	</div>

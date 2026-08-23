@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useBrand } from '@/stores/brand' // v0.6 N
+const brand = useBrand() // v0.6 N
 /**
  * Client-facing consent screen (full screen, large type). Agreement needs a deliberate act:
  * hold "Agree" for 600 ms (gold ring fills) or draw a signature and tap Agree. "No thanks"
@@ -181,7 +183,7 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div class="consent" :class="{ signing: signMode }" role="dialog" aria-label="Biometric consent" data-testid="consent-screen">
       <div class="top">
-        <div class="wordmark display-900">MAISON</div>
+        <div class="wordmark display-900">{{ brand.wordmark }}</div>
         <div class="label">Client recognition · consent {{ recognition.consentVersion }}</div>
         <button class="close label" :disabled="submitting" @click="recognition.closeEnrol()">Cancel</button>
       </div>
@@ -190,7 +192,7 @@ onBeforeUnmount(() => {
         <div class="greeting display">{{ clientName ? `${clientName},` : 'Welcome,' }}</div>
         <div class="title">May we recognise you next time?</div>
         <p class="text">{{ recognition.consentText }}</p>
-        <p class="text small muted">Version {{ recognition.consentVersion }} · You can withdraw consent at any time by asking any associate; your face data is then deleted. This boutique displays a notice at its entrance and point of sale.</p>
+        <p class="text small muted">Version {{ recognition.consentVersion }} · You can withdraw consent at any time by asking any associate; your face data is then deleted. This {{ brand.storeNoun.toLowerCase() }} displays a notice at its entrance and point of sale.</p>
         <div v-if="recognition.enrolError" class="crit">{{ recognition.enrolError }}</div>
 
         <div v-if="signMode" class="sign">

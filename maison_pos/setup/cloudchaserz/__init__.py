@@ -63,8 +63,77 @@ def is_seeded() -> bool:
 	return bool(frappe.db.exists("Maison Boutique", "HOU-MTR"))
 
 
+@frappe.whitelist()
+def seed_remote(history: int = 0) -> dict[str, Any]:
+	"""Run the CloudChaserz seed over the API (System Manager only).
+
+	Lets managed hosts such as Frappe Cloud be seeded without shell access:
+	``POST /api/method/maison_pos.setup.cloudchaserz.seed_remote``. Pass ``history=1`` to chain a
+	short back-dated history; the longer runs belong on
+	``maison_pos.setup.cloudchaserz.seed_history_remote``.
+	"""
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw("Only System Managers may seed demo data", frappe.PermissionError)
+	from frappe.utils import cint
+
+	return seed(history=bool(cint(history)))
+
+
+def seed_history(months: int = 6, commit: bool = True, force: bool = False) -> dict[str, Any]:
+	"""Back-dated CloudChaserz sales across the 11 stores, adapted to the smoke-shop catalogue.
+
+	``bench --site <site> execute maison_pos.setup.cloudchaserz.seed_history --kwargs '{"months":3}'``
+	"""
+	from maison_pos.setup.cloudchaserz.history import seed_history as _seed_history
+
+	return _seed_history(months=months, commit=commit, force=force)
+
+
+def history_status() -> dict[str, Any]:
+	"""Marker + posted-invoice count for the CloudChaserz history seed."""
+	from maison_pos.setup.cloudchaserz.history import history_status as _status
+
+	return _status()
+
+
+@frappe.whitelist()
+def seed_history_remote(months: int = 3, sync: int = 0) -> dict[str, Any]:
+	"""Back-dated CloudChaserz sales over the API — enqueued on the ``long`` queue by default."""
+	from maison_pos.setup.cloudchaserz.history import seed_history_remote as _remote
+
+	return _remote(months=months, sync=sync)
+
+
+@frappe.whitelist()
+def status() -> dict[str, Any]:
+	"""What the CloudChaserz seed has produced on this site (operators / e2e)."""
+	if "System Manager" not in frappe.get_roles():
+		frappe.throw("Only System Managers may read the seed status", frappe.PermissionError)
+	from maison_pos.setup.cloudchaserz import catalog
+	from maison_pos.setup.cloudchaserz.history import history_status
+
+	return {
+		"seeded": is_seeded(),
+		"company": COMPANY,
+		"brand_name": frappe.db.get_single_value("Maison POS Settings", "brand_name"),
+		"stores": frappe.get_all("Maison Boutique", filters={"company": COMPANY, "enabled": 1}, pluck="name"),
+		"items": frappe.db.count("Item", {"item_code": ("in", [i["code"] for i in catalog.ITEMS])}),
+		"loyalty_program": LOYALTY_PROGRAM,
+		"history": history_status(),
+	}
+
+
+@frappe.whitelist()
 def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
-	"""Create all CloudChaserz demo data. Safe to run repeatedly."""
+	"""Create all CloudChaserz demo data. Safe to run repeatedly.
+
+	The single documented path to the demo:
+	``bench --site <site> execute maison_pos.setup.cloudchaserz.seed`` (or
+	``POST /api/method/maison_pos.setup.cloudchaserz.seed`` / ``.seed_remote`` on a managed host).
+	"""
+	# whitelisted for managed hosts — seeding rewrites company-wide data, so never below System Manager
+	if frappe.session.user not in ("Administrator", "") and "System Manager" not in frappe.get_roles():
+		frappe.throw("Only System Managers may seed demo data", frappe.PermissionError)
 	from maison_pos.setup import demo
 	from maison_pos.setup.cloudchaserz import catalog, rewards, stores, users
 	from maison_pos.setup.install import after_install

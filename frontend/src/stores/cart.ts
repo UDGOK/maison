@@ -5,6 +5,9 @@ import { round } from '@/utils/money'
 import { useCatalogStore } from './catalog'
 import { usePromosStore } from './promos'
 import { useWebOrdersStore } from './webOrders' // v0.4 G
+import { useAgeStore } from './age' // v0.6 N
+import type { RewardTier } from '@/api' // v0.6 Q
+import { tierDiscount } from '@/api/v06' // v0.6 Q
 
 export interface CartLine {
   id: string
@@ -23,6 +26,8 @@ interface CartState {
   customer: Customer | null
   loyalty_points_redeemed: number
   notes: string
+  /** v0.6 Q — fixed reward tier(s) redeemed this transaction (one unless stacking is enabled) */
+  reward_tiers: RewardTier[]
 }
 
 let seq = 0
@@ -48,18 +53,23 @@ function extraDiscount(id: string): number {
 }
 
 export const useCartStore = defineStore('cart', {
-  state: (): CartState => ({ lines: [], customer: null, loyalty_points_redeemed: 0, notes: '' }),
+  state: (): CartState => ({ lines: [], customer: null, loyalty_points_redeemed: 0, notes: '', reward_tiers: [] }),
   getters: {
     count: (s) => s.lines.reduce((n, l) => n + l.qty, 0),
     totals(s): Totals {
       const catalog = useCatalogStore()
-      return computeTotals(
-        s.lines.map((l) => ({ qty: l.qty, rate: l.rate, discount_amount: round(l.discount_amount + extraDiscount(l.id)), taxable: l.taxable })),
-        catalog.taxRate,
-        s.loyalty_points_redeemed,
-        catalog.loyalty?.conversion_factor ?? 0
-      )
+      const lines = s.lines.map((l) => ({ qty: l.qty, rate: l.rate, discount_amount: round(l.discount_amount + extraDiscount(l.id)), taxable: l.taxable }))
+      // --- v0.6 Q: a fixed reward tier is a fixed amount off the bill (conversion factor 1 → amount = "points") ---
+      if (s.reward_tiers.length) {
+        const before = computeTotals(lines, catalog.taxRate)
+        const amount = tierDiscount(s.reward_tiers, before.grand_total)
+        return computeTotals(lines, catalog.taxRate, amount, 1)
+      }
+      // --- end v0.6 Q ---
+      return computeTotals(lines, catalog.taxRate, s.loyalty_points_redeemed, catalog.loyalty?.conversion_factor ?? 0)
     },
+    /** v0.6 Q — points the redeemed tier(s) cost */
+    rewardPoints: (s) => s.reward_tiers.reduce((n, t) => n + t.points, 0),
     /** v0.4 I — promo + coupon discount per line id (whole line) */
     extras(s): Record<string, number> {
       return Object.fromEntries(s.lines.map((l) => [l.id, extraDiscount(l.id)]))
@@ -89,6 +99,13 @@ export const useCartStore = defineStore('cart', {
   actions: {
     add(item: Item, serial_no?: string) {
       const catalog = useCatalogStore()
+      // --- v0.6 N: age-restricted items wait behind the ID check (the add is replayed when it passes) ---
+      try {
+        if (!useAgeStore().gate(item, serial_no)) return
+      } catch {
+        /* store not active (unit tests without the age store) */
+      }
+      // --- end v0.6 N ---
       const rate = catalog.rateFor(item.item_code)
       if (item.has_serial_no) {
         if (!serial_no) throw new Error('Serial number required')
@@ -145,6 +162,7 @@ export const useCartStore = defineStore('cart', {
     setCustomer(c: Customer | null) {
       this.customer = c
       this.loyalty_points_redeemed = 0
+      this.reward_tiers = [] // v0.6 Q
       if (c) {
         // v0.4 I — tier progress for the client card (cached; offline fallback)
         import('./loyalty').then((m) => void m.useLoyaltyStore().load(c)).catch(() => undefined)
@@ -153,6 +171,24 @@ export const useCartStore = defineStore('cart', {
     redeem(points: number) {
       this.loyalty_points_redeemed = Math.max(0, Math.min(Math.floor(points), this.maxRedeemable))
     },
+    // --- v0.6 Q: fixed reward tiers (one per transaction unless stacking is on) ---
+    redeemTier(tier: RewardTier | null, allowStacking = false) {
+      if (!tier) {
+        this.reward_tiers = []
+        return
+      }
+      if (!this.customer || this.customer.loyalty_points < tier.points) return
+      this.loyalty_points_redeemed = 0
+      if (allowStacking) {
+        if (this.reward_tiers.some((t) => t.name === tier.name)) return
+        if (this.rewardPoints + tier.points > this.customer.loyalty_points) return
+        this.reward_tiers = [...this.reward_tiers, tier]
+      } else this.reward_tiers = [tier]
+    },
+    removeTier(name: string) {
+      this.reward_tiers = this.reward_tiers.filter((t) => t.name !== name)
+    },
+    // --- end v0.6 Q ---
     clampLoyalty() {
       if (this.loyalty_points_redeemed > this.maxRedeemable) this.loyalty_points_redeemed = this.maxRedeemable
     },
@@ -161,6 +197,14 @@ export const useCartStore = defineStore('cart', {
       this.customer = null
       this.loyalty_points_redeemed = 0
       this.notes = ''
+      this.reward_tiers = [] // v0.6 Q
+      // --- v0.6 N: the age check covers one transaction ---
+      try {
+        useAgeStore().reset()
+      } catch {
+        /* store not active (unit tests) */
+      }
+      // --- end v0.6 N ---
       try {
         usePromosStore().reset()
       } catch {

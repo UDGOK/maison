@@ -2,7 +2,7 @@
  * Dexie (IndexedDB) schema. Everything the POS needs to sell while offline lives here.
  */
 import Dexie, { type EntityTable } from 'dexie'
-import type { ConsentPayload, Customer, Item, POSInvoice, PricingRule } from '@/api/types'
+import type { ConsentPayload, Customer, Item, POSInvoice, PricingRule, RewardsExtras } from '@/api/types'
 
 export type QueueStatus = 'pending' | 'sending' | 'ok' | 'error'
 
@@ -23,6 +23,8 @@ export interface QueueRow {
   error_code?: string
   /** Snapshot for the receipt view — totals + payment meta (card brand/last4) */
   receipt: ReceiptSnapshot
+  /** v0.6 Q — server-side points earned / balance / next reward / giveaway entries (set on sync) */
+  rewards?: RewardsExtras | null
 }
 
 export interface ReceiptSnapshot {
@@ -66,6 +68,14 @@ export interface ReceiptSnapshot {
   coupon_code?: string
   coupon_discount?: number
   currency: string
+  // --- v0.6 N/Q — brand tokens at sale time, fixed reward tier, age check, rewards lines ---
+  brand?: { wordmark: string; brand_name: string; sub_mark?: string; thanks?: string; program_name?: string }
+  reward_tier?: { title: string; points: number; amount: number }
+  age_verified?: boolean
+  next_reward?: { title: string; points: number; amount: number; points_needed: number } | null
+  giveaway_entries?: number
+  giveaway_title?: string
+  // --- end v0.6 N/Q ---
 }
 
 export interface PriceRow {

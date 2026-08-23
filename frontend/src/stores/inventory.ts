@@ -65,6 +65,16 @@ export const useInventoryStore = defineStore('inventory', {
       })
       alert.material_request = res.material_request
       return res
+    },
+    // --- v0.6 O — one-tap "Request from warehouse" (Maison Replenishment Request + draft Material Request) ---
+    async requestFromWarehouse(alert: StockAlert, qty: number) {
+      const { warehouseApi } = await import('@/api/warehouse')
+      const session = useSessionStore()
+      const res = await warehouseApi.store.replenish({ boutique: session.boutique!.name, item: alert.item_code, qty, alert: alert.name })
+      alert.material_request = res.material_request || res.name
+      alert.status = 'Acknowledged'
+      return res
     }
+    // --- end v0.6 O ---
   }
 })

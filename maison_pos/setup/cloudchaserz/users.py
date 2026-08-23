@@ -52,7 +52,7 @@ CUSTOMERS: list[tuple[str, str, str, str, str]] = [
 	("Tyrese Johnson", "+1 918 555 0105", "tyrese.j@example.com", "1985-01-19", "OK-STUL"),
 	("Megan O'Neal", "+1 918 555 0106", "megan.oneal@example.com", "1993-05-07", "OK-OWA"),
 	("Dakota Redcloud", "+1 918 555 0107", "dakota.rc@example.com", "1990-12-12", "OK-MUS"),
-	("Alyssa Tran", "+1 713 555 0108", "alyssa.tran@example.com", "1997-02-29", "HOU-MTR"),
+	("Alyssa Tran", "+1 713 555 0108", "alyssa.tran@example.com", "1997-02-28", "HOU-MTR"),
 	("Kevin Patel", "+1 918 555 0109", "kevin.patel@example.com", "1982-07-04", "OK-ETUL"),
 	("Shelby Hart", "+1 918 555 0110", "shelby.hart@example.com", "1995-10-10", "OK-YALE"),
 	("Marcus Greene", "+1 918 555 0111", "marcus.greene@example.com", "1989-09-21", "OK-JENKS"),

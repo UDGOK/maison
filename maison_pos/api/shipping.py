@@ -213,7 +213,8 @@ def _bin_qty(item_code: str, warehouse: Optional[str]) -> float:
 def create_request(boutique: str, lines: list[dict], reason: Optional[str] = None, priority: Optional[str] = None, from_warehouse: Optional[str] = None) -> Any:
 	"""Insert a ``Maison Replenishment Request`` + its draft Material Request. Caller has scoped *boutique*."""
 	b = frappe.get_cached_doc("Maison Boutique", boutique)
-	source = from_warehouse or get_main_warehouse(exclude=b.warehouse)
+	# v0.6 P — the source must belong to the store's own company (ERPNext forbids cross-company transfers).
+	source = from_warehouse or get_main_warehouse(exclude=b.warehouse, company=b.company)
 	rows = []
 	for raw in lines:
 		item = (raw.get("item_code") or raw.get("item") or "").strip()

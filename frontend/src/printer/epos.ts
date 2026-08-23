@@ -103,7 +103,7 @@ export function receiptQrContent(meta: Pick<ReceiptMeta, 'receipt_token' | 'rece
 
 export function buildReceiptXml(r: ReceiptSnapshot, meta: ReceiptMeta): string {
   const b = new EposBuilder()
-  b.text('MAISON', { align: 'center', bold: true, w: 2, h: 2 })
+  b.text(r.brand?.wordmark || 'CLOUDCHASERZ', { align: 'center', bold: true, w: 2, h: 2 }) // v0.6 N
   b.text(r.boutique_name.toUpperCase(), { align: 'center' })
   b.text(r.address_line, { align: 'center' })
   b.text(r.city, { align: 'center' })
@@ -143,14 +143,20 @@ export function buildReceiptXml(r: ReceiptSnapshot, meta: ReceiptMeta): string {
   if (r.customer_name) {
     b.text(lr('POINTS EARNED', String(r.points_earned)))
     if (r.points_balance !== undefined) b.text(lr('POINTS BALANCE', String(r.points_balance)))
+    // --- v0.6 Q ---
+    if (r.reward_tier) b.text(lr('REWARD', r.reward_tier.title.toUpperCase()))
+    if (r.next_reward) b.text(lr('NEXT REWARD', `$${Math.round(r.next_reward.amount)} AT ${r.next_reward.points} PTS`))
+    if (r.giveaway_entries) b.text(lr('GIVEAWAY ENTRIES', String(r.giveaway_entries)))
+    // --- end v0.6 Q ---
   }
+  if (r.age_verified) b.text('ID CHECKED - 21+ VERIFIED', { align: 'center' }) // v0.6 N
   if (r.grand_total >= 10000) {
     b.feed(3)
     b.text('SIGNATURE ' + '_'.repeat(COLS - 10))
     b.feed(1)
   }
   b.feed(1)
-  b.text('THANK YOU FOR VISITING MAISON', { align: 'center' })
+  b.text((r.brand?.thanks || `THANK YOU FOR VISITING ${r.brand?.brand_name || 'CLOUDCHASERZ'}`).toUpperCase(), { align: 'center' }) // v0.6 N
   b.text('Exchanges within 30 days with receipt.', { align: 'center' })
   const qr = receiptQrContent({ ...meta, receipt_qr_base_url: meta.receipt_qr_base_url || r.receipt_qr_base_url })
   if (qr) {

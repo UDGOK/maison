@@ -113,6 +113,7 @@ export class QueueReplayer {
             status: 'ok',
             invoice_name: res.invoice_name,
             receipt_token: res.receipt_token ?? r.receipt_token,
+            rewards: res.rewards ?? r.rewards ?? null, // v0.6 Q
             sent_at: new Date(this.now()).toISOString(),
             error: undefined,
             error_code: undefined

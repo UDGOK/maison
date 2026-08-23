@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useBrand } from '@/stores/brand' // v0.6 N
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
@@ -50,13 +51,14 @@ onMounted(async () => {
   if (!selectedAssociate.value && session.associates.length) selectedAssociate.value = session.associates[0].name
 })
 
+const brand = useBrand() // v0.6 N
 async function chooseBoutique() {
   error.value = ''
   busy.value = true
   const ok = await catalog.bootstrap(selectedBoutique.value)
   busy.value = false
   if (!ok) {
-    error.value = catalog.error || 'Could not load boutique'
+    error.value = catalog.error || `Could not load ${brand.storeNoun.toLowerCase()}`
     return
   }
   // keep an associate picked while the catalogue was still loading; default only when the pick is not
@@ -120,8 +122,10 @@ function fail() {
   <div class="unlock">
     <div class="left">
       <div class="brand">
-        <div class="wordmark display-900">MAISON</div>
-        <div class="label">Point of sale</div>
+        <!-- v0.6 N: brand tokens -->
+        <div class="wordmark display-900" data-testid="unlock-wordmark">{{ brand.wordmark }}</div>
+        <div class="label">{{ brand.subMark }} &middot; {{ brand.productName }}</div>
+        <!-- end v0.6 N -->
       </div>
       <div class="left-foot">
         <div class="label label-dim">{{ sync.browserOnline ? 'Network available' : 'No network' }}</div>
@@ -132,7 +136,7 @@ function fail() {
     <div class="right">
       <div class="panel">
         <div class="field">
-          <label class="label">Boutique</label>
+          <label class="label">{{ brand.storeNoun }}</label>
           <div class="row">
             <select v-model="selectedBoutique" class="input" :disabled="busy">
               <option v-for="b in session.boutiqueList" :key="b.name" :value="b.name">{{ b.boutique_name }} &mdash; {{ b.city }}</option>
@@ -175,7 +179,7 @@ function fail() {
           <Keypad @key="key" />
           <div class="msg" :class="{ crit: !!error || (!!clockMsg && !!shift.error), good: !!clockMsg && !shift.error, hidden: !error && !clockMsg }" data-testid="clock-msg">{{ error || clockMsg || 'placeholder' }}</div>
         </template>
-        <div v-else class="hint muted">Load the boutique catalog to unlock. Once loaded, unlock works offline.</div>
+        <div v-else class="hint muted">Load the {{ brand.storeNoun.toLowerCase() }} catalog to unlock. Once loaded, unlock works offline.</div>
         <div v-if="error && needsBootstrap" class="msg crit">{{ error }}</div>
       </div>
     </div>

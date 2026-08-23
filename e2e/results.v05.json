@@ -2,12 +2,12 @@
   {
     "name": "CHI-OAK live card + ticker update within 1 s of the sale",
     "ok": true,
-    "detail": "card + ticker updated 43 ms after the POS response (ACC-SINV-2026-01709)"
+    "detail": "card + ticker updated 54 ms after the POS response (ACC-SINV-2026-02792)"
   },
   {
     "name": "CHI-OAK net increased by the sale amount",
     "ok": true,
-    "detail": "1648332 → 1648509 (+176.4)"
+    "detail": "3509869 → 3510046 (+176.4)"
   },
   {
     "name": "card flashes on the sale",
@@ -17,7 +17,7 @@
   {
     "name": "drill-in shows the item-level feed for the boutique",
     "ok": true,
-    "detail": "02:33Silk Pocket Square176"
+    "detail": "10:12Silk Pocket Square176"
   },
   {
     "name": "region filter narrows the cards",
@@ -32,12 +32,12 @@
   {
     "name": "Trending in stores renders from precomputed trends",
     "ok": true,
-    "detail": "40 rows · precomputed · 2026-08-22 18:30 · loaded in 54 ms"
+    "detail": "42 rows · precomputed · 2026-08-23 02:00 · loaded in 68 ms"
   },
   {
     "name": "Products tab loads in < 300 ms",
     "ok": true,
-    "detail": "54 ms"
+    "detail": "68 ms"
   },
   {
     "name": "trend badges present",
@@ -47,7 +47,7 @@
   {
     "name": "badge filter works",
     "ok": true,
-    "detail": "5 cooling"
+    "detail": "6 cooling"
   },
   {
     "name": "Top products by store renders per-boutique lists + matrix",
@@ -57,7 +57,7 @@
   {
     "name": "by-units ranking is descending",
     "ok": true,
-    "detail": "31 ≥ 26 ≥ 20 ≥ 15"
+    "detail": "50 ≥ 43 ≥ 29 ≥ 19"
   },
   {
     "name": "sort by stock value ↓",

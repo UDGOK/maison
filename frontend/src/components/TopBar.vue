@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useBrand } from '@/stores/brand' // v0.6 N
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
@@ -21,13 +22,20 @@ const nav = [
   { name: 'returns', label: 'Returns' }, // v0.4 E
   { name: 'web-orders', label: 'Web orders', short: 'Web' }, // v0.4 G
   { name: 'count', label: 'Count' }, // v0.4 D — cycle count
+  { name: 'receive', label: 'Receive', short: 'Rcv' }, // v0.6 O — store receiving
   { name: 'queue', label: 'Queue' },
   { name: 'shift', label: 'Shift' },
   { name: 'settings', label: 'Settings' }
 ]
 
-/** iPad (≤ 1100 px): 8 entries share one row — short labels + the boutique code only. */
-const compact = computed(() => !layout.phone && layout.width <= 1100)
+/**
+ * Compact top bar (≤ 1400 px): 9 entries share one row — short labels + the boutique code only.
+ * v0.6 raised this from 1100 px: the "Receive" screen is a 9th entry and the brand wordmark
+ * ("CLOUDCHASERZ") and store names ("CloudChaserz Montrose") are longer than the jewellery ones,
+ * so at 1366×1024 the full labels collided ("WEB ORDERS" wrapped onto two lines and "SETTINGS"
+ * was clipped by the status pill).
+ */
+const compact = computed(() => !layout.phone && layout.width <= 1400)
 const labelFor = (n: { label: string; short?: string }) => (compact.value && n.short ? n.short : n.label)
 
 const statusClass = computed(() => (sync.online ? 'pill-accent' : sync.queued ? 'pill-warn' : 'pill-crit'))
@@ -38,6 +46,7 @@ function go(name: string) {
   layout.navOpen = false
   router.push({ name })
 }
+const brand = useBrand() // v0.6 N
 function lock() {
   layout.navOpen = false
   session.lock()
@@ -48,7 +57,9 @@ function lock() {
 
 <template>
   <header class="topbar" :class="{ phone: layout.phone }">
-    <div class="wordmark display-900">MAISON</div>
+    <!-- v0.6 N: brand tokens -->
+    <div class="wordmark display-900" data-testid="wordmark">{{ brand.wordmark }}<span v-if="brand.subMark" class="submark">{{ brand.subMark }}</span></div>
+    <!-- end v0.6 N -->
     <template v-if="!layout.phone">
       <div class="vline"></div>
       <div class="boutique">
@@ -80,7 +91,7 @@ function lock() {
       <div class="spacer"></div>
       <div class="pill status" :class="statusClass">
         <span class="dot"></span>
-        {{ statusText }}<span v-if="sync.queued" class="queued"> &middot; {{ sync.queued }}</span>
+        <span class="status-text">{{ statusText }}</span><span v-if="sync.queued" class="queued"> &middot; {{ sync.queued }}</span>
       </div>
       <button class="menu-btn" :class="{ open: layout.navOpen }" aria-label="Menu" @click="layout.navOpen = !layout.navOpen">
         <span></span><span></span><span></span>
@@ -205,8 +216,8 @@ function lock() {
   background: var(--surface);
 }
 
-/* ---------- compact tablet (iPad 1024–1180 px): 8 entries must still fit on one row ---------- */
-@media (max-width: 1180px) {
+/* ---------- compact tablet (iPad 1024–1400 px): 9 entries must still fit on one row ---------- */
+@media (max-width: 1400px) {
   .topbar {
     gap: 14px;
   }
@@ -244,10 +255,32 @@ function lock() {
   padding-left: 16px;
 }
 .topbar.phone .wordmark {
-  font-size: 15px;
+  /* v0.6 N — the wordmark is a brand token now: "CLOUDCHASERZ" is twice as long as "MAISON" and
+     at 0.3em tracking it pushed the menu button off a 390 px screen. Tighter tracking on the phone.
+     The brand itself never truncates — the store code beside it yields first (see .ph-boutique). */
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  margin-right: 0;
+  flex: 0 0 auto;
+}
+.topbar.phone .submark {
+  letter-spacing: 0.16em;
 }
 .ph-boutique {
+  /* the first thing to give way when a long brand name and a long store code compete for the bar */
   min-width: 0;
+  flex: 0 1 auto;
+}
+/* Narrow phones: the dot already carries the connection state, so drop the word and keep the store
+   code readable next to a long brand wordmark ("CLOUDCHASERZ" + "HOU-MTR" do not both fit at 390 px
+   while "ONLINE" is spelled out). */
+@media (max-width: 440px) {
+  .topbar.phone .status .status-text {
+    display: none;
+  }
+  .topbar.phone .status {
+    padding: 0 10px;
+  }
 }
 .menu-btn {
   position: relative;
@@ -328,5 +361,20 @@ function lock() {
   margin-top: auto;
   border-top: var(--line-w) solid var(--line);
   color: var(--crit);
+}
+/* v0.6 N — "Maison POS" sub-mark under the brand wordmark */
+.wordmark {
+  position: relative;
+}
+.submark {
+  display: block;
+  font-family: var(--font-body, inherit);
+  font-weight: 400;
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  line-height: 1;
+  margin-top: 2px;
 }
 </style>

@@ -111,6 +111,9 @@ async function adminApi() {
       if (!r.ok()) throw new Error(`${method}: ${r.status()} ${JSON.stringify(j).slice(0, 300)}`)
       return j.message
     },
+    list: (doctype, filters, fields = ['name'], limit = 50) =>
+      ctx.get(`/api/method/frappe.client.get_list`, { params: { doctype, filters: JSON.stringify(filters), fields: JSON.stringify(fields), limit_page_length: limit } })
+        .then(async (r) => { const j = await r.json(); if (!r.ok()) throw new Error(`get_list ${doctype}: ${r.status()}`); return j.message }),
     async upload(method, fields, file) {
       const r = await ctx.post(`/api/method/${method}`, { headers, multipart: { ...fields, file } })
       const j = await r.json().catch(() => ({}))
@@ -179,6 +182,40 @@ try {
   record('manager uploads item image via catalog.upload_item_image', false, String(e))
 }
 
+// repeated runs sell the demo one-offs through: the serial scan needs an item with >= 2 free
+// serials at this boutique, so receive a fresh pair when none is left (see INTEGRATION_NOTES v0.4 #12).
+async function ensureTwoFreeSerials() {
+  const b = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
+  const byCode = Object.fromEntries(b.items.map((i) => [i.item_code, i]))
+  if (Object.entries(b.serials).some(([ic, list]) => list.length >= 2 && byCode[ic])) return
+  const code = b.items.find((i) => i.has_serial_no)?.item_code
+  if (!code) return
+  const bq = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+  const tag = Math.random().toString(36).slice(2, 6).toUpperCase()
+  await admin.post('frappe.client.insert', {
+    doc: {
+      doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,
+      items: [1, 2].map((n) => ({ item_code: code, qty: 1, t_warehouse: bq.warehouse, basic_rate: 1000, allow_zero_valuation_rate: 1, use_serial_batch_fields: 1, serial_no: `${code}-CHI-E${tag}${n}` }))
+    }
+  })
+  log(`  topped up ${code} @ ${BOUTIQUE}: +2 serials (${code}-CHI-E${tag}1/2)`)
+}
+// the phone flow taps IMAGE_ITEM: repeated runs sell it out and the tile goes `.tile.empty`
+async function ensureStock(code, min = 6) {
+  const b = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
+  if ((b.stock?.[code] || 0) >= min) return
+  const bq = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+  await admin.post('frappe.client.insert', {
+    doc: {
+      doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,
+      items: [{ item_code: code, qty: 20, t_warehouse: bq.warehouse, basic_rate: 100, allow_zero_valuation_rate: 1 }]
+    }
+  })
+  log(`  topped up ${code} @ ${BOUTIQUE}: +20`)
+}
+try { await ensureTwoFreeSerials() } catch (e) { log('  serial top-up skipped:', String(e).slice(0, 200)) }
+try { await ensureStock(IMAGE_ITEM) } catch (e) { log('  stock top-up skipped:', String(e).slice(0, 200)) }
+
 const boot = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
 const itemsByCode = Object.fromEntries(boot.items.map((i) => [i.item_code, i]))
 const barcodes = boot.barcodes || {}
@@ -216,10 +253,15 @@ try {
   await page.fill('.sell .search input', 'Pocket Square')
   const tile = page.locator('.tile:has-text("Silk Pocket Square")').first()
   await tile.waitFor()
+  // wait until the photo has actually decoded, not merely until the <img> exists — otherwise
+  // naturalWidth is still 0 and the check flakes on a cold file cache
   await page.waitForFunction(
-    () => !!document.querySelector('.tile.img img[src*="/files/"]'),
+    () => {
+      const i = document.querySelector('.tile.img img[src*="/files/"]')
+      return !!i && i.complete && i.naturalWidth > 0
+    },
     null,
-    { timeout: 10000 }
+    { timeout: 15000 }
   ).catch(() => {})
   const imgSrc = await tile.locator('img').first().getAttribute('src').catch(() => null)
   const natural = await tile.locator('img').first().evaluate((i) => i.naturalWidth).catch(() => 0)

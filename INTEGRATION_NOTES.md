@@ -509,3 +509,80 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMI
 Known outside this section: `test_insights.test_basket_recommendations` asserts the demo affinity (AC-005 ↔ AC-011) and fails on a site
 where e2e runs sold AC-005 together with other pieces; `test_v0_5_campaigns` webhook tests belong to stream M.
 <!-- end v0.5 K -->
+
+<!-- v0.6 N/O/P/Q -->
+## v0.6 N/O/P/Q — CloudChaserz, receiving, warehouse & rewards (2026-08-23)
+
+New: `maison_pos/brand.py`, `api/{age,rewards,shipping}.py`, `shipping/{__init__,providers/*}.py`,
+doctypes `Maison Shipment` (+ Line), `Maison Replenishment Request` (+ Line), `Maison Receiving
+Discrepancy`, `Maison Age Check`, `Maison Giveaway` (+ Entry), `Maison Promotion Calendar`
+(+ Item, + Rule), `Maison Reward Tier`; `setup/cloudchaserz/{__init__,stores,catalog,users,art,
+rewards,history}.py`, `setup/install_v06{,_shipping}.py`, `www/{warehouse,warehouse-wall,rewards,
+shipping-label}.*`; frontend `src/brand/tokens.ts`, `src/stores/{brand,age,warehouse}.ts`,
+`src/warehouse/**`, `src/views/ReceiveView.vue`, `src/components/AgeGateSheet.vue`,
+`src/salon/views/SalonIdCheck.vue`, `src/scan/aamva.ts`, `src/api/{v06,warehouse}.ts`;
+tests `test_v0_6_warehouse.py`, `test_v0_6_scoping_http.py`, `warehouse.test.ts`,
+`v06_age_rewards.test.ts`; `e2e/{warehouse,cloudchaserz}.e2e.mjs`;
+`docs/{cloudchaserz,shipping,rewards}.md`.
+
+```bash
+cd frontend && npm i && npx vitest run && npm run lint && npm run build      # 18 files, 196 tests
+cd dashboard && npx vitest run && npm run build                              # 24 tests
+bench --site maison.localhost migrate
+bench --site maison.localhost run-tests --app maison_pos                     # Ran 248 tests — OK
+bench build --app maison_pos
+# CloudChaserz site, from scratch
+bench new-site cc.localhost --admin-password admin --db-root-password admin
+for a in erpnext payments webshop hrms crm maison_pos; do bench --site cc.localhost install-app $a; done
+bench --site cc.localhost execute maison_pos.setup.cloudchaserz.seed
+bench --site cc.localhost execute maison_pos.setup.cloudchaserz.seed_history --kwargs '{"months":1}'
+bench --site cc.localhost execute maison_pos.insights.jobs.compute_weekly
+```
+
+### One brand per site
+
+`Maison POS Settings` is a **singleton**, so the brand belongs to the site, not to the company.
+The two profiles use different companies and *can* coexist, but seeding CloudChaserz onto the
+jewellery demo site rebrands it and points `main_warehouse` at `HOU-WH - CCZ` — which then fails
+every jewellery replenishment with `InvalidWarehouseCompany`. Keep them on separate sites:
+`maison.localhost` = jewellery (what the v0.1–v0.5 e2e assert), `cc.localhost` = CloudChaserz.
+
+### Serving two sites from one bench
+
+`bench serve` binds to the default site, so the `Host:` header alone does not route. Run a second
+dev server for the second site:
+
+```bash
+bench --site cc.localhost serve --port 8001      # maison.localhost stays on 8000
+```
+
+| # | Symptom | Fix |
+|---|---|---|
+| 1 | `npx vitest run` hung forever with no output (>9 min) | An import cycle, not a timer: `@/api/mock` imported `JEWELLERY_BRAND` from `@/stores/brand`, which imports `@/stores/catalog`, which imports `@/api`. `insights.test.ts` calls `vi.mock('@/api', async () => await import('@/api/mock'))`, so the mock factory awaited a module that awaited the mock factory — a deadlock with no timeout. The pure tokens moved to `@/brand/tokens.ts` (no store imports); `@/stores/brand.ts` keeps `useBrand()` and re-exports them. |
+| 2 | Every later test in a run saw the wrong `frappe.request` (the v0.5 campaign webhook tests errored with *Invalid webhook signature*) | `test_v0_2` assigned to `frappe.request`, which **rebinds the module-level werkzeug LocalProxy** to a plain value for the rest of the process. Always assign `frappe.local.request`. |
+| 3 | `Warehouse HOU-WH - CCZ does not belong to company Maison` on every warehouse test | `get_main_warehouse` returned the settings-level warehouse regardless of company. It takes a `company` now, and `create_request` / the Replenishment Request pass the store's own company. |
+| 4 | Returns screen went completely blank; console `RangeError: Invalid time value` | `Intl.DateTimeFormat.format()` throws on an Invalid Date and the throw inside the template killed the view. `fmtDate` / `fmtDateTime` return an em dash for missing or unparsable values. |
+| 5 | Collecting a prepaid web order: *Advance amount cannot be greater than USD 2042.38* | An in-store promotion made the counter invoice smaller than the amount paid online. `apply_web_order_advances` now allocates at most the invoice total and leaves the rest as an unallocated advance. |
+| 6 | Rewards balance always 0 despite Loyalty Point Entries existing | The seeded programme had `expiry_duration: 0`, and ERPNext stamps `expiry_date = posting_date + expiry_duration` — the points expired the day they were earned. 3650 days now. Related: a device posting `new Date().toISOString()` (UTC) to a site in `America/Chicago` can date an entry *tomorrow*, and ERPNext excludes future entries from the balance — the e2e posts the server's clock. |
+| 7 | Redeeming the $5 / 100-point tier: *You can't redeem Loyalty Points having more value than the Total Amount* | ERPNext's `conversion_factor` is the **redemption** value (currency per point), not the earning rate. Every tier is $0.05 a point; the seed had 1.0, so 100 points were valued at $100. |
+| 8 | `/rewards` rendered the earn line, the redeem rows and the perks as blank / `{{ no such element }}` | The template read `p.copy.earn`; Jinja resolves `.copy` to the `dict.copy` builtin before the key. Subscript (`program['copy']`) forces the item lookup. |
+| 9 | POS top bar broke on the rebranded tenant | Three separate causes: the 12-character `CLOUDCHASERZ` wordmark at 0.3em tracking pushed the menu button 18 px off a 390 px screen; the 9th nav entry (*Receive*) plus longer store names made the full labels collide at 1366×1024; and once the wordmark was allowed to shrink it ellipsised the *brand*. Final shape: compact bar up to 1400 px, the wordmark never shrinks, the store code yields first, and under 440 px the status pill drops to its dot. |
+| 10 | Storefront scrolled sideways (page 2435 px wide at a 1366 viewport) | The smoke-shop catalogue has 11 item groups where the jewellery one had 4: `.mw-nav` was a non-shrinking flex row of `nowrap` links. It shrinks and scrolls inside itself now; the footer columns got `min-width: 0` for the same reason at 390 px. |
+| 11 | Wall cards cut the descenders off the store name | `.wcard` is a fixed-height column flex box, so the name row shrank below its own line box and `.ellipsis`'s `overflow: hidden` clipped it. `flex: 0 0 auto` + explicit line height. |
+| 12 | Backend / e2e failures that were data, not code — `AC-012` sold out at CHI-OAK, no item with two free serials, a leftover `Maison Shipment`, a stale `Ready` web order | The shared bench is sold through by every e2e run. Tests guarantee their own stock (`tests/helpers.ensure_stock`), `pos.v02` / `pos.v04` top up before they start, and the scoping test asserts *what* comes back rather than a global count. |
+| 13 | `nav(page, 'Web orders')` timed out after the compact bar was widened to 1400 px | The compact bar renders short labels (`Web`, `Rcv`); the full label is always on the button's `title`, so the e2e select on `.nav-btn[title="…"]`. |
+
+### Final counts
+
+| Suite | Result |
+|---|---|
+| Backend `bench --site maison.localhost run-tests --app maison_pos` | **Ran 248 tests — OK** |
+| Frontend `npx vitest run` / `lint` / `build` | **196 tests, 18 files** — clean |
+| Dashboard `npx vitest run` / `build` | **24 tests** — clean |
+| e2e `pos` / `pos.v02` / `pos.v03` / `webshop` / `pos.v04` / `salon` / `dashboard.v05` | 11 · 20 · 31 · 29 · 37 · 32 · 18 |
+| e2e `warehouse` / `cloudchaserz` (cc.localhost) | 16 · 27 |
+
+Screenshots: `e2e/shots-v06/` (Receive, warehouse desk, approval, wall 1920×1080, wall after ship,
+count sheet, receipt confirmation, POS 1366×1024, age gate / blocked / passed, POS iPhone 390×844,
+Salon ID-check, `/rewards`).
+<!-- end v0.6 N/O/P/Q -->

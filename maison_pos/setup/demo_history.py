@@ -717,6 +717,12 @@ def _drop_realtime_log() -> None:
 
 def seed_history(months: int = 6, target: int = TARGET_INVOICES, commit: bool = True, force: bool = False, run_reposts: bool = True) -> dict[str, Any]:
 	"""Generate *months* of history (see module docstring). Safe to re-run; resumes if interrupted."""
+	# --- v0.6 N — Smoke Shop sites get the CloudChaserz history (11 stores, smoke-shop tickets) ---
+	if demo.resolve_vertical() == "Smoke Shop" and not frappe.db.exists("Maison Boutique", BOUTIQUES[0]["code"]):
+		from maison_pos.setup.cloudchaserz.history import seed_history as cc_seed_history
+
+		return cc_seed_history(months=int(months), commit=commit, force=force, run_reposts=run_reposts)
+	# --- end v0.6 N ---
 	months = int(months)
 	target = int(target)
 	started = time.time()

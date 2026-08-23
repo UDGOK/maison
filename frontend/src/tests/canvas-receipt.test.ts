@@ -93,7 +93,9 @@ describe('384-px reader receipt layout model', () => {
     const texts = l.runs
       .filter((r) => r.kind === 'text')
       .map((r) => `${r.text}${r.right ? ' ' + r.right : ''}`)
-    expect(texts[0]).toBe('MAISON')
+    // v0.6 N — the header is brand-driven (`snap.brand.wordmark`); with no brand on the snapshot
+    // it falls back to the default tenant wordmark rather than a hard-coded "MAISON".
+    expect(texts[0]).toBe('CLOUDCHASERZ')
     expect(texts.some((t) => t.includes('WT-CHR-026-CHI-001'))).toBe(true)
     expect(texts.some((t) => t.includes('VISA •••• 4242'))).toBe(true)
     expect(texts.some((t) => t.startsWith('TOTAL') && t.includes('12,000.00'))).toBe(true)
@@ -101,6 +103,16 @@ describe('384-px reader receipt layout model', () => {
     const qr = l.runs.find((r) => r.kind === 'qr')
     expect(qr?.payload).toBe('https://maison.example/r/tok')
     expect(qr?.side).toBeLessThanOrEqual(READER_COLS_PX)
+  })
+  it('v0.6 N — header and thank-you line come from the brand tokens on the snapshot', () => {
+    const branded = buildReceiptLayout(
+      { ...snap, brand: { wordmark: 'MAISON', brand_name: 'Maison', thanks: 'Thank you for visiting Maison' } },
+      { offline_uuid: 'u', posting_datetime: '2026-08-22T15:20:00Z' }
+    )
+    const texts = branded.runs.filter((r) => r.kind === 'text').map((r) => r.text ?? '')
+    expect(texts[0]).toBe('MAISON')
+    expect(texts.some((t) => t === 'Thank you for visiting Maison.')).toBe(true)
+    expect(texts.some((t) => t.includes('CloudChaserz'))).toBe(false)
   })
   it('credit notes get the RETURN banner, CREDIT total and store-credit line; no QR when disabled', () => {
     const l = buildReceiptLayout(

@@ -153,7 +153,12 @@ body.mw-shop button { font-family: inherit; cursor: pointer; }
 /* v0.6 N — brand sub-mark ("Maison POS") under the wordmark */
 .mw-wordmark { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1; letter-spacing: 0.12em; }
 .mw-submark { font-family: var(--mw-body); font-weight: 400; font-size: 9px; letter-spacing: 0.32em; color: var(--mw-dim); text-transform: uppercase; margin-top: 4px; }
-.mw-nav { display: flex; gap: 6px; height: 100%; margin-left: 8px; }
+/* v0.6 N — the category list is vertical-dependent: the smoke-shop catalogue has 11 item groups
+   where the jewellery one had 4, and as a non-shrinking flex row of nowrap links it made the whole
+   storefront 1840 px wide and scrolled the page sideways. It shrinks and scrolls inside itself now. */
+.mw-nav { display: flex; gap: 6px; height: 100%; margin-left: 8px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.mw-nav::-webkit-scrollbar { display: none; }
+.mw-nav a { flex: 0 0 auto; }
 .mw-nav a { display: inline-flex; align-items: center; padding: 0 14px; height: 72px; color: var(--mw-muted); font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; text-decoration: none; border-bottom: 2px solid transparent; font-weight: 500; white-space: nowrap; }
 .mw-nav a:hover { color: var(--mw-text); }
 .mw-nav a.active { color: var(--mw-accent); border-bottom-color: var(--mw-accent); }
@@ -186,6 +191,10 @@ body.mw-shop button { font-family: inherit; cursor: pointer; }
 /* footer */
 .mw-footer { border-top: 1px solid var(--mw-line); margin-top: 120px; padding: 64px 0 48px; color: var(--mw-dim); }
 .mw-footer .cols { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 40px; }
+/* grid items default to min-width:auto and refuse to shrink below their longest link, which pushed
+   the footer (and so the page) past a 390 px screen once store names got long */
+.mw-footer .col { min-width: 0; }
+.mw-footer .col a, .mw-footer .col div, .mw-footer .col h5 { overflow-wrap: anywhere; }
 .mw-footer .col h5 { font-family: var(--mw-body); font-weight: 500; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mw-muted); margin: 0 0 16px; }
 .mw-footer .col a, .mw-footer .col div { display: block; color: var(--mw-dim); text-decoration: none; font-size: 13px; line-height: 1.9; }
 .mw-footer .col a:hover { color: var(--mw-accent); }

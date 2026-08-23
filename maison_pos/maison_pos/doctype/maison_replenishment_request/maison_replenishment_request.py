@@ -33,7 +33,10 @@ class MaisonReplenishmentRequest(Document):
 		if not self.from_warehouse:
 			from maison_pos.shipping import get_main_warehouse
 
-			self.from_warehouse = get_main_warehouse(exclude=self.to_warehouse)
+			self.from_warehouse = get_main_warehouse(
+				exclude=self.to_warehouse,
+				company=frappe.db.get_value("Maison Boutique", self.boutique, "company"),
+			)
 		if self.from_warehouse == self.to_warehouse:
 			frappe.throw(_("Source and destination warehouse are the same"), frappe.ValidationError)
 		if not self.requested_by:

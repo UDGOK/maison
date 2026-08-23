@@ -29,6 +29,16 @@ def _manager(boutique: str) -> str:
 	return frappe.db.get_value("Maison Associate", {"boutique": boutique, "role": "Manager", "enabled": 1}, "user")
 
 
+def _company(boutique: str = STORE) -> str:
+	"""Company of the demo store under test — a bench may carry a second brand's company too."""
+	return frappe.db.get_value("Maison Boutique", boutique, "company")
+
+
+def _source_warehouse(exclude: str | None = None, boutique: str = STORE) -> str:
+	"""The replenishment source for *boutique*, restricted to its own company (v0.6 P)."""
+	return get_main_warehouse(exclude=exclude, company=_company(boutique))
+
+
 def _bin(item: str, warehouse: str) -> float:
 	return flt(frappe.db.get_value("Bin", {"item_code": item, "warehouse": warehouse}, "actual_qty"))
 
@@ -49,7 +59,7 @@ def ensure_warehouse_admin(email: str = WH_ADMIN) -> str:
 
 
 def stock_main_warehouse(item: str, qty: float, warehouse: str | None = None) -> str:
-	warehouse = warehouse or get_main_warehouse()
+	warehouse = warehouse or _source_warehouse()
 	company = frappe.db.get_value("Warehouse", warehouse, "company")
 	se = frappe.get_doc({"doctype": "Stock Entry", "stock_entry_type": "Material Receipt", "purpose": "Material Receipt", "company": company, "to_warehouse": warehouse, "posting_date": nowdate(), "posting_time": nowtime(), "set_posting_time": 1, "items": [{"item_code": item, "qty": qty, "t_warehouse": warehouse, "basic_rate": 10}]})
 	se.flags.ignore_permissions = True
@@ -82,7 +92,7 @@ class TestWarehouse(FrappeTestCase):
 		return out["request"]
 
 	def _approved_shipment(self, qty: float = 4, approve_qty: float | None = None, item: str = ITEM):
-		stock_main_warehouse(item, 20, get_main_warehouse(exclude=frappe.db.get_value("Maison Boutique", STORE, "warehouse")))
+		stock_main_warehouse(item, 20, _source_warehouse(exclude=frappe.db.get_value("Maison Boutique", STORE, "warehouse")))
 		req = self._request(qty=qty, item=item)
 		frappe.set_user(WH_ADMIN)
 		lines = [{"item_code": item, "approved_qty": approve_qty}] if approve_qty is not None else None
@@ -93,7 +103,7 @@ class TestWarehouse(FrappeTestCase):
 	def test_manager_request_creates_draft_material_request_and_warehouse_admin_approves_with_edited_qty(self):
 		req = self._request(qty=6)
 		self.assertEqual(req["status"], "Pending Approval")
-		self.assertEqual(req["from_warehouse"], get_main_warehouse(exclude=req["to_warehouse"]))
+		self.assertEqual(req["from_warehouse"], _source_warehouse(exclude=req["to_warehouse"]))
 		mr = frappe.get_doc("Material Request", req["material_request"])
 		self.assertEqual((mr.docstatus, mr.material_request_type, mr.set_warehouse), (0, "Material Transfer", req["to_warehouse"]))
 		# a store manager may not approve
@@ -269,7 +279,12 @@ class TestWarehouse(FrappeTestCase):
 			shipping.wall()
 		self.assertFalse(frappe.has_permission("Maison Shipment", "read", frappe.get_doc("Maison Shipment", sh["name"])))
 		self.assertNotIn(sh["name"], frappe.get_list("Maison Shipment", pluck="name"))
-		self.assertEqual(shipping.shipments("all")["count"], 0)
+		# `shipments()` must not leak the other store's consignment. Assert on *what* comes back
+		# rather than on a global count: the suite runs on a shared site that already carries
+		# shipments of this manager's own store from earlier runs (see INTEGRATION_NOTES v0.4 #13).
+		visible = shipping.shipments("all")["shipments"]
+		self.assertNotIn(sh["name"], [s["name"] for s in visible])
+		self.assertEqual({s["boutique"] for s in visible} - {OTHER}, set())
 		# nor the in-transit Stock Entries of the other store in the desk
 		ship_se = frappe.get_doc("Stock Entry", frappe.db.get_value("Maison Shipment", sh["name"], "stock_entry_ship"))
 		self.assertFalse(frappe.has_permission("Stock Entry", "read", ship_se))
@@ -421,7 +436,7 @@ class TestWarehouse(FrappeTestCase):
 
 	# ------------------------------------------------------------------ vendor PO at the warehouse
 	def test_warehouse_admin_receives_vendor_po_at_main_warehouse(self):
-		wh = get_main_warehouse()
+		wh = _source_warehouse()
 		company = frappe.db.get_value("Warehouse", wh, "company")
 		if not frappe.db.exists("Supplier", "Test Vape Distro"):
 			frappe.get_doc({"doctype": "Supplier", "supplier_name": "Test Vape Distro", "supplier_group": frappe.db.get_value("Supplier Group", {"is_group": 0}, "name") or "All Supplier Groups"}).insert(ignore_permissions=True)

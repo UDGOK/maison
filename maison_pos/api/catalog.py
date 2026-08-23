@@ -55,17 +55,37 @@ DEPARTMENTS = ["Timepieces", "High Jewellery", "Bridal", "Accessories", "Service
 SMOKE_SHOP_DEPARTMENTS = ["Vape", "Glass", "Hookah", "Kratom & CBD", "Accessories", "Services"]
 
 
-def _departments() -> list[str]:
+def _departments(company: Optional[str] = None) -> list[str]:
 	"""v0.6 N — departments actually used by sales items (vertical-neutral), else the legacy list."""
-	used = [
-		r.maison_department
-		for r in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0, "maison_department": ("is", "set")}, fields=["maison_department"], distinct=True)
-		if r.maison_department
-	]
+	foreign = _foreign_items(company)
+	used: list[str] = []
+	for r in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0, "maison_department": ("is", "set")}, fields=["name", "maison_department"]):
+		if r.maison_department and r.name not in foreign and r.maison_department not in used:
+			used.append(r.maison_department)
 	if not used:
 		return DEPARTMENTS
 	ordered = [d for d in SMOKE_SHOP_DEPARTMENTS + DEPARTMENTS if d in used]
-	return ordered + sorted(d for d in used if d not in ordered)
+	out: list[str] = []
+	for d in ordered + sorted(d for d in used if d not in ordered):
+		if d not in out:
+			out.append(d)
+	return out
+
+
+def _foreign_items(company: Optional[str]) -> set[str]:
+	"""v0.6 N — items that belong to *another* company only (``Item Default`` rows), so two demo
+	worlds (CloudChaserz / Maison jewellery) can share one site without mixing catalogues."""
+	if not company:
+		return set()
+	key = f"maison_foreign_items::{company}"
+	cached = getattr(frappe.local, key, None)
+	if cached is not None:
+		return cached
+	rows = frappe.get_all("Item Default", fields=["parent", "company"], filters={"parenttype": "Item"})
+	mine = {r.parent for r in rows if r.company == company}
+	foreign = {r.parent for r in rows if r.company != company and r.parent not in mine}
+	setattr(frappe.local, key, foreign)
+	return foreign
 
 
 # ---------------------------------------------------------------------------
@@ -172,15 +192,17 @@ def _modes_of_payment(pos_profile: dict[str, Any]) -> list[dict[str, Any]]:
 	return [{"name": r.name, "type": r.type} for r in rows]
 
 
-def _item_groups() -> list[str]:
+def _item_groups(company: Optional[str] = None) -> list[str]:
 	"""Leaf Item Group names that actually hold sales items (the POS category rail).
 
 	The PWA contract is ``item_groups: string[]``; returning the full ERPNext group list
 	(Consumable, Raw Material, ...) as dicts rendered JSON blobs in the rail.
 	"""
+	foreign = _foreign_items(company)  # v0.6 N
 	used = {
 		r.item_group
-		for r in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0}, fields=["item_group"], distinct=True)
+		for r in frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0}, fields=["name", "item_group"])
+		if r.name not in foreign
 	}
 	rows = frappe.get_all("Item Group", filters={"is_group": 0, "name": ("in", list(used))}, fields=["name"], order_by="name")
 	return [r.name for r in rows]
@@ -196,13 +218,15 @@ def absolute_file_url(url: Optional[str]) -> Optional[str]:
 	return get_url(url)
 
 
-def _items(since: Optional[str] = None) -> list[dict[str, Any]]:
+def _items(since: Optional[str] = None, company: Optional[str] = None) -> list[dict[str, Any]]:
 	filters: dict[str, Any] = {"is_sales_item": 1}
 	if since:
 		filters["modified"] = (">=", since)
 	else:
 		filters["disabled"] = 0
 	rows = frappe.get_all("Item", filters=filters, fields=ITEM_FIELDS, order_by="item_name")
+	foreign = _foreign_items(company)  # v0.6 N
+	rows = [r for r in rows if r["item_code"] not in foreign]
 	for r in rows:
 		r["image"] = absolute_file_url(r.get("image"))
 	return rows
@@ -343,7 +367,7 @@ def bootstrap(boutique: str) -> dict[str, Any]:
 	pos_profile = _pos_profile_dict(b["pos_profile"])
 	price_list = pos_profile["selling_price_list"] or "Standard Selling"
 	version = now_datetime()
-	items = _items()
+	items = _items(company=b["company"])  # v0.6 N: company-scoped
 	serials = _serials(b["warehouse"])
 
 	return {
@@ -353,8 +377,8 @@ def bootstrap(boutique: str) -> dict[str, Any]:
 		"settings": get_pos_settings(boutique),
 		"taxes": _taxes(b["tax_template"]),
 		"modes_of_payment": _modes_of_payment(pos_profile),
-		"item_groups": _item_groups(),
-		"departments": _departments(),
+		"item_groups": _item_groups(b["company"]),
+		"departments": _departments(b["company"]),
 		"items": items,
 		"prices": _prices(price_list),
 		"pricing_rules": _pricing_rules(b["warehouse"]),
@@ -406,7 +430,7 @@ def delta(boutique: str, since: str) -> dict[str, Any]:
 	for r in sold_serials:
 		removed.setdefault(r.item_code, []).append(r.name)
 
-	items = _items(since_s)
+	items = _items(since_s, company=b["company"])  # v0.6 N
 	serials = _serials(b["warehouse"], since_s)
 
 	return {
@@ -415,8 +439,8 @@ def delta(boutique: str, since: str) -> dict[str, Any]:
 		"settings": get_pos_settings(boutique),
 		"taxes": _taxes(b["tax_template"]),
 		"modes_of_payment": _modes_of_payment(pos_profile),
-		"item_groups": _item_groups(),
-		"departments": _departments(),
+		"item_groups": _item_groups(b["company"]),
+		"departments": _departments(b["company"]),
 		"items": items,
 		"prices": _prices(price_list, since_s),
 		"pricing_rules": _pricing_rules(b["warehouse"], since_s),

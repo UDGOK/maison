@@ -64,8 +64,62 @@ async function adminApi() {
       const doc = await this.get('frappe.client.get', { doctype: 'Sales Invoice', name: inv.name })
       return doc
     },
+    async post(method, data = {}) {
+      const pos = await ctx.get('/pos')
+      const csrf = (await pos.text()).match(/window\.csrf_token = "([^"]*)"/)?.[1] || ''
+      const r = await ctx.post(`/api/method/${method}`, { data, headers: { 'X-Frappe-CSRF-Token': csrf } })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok()) throw new Error(`${method}: ${r.status()} ${JSON.stringify(j).slice(0, 300)}`)
+      return j.message
+    },
     dispose: () => ctx.dispose()
   }
+}
+
+/** Every non-serialized piece this script rings up, by name — repeated runs sell them out. */
+const STOCKED_BY_NAME = ['Silk Pocket Square', 'Travel Jewellery Case', 'Cufflinks Onyx and Gold']
+
+/** Receive more of the quantity items the script taps, so their tiles are never `.tile.empty`. */
+async function ensureStock(admin) {
+  const b = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
+  const bq = (await admin.get('frappe.client.get_list', {
+    doctype: 'Maison Boutique', filters: JSON.stringify({ name: BOUTIQUE }), fields: JSON.stringify(['company', 'warehouse'])
+  }))[0]
+  const rows = []
+  for (const name of STOCKED_BY_NAME) {
+    const it = b.items.find((i) => i.item_name === name)
+    if (it && (b.stock?.[it.item_code] || 0) < 4) {
+      rows.push({ item_code: it.item_code, qty: 20, t_warehouse: bq.warehouse, basic_rate: 100, allow_zero_valuation_rate: 1 })
+    }
+  }
+  if (!rows.length) return
+  await admin.post('frappe.client.insert', {
+    doc: { doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1, items: rows }
+  })
+  console.log(`  topped up ${rows.map((r) => r.item_code).join(', ')} @ ${BOUTIQUE}`)
+}
+
+/**
+ * Repeated e2e runs sell the demo one-offs through, and this script needs a serialized piece with a
+ * free serial at CHI-OAK — without one its tile renders `.tile.empty`. Receive a fresh pair.
+ */
+async function ensureFreeSerial(admin) {
+  const b = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
+  const byCode = Object.fromEntries(b.items.map((i) => [i.item_code, i]))
+  if (Object.entries(b.serials).some(([ic, list]) => list.length >= 1 && byCode[ic])) return
+  const code = b.items.find((i) => i.has_serial_no)?.item_code
+  if (!code) return
+  const bq = (await admin.get('frappe.client.get_list', {
+    doctype: 'Maison Boutique', filters: JSON.stringify({ name: BOUTIQUE }), fields: JSON.stringify(['company', 'warehouse'])
+  }))[0]
+  const tag = Math.random().toString(36).slice(2, 6).toUpperCase()
+  await admin.post('frappe.client.insert', {
+    doc: {
+      doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,
+      items: [1, 2].map((n) => ({ item_code: code, qty: 1, t_warehouse: bq.warehouse, basic_rate: 1000, allow_zero_valuation_rate: 1, use_serial_batch_fields: 1, serial_no: `${code}-CHI-F${tag}${n}` }))
+    }
+  })
+  console.log(`  topped up ${code} @ ${BOUTIQUE}: +2 serials`)
 }
 
 // ---- POS helpers ---------------------------------------------------------------
@@ -192,6 +246,8 @@ function checkInvoice(doc, { customer, serial, mode, total, terminalRef }) {
 // ================================================================================
 const browser = await chromium.launch({ headless: true })
 const admin = await adminApi()
+try { await ensureFreeSerial(admin) } catch (e) { console.log('  serial top-up skipped:', String(e).slice(0, 200)) }
+try { await ensureStock(admin) } catch (e) { console.log('  stock top-up skipped:', String(e).slice(0, 200)) }
 let assocLoggedIn = false
 
 // 1. login as the associate

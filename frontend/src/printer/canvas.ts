@@ -135,7 +135,7 @@ export function buildReceiptLayout(r: ReceiptSnapshot, opts: ReaderReceiptOption
   const rule = (dashed = false) => add({ kind: 'rule', h: 14, dashed })
   const feed = (px = 10) => add({ kind: 'feed', h: px })
 
-  text('MAISON', { align: 'center', size: TITLE, bold: true, display: true })
+  text(r.brand?.wordmark || 'CLOUDCHASERZ', { align: 'center', size: TITLE, bold: true, display: true }) // v0.6 N
   text(r.boutique_name.toUpperCase(), { align: 'center', size: LABEL })
   text([r.address_line, r.city].filter(Boolean).join(', '), { align: 'center', size: SMALL })
   if (r.phone) text(r.phone, { align: 'center', size: SMALL })
@@ -201,7 +201,13 @@ export function buildReceiptLayout(r: ReceiptSnapshot, opts: ReaderReceiptOption
     if (r.points_earned) pair('POINTS EARNED', String(Math.round(r.points_earned)), { size: SMALL })
     if (r.points_balance !== undefined)
       pair('POINTS BALANCE', String(Math.round(r.points_balance)), { size: SMALL })
+    // --- v0.6 Q ---
+    if (r.reward_tier) pair('REWARD', r.reward_tier.title.toUpperCase(), { size: SMALL })
+    if (r.next_reward) pair('NEXT REWARD', `$${Math.round(r.next_reward.amount)} AT ${r.next_reward.points} PTS`, { size: SMALL })
+    if (r.giveaway_entries) pair('GIVEAWAY ENTRIES', String(r.giveaway_entries), { size: SMALL })
+    // --- end v0.6 Q ---
   }
+  if (r.age_verified) text('ID CHECKED · 21+ VERIFIED', { align: 'center', size: SMALL }) // v0.6 N
   if (Math.abs(r.grand_total) >= 10000 || opts.kind === 'return') {
     feed(18)
     text('CLIENT SIGNATURE', { size: LABEL })
@@ -221,7 +227,7 @@ export function buildReceiptLayout(r: ReceiptSnapshot, opts: ReaderReceiptOption
     text('SCAN FOR YOUR RECEIPT', { align: 'center', size: LABEL })
   }
   feed(6)
-  text('Thank you for choosing Maison.', { align: 'center', size: SMALL })
+  text(`${r.brand?.thanks || 'Thank you for choosing ' + (r.brand?.brand_name || 'CloudChaserz')}.`, { align: 'center', size: SMALL }) // v0.6 N
   text('Exchanges within 30 days with receipt.', { align: 'center', size: SMALL })
   feed(READER_MARGIN * 2)
   return { width: READER_PAPER_WIDTH, height: y, runs }

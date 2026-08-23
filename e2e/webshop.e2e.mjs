@@ -291,7 +291,7 @@ if (orderName) {
   wireConsole(page, 'pos')
   try {
     await unlock(page, MANAGER)
-    await page.click('.nav-btn:has-text("Web orders")')
+    await page.click('.nav-btn[title="Web orders"]')
     await page.waitForSelector('[data-testid=web-orders]', { timeout: 20000 })
     await page.waitForSelector(`[data-testid=web-order-row][data-name="${orderName}"]`, { timeout: 20000 })
     record('POS Web orders queue lists the new order for Oak Street', true)

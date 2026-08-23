@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 80 mm receipt — used for on-screen preview and for window.print() fallback. */
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import type { QueueRow } from '@/db'
 import { fmtAmount } from '@/utils/money'
@@ -12,6 +12,11 @@ const props = defineProps<{ row: QueueRow }>()
 const catalog = useCatalogStore()
 const qrSrc = ref('')
 const qrUrl = ref('')
+// --- v0.6 Q ---
+const nextReward = computed(() => props.row.rewards?.next_reward ?? props.row.receipt.next_reward ?? null)
+const giveawayEntries = computed(() => props.row.rewards?.giveaway_entries ?? props.row.receipt.giveaway_entries ?? 0)
+const giveawayTitle = computed(() => props.row.rewards?.giveaway?.title ?? props.row.receipt.giveaway_title)
+// --- end v0.6 Q ---
 
 watch(
   () => [props.row.receipt_token, props.row.receipt.receipt_qr_base_url, catalog.settings.receipt_qr_enabled],
@@ -37,7 +42,7 @@ watch(
 
 <template>
   <div class="receipt">
-    <div class="r-wordmark">MAISON</div>
+    <div class="r-wordmark" data-testid="receipt-wordmark">{{ row.receipt.brand?.wordmark || catalog.brand.wordmark_text }}</div>
     <div class="r-center r-caps">{{ row.receipt.boutique_name }}</div>
     <div class="r-center">{{ row.receipt.address_line }}</div>
     <div class="r-center">{{ row.receipt.city }}</div>
@@ -84,15 +89,21 @@ watch(
     </template>
     <template v-if="row.receipt.customer_name">
       <div class="r-rule"></div>
-      <div class="r-kv"><span>Points earned</span><span>{{ row.receipt.points_earned }}</span></div>
-      <div v-if="row.receipt.points_balance !== undefined" class="r-kv"><span>Points balance</span><span>{{ row.receipt.points_balance }}</span></div>
+      <!-- v0.6 Q: program name, tier redeemed, next reward, giveaway entries (server values once synced) -->
+      <div class="r-center r-caps">{{ row.rewards?.program_name || row.receipt.brand?.program_name || catalog.brand.rewards_program_name }}</div>
+      <div v-if="row.receipt.reward_tier" class="r-kv"><span>Reward redeemed</span><span>{{ row.receipt.reward_tier.title }}</span></div>
+      <div class="r-kv"><span>Points earned</span><span data-testid="receipt-points-earned">{{ row.rewards?.points_earned ?? row.receipt.points_earned }}</span></div>
+      <div v-if="(row.rewards?.points_balance ?? row.receipt.points_balance) !== undefined" class="r-kv"><span>Points balance</span><span data-testid="receipt-points-balance">{{ row.rewards?.points_balance ?? row.receipt.points_balance }}</span></div>
+      <div v-if="nextReward" class="r-kv" data-testid="receipt-next-reward"><span>Next reward</span><span>{{ fmtAmount(nextReward.amount) }} off at {{ nextReward.points }} pts ({{ nextReward.points_needed }} to go)</span></div>
+      <div v-if="giveawayEntries" class="r-kv" data-testid="receipt-giveaway"><span>Giveaway entries</span><span>{{ giveawayEntries }}<template v-if="giveawayTitle"> · {{ giveawayTitle }}</template></span></div>
     </template>
+    <div v-if="row.receipt.age_verified" class="r-center r-sub">ID checked · 21+ verified</div>
     <div v-if="row.receipt.grand_total >= 10000" class="r-sig">
       <div class="r-sig-line"></div>
       <div class="r-sub">Signature</div>
     </div>
     <div class="r-foot">
-      <div class="r-center r-caps">Thank you for visiting Maison</div>
+      <div class="r-center r-caps">{{ row.receipt.brand?.thanks || `Thank you for visiting ${catalog.brand.brand_name}` }}</div>
       <div class="r-center">Exchanges within 30 days with receipt.</div>
       <div v-if="qrSrc" class="r-qr">
         <img :src="qrSrc" alt="Receipt QR" width="96" height="96" />

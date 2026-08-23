@@ -1,0 +1,175 @@
+{
+ "base": "http://cc.localhost:8001",
+ "store_a": "HOU-MTR",
+ "store_b": "OK-SAP",
+ "customer": "CC Rewards E2E 1787465624117",
+ "results": [
+  {
+   "step": "bootstrap.brand is the CloudChaserz tenant (Smoke Shop vertical)",
+   "ok": true,
+   "detail": "{\"brand_name\":\"CloudChaserz\",\"product_name\":\"Maison POS by CloudChaserz\",\"vertical\":\"Smoke Shop\",\"wordmark\":\"CLOUDCHASERZ\",\"store_noun\":\"Store\",\"tagline\":\"Elevate Your Smoking Experience\"}"
+  },
+  {
+   "step": "the 11 real stores plus the HOU-WH warehouse are seeded",
+   "ok": true,
+   "detail": "12 boutiques: HOU-MTR, HOU-WH*, OK-BA, OK-BIX, OK-ETUL, OK-JENKS, OK-MINGO, OK-MUS, OK-OWA, OK-SAP, OK-STUL, OK-YALE"
+  },
+  {
+   "step": "/rewards carries the exact programme copy and the three fixed tiers",
+   "ok": true,
+   "detail": "tiers ok; \"Maison\" occurrences outside asset paths: 1"
+  },
+  {
+   "step": "the catalogue marks 21+ items",
+   "ok": true,
+   "detail": "restricted=GLS-001 (12\" Beaker Bong — Clear, Ice Pinch); open=ACC-013"
+  },
+  {
+   "step": "age.verify_scan refuses an under-21 licence",
+   "ok": true,
+   "detail": "{\"ok\":false,\"outcome\":\"Underage\",\"age\":19,\"message\":\"Under 21 — sale of age-restricted items refused\"}"
+  },
+  {
+   "step": "age.verify_scan refuses an expired licence",
+   "ok": true,
+   "detail": "{\"ok\":false,\"outcome\":\"Expired\",\"message\":\"ID expired — ask for a valid ID\"}"
+  },
+  {
+   "step": "age.verify_scan passes a valid 21+ licence and logs a Maison Age Check",
+   "ok": true,
+   "detail": "{\"ok\":true,\"outcome\":\"Verified\",\"age\":34,\"method\":\"Scan\",\"check\":\"6prb56e771\"}"
+  },
+  {
+   "step": "the age check stores no PII beyond the masked initials",
+   "ok": true,
+   "detail": "{\"name\":\"6prb56e771\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"initials\":\"AR\",\"boutique\":\"HOU-MTR\"}"
+  },
+  {
+   "step": "the POS top bar is branded CloudChaserz (wordmark first, \"Maison POS\" only as the sub-mark)",
+   "ok": true,
+   "detail": "CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK"
+  },
+  {
+   "step": "ringing a 21+ item raises the age gate before it reaches the basket",
+   "ok": true,
+   "detail": "CHECK ID · 21+"
+  },
+  {
+   "step": "an under-21 date of birth is refused at the counter and the item is not sold",
+   "ok": true,
+   "detail": "CONTINUE WITHOUT"
+  },
+  {
+   "step": "an expired ID is refused at the counter and the item is not sold",
+   "ok": true,
+   "detail": "CONTINUE WITHOUT"
+  },
+  {
+   "step": "a valid 21+ ID passes the gate and the item is rung up",
+   "ok": true,
+   "detail": "WALK-IN SEARCH CLIENT № MC FIND ✦ 1 PROMO 12\" Beaker Bong — Clear, Ice Pinch 1 × $59.99 $59.99 − 1 + SUBTOTAL $59.99 TAX 8.25% $4.95 REWARD Adjust TOTAL $64.94 "
+  },
+  {
+   "step": "iPhone 390×844: the rebranded POS has no horizontal overflow",
+   "ok": true,
+   "detail": "scrollWidth-clientWidth=0"
+  },
+  {
+   "step": "the Salon display is branded CloudChaserz",
+   "ok": true,
+   "detail": "CLOUDCHASERZ CLOUDCHASERZ NOT PAIRED 6:13 AM CLIENT DISPLAY PAIR WITH THE POINT OF SALE Enter the six-digit code shown under Settings · Client display on the as"
+  },
+  {
+   "step": "the programme exposes the three fixed tiers ($5/100, $10/200, $15/300)",
+   "ok": true,
+   "detail": "100pt→$5, 200pt→$10, 300pt→$15"
+  },
+  {
+   "step": "the /rewards sign-up creates a member with a client number and the CloudChaserz programme",
+   "ok": true,
+   "detail": "CC Rewards E2E 1787465624117 MC862378 CloudChaserz Rewards"
+  },
+  {
+   "step": "$1 spent = 1 point earned on the net amount, not the taxed total",
+   "ok": true,
+   "detail": "spent $159.92 net ($173.11 with tax) → 159 points (invoice ACC-SINV-2026-01031)"
+  },
+  {
+   "step": "only the tiers the client can afford are offered",
+   "ok": true,
+   "detail": "points=159 affordable=100 next=—"
+  },
+  {
+   "step": "redeeming the $5 / 100-point tier takes $5 off at the counter",
+   "ok": true,
+   "detail": "ACC-SINV-2026-01032 loyalty_amount=5 tier=RT-100-00001 total=64.92"
+  },
+  {
+   "step": "100 points are deducted from the balance on redemption",
+   "ok": true,
+   "detail": "159 → 113"
+  },
+  {
+   "step": "returning the sale reverses the points and releases the redeemed reward (never negative)",
+   "ok": true,
+   "detail": " credit note ACC-SINV-2026-01033; points 113 → 154"
+  },
+  {
+   "step": "the public /rewards page renders the tiers and the perks (no unresolved template tokens)",
+   "ok": true,
+   "detail": "CLOUDCHASERZ MAISON POS ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & PAPERS STORES REWARDS SIGN IN BAG 0 "
+  },
+  {
+   "step": "store manager A (HOU-MTR) is refused OK-SAP data over HTTP on every endpoint",
+   "ok": true,
+   "detail": "bootstrap=403 · inbound=403 · replenishment_requests=403 · shipments=403"
+  },
+  {
+   "step": "the live dashboard shows manager A only their own store",
+   "ok": true,
+   "detail": "by_boutique=HOU-MTR"
+  },
+  {
+   "step": "store manager B (OK-SAP) is refused HOU-MTR data over HTTP",
+   "ok": true,
+   "detail": "bootstrap(HOU-MTR) → 403"
+  },
+  {
+   "step": "a manager still gets their own store",
+   "ok": true,
+   "detail": "bootstrap(HOU-MTR) → 200"
+  }
+ ],
+ "console": [
+  {
+   "tag": "pos",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "pos",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "phone",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "phone",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "salon",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  },
+  {
+   "tag": "rewards",
+   "type": "error",
+   "text": "Failed to load resource: net::ERR_FAILED"
+  }
+ ]
+}

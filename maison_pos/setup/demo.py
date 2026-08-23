@@ -832,14 +832,26 @@ def ensure_users() -> None:
 # ---------------------------------------------------------------------------
 def restore_demo_prices() -> int:
 	"""Re-create missing demo Item Prices (idempotent; 0 when the demo company is absent). Commits."""
-	if not frappe.db.exists("Company", COMPANY) or not frappe.db.exists("Price List", PRICE_LIST):
-		return 0
 	restored = 0
-	for code, *_rest in ITEMS:
+	if not frappe.db.exists("Company", COMPANY) or not frappe.db.exists("Price List", PRICE_LIST):
+		ITEMS_ = []
+	else:
+		ITEMS_ = ITEMS
+	for code, *_rest in ITEMS_:
 		rate = _rest[6]
 		if frappe.db.exists("Item", code) and not frappe.db.exists("Item Price", {"item_code": code, "price_list": PRICE_LIST, "selling": 1}):
 			_insert({"doctype": "Item Price", "item_code": code, "price_list": PRICE_LIST, "price_list_rate": rate, "selling": 1, "currency": CURRENCY})
 			restored += 1
+	# --- v0.6 N — the CloudChaserz catalogue too (both profiles may live on one site) ---
+	try:
+		from maison_pos.setup.cloudchaserz import COMPANY as CC_COMPANY
+		from maison_pos.setup.cloudchaserz.catalog import restore_prices as cc_restore
+
+		if frappe.db.exists("Company", CC_COMPANY):
+			restored += cc_restore()
+	except Exception:
+		pass
+	# --- end v0.6 N ---
 	if restored:
 		frappe.db.commit()
 	return restored
@@ -890,8 +902,71 @@ def seed_remote() -> dict[str, Any]:
 	return seed()
 
 
-def seed(commit: bool = True) -> dict[str, Any]:
-	"""Create all demo data. Safe to run repeatedly."""
+# --- v0.6 N — vertical switch: the CloudChaserz (Smoke Shop) world is the default for new installs ---
+def resolve_vertical(vertical: Optional[str] = None) -> str:
+	"""Explicit argument > ``Maison POS Settings.vertical`` > Smoke Shop."""
+	if vertical:
+		v = str(vertical).strip().lower()
+		return "Jewellery" if v.startswith("jewel") else "General" if v.startswith("gen") else "Smoke Shop"
+	try:
+		stored = frappe.db.get_single_value("Maison POS Settings", "vertical") if frappe.db.exists("DocType", "Maison POS Settings") else None
+	except Exception:
+		stored = None
+	return stored or "Smoke Shop"
+
+
+JEWELLERY_BRAND: dict[str, Any] = {
+	"brand_name": "Maison",
+	"product_name": "Maison POS",
+	"tagline": "Fine jewellery & timepieces",
+	"wordmark_text": "MAISON",
+	"sub_mark": "POS",
+	"legal_name": "Maison Jewelers",
+	"support_email": "concierge@maison.example",
+	"brand_website": "https://maison.example",
+	"vertical": "Jewellery",
+	"rewards_program_name": "Maison Collectors",
+}
+
+
+def ensure_jewellery_brand_settings() -> None:
+	"""The jewellery profile keeps its own brand tokens (wordmark MAISON, "Boutique" wording)."""
+	if not frappe.db.exists("DocType", "Maison POS Settings"):
+		return
+	for key, value in JEWELLERY_BRAND.items():
+		try:
+			frappe.db.set_single_value("Maison POS Settings", key, value)
+		except Exception:
+			pass
+	frappe.clear_cache(doctype="Maison POS Settings")
+	try:
+		from maison_pos.brand import clear_brand_cache
+
+		clear_brand_cache()
+	except Exception:
+		pass
+
+
+def seed(commit: bool = True, vertical: Optional[str] = None) -> dict[str, Any]:
+	"""Create all demo data. Safe to run repeatedly.
+
+	``vertical`` (or ``Maison POS Settings.vertical``, default *Smoke Shop*) picks the world:
+	**Smoke Shop** → the CloudChaserz profile (``setup.cloudchaserz.seed``: 11 real stores +
+	HOU-WH warehouse, ~120-item catalogue, rewards program); **Jewellery** → the original three
+	boutiques below (what the regression suites seed).
+	"""
+	if resolve_vertical(vertical) == "Smoke Shop":
+		from maison_pos.setup import cloudchaserz
+
+		return cloudchaserz.seed(commit=commit)
+	return seed_jewellery(commit=commit)
+
+
+# --- end v0.6 N ---
+
+
+def seed_jewellery(commit: bool = True) -> dict[str, Any]:
+	"""The original jewellery demo world (company *Maison*, NYC-5AV / CHI-OAK / MIA-DD)."""
 	random.seed(42)
 	frappe.flags.mute_emails = True
 	frappe.flags.in_demo_seed = True
@@ -911,6 +986,7 @@ def seed(commit: bool = True) -> dict[str, Any]:
 	ensure_stock()
 	ensure_customers()
 	ensure_users()
+	ensure_jewellery_brand_settings()  # v0.6 N
 	# --- v0.4 D/E (inventory + returns): reorder levels, Damaged warehouses, readers, sample alerts ---
 	from maison_pos.setup.demo_v04_inventory import seed_inventory_v04
 

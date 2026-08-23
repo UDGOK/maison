@@ -18,7 +18,7 @@ async function send() {
   <div class="salon-screen" data-testid="salon-feedback">
     <div class="s-eyebrow">Private to the house</div>
     <div class="s-title soft">How was your visit today?</div>
-    <p class="s-lead">Your answer goes only to Maison's head office — never to the boutique floor, never published.</p>
+    <p class="s-lead">Your answer goes only to {{ salon.brandName }}'s head office — never to the {{ salon.storeNoun.toLowerCase() }} floor, never published.</p>
     <div class="s-stars" role="radiogroup" aria-label="Rating">
       <button v-for="i in 5" :key="i" class="s-star" :class="{ on: i <= rating }" type="button" role="radio" :aria-checked="rating === i" :data-testid="`feedback-star-${i}`" @click="rating = i">★</button>
     </div>

@@ -21,6 +21,7 @@ import SalonFeedback from './SalonFeedback.vue'
 import SalonInvite from './SalonInvite.vue'
 import SalonConsent from './SalonConsent.vue'
 import SalonConcierge from './SalonConcierge.vue'
+import SalonIdCheck from './SalonIdCheck.vue' // v0.6 N
 
 const salon = useSalonStore()
 const route = useRoute()
@@ -39,6 +40,7 @@ const views = {
   thankyou: SalonThankYou,
   feedback: SalonFeedback,
   invite: SalonInvite,
+  idcheck: SalonIdCheck, // v0.6 N
   consent: SalonConsent,
   concierge: SalonConcierge,
   unpaired: SalonPair
@@ -82,7 +84,7 @@ watch(
     <canvas ref="canvas" class="salon-bg" :class="{ dimmed }" aria-hidden="true"></canvas>
     <div class="salon-chrome">
       <div class="salon-top">
-        <div class="salon-wordmark">Maison</div>
+        <div class="salon-wordmark" data-testid="salon-wordmark">{{ salon.wordmark }}</div>
         <div class="salon-boutique">{{ salon.boutiqueName }}</div>
       </div>
       <div class="salon-bottom">

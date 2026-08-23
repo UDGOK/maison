@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { api, DEFAULT_SETTINGS, normalizeSettings, type Bootstrap, type Item, type LoyaltyProgram, type PosSettings, type PricingRule, type TaxRow } from '@/api'
+import { api, DEFAULT_SETTINGS, normalizeSettings, type Bootstrap, type Brand, type Item, type LoyaltyProgram, type PosSettings, type PricingRule, type RewardTier, type TaxRow } from '@/api'
+import { DEFAULT_BRAND, normalizeAge, normalizeBrand, type AgeGateSettings } from '@/brand/tokens' // v0.6 N/Q
 import { db, getSetting, setSetting } from '@/db'
 import { useSessionStore } from './session'
 
@@ -22,6 +23,11 @@ interface CatalogState {
   version: string | null
   loading: boolean
   error: string | null
+  // --- v0.6 N/Q — brand tokens, age-gate switches, fixed reward tiers (all from bootstrap) ---
+  brand: Brand
+  age: AgeGateSettings
+  reward_tiers: RewardTier[]
+  // --- end v0.6 N/Q ---
 }
 
 export const useCatalogStore = defineStore('catalog', {
@@ -40,7 +46,10 @@ export const useCatalogStore = defineStore('catalog', {
     imagesOverride: null,
     version: null,
     loading: false,
-    error: null
+    error: null,
+    brand: { ...DEFAULT_BRAND }, // v0.6 N
+    age: normalizeAge(null), // v0.6 N
+    reward_tiers: [] // v0.6 Q
   }),
   getters: {
     taxRate: (s) => s.taxes.reduce((sum, t) => sum + (t.rate || 0), 0),
@@ -86,6 +95,11 @@ export const useCatalogStore = defineStore('catalog', {
       this.loyalty = meta.loyalty || null
       this.settings = normalizeSettings(meta.settings)
       this.version = meta.version || null
+      // --- v0.6 N/Q ---
+      this.brand = normalizeBrand(meta.brand)
+      this.age = normalizeAge(meta.age)
+      this.reward_tiers = meta.reward_tiers || []
+      // --- end v0.6 N/Q ---
       this.imagesOverride = await getSetting<boolean | null>('show_images_override', null)
     },
     async persist() {
@@ -110,7 +124,12 @@ export const useCatalogStore = defineStore('catalog', {
           taxes: JSON.parse(JSON.stringify(this.taxes)),
           loyalty: this.loyalty ? JSON.parse(JSON.stringify(this.loyalty)) : null,
           settings: JSON.parse(JSON.stringify(this.settings)),
-          version: this.version
+          version: this.version,
+          // --- v0.6 N/Q ---
+          brand: JSON.parse(JSON.stringify(this.brand)),
+          age: JSON.parse(JSON.stringify(this.age)),
+          reward_tiers: JSON.parse(JSON.stringify(this.reward_tiers)),
+          // --- end v0.6 N/Q ---
         })
       })
     },
@@ -127,6 +146,11 @@ export const useCatalogStore = defineStore('catalog', {
       this.barcodes = b.barcodes || {}
       this.settings = normalizeSettings(b.settings)
       this.version = b.version
+      // --- v0.6 N/Q — brand + age switches ride on the raw settings; tiers are their own key ---
+      this.brand = normalizeBrand(b.brand || (b.settings as unknown as { brand?: Partial<Brand> })?.brand)
+      this.age = normalizeAge(b.settings as unknown as Partial<AgeGateSettings>)
+      this.reward_tiers = b.reward_tiers || []
+      // --- end v0.6 N/Q ---
     },
     /** Device-level image toggle (Settings); null follows the boutique setting. */
     async setImagesOverride(v: boolean | null) {
@@ -200,6 +224,11 @@ export const useCatalogStore = defineStore('catalog', {
         if (d.loyalty_program) this.loyalty = d.loyalty_program
         if (d.barcodes && Object.keys(d.barcodes).length) this.barcodes = { ...this.barcodes, ...d.barcodes }
         if (d.settings) this.settings = normalizeSettings(d.settings)
+        // --- v0.6 N/Q ---
+        if (d.brand) this.brand = normalizeBrand(d.brand)
+        if (d.settings) this.age = normalizeAge(d.settings as unknown as Partial<AgeGateSettings>)
+        if (d.reward_tiers) this.reward_tiers = d.reward_tiers
+        // --- end v0.6 N/Q ---
         this.version = d.version
         await this.persist()
         return true
@@ -225,6 +254,8 @@ export const useCatalogStore = defineStore('catalog', {
           i.item_code.toLowerCase().includes(s) ||
           (i.maison_stones || '').toLowerCase().includes(s) ||
           (i.maison_metal || '').toLowerCase().includes(s) ||
+          (i.maison_brand || '').toLowerCase().includes(s) || // v0.6 N
+          (i.maison_flavor || '').toLowerCase().includes(s) || // v0.6 N
           (this.serials[i.item_code] || []).some((sn) => sn.toLowerCase().includes(s))
         )
       })

@@ -152,7 +152,9 @@ async function unlock(page, user, { clockIn = false } = {}) {
   await page.waitForSelector('.tile', { timeout: 20000 })
 }
 async function nav(page, label) {
-  await page.click(`.nav-btn:has-text("${label}")`)
+  // the compact top bar (<= 1400 px) renders short labels ("Web", "Rcv"); the full label is
+  // always on the button's title attribute, so match that instead of the visible text
+  await page.click(`.nav-btn[title="${label}"]`)
 }
 
 async function addItem(page, name) {
@@ -208,6 +210,23 @@ const dismissNotices = (page) => page.evaluate(() => document.querySelectorAll('
 
 // ====================================================================================
 const admin = await apiFor(ADMIN)
+// repeated runs sell the demo accessories through: receive more before reading the catalogue,
+// otherwise their tiles render `.tile.empty` and every step that rings them up times out.
+async function ensureStock(code, min = 6, qty = 20) {
+  const b = (await admin.list('Bin', { item_code: code, warehouse: `${BOUTIQUE} - MSN` }, ['actual_qty']))[0]
+  if (Number(b?.actual_qty || 0) >= min) return
+  const bq = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+  await admin.post('frappe.client.insert', {
+    doc: {
+      doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,
+      items: [{ item_code: code, qty, t_warehouse: bq.warehouse, basic_rate: 100, allow_zero_valuation_rate: 1 }]
+    }
+  })
+  log(`  topped up ${code} @ ${BOUTIQUE}: +${qty}`)
+}
+for (const code of ['AC-012', 'AC-001', 'AC-005', 'AC-011']) {
+  try { await ensureStock(code) } catch (e) { log(`  stock top-up skipped for ${code}:`, String(e).slice(0, 160)) }
+}
 const boot = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
 const itemByCode = Object.fromEntries((boot.items || []).map((i) => [i.item_code, i]))
 const priceOf = (code) => Number(boot.prices?.[code] ?? 0)
@@ -626,7 +645,8 @@ try {
       const lock = document.querySelector('.topbar .lock-btn')
       return { items: nav.querySelectorAll('.nav-btn').length, navW: Math.round(nav.getBoundingClientRect().width), scrollW: nav.scrollWidth, lockRight: Math.round(lock.getBoundingClientRect().right), docW: document.documentElement.clientWidth }
     })
-    record('iPad landscape (1024 px): all 8 nav entries fit on one row with the Lock button on screen', navOk.items === 8 && navOk.scrollW <= navOk.navW + 4 && navOk.lockRight <= navOk.docW, JSON.stringify(navOk))
+    // v0.6 O adds the "Receive" screen — 9 entries on the iPad top bar
+    record('iPad landscape (1024 px): all 9 nav entries fit on one row with the Lock button on screen', navOk.items === 9 && navOk.scrollW <= navOk.navW + 4 && navOk.lockRight <= navOk.docW, JSON.stringify(navOk))
     await shot(p2, 'ipad-topbar')
   } catch (e) {
     record('iPad topbar nav', false, String(e.stack || e))

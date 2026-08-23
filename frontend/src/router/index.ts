@@ -4,8 +4,10 @@ import { useSessionStore } from '@/stores/session'
 // Under Frappe the shell is served at /pos; in dev at /.
 // --- v0.5 K: the same bundle also serves the client-facing Salon at /salon (www/salon.py) — base '/' there ---
 export const IS_SALON = typeof location !== 'undefined' && /^\/salon(\/|$)/.test(location.pathname)
-const history = createWebHistory(import.meta.env.DEV || IS_SALON ? '/' : '/pos')
-// --- end v0.5 K ---
+// --- v0.6 P: warehouse admin desk (/warehouse) and the 55" wall (/warehouse-wall) — same bundle, base '/' ---
+export const IS_WAREHOUSE = typeof location !== 'undefined' && /^\/warehouse(-wall)?(\/|$)/.test(location.pathname)
+const history = createWebHistory(import.meta.env.DEV || IS_SALON || IS_WAREHOUSE ? '/' : '/pos')
+// --- end v0.5 K / v0.6 P ---
 
 export const router = createRouter({
   history,
@@ -27,6 +29,11 @@ export const router = createRouter({
     { path: '/count', name: 'count', component: () => import('@/views/CycleCountView.vue') },
     // v0.5 K — client-facing Salon (guest device; own layout, no POS chrome)
     { path: '/salon/:screen?', name: 'salon', component: () => import('@/salon/views/SalonApp.vue'), meta: { public: true, salon: true } },
+    // --- v0.6 O/P — store receiving (POS), warehouse admin desk + wall (Frappe-session users, role-gated in-app) ---
+    { path: '/receive', name: 'receive', component: () => import('@/views/ReceiveView.vue') },
+    { path: '/warehouse/:tab?', name: 'warehouse', component: () => import('@/warehouse/views/WarehouseDesk.vue'), meta: { public: true, warehouse: true } },
+    { path: '/warehouse-wall', name: 'warehouse-wall', component: () => import('@/warehouse/views/WarehouseWall.vue'), meta: { public: true, warehouse: true } },
+    // --- end v0.6 O/P ---
     { path: '/:pathMatch(.*)*', redirect: '/sell' }
   ]
 })

@@ -72,7 +72,7 @@ class TestScopingHTTP(FrappeTestCase):
 		from maison_pos.shipping import ensure_transit_warehouse, get_main_warehouse
 
 		wh_b = frappe.db.get_value("Maison Boutique", STORE_B, "warehouse")
-		src = get_main_warehouse(exclude=wh_b)
+		src = get_main_warehouse(exclude=wh_b, company=frappe.db.get_value("Maison Boutique", STORE_B, "company"))
 		company = frappe.db.get_value("Warehouse", src, "company")
 		se = frappe.get_doc({"doctype": "Stock Entry", "stock_entry_type": "Material Receipt", "purpose": "Material Receipt", "company": company, "to_warehouse": src, "posting_date": nowdate(), "posting_time": nowtime(), "set_posting_time": 1, "items": [{"item_code": ITEM, "qty": 3, "t_warehouse": src, "basic_rate": 10}]})
 		se.flags.ignore_permissions = True
@@ -209,4 +209,7 @@ class TestScopingHTTP(FrappeTestCase):
 			r = s.get(f"{self.base}/api/method/maison_pos.api.{m}", timeout=15)
 			self.assertIn(r.status_code, (401, 403), m)
 		r = s.get(f"{self.base}/warehouse-wall", timeout=15, allow_redirects=False)
-		self.assertIn(r.status_code, (302, 303, 401, 403))
+		# frappe.Redirect answers 301 → /login?redirect-to=…
+		self.assertIn(r.status_code, (301, 302, 303, 401, 403))
+		if r.status_code in (301, 302, 303):
+			self.assertIn("/login", r.headers.get("Location", ""))

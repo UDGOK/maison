@@ -11,7 +11,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt
 
-from maison_pos.tests.helpers import ensure_demo_data, pos_invoice
+from maison_pos.tests.helpers import ensure_demo_data, ensure_stock, pos_invoice
 from maison_pos.webshop import core, is_webshop_installed
 
 WEB_USER = "client@maison.example"
@@ -41,6 +41,10 @@ class TestWebshop(FrappeTestCase):
 		se = _stock_entry_doc(warehouse, rows, frappe.utils.nowdate(), "08:00:00")
 		se.insert()
 		se.submit()
+		# the non-serialized pieces the collection tests ring up are sold through the same way
+		for code in ("AC-012", "AC-001"):
+			ensure_stock(code, "CHI-OAK")
+			ensure_stock(code, "NYC-5AV")
 
 	def setUp(self):
 		frappe.set_user("Administrator")

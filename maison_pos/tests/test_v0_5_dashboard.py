@@ -13,7 +13,7 @@ from frappe.utils import add_days, flt, getdate, nowdate
 from maison_pos.api import dashboard as api
 from maison_pos.api.sales import submit_batch
 from maison_pos.insights import trends
-from maison_pos.tests.helpers import ensure_demo_data, pos_invoice
+from maison_pos.tests.helpers import ensure_demo_data, ensure_stock, pos_invoice
 from maison_pos.utils import invoice_summary
 
 CHI_MANAGER = "chi.oak.manager@maison.example"
@@ -104,6 +104,11 @@ class TestTrendsAndLive(FrappeTestCase):
 		super().setUpClass()
 		ensure_demo_data()
 		frappe.set_user("Administrator")
+		# the shared bench is also sold through by the e2e runs: make sure the pieces these tests
+		# ring up are actually in stock (rolled back with the class transaction)
+		for code in ("AC-012", "AC-001"):
+			ensure_stock(code, "CHI-OAK")
+			ensure_stock(code, "NYC-5AV")
 
 	def setUp(self):
 		frappe.set_user("Administrator")
@@ -278,6 +283,11 @@ class TestPerformanceBudget(FrappeTestCase):
 		super().setUpClass()
 		ensure_demo_data()
 		frappe.set_user("Administrator")
+		# the shared bench is also sold through by the e2e runs: make sure the pieces these tests
+		# ring up are actually in stock (rolled back with the class transaction)
+		for code in ("AC-012", "AC-001"):
+			ensure_stock(code, "CHI-OAK")
+			ensure_stock(code, "NYC-5AV")
 		trends.compute_trends(commit=False)
 
 	@staticmethod

@@ -48,6 +48,9 @@ async function sendEmail() {
           <div class="balance s-muted">Balance <span class="s-num md">{{ fmtInt(balance) }}</span><span v-if="r.tier || salon.client.tier"> · {{ r.tier || salon.client.tier }}</span></div>
           <div v-if="r.next_tier || salon.client.next_tier" class="bar"><span :style="{ width: pct + '%' }"></span></div>
           <div v-if="r.next_tier || salon.client.next_tier" class="s-small s-dim">{{ pct }}% of the way to {{ r.next_tier || salon.client.next_tier }}</div>
+          <!-- v0.6 Q: next reward + giveaway entries -->
+          <div v-if="r.next_reward" class="s-small s-muted" data-testid="thankyou-next-reward">Next reward: <span class="gold">{{ fmtMoney(r.next_reward.amount, salon.currency) }} off</span> at {{ fmtInt(r.next_reward.points) }} points · {{ fmtInt(r.next_reward.points_needed) }} to go</div>
+          <div v-if="r.giveaway_entries" class="s-small s-muted" data-testid="thankyou-giveaway">{{ fmtInt(r.giveaway_entries) }} giveaway {{ r.giveaway_entries === 1 ? 'entry' : 'entries' }}<template v-if="r.giveaway_title"> · {{ r.giveaway_title }}</template></div>
         </div>
         <div v-else class="s-num lg">{{ fmtMoney(r.grand_total || salon.remote.totals?.grand_total || 0, salon.currency) }}</div>
       </div>

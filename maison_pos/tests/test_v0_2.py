@@ -230,11 +230,15 @@ class TestUploadItemImage(FrappeTestCase):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
-		frappe.request = None
+		# `frappe.request` is a werkzeug LocalProxy onto `frappe.local.request`: assigning to the
+		# module attribute would REBIND the name and replace the proxy with a plain value for the
+		# rest of the process, so every later test in the run would see that stale value instead of
+		# its own request (this broke the v0.5 campaign webhook tests). Always go through frappe.local.
+		frappe.local.request = None
 
 	def _with_upload(self, content: bytes = PNG, content_type: str = "image/png", filename: str = "tile.png"):
 		builder = EnvironBuilder(method="POST", data={"file": (io.BytesIO(content), filename, content_type)})
-		frappe.request = Request(builder.get_environ())
+		frappe.local.request = Request(builder.get_environ())
 
 	def test_associate_is_denied(self):
 		frappe.set_user(NYC_ASSOCIATE)

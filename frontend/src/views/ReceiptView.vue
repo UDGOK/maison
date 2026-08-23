@@ -51,7 +51,7 @@ let sub: { unsubscribe(): void } | null = null
 // --- v0.5 K: thank-you on the client display (receipt QR once the server issued the token) ---
 const salon = useSalonPosStore()
 watch(
-  () => [row.value?.receipt_token, row.value?.invoice_name, row.value?.offline_uuid],
+  () => [row.value?.receipt_token, row.value?.invoice_name, row.value?.offline_uuid, row.value?.rewards], // v0.6 Q: rewards too
   () => {
     const r = row.value
     if (!r) return
@@ -64,7 +64,14 @@ watch(
       points_balance: r.receipt.points_balance,
       tier: r.receipt.customer_tier || null,
       grand_total: r.receipt.grand_total,
-      currency: r.receipt.currency
+      currency: r.receipt.currency,
+      // --- v0.6 Q: server extras once synced (points, balance, next reward, giveaway entries) ---
+      ...(r.rewards ? { points_earned: r.rewards.points_earned, points_balance: r.rewards.points_balance } : {}),
+      next_reward: r.rewards?.next_reward ?? r.receipt.next_reward ?? null,
+      giveaway_entries: r.rewards?.giveaway_entries ?? r.receipt.giveaway_entries ?? 0,
+      giveaway_title: r.rewards?.giveaway?.title ?? r.receipt.giveaway_title,
+      program_name: r.rewards?.program_name ?? r.receipt.brand?.program_name
+      // --- end v0.6 Q ---
     })
   },
   { immediate: true }

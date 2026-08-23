@@ -16,8 +16,23 @@ export function deviceId(): string {
   }
 }
 
-export function fmtDateTime(iso: string | Date, opts: Intl.DateTimeFormatOptions = {}): string {
+/**
+ * `Intl.DateTimeFormat.format()` throws `RangeError: Invalid time value` on an Invalid Date, and a
+ * throw inside a template blanks the whole screen (a null / empty / unparsable timestamp on one row
+ * of a returns lookup took out the entire Returns view). Missing or unreadable dates render as an
+ * em dash instead.
+ */
+const NO_DATE = '—'
+
+function toDate(iso: string | Date | null | undefined): Date | null {
+  if (iso === null || iso === undefined || iso === '') return null
   const d = typeof iso === 'string' ? new Date(iso) : iso
+  return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null
+}
+
+export function fmtDateTime(iso: string | Date | null | undefined, opts: Intl.DateTimeFormatOptions = {}): string {
+  const d = toDate(iso)
+  if (!d) return NO_DATE
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -29,8 +44,9 @@ export function fmtDateTime(iso: string | Date, opts: Intl.DateTimeFormatOptions
   }).format(d)
 }
 
-export function fmtDate(iso: string | Date): string {
-  const d = typeof iso === 'string' ? new Date(iso) : iso
+export function fmtDate(iso: string | Date | null | undefined): string {
+  const d = toDate(iso)
+  if (!d) return NO_DATE
   return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: '2-digit' }).format(d)
 }
 

@@ -17,6 +17,9 @@ import { useLayoutStore } from '@/stores/layout'
 import { useSalonPosStore } from '@/stores/salon' // v0.5 K
 import { useWebOrdersStore } from '@/stores/webOrders' // v0.4 G
 import Keypad from '@/components/Keypad.vue'
+import { useAgeStore } from '@/stores/age' // v0.6 N
+import { useBrand } from '@/stores/brand' // v0.6 N
+import { nextReward } from '@/api/v06' // v0.6 Q
 
 const cart = useCartStore()
 const session = useSessionStore()
@@ -26,6 +29,8 @@ const promos = usePromosStore()
 const route = useRoute()
 const router = useRouter()
 const layout = useLayoutStore()
+const age = useAgeStore() // v0.6 N
+const brand = useBrand() // v0.6 N
 
 const mode = ref<'cash' | 'card'>((route.query.mode as 'cash' | 'card') || 'cash')
 
@@ -161,8 +166,15 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     loyalty_points_redeemed: cart.loyalty_points_redeemed || undefined,
     notes: cart.notes || undefined,
     coupon_code: promos.coupon?.code || undefined,
-    promotions: promos.applied.length ? promos.applied.map((a) => ({ name: a.name, title: a.title, discount: a.discount })) : undefined
+    promotions: promos.applied.length ? promos.applied.map((a) => ({ name: a.name, title: a.title, discount: a.discount })) : undefined,
+    // --- v0.6 N/Q — age check outcome (only when restricted lines were sold) + fixed reward tier(s) ---
+    age_check: age.payload,
+    reward_tier: cart.reward_tiers.length === 1 ? cart.reward_tiers[0].name : undefined,
+    reward_tiers: cart.reward_tiers.length > 1 ? cart.reward_tiers.map((t) => t.name) : undefined
+    // --- end v0.6 N/Q ---
   }
+  // v0.6 Q: the tier costs its points; the balance after this sale feeds "next reward"
+  const pointsAfter = cart.customer ? cart.customer.loyalty_points - cart.loyalty_points_redeemed - cart.rewardPoints + cart.pointsEarned : undefined
   const t = cart.totals
   const receipt: ReceiptSnapshot = {
     boutique: session.boutique!.name,
@@ -190,7 +202,7 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     total_taxes: t.total_taxes,
     tax_rate: catalog.taxRate,
     loyalty_amount: t.loyalty_amount,
-    loyalty_points_redeemed: cart.loyalty_points_redeemed,
+    loyalty_points_redeemed: cart.reward_tiers.length ? cart.rewardPoints : cart.loyalty_points_redeemed,
     grand_total: t.grand_total,
     payments:
       total.value > 0.005
@@ -206,14 +218,20 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     promo_discount: promos.promoTotal || undefined,
     coupon_code: promos.coupon?.code,
     coupon_discount: promos.couponTotal || undefined,
-    points_balance: cart.customer ? cart.customer.loyalty_points - cart.loyalty_points_redeemed + cart.pointsEarned : undefined,
-    currency: session.currency
+    points_balance: pointsAfter,
+    currency: session.currency,
+    // --- v0.6 N/Q ---
+    brand: { wordmark: brand.wordmark, brand_name: brand.name, sub_mark: brand.subMark, thanks: brand.thanks, program_name: brand.programName },
+    reward_tier: cart.reward_tiers.length ? { title: cart.reward_tiers.map((x) => x.title).join(' + '), points: cart.rewardPoints, amount: t.loyalty_amount } : undefined,
+    age_verified: age.isVerified || undefined,
+    next_reward: cart.customer && catalog.reward_tiers.length ? nextReward(pointsAfter || 0, catalog.reward_tiers) : undefined
+    // --- end v0.6 N/Q ---
   }
   if (IS_MOCK && promos.coupon) __mockRedeemCoupon(promos.coupon.code)
   // --- v0.5 K: "Approved" with a gold pulse on the client display before the thank-you ---
   if (salon.paired) {
     salon.setPay({ mode: modeOfPayment === 'Card' ? 'card' : 'cash', amount: total.value, step: 'approved', card_brand: card?.card_brand, last4: card?.last4 })
-    salon.setReceipt({ ...({ customer: cart.customer?.name } as object), points_earned: cart.pointsEarned, points_balance: receipt.points_balance, tier: cart.customer?.tier || null, grand_total: t.grand_total, currency: session.currency })
+    salon.setReceipt({ ...({ customer: cart.customer?.name } as object), points_earned: cart.pointsEarned, points_balance: receipt.points_balance, tier: cart.customer?.tier || null, grand_total: t.grand_total, currency: session.currency, next_reward: receipt.next_reward || null, program_name: receipt.brand?.program_name })
     await new Promise((r) => setTimeout(r, 1400))
   }
   // --- end v0.5 K ---

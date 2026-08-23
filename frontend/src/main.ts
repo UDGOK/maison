@@ -28,6 +28,14 @@ async function boot() {
     return
   }
   // --- end v0.5 K ---
+  // --- v0.6 P: /warehouse and /warehouse-wall run on the Frappe session (no PIN, no catalog / sync) ---
+  if (/^\/warehouse(-wall)?(\/|$)/.test(location.pathname)) {
+    app.use(router)
+    await router.isReady()
+    app.mount('#app')
+    return
+  }
+  // --- end v0.6 P ---
 
   // Restore offline state before the router guards run.
   const session = useSessionStore()

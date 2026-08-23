@@ -1,6 +1,6 @@
 {
   "base": "http://maison.localhost:8000",
-  "run": "X0832",
+  "run": "EI5DF",
   "results": [
     {
       "step": "demo website items published",
@@ -35,7 +35,7 @@
     {
       "step": "guest enquiry creates Maison Web Enquiry for the boutique",
       "ok": true,
-      "detail": "{\"name\":\"MWE-2026-00022\",\"boutique\":\"CHI-OAK\",\"item_code\":\"HJ-001\",\"status\":\"New\"}"
+      "detail": "{\"name\":\"MWE-2026-00026\",\"boutique\":\"CHI-OAK\",\"item_code\":\"HJ-001\",\"status\":\"New\"}"
     },
     {
       "step": "timepiece shows Reserve with deposit",
@@ -80,7 +80,7 @@
     {
       "step": "place order redirects to the (simulated) payment page",
       "ok": true,
-      "detail": "http://maison.localhost:8000/shop/pay?pr=ACC-PRQ-2026-00030"
+      "detail": "http://maison.localhost:8000/shop/pay?pr=ACC-PRQ-2026-00048"
     },
     {
       "step": "Sales Order carries maison_boutique = CHI-OAK, web order, status New",
@@ -125,22 +125,22 @@
     {
       "step": "collection creates a submitted Sales Invoice linked to the web order",
       "ok": true,
-      "detail": "{\"name\":\"ACC-SINV-2026-01699\",\"grand_total\":4299.75,\"total_advance\":4299.75,\"outstanding_amount\":0,\"maison_receipt_token\":\"JE0iiZ_wD6QLGR5T\",\"maison_boutique\":\"CHI-OAK\",\"customer\":\"Isabella Marchetti\"}"
+      "detail": "{\"name\":\"ACC-SINV-2026-02784\",\"grand_total\":4084.76,\"total_advance\":4084.76,\"outstanding_amount\":0,\"maison_receipt_token\":\"Z92oUgxS58-9F8QL\",\"maison_boutique\":\"CHI-OAK\",\"customer\":\"Isabella Marchetti\"}"
     },
     {
       "step": "online payment allocated as advance; nothing outstanding; receipt token issued",
       "ok": true,
-      "detail": "advance 4299.75 / total 4299.75 / outstanding 0"
+      "detail": "advance 4084.76 / total 4084.76 / outstanding 0"
     },
     {
       "step": "Sales Order marked Collected with the invoice",
       "ok": true,
-      "detail": "{\"maison_web_status\":\"Collected\",\"maison_sales_invoice\":\"ACC-SINV-2026-01699\",\"per_delivered\":100,\"per_billed\":100,\"status\":\"Completed\"}"
+      "detail": "{\"maison_web_status\":\"Collected\",\"maison_sales_invoice\":\"ACC-SINV-2026-02784\",\"per_delivered\":100,\"per_billed\":95,\"status\":\"To Bill\"}"
     },
     {
       "step": "reservation with deposit appears in the queue",
       "ok": true,
-      "detail": "MIA-DD: {\"name\":\"SAL-ORD-2026-00037\",\"boutique\":\"MIA-DD\",\"boutique_name\":\"Maison Design District\",\"customer\":\"Isabella Marchetti"
+      "detail": "MIA-DD: {\"name\":\"SAL-ORD-2026-00055\",\"boutique\":\"MIA-DD\",\"boutique_name\":\"Maison Design District\",\"customer\":\"Isabella Marchetti"
     },
     {
       "step": "enquiries are listed in the queue",
@@ -148,101 +148,5 @@
       "detail": ""
     }
   ],
-  "console": [
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "guest",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    },
-    {
-      "tag": "shopper",
-      "type": "error",
-      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
-    }
-  ]
+  "console": []
 }

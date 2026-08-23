@@ -22,6 +22,7 @@ export type SalonView =
   | 'invite'
   | 'consent'
   | 'concierge'
+  | 'idcheck' // v0.6 N — "Please present your ID"
   | 'unpaired'
 
 export type IdentifyMode = 'menu' | 'keypad' | 'email' | 'scan' | 'signup' | 'dismissed'
@@ -179,6 +180,8 @@ export function viewOf(m: SalonModel): SalonView {
       return 'feedback'
     case 'concierge':
       return 'concierge'
+    case 'age_check': // v0.6 N
+      return 'idcheck'
     default:
       return 'ambient'
   }

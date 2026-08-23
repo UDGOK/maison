@@ -50,7 +50,7 @@ function back() {
         <button class="s-btn" type="button" data-testid="identify-phone" @click="salon.setIdentifyMode('keypad')">Phone or client №</button>
         <button class="s-btn" type="button" data-testid="identify-email" @click="salon.setIdentifyMode('email')">E-mail</button>
         <button class="s-btn" type="button" data-testid="identify-scan" @click="salon.setIdentifyMode('scan')">Scan client card</button>
-        <button class="s-btn primary" type="button" data-testid="identify-join" @click="salon.setIdentifyMode('signup')">Join Maison</button>
+        <button class="s-btn primary" type="button" data-testid="identify-join" @click="salon.setIdentifyMode('signup')">Join {{ salon.programName }}</button>
       </div>
       <div class="s-small s-dim">Or simply tell the associate — nothing is required.</div>
       <div v-if="prepared" class="prepared">

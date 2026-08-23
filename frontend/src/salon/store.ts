@@ -71,11 +71,25 @@ export const useSalonStore = defineStore('salonDevice', {
     remote: (s): SalonState => s.model.remote,
     client: (s): SalonClient | null => clientOf(s.model),
     stale: (s): boolean => isStale(s.model, s.now),
-    boutiqueName: (s): string => s.session?.boutique_name || s.settings?.boutique_name || 'Maison',
+    // --- v0.6 N: brand tokens from the boutique settings (never a hard-coded "Maison") ---
+    brandName: (s): string => s.settings?.brand?.brand_name || 'CloudChaserz',
+    wordmark: (s): string => s.settings?.brand?.wordmark_text || (s.settings?.brand?.brand_name || 'CloudChaserz').toUpperCase(),
+    programName: (s): string => s.settings?.rewards_program_name || s.settings?.brand?.rewards_program_name || `${s.settings?.brand?.brand_name || 'CloudChaserz'} Rewards`,
+    storeNoun: (s): string => s.settings?.brand?.store_noun || 'store',
+    minimumAge: (s): number => s.model.remote.age?.minimum_age || s.settings?.minimum_age || 21,
+    // --- end v0.6 N ---
+    boutiqueName(s): string {
+      return s.session?.boutique_name || s.settings?.boutique_name || this.brandName
+    },
     currency: (s): string => s.model.remote.totals?.currency || s.settings?.currency || 'USD',
     welcomeLine(s): string {
       const fromPlaylist = s.playlist.find((p) => p.welcome_line)?.welcome_line
-      return fromPlaylist || `Welcome to ${s.session?.boutique_name || 'Maison'}`
+      // v0.6 N: "Welcome to CloudChaserz <Store>" from the server, else built from the brand
+      if (fromPlaylist) return fromPlaylist
+      if (s.settings?.welcome_line) return s.settings.welcome_line
+      const store = s.session?.boutique_name || s.settings?.boutique_name || ''
+      const brand = this.brandName as string
+      return store.toLowerCase().startsWith(brand.toLowerCase()) ? `Welcome to ${store}` : `Welcome to ${brand} ${store}`.trim()
     },
     ambientCountdown: (s): number => (s.model.ambientAt ? Math.max(0, Math.ceil((s.model.ambientAt - s.now) / 1000)) : 0)
   },

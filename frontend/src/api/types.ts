@@ -71,6 +71,16 @@ export interface Item {
   maison_appraisal_value?: number
   maison_department: string
   maison_taxable: 0 | 1
+  // --- v0.6 N — smoke-shop vertical attributes ---
+  maison_brand?: string | null
+  maison_flavor?: string | null
+  maison_nicotine_mg?: number
+  maison_volume_ml?: number
+  maison_puffs?: number
+  /** 1 = 21+ item: the POS age gate must pass before it is rung up */
+  maison_age_restricted?: 0 | 1
+  maison_msrp?: number
+  // --- end v0.6 N ---
   /** Standard ERPNext Item.image (absolute URL) or null — v0.2 replaces maison_image_url. */
   image?: string | null
   /** Custom unique barcode (maison_barcode); standard Item Barcode rows are merged into `barcodes`. */
@@ -221,7 +231,41 @@ export interface Bootstrap {
   /** v0.2 — merged Maison POS Settings (boutique overrides global). */
   settings: PosSettings
   version: string
+  // --- v0.6 N/Q — brand tokens + fixed reward tiers (see src/api/v06.ts) ---
+  brand?: Brand
+  reward_tiers?: RewardTier[]
+  // --- end v0.6 N/Q ---
 }
+
+// --- v0.6 N/Q — brand tokens, vertical product attributes, reward tiers ---
+/** `catalog.bootstrap.brand` — everything the user sees is driven by these (never hard-coded "Maison"). */
+export interface Brand {
+  brand_name: string
+  product_name: string
+  tagline: string
+  wordmark_text: string
+  sub_mark: string
+  legal_name?: string
+  support_email?: string
+  brand_website?: string
+  brand_logo?: string | null
+  vertical: 'Smoke Shop' | 'Jewellery' | 'General'
+  /** "Store" (smoke shop / general) or "Boutique" (jewellery) */
+  store_noun: string
+  rewards_program_name: string
+  head_office_boutique?: string | null
+  main_warehouse?: string | null
+}
+
+/** `Maison Reward Tier` row — fixed redemption tiers ($5 off at 100 points, …). */
+export interface RewardTier {
+  name: string
+  title: string
+  points: number
+  amount: number
+  description?: string | null
+}
+// --- end v0.6 N/Q ---
 
 export interface Delta extends Bootstrap {
   deleted: string[]
@@ -373,7 +417,28 @@ export interface POSInvoice {
   promotions?: { name: string; title: string; discount: number }[]
   /** v0.4 G — collecting a web order: the Sales Order; the online payment is an advance, `payments` holds only the balance (may be empty). */
   sales_order?: string
+  // --- v0.6 N/Q — age check outcome (from age.verify_scan / verify_manual) and the fixed reward tier redeemed ---
+  age_check?: AgeCheckPayload
+  reward_tier?: string
+  reward_tiers?: string[]
+  // --- end v0.6 N/Q ---
 }
+
+// --- v0.6 N — what the POS sends with an invoice carrying age-restricted lines (no PII) ---
+export interface AgeCheckPayload {
+  verified: 0 | 1
+  method: 'Scan' | 'Manual'
+  /** `Maison Age Check` name when the check ran online */
+  check?: string
+  checked_at?: string
+  dob_year_ok?: 0 | 1
+  age?: number
+  initials?: string | null
+  jurisdiction?: string | null
+  /** 1 when verified on the device without reaching the server (audit row created on submit) */
+  offline?: 0 | 1
+}
+// --- end v0.6 N ---
 
 export type SubmitStatus = 'ok' | 'duplicate' | 'error'
 
@@ -385,7 +450,21 @@ export interface SubmitResult {
   receipt_token?: string
   error?: string
   error_code?: string
+  /** v0.6 Q — points earned / balance / next reward / giveaway entries (member sales) */
+  rewards?: RewardsExtras | null
 }
+
+// --- v0.6 Q — `rewards.receipt_extras` (submit result + public receipt) ---
+export interface RewardsExtras {
+  program_name: string
+  points_earned: number
+  points_balance: number
+  next_reward?: { name?: string; title: string; points: number; amount: number; points_needed: number } | null
+  giveaway_entries: number
+  giveaway?: { name: string; title: string; end_date: string; prize?: string | null; my_entries: number } | null
+  reward_tier?: { title: string; points: number; amount: number } | null
+}
+// --- end v0.6 Q ---
 
 /** v0.2 — guest `sales.receipt(token)` payload (no PII beyond what is printed). */
 export interface PublicReceipt {

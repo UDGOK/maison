@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** v0.5 K — "Would you like an invitation to our next private viewing?" → Client Profile flag. */
+/** v0.5 K — "Would you like an invitation to our next event?" → Client Profile flag. v0.6 Q: generic Events channel + brand copy. */
 import { useSalonStore } from '../store'
 
 const salon = useSalonStore()
@@ -9,13 +9,13 @@ const salon = useSalonStore()
   <div class="salon-screen" data-testid="salon-invite">
     <template v-if="salon.inviteAnswer === null">
       <div class="s-eyebrow">{{ salon.feedbackDone ? 'Thank you' : 'One last thing' }}</div>
-      <div class="s-title soft">Would you like an invitation to our next private viewing?</div>
-      <p class="s-lead">A small evening at the boutique, new pieces before anyone else, by invitation only.</p>
+      <div class="s-title soft">Would you like an invitation to our next event?</div>
+      <p class="s-lead">Launch nights, new drops before anyone else and giveaways at {{ salon.brandName }} — by invitation only.</p>
       <div class="s-btn-row">
         <button class="s-btn ghost" type="button" data-testid="invite-no" :disabled="!salon.client || salon.busy" @click="salon.client ? salon.invite(0) : salon.dismiss()">No, thank you</button>
         <button class="s-btn primary" type="button" data-testid="invite-yes" :disabled="!salon.client || salon.busy" @click="salon.invite(1)">Yes, please</button>
       </div>
-      <div v-if="!salon.client" class="s-small s-dim">Join the house at your next visit to receive invitations.</div>
+      <div v-if="!salon.client" class="s-small s-dim">Join {{ salon.programName }} at your next visit to receive invitations.</div>
     </template>
     <template v-else>
       <div class="s-eyebrow">{{ salon.inviteAnswer ? 'We will be in touch' : 'Thank you' }}</div>

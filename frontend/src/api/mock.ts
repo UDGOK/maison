@@ -53,6 +53,7 @@ import { compareCount } from '@/inventory/count'
 import type { CycleCountResult, ExchangeRequest, ExchangeResult, POSInvoiceItem, ReturnRequest, ReturnResult, ReturnableInvoice, StockAlert } from './types'
 import { sha256Hex } from '@/utils/hash'
 import { DEFAULT_DISTANCE_THRESHOLD, rankMatches } from '@/recognition/math'
+import { JEWELLERY_BRAND } from '@/brand/tokens' // v0.6 N (pure tokens: importing @/stores/brand here closes an import cycle)
 
 /** v0.3 — server-side face template (embedding only, never an image). */
 interface MockTemplate {
@@ -264,7 +265,11 @@ function bootstrapFor(boutique: string): Bootstrap {
     loyalty_program: LOYALTY,
     barcodes: barcodesFor(ser),
     settings: settingsFor(boutique),
-    version: new Date().toISOString()
+    version: new Date().toISOString(),
+    // --- v0.6 N/Q: the mock world is the jewellery house (brand tokens, no fixed tiers) ---
+    brand: { ...JEWELLERY_BRAND },
+    reward_tiers: []
+    // --- end v0.6 N/Q ---
   }
 }
 

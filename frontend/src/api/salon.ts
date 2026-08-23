@@ -17,7 +17,7 @@ import { firstName, maskClientNumber, maskEmail, maskPhone, sanitizeState } from
 // ---------------------------------------------------------------------------------------------
 // types
 // ---------------------------------------------------------------------------------------------
-export type SalonScreen = 'idle' | 'identify' | 'client' | 'basket' | 'pay' | 'approved' | 'receipt' | 'consent' | 'feedback' | 'concierge'
+export type SalonScreen = 'idle' | 'identify' | 'client' | 'basket' | 'pay' | 'approved' | 'receipt' | 'consent' | 'feedback' | 'concierge' | 'age_check' // v0.6 N: age_check
 export const SALON_SCREENS: SalonScreen[] = ['idle', 'identify', 'client', 'basket', 'pay', 'approved', 'receipt', 'consent', 'feedback', 'concierge']
 
 /** The only client shape the Salon ever sees. */
@@ -84,11 +84,19 @@ export interface SalonReceipt {
   grand_total?: number
   currency?: string
   feedback_submitted?: boolean
+  // --- v0.6 Q — rewards lines on the thank-you ---
+  next_reward?: { title: string; points: number; amount: number; points_needed: number } | null
+  giveaway_entries?: number
+  giveaway_title?: string
+  program_name?: string
+  // --- end v0.6 Q ---
 }
 
 export interface SalonState {
   screen: SalonScreen
   seq: number
+  /** v0.6 N — `age_check` screen: the POS is waiting for an ID */
+  age?: { minimum_age: number; status: 'ask' | 'verified' | 'blocked'; outcome?: string } | null
   ts?: string
   client?: SalonClient | null
   lines?: SalonLine[]
@@ -125,6 +133,13 @@ export interface PlaylistPiece {
 export interface SalonSettings {
   boutique_name?: string
   city?: string
+  // --- v0.6 N/Q — brand tokens, welcome line, rewards copy, minimum age ---
+  brand?: { brand_name: string; wordmark_text: string; sub_mark?: string; tagline?: string; store_noun?: string; rewards_program_name?: string; vertical?: string } | null
+  welcome_line?: string
+  rewards_program_name?: string
+  rewards_copy?: { earn: string; redeem: string[]; perks: { title: string; text: string }[] } | null
+  minimum_age?: number
+  // --- end v0.6 N/Q ---
   consent_text?: string
   consent_text_version?: string
   face_recognition_enabled: 0 | 1

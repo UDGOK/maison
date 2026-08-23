@@ -50,7 +50,18 @@ def apply_web_order_advances(si, sales_order: str, payments: list[dict[str, Any]
 		"Customer", so.customer, [party_account], "Sales Order", [sales_order], None, False
 	)
 	si.set("advances", [])
+	# The counter invoice can come out *below* what was paid online — an in-store promotion or a
+	# manager discount applies to the collection, while the web order was priced when it was placed.
+	# ERPNext refuses an invoice whose allocated advance exceeds its total ("Advance amount cannot be
+	# greater than ..."), so allocate at most the invoice total here and leave the rest sitting on the
+	# customer as an unallocated advance (store credit) rather than failing the collection.
+	si.run_method("calculate_taxes_and_totals")
+	remaining = flt(si.rounded_total or si.grand_total)
 	for d in rows:
+		if remaining <= 0:
+			break
+		allocated = min(flt(d.amount), remaining)
+		remaining -= allocated
 		advance = {
 			"doctype": "Sales Invoice Advance",
 			"reference_type": d.reference_type,
@@ -58,7 +69,7 @@ def apply_web_order_advances(si, sales_order: str, payments: list[dict[str, Any]
 			"reference_row": d.reference_row,
 			"remarks": d.remarks,
 			"advance_amount": flt(d.amount),
-			"allocated_amount": flt(d.amount),
+			"allocated_amount": allocated,
 			"ref_exchange_rate": flt(d.exchange_rate) or 1,
 			"difference_posting_date": si.posting_date,
 		}

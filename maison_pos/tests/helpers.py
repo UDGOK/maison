@@ -17,8 +17,40 @@ def ensure_demo_data() -> None:
 	if getattr(frappe.local, SEEDED_FLAG, False):
 		return
 	frappe.set_user("Administrator")
-	demo.seed(commit=False)
+	demo.seed(commit=False, vertical="Jewellery")  # v0.6 N: the suites seed the jewellery world explicitly
 	setattr(frappe.local, SEEDED_FLAG, True)
+
+
+def ensure_stock(item_code: str, boutique: str, qty: float = 25) -> float:
+	"""Guarantee at least *qty* free units of a non-serialized item at *boutique*.
+
+	The suites run on a shared bench that e2e runs also sell through, so a test that rings up a
+	stock item cannot assume the demo opening stock is still there (see INTEGRATION_NOTES v0.4 #13).
+	The receipt is posted inside the caller's test transaction and rolled back with it.
+	"""
+	warehouse = frappe.db.get_value("Maison Boutique", boutique, ["warehouse", "company"], as_dict=True)
+	if not warehouse:
+		return 0.0
+	have = frappe.utils.flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse.warehouse}, "actual_qty"))
+	if have >= qty:
+		return have
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Receipt",
+			"purpose": "Material Receipt",
+			"company": warehouse.company,
+			"to_warehouse": warehouse.warehouse,
+			"posting_date": frappe.utils.nowdate(),
+			"posting_time": frappe.utils.nowtime(),
+			"set_posting_time": 1,
+			"items": [{"item_code": item_code, "qty": qty, "t_warehouse": warehouse.warehouse, "basic_rate": 10, "allow_zero_valuation_rate": 1}],
+		}
+	)
+	se.flags.ignore_permissions = True
+	se.insert()
+	se.submit()
+	return have + qty
 
 
 def first_serial(item_code: str, boutique: str) -> str | None:

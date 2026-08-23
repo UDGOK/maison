@@ -42,7 +42,7 @@ SESSION_HOURS = 12
 MAX_INBOX = 50
 MAX_QUESTION = 500
 MAX_COMMENT = 2000
-SCREENS = ("idle", "identify", "client", "basket", "pay", "approved", "receipt", "consent", "feedback", "concierge")
+SCREENS = ("idle", "identify", "client", "basket", "pay", "approved", "receipt", "consent", "feedback", "concierge", "age_check")  # v0.6 N: age_check = "Please present your ID"
 PRIVATE_KEYS = {"mobile_no", "email_id", "phone", "email", "address", "address_line", "birthday", "anniversary", "spouse_name"}
 STATE_EVENT = "salon_state"
 MESSAGE_EVENT = "salon_message"

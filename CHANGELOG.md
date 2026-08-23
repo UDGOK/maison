@@ -3,7 +3,43 @@
 All notable changes to Maison POS. Versions follow the `SPEC*.md` contracts; the app version lives in
 `maison_pos/__init__.py`, `frontend/package.json` and `dashboard/package.json`.
 
-## 0.5.0 — 2026-08-22 "Salon & Command" (in progress)
+## 0.6.0 — 2026-08-23 "CloudChaserz"
+
+Rebrand to a real tenant (CloudChaserz, a Houston/Oklahoma smoke-shop chain), store-manager
+receiving, a head-office warehouse & shipping module, and the client's rewards programme.
+Internal doctype and module names stay `Maison *` / `maison_pos`; everything user-facing is driven
+by brand settings. Additive — the jewellery profile stays a first-class vertical.
+
+### Added
+<!-- v0.6 N -->
+- **N Brand, vertical & age verification** — `Maison POS Settings` gains `brand_name`, `product_name`, `tagline`, `wordmark_text`, `sub_mark`, `legal_name`, `support_email`, `brand_website`, `brand_logo`, `head_office_boutique`, `main_warehouse`, `vertical` (Smoke Shop / Jewellery / General). `maison_pos/brand.py` + `catalog.bootstrap.brand{…}`; POS, Salon, dashboard, web shop, receipts, print formats and e-mails read the brand token — no hard-coded "Maison" in user-facing copy, and "Boutique" becomes "Store" outside the jewellery vertical. Frontend `src/brand/tokens.ts` (pure) + `src/stores/brand.ts` (`useBrand()`). Vertical product attributes (`maison_brand`, `maison_flavor`, `maison_nicotine_mg`, `maison_volume_ml`, `maison_puffs`, `maison_age_restricted`, `maison_msrp`) and the smoke-shop Item Groups. **21+ age gate**: AAMVA PDF417 parser on the device (`src/scan/aamva.ts`), `AgeGateSheet.vue`, Salon `SalonIdCheck.vue`, `api/age.py` + `Maison Age Check` (outcome, method, initials, issuing state only — never the payload, name, licence number or address), settings `age_verification_required` / `minimum_age` / `id_scan_enabled`, `webshop_age_restricted_sales` off by default. `setup/cloudchaserz/*`: company, 11 stores + `HOU-WH`, tax templates, ~120-item catalogue with EAN-13 + generated SVG art, users and PINs, adapted history seed. `docs/cloudchaserz.md`.
+<!-- end v0.6 N -->
+<!-- v0.6 O -->
+- **O Store scoping & receiving** — `Maison Manager` is store-scoped in every endpoint (`scoping.py`) *and* in desk list views (`permission_query_conditions` / `has_permission`) for Stock Entries, Purchase Receipts, Material Requests, Stock Alerts, Sales Invoices, Employees/shifts, feedback and cycle counts; proved over real HTTP by `tests/test_v0_6_scoping_http.py` and `e2e/cloudchaserz.e2e.mjs`. New POS screen **Receive** (`views/ReceiveView.vue`): inbound warehouse shipments and vendor-direct POs, scan or tap to count, highlighted discrepancies, partial receipt, one-tap "Request from warehouse" from the low-stock list. `Maison Receiving Discrepancy` per short / over / damaged line; in-transit stock flow (`HOU-WH` → `<code> In Transit` on ship, → store on confirm).
+<!-- end v0.6 O -->
+<!-- v0.6 P -->
+- **P Warehouse & shipping** — role `Maison Warehouse Admin`; `Maison Replenishment Request` (+ Line) → approve / edit quantities / reject with reason → `Maison Shipment` (+ Line) with the Pending → Picking → Packed → Shipped → Received lifecycle and its stock postings. Rate shopping behind one adapter interface (`shipping/providers/{base,simulated,shippo,easypost}.py`): **Simulated** by USPS zone and billable weight (default), **Shippo** implemented for real (`site_config.shippo_api_key`, test mode), EasyPost as the alternative — Pirate Ship has no public API and is documented as a manual fallback only. Cheapest auto-selected with a fastest toggle. Warehouse admin desk `/warehouse` and the 55" **Warehouse Wall** `/warehouse-wall` (1920×1080 kanban, age timers, priority flags, realtime with a 10 s polling fallback, sound/flash, touch actions) with **auto-print** of the packing list and label through a hidden iframe (`warehouse/print.ts`, `window.__maisonLastWallPrint`), documented for Chrome `--kiosk --kiosk-printing`. `Maison Packing List` print format; hourly tracking refresh; Command dashboard "Supply" tile. `docs/shipping.md`.
+<!-- end v0.6 P -->
+<!-- v0.6 Q -->
+- **Q CloudChaserz Rewards** — $1 = 1 point, fixed redemption tiers `Maison Reward Tier` ($5/100, $10/200, $15/300; one per transaction unless `reward_allow_stacking`), points never negative and reversed on return. Birthday coupon auto-issued 7 days ahead and valid 30 days, `Maison Promotion Calendar` (+ Item, + Rule) sent on the 1st, weekly new-arrivals campaign, `Maison Giveaway` (+ Entry) with a seeded, auditable draw, Events campaign channel with RSVP. Public `/rewards` page and sign-up, the same copy in the Salon Join flow, points / balance / next reward / giveaway entries on every receipt. `api/rewards.py`, `docs/rewards.md`.
+<!-- end v0.6 Q -->
+
+### Fixed
+- **Vitest hung indefinitely** on the whole frontend suite: `@/api/mock` imported `@/stores/brand`, which imports `@/stores/catalog`, which imports `@/api` — so a suite calling `vi.mock('@/api', async () => await import('@/api/mock'))` deadlocked inside its own mock factory. The pure brand tokens moved to `@/brand/tokens.ts` (no store imports) and `@/stores/brand.ts` keeps only `useBrand()`.
+- **One bad date blanked a whole screen**: `Intl.DateTimeFormat.format()` throws `RangeError: Invalid time value` on an Invalid Date, and a throw inside a template took out the entire Returns view. `fmtDate` / `fmtDateTime` now render an em dash for missing or unparsable timestamps.
+- **Cross-company replenishment** — `shipping.get_main_warehouse` is company-aware: on a bench carrying more than one company the settings-level `main_warehouse` of the *other* company could be handed back as the source, and ERPNext refused the transfer with `InvalidWarehouseCompany`.
+- **Collecting a prepaid web order failed** when an in-store promotion made the counter invoice smaller than the amount paid online (`Advance amount cannot be greater than …`). The allocation is capped at the invoice total and the remainder stays as an unallocated advance.
+- **Loyalty programme configuration** — `expiry_duration: 0` expired points the day they were earned (every balance read 0), and `conversion_factor: 1.0` valued 100 points at $100 so tier redemption was refused. The seed now uses 3650 days and $0.05 a point, matching the tier table.
+- **Points were earned on the taxed total** — ERPNext accrues on `grand_total`, so a Houston sale handed out 8.25% more points than the "$1 = 1 point on the net amount" the programme and the `/rewards` page promise. `rewards.rebase_points_on_net` re-prices the accrual entry onto `net_total` after ERPNext writes it, leaving the negative redemption row alone.
+- **`/rewards` rendered empty sections** — the template read `p.copy.earn`, which resolves to the `dict.copy` builtin rather than the `copy` key, so the earn line, the redeem rows and the perks silently disappeared.
+- **Top bar overflowed on the rebranded POS** — the 12-character CLOUDCHASERZ wordmark at 0.3em tracking pushed the menu button 18 px off a 390 px screen, and the 9th nav entry ("Receive") plus longer store names made the full labels collide at 1366×1024. The phone wordmark tightens and may ellipsise; the compact top bar now applies up to 1400 px.
+- **Test isolation** — `test_v0_2` assigned to `frappe.request`, rebinding the module-level werkzeug LocalProxy to a plain value for the rest of the process and breaking every later test that set `frappe.local.request` (the v0.5 campaign webhook tests). Tests that ring up stock items now guarantee their own stock (`tests/helpers.ensure_stock`) instead of assuming pristine demo data.
+
+### Changed
+- Version 0.6.0 across `maison_pos/__init__.py`, `frontend/package.json`, `dashboard/package.json`.
+- Wall card store names no longer clip their descenders; `.rail-chips` and the nav strip scroll rather than widening the page.
+
+## 0.5.0 — 2026-08-22 "Salon & Command"
 
 ### Added
 <!-- v0.5 K -->

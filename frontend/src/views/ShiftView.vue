@@ -14,6 +14,18 @@ const sync = useSyncStore()
 const inventory = useInventoryStore()
 const router = useRouter()
 const transferQty = ref<Record<string, number>>({})
+// --- v0.6 O — one tap: replenishment request to the main warehouse (HOU-WH) ---
+async function requestFromWarehouse(name: string) {
+  const a = inventory.alerts.find((x) => x.name === name)
+  if (!a) return
+  try {
+    const res = await inventory.requestFromWarehouse(a, transferQty.value[name] || a.reorder_qty || 1)
+    sync.notify('good', `Requested from warehouse · ${res.name}`, res.material_request || undefined)
+  } catch (e) {
+    sync.notify('crit', 'Warehouse request failed', (e as Error).message)
+  }
+}
+// --- end v0.6 O ---
 async function requestTransfer(name: string) {
   const a = inventory.alerts.find((x) => x.name === name)
   if (!a) return
@@ -150,7 +162,8 @@ function printReport() {
               <button v-if="a.status === 'Open'" class="btn" @click="inventory.acknowledge(a.name)">Acknowledge</button>
               <template v-if="!a.material_request">
                 <input v-model.number="transferQty[a.name]" class="input qty" inputmode="numeric" :placeholder="String(a.reorder_qty || 1)" />
-                <button class="btn" @click="requestTransfer(a.name)">Request transfer</button>
+                <button class="btn btn-primary" :data-testid="`request-warehouse-${a.item_code}`" @click="requestFromWarehouse(a.name)">Request from warehouse</button>
+                <button class="btn btn-ghost" @click="requestTransfer(a.name)">Transfer…</button>
               </template>
               <span v-else class="muted" style="font-size: 12px">{{ a.material_request }} requested</span>
               <button v-if="session.isManager" class="btn btn-ghost" @click="inventory.resolve(a.name)">Resolve</button>

@@ -130,7 +130,8 @@ async function unlock(page, user) {
   await page.waitForSelector('.topbar', { timeout: 20000 })
   await page.waitForSelector('.tile', { timeout: 20000 })
 }
-const nav = (page, label) => page.click(`.nav-btn:has-text("${label}")`)
+// full label lives on title=; the compact bar shortens the visible text
+const nav = (page, label) => page.click(`.nav-btn[title="${label}"]`)
 async function addItem(page, name) {
   const q = page.locator('.sell .search input')
   await q.fill(name)

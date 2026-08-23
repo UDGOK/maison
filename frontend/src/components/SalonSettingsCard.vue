@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useBrand } from '@/stores/brand' // v0.6 N
+const brand = useBrand() // v0.6 N
 /**
  * v0.5 K — Settings → "Client display": pair a Salon iPad (6-digit code + QR, 10 min), see the
  * paired device and what it shows, unpair, Concierge toggle, and (mock) the virtual salon pane.
@@ -60,7 +62,7 @@ const salonUrl = computed(() => (typeof location !== 'undefined' ? `${location.o
     </template>
     <template v-else>
       <div class="kv"><span class="label">Status</span><span class="dim" data-testid="salon-status">Not paired</span></div>
-      <div class="small dim">A second iPad facing the client shows an ambient screen, lets the client identify or join Maison, mirrors the basket, the payment and the thank-you with points and feedback.</div>
+      <div class="small dim">A second iPad facing the client shows an ambient screen, lets the client identify or join {{ brand.programName }}, mirrors the basket, the payment and the thank-you with points and feedback.</div>
       <div v-if="salon.error" class="crit small">{{ salon.error }}</div>
       <div class="row" style="margin-top: 6px">
         <button class="btn btn-primary" data-testid="salon-pair" :disabled="salon.busy" @click="salon.requestCode()">Pair a client display</button>
