@@ -50,7 +50,7 @@ async function save() {
   error.value = ''
   const filename = `${props.item.item_code}.jpg`
   try {
-    if (sync.online && !window.__maisonOffline) {
+    if (sync.online && !window.__awanzOffline) {
       const { image: url } = await api.catalog.upload_item_image(props.item.item_code, blob.value, filename)
       catalog.setItemImage(props.item.item_code, url)
       sync.notify('good', 'Photo saved', props.item.item_name)

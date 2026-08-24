@@ -1,4 +1,4 @@
-{#- Maison storefront shell — Monolith Gold. Every shop page (and the Website Item page) extends this. -#}
+{#- AWANZ storefront shell — Monolith Gold. Every shop page (and the Website Item page) extends this. -#}
 {% extends "templates/base.html" %}
 {% set shop = shop_context() %}
 
@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/maison_pos/css/maison-web.css">
+<link rel="stylesheet" href="/assets/maison_pos/css/awanz-web.css">
 {% block shop_head %}{% endblock %}
 {% endblock -%}
 
@@ -104,6 +104,6 @@
 
 {%- block script %}
 {{ super() }}
-<script src="/assets/maison_pos/js/maison-web.js"></script>
+<script src="/assets/maison_pos/js/awanz-web.js"></script>
 {% block shop_script %}{% endblock %}
 {% endblock -%}

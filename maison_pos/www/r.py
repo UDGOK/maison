@@ -36,7 +36,7 @@ def get_context(context: dict) -> dict:
 
 	receipt = receipt_payload(doc)
 	context.brand = receipt.get("brand") or {}
-	context.title = f"{context.brand.get('brand_name', 'Maison')} · {receipt['invoice']}"
+	context.title = f"{context.brand.get('brand_name', 'AWANZ')} · {receipt['invoice']}"
 	context.receipt = receipt
 	context.qr = qr_svg_data_uri(receipt["url"], scale=5, dark="#C9A96E") if receipt_qr_enabled() and receipt.get("url") else ""
 	context.money = lambda v: format_money(v, receipt["currency"])
@@ -54,7 +54,7 @@ def _feedback_context(doc, token: str) -> dict:
 	enabled = bool(feedback_enabled() and doc.docstatus == 1 and not doc.get("is_return"))
 	return {
 		"enabled": enabled,
-		"submitted": bool(enabled and frappe.db.exists("Maison Feedback", {"sales_invoice": doc.name})),
+		"submitted": bool(enabled and frappe.db.exists("AWANZ Feedback", {"sales_invoice": doc.name})),
 		"token": token,
 	}
 
@@ -70,7 +70,7 @@ def _loyalty_statement(doc) -> dict | None:
 
 		lp = tier_progress(doc.customer, doc.company)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison receipt loyalty statement")
+		frappe.log_error(frappe.get_traceback(), "awanz receipt loyalty statement")
 		return None
 	if not lp.get("program"):
 		return None

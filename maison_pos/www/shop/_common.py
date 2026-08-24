@@ -7,14 +7,14 @@ import frappe
 from maison_pos.webshop import is_webshop_installed
 
 
-def base_context(context, nav: str = "", title: str = "Maison") -> None:
-	# --- v0.6 N — "… — Maison" titles take the brand from the settings ---
+def base_context(context, nav: str = "", title: str = "AWANZ") -> None:
+	# --- v0.6 N — "… — AWANZ" titles take the brand from the settings ---
 	from maison_pos.brand import get_brand, get_rewards_settings
 
 	brand = get_brand()
-	if title == "Maison":
+	if title == "AWANZ":
 		title = brand["brand_name"]
-	title = title.replace("Maison Collectors", get_rewards_settings()["rewards_program_name"]).replace("— Maison", f"— {brand['brand_name']}")
+	title = title.replace("AWANZ Collectors", get_rewards_settings()["rewards_program_name"]).replace("— AWANZ", f"— {brand['brand_name']}")
 	if brand["vertical"] != "Jewellery":
 		title = title.replace("All pieces", "All products")
 	# --- end v0.6 N ---

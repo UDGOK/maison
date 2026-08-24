@@ -1,4 +1,4 @@
-"""Serve the Maison Salon (client-facing screen, v0.5 K) at ``/salon``.
+"""Serve the AWANZ Salon (client-facing screen, v0.5 K) at ``/salon``.
 
 Same Vite bundle as ``/pos`` (``public/pos/index.html``); the router switches to the Salon
 child app when the page is opened under ``/salon``. Unlike ``/pos`` the page is **public**:

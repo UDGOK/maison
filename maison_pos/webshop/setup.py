@@ -11,7 +11,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 from maison_pos.webshop import FULFILMENTS, WEB_MODES, WEB_STATUSES
 
-SIMULATED_GATEWAY = "Maison Simulated"
+SIMULATED_GATEWAY = "AWANZ Simulated"
 WEB_MODE_OF_PAYMENT = "Web Payment"
 
 WEBSHOP_CUSTOM_FIELDS: dict[str, list[dict]] = {
@@ -19,7 +19,7 @@ WEBSHOP_CUSTOM_FIELDS: dict[str, list[dict]] = {
 		{
 			"fieldname": "maison_web_section",
 			"fieldtype": "Section Break",
-			"label": "Maison Web",
+			"label": "AWANZ Web",
 			"insert_after": "maison_taxable",
 			"collapsible": 1,
 		},
@@ -45,7 +45,7 @@ WEBSHOP_CUSTOM_FIELDS: dict[str, list[dict]] = {
 		{
 			"fieldname": "maison_web_section",
 			"fieldtype": "Section Break",
-			"label": "Maison Web",
+			"label": "AWANZ Web",
 			"insert_after": "order_type",
 			"collapsible": 1,
 		},
@@ -53,7 +53,7 @@ WEBSHOP_CUSTOM_FIELDS: dict[str, list[dict]] = {
 			"fieldname": "maison_boutique",
 			"fieldtype": "Link",
 			"label": "Boutique (collect at)",
-			"options": "Maison Boutique",
+			"options": "AWANZ Store",
 			"insert_after": "maison_web_section",
 		},
 		{
@@ -68,7 +68,7 @@ WEBSHOP_CUSTOM_FIELDS: dict[str, list[dict]] = {
 		{
 			"fieldname": "maison_web_section",
 			"fieldtype": "Section Break",
-			"label": "Maison Web",
+			"label": "AWANZ Web",
 			"insert_after": "order_type",
 			"collapsible": 1,
 		},
@@ -84,7 +84,7 @@ WEBSHOP_CUSTOM_FIELDS: dict[str, list[dict]] = {
 			"fieldname": "maison_boutique",
 			"fieldtype": "Link",
 			"label": "Boutique (collect at)",
-			"options": "Maison Boutique",
+			"options": "AWANZ Store",
 			"insert_after": "maison_web_order",
 			"in_standard_filter": 1,
 			"search_index": 1,
@@ -201,10 +201,10 @@ PORTAL_DOCPERMS: dict[tuple[str, str], tuple[str, ...]] = {
 	("Price List", "Customer"): ("read",),
 	# collecting a prepaid web order reconciles the advance Payment Entry onto the POS invoice
 	# (ERPNext checks read on Payment Entry while re-saving it)
-	("Payment Entry", "Maison Associate"): ("read",),
-	("Payment Entry", "Maison Manager"): ("read",),
-	("Payment Entry", "Maison Regional"): ("read",),
-	("Payment Entry", "Maison Head Office"): ("read", "write", "create", "submit", "cancel"),
+	("Payment Entry", "AWANZ Associate"): ("read",),
+	("Payment Entry", "AWANZ Manager"): ("read",),
+	("Payment Entry", "AWANZ Regional"): ("read",),
+	("Payment Entry", "AWANZ Head Office"): ("read", "write", "create", "submit", "cancel"),
 }
 
 

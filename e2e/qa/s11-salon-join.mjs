@@ -17,7 +17,7 @@ const dismissNotices = (page) => page.evaluate(() => document.querySelectorAll('
 const pos = await L.ctxFor(browser, L.A1, 'pos', { viewport: { width: 1440, height: 1024 } })
 const salon = await L.ctxFor(browser, null, 'salon', { viewport: PORTRAIT })
 await L.unlock(pos.page, L.A1, { fresh: true })
-const deviceId = await pos.page.evaluate(() => localStorage.getItem('maison.device_id') || '')
+const deviceId = await pos.page.evaluate(() => localStorage.getItem('awanz.device_id') || '')
 await L.nav(pos.page, 'Settings')
 await pos.page.waitForSelector('[data-testid=salon-settings]', { timeout: 20000 })
 await pos.page.click('[data-testid=salon-pair]')
@@ -40,7 +40,7 @@ const expJob = (await admin.list('Scheduled Job Type', { method: 'maison_pos.api
 record('C · sessions are expired by an hourly job', expJob?.frequency === 'Hourly' && !Number(expJob.stopped), JSON.stringify(expJob))
 const badToken = await guest.raw('maison_pos.api.salon.state', { token: 'not-a-real-token-000000000000000' })
 record('C · an unknown session token is refused with no detail', badToken.status === 403 || badToken.status === 404, `${badToken.status} ${String(badToken.body?.exception || '').slice(0, 90)}`)
-const listSessions = await guest.raw('frappe.client.get_list', { doctype: 'Maison Salon Session', fields: JSON.stringify(['name', 'customer']), limit_page_length: 5 })
+const listSessions = await guest.raw('frappe.client.get_list', { doctype: 'AWANZ Salon Session', fields: JSON.stringify(['name', 'customer']), limit_page_length: 5 })
 record('C · a guest cannot list Salon sessions', listSessions.status !== 200 || (listSessions.body?.message || []).length === 0, `${listSessions.status} rows=${(listSessions.body?.message || []).length}`)
 
 // --- Join (sign-up) from the Salon
@@ -64,7 +64,7 @@ await waitView(salon.page, 'client', 30000).catch(() => {})
 const created2 = (await admin.list('Customer', { customer_name: newMember.name }, ['name', 'maison_client_number', 'loyalty_program', 'mobile_no', 'email_id'], 5))[0]
 if (created2) created.customers.push(created2.name)
 record('C · Join from the Salon creates the member and attaches them to the sale', !!created2 && !!created2.maison_client_number && created2.loyalty_program === 'CloudChaserz Rewards', JSON.stringify(created2))
-const prof2 = created2 ? await admin.value('Maison Client Profile', created2.name, ['birthday', 'do_not_email', 'do_not_sms']) : null
+const prof2 = created2 ? await admin.value('AWANZ Client Profile', created2.name, ['birthday', 'do_not_email', 'do_not_sms']) : null
 record('C · the marketing preferences chosen on the Salon are stored', prof2 && Number(prof2.do_not_email) === 0 && Number(prof2.do_not_sms) === 1, JSON.stringify(prof2))
 await pos.page.waitForFunction((n) => document.querySelector('.basket .client-name')?.textContent?.includes('QA4 Salon'), null, { timeout: 20000 }).catch(() => {})
 record('C · the POS shows the client that joined on the Salon', /QA4 Salon/.test(await pos.page.locator('.basket .client-name').textContent().catch(() => '')), (await pos.page.locator('.basket .client-name').textContent().catch(() => '')).trim())
@@ -98,12 +98,12 @@ await salon.page.fill('[data-testid=feedback-comment]', `QA4 ${TAG} salon feedba
 await shot(salon.page, 'salon-feedback')
 await salon.page.click('[data-testid=feedback-send]')
 await sleep(3500)
-const fb = await admin.list('Maison Feedback', { sales_invoice: inv?.name }, ['name', 'rating', 'comment', 'boutique', 'customer'], 5)
+const fb = await admin.list('AWANZ Feedback', { sales_invoice: inv?.name }, ['name', 'rating', 'comment', 'boutique', 'customer'], 5)
 record('C · Salon feedback reaches Head Office against this sale', fb.length === 1 && Number(fb[0].rating) === 5, JSON.stringify(fb[0] || {}).slice(0, 200))
 const inviteYes = salon.page.locator('[data-testid=invite-yes]')
 const invited = await inviteYes.count()
 if (invited) { await inviteYes.click(); await sleep(3000) }
-const prof3 = created2 ? await admin.value('Maison Client Profile', created2.name, ['private_viewing_invite', 'private_viewing_invite_on']) : null
+const prof3 = created2 ? await admin.value('AWANZ Client Profile', created2.name, ['private_viewing_invite', 'private_viewing_invite_on']) : null
 record('C · the private-viewing invitation is recorded on the client profile', invited > 0 && Number(prof3?.private_viewing_invite) === 1, `invite screen shown=${invited > 0} · ${JSON.stringify(prof3)}`)
 await shot(salon.page, 'salon-invite')
 
@@ -133,7 +133,7 @@ if (conc) {
   }
   await sleep(3500)
   const saved = await salon.page.locator('[data-testid=concierge-saved]').count()
-  const p = created2 ? await admin.doc('Maison Client Profile', created2.name) : {}
+  const p = created2 ? await admin.doc('AWANZ Client Profile', created2.name) : {}
   const filled = ['ring_size', 'wrist_size', 'preferred_metal', 'style_notes', 'occasions', 'styles'].filter((k) => p[k])
   record('C · Concierge answers are written to the client profile', saved === 1 || filled.length > 0, `saved=${saved} fields=${JSON.stringify(filled.map((k) => [k, String(p[k]).slice(0, 40)]))}`)
   await shot(salon.page, 'salon-concierge-done')
@@ -145,7 +145,7 @@ await pos.page.click('[data-testid=salon-unpair]')
 await sleep(3000)
 const backToPair = await waitView(salon.page, 'pair', 25000).then(() => true).catch(() => false)
 record('C · Unpair from the POS returns the Salon to the pairing screen', backToPair, `salon view = ${await salonView(salon.page)}`)
-const sess = await admin.value('Maison Salon Session', st.token, ['status'])
+const sess = await admin.value('AWANZ Salon Session', st.token, ['status'])
 record('C · the session is Unpaired on the server', sess?.status === 'Unpaired', JSON.stringify(sess))
 const dead = await guest.raw('maison_pos.api.salon.state', { token: st.token })
 record('C · the old token no longer serves a paired session', dead.status !== 200 || dead.body?.message?.status !== 'Paired', `${dead.status} ${JSON.stringify(dead.body?.message || {}).slice(0, 100)}`)

@@ -1,7 +1,7 @@
 """v0.3: Customer ``maison_face_consent_at`` + ``maison_face_templates`` and recognition settings defaults.
 
 Copies the legacy ``maison_face_consent_on`` timestamp into ``maison_face_consent_at`` and fills
-the new Maison POS Settings fields (consent text EN, version, model, threshold, retention).
+the new AWANZ POS Settings fields (consent text EN, version, model, threshold, retention).
 Idempotent.
 """
 
@@ -15,10 +15,10 @@ from maison_pos.setup.install import create_custom_fields_from_fixture, ensure_s
 def execute() -> None:
 	if not frappe.db.exists("DocType", "Customer"):
 		return
-	frappe.reload_doc("maison_pos", "doctype", "maison_biometric_consent")
-	frappe.reload_doc("maison_pos", "doctype", "maison_face_template")
-	frappe.reload_doc("maison_pos", "doctype", "maison_recognition_event")
-	frappe.reload_doc("maison_pos", "doctype", "maison_pos_settings")
+	frappe.reload_doc("awanz_pos", "doctype", "awanz_biometric_consent")
+	frappe.reload_doc("awanz_pos", "doctype", "awanz_face_template")
+	frappe.reload_doc("awanz_pos", "doctype", "awanz_recognition_event")
+	frappe.reload_doc("awanz_pos", "doctype", "awanz_pos_settings")
 	create_custom_fields_from_fixture()
 	frappe.reload_doctype("Customer")
 	if frappe.db.has_column("Customer", "maison_face_consent_at") and frappe.db.has_column("Customer", "maison_face_consent_on"):

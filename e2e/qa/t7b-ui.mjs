@@ -1,12 +1,12 @@
 import { apiFor, pageAs, closeBrowser, record, saveResults, log, sleep, shot, STORE, MGR, WH, TAG } from './lib-wh.mjs'
 import { readFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin')
 const { ctx, page } = await pageAs(MGR, { viewport: { width: 1366, height: 1024 }, tag: 'pos' })
 
 async function unlock() {
   await page.goto('/pos/unlock', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => localStorage.setItem('maisonE2E', '1'))
+  await page.evaluate(() => localStorage.setItem('awanzE2E', '1'))
   await page.goto('/pos', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.unlock select.input', { timeout: 45000 })
   await page.selectOption('.unlock select.input >> nth=0', STORE)

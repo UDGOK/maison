@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * v0.5 K — ambient: wordmark, the hour, a welcome line, and curated pieces that float in and out
- * (HQ-managed Maison Salon Playlist). Pieces rotate on their own `seconds`; reduced motion shows
+ * (HQ-managed AWANZ Salon Playlist). Pieces rotate on their own `seconds`; reduced motion shows
  * them without drift.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'

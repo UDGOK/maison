@@ -1,4 +1,4 @@
-"""Shared query helpers for the v0.4 Script Reports (``maison_pos/maison_pos/report/*``).
+"""Shared query helpers for the v0.4 Script Reports (``maison_pos/awanz_pos/report/*``).
 
 Every report works on submitted ``Sales Invoice`` rows with ``is_pos = 1``; credit notes
 (``is_return = 1``) carry negative amounts so "net" figures are automatically netted of
@@ -19,7 +19,7 @@ from maison_pos.scoping import get_allowed_boutiques, is_unrestricted
 
 COMMON_FILTERS = [
 	{"fieldname": "company", "label": "Company", "fieldtype": "Link", "options": "Company", "default": None},
-	{"fieldname": "boutique", "label": "Boutique", "fieldtype": "Link", "options": "Maison Boutique"},
+	{"fieldname": "boutique", "label": "Boutique", "fieldtype": "Link", "options": "AWANZ Store"},
 	{"fieldname": "from_date", "label": "From Date", "fieldtype": "Date", "reqd": 1, "default": "month_start"},
 	{"fieldname": "to_date", "label": "To Date", "fieldtype": "Date", "reqd": 1, "default": "today"},
 ]
@@ -114,11 +114,11 @@ def tax_rate_of(template: Optional[str], cache: dict[str, float]) -> float:
 
 
 def boutique_names() -> dict[str, str]:
-	return {r.name: r.boutique_name for r in frappe.get_all("Maison Boutique", fields=["name", "boutique_name"])}
+	return {r.name: r.boutique_name for r in frappe.get_all("AWANZ Store", fields=["name", "boutique_name"])}
 
 
 def associate_names() -> dict[str, str]:
-	return {r.name: r.full_name for r in frappe.get_all("Maison Associate", fields=["name", "full_name"])}
+	return {r.name: r.full_name for r in frappe.get_all("AWANZ Associate", fields=["name", "full_name"])}
 
 
 def money_col(label: str, fieldname: str, width: int = 130) -> dict[str, Any]:

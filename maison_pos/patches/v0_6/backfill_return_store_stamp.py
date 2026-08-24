@@ -43,7 +43,7 @@ def execute() -> None:
 	# 2. anything stamped with a store but no warehouse -> the store's selling warehouse
 	warehouses = {
 		b.name: b.warehouse
-		for b in frappe.get_all("Maison Boutique", fields=["name", "warehouse"])
+		for b in frappe.get_all("AWANZ Store", fields=["name", "warehouse"])
 		if b.warehouse
 	}
 	if not warehouses:

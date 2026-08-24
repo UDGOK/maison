@@ -1,0 +1,186 @@
+{
+ "actions": [],
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sales_invoice",
+  "campaign",
+  "touch",
+  "customer",
+  "column_break_a",
+  "type",
+  "amount",
+  "invoice_total",
+  "item_level",
+  "item_codes",
+  "section_b",
+  "posting_date",
+  "boutique",
+  "associate",
+  "column_break_b",
+  "touch_at",
+  "days_to_sale",
+  "computed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "campaign",
+   "fieldtype": "Link",
+   "label": "Campaign",
+   "options": "AWANZ Campaign",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "touch",
+   "fieldtype": "Link",
+   "label": "Touch",
+   "options": "AWANZ Campaign Touch"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "label": "Type",
+   "options": "Direct\nAssisted",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "invoice_total",
+   "fieldtype": "Currency",
+   "label": "Invoice net total"
+  },
+  {
+   "fieldname": "item_level",
+   "fieldtype": "Check",
+   "label": "Item-level"
+  },
+  {
+   "fieldname": "item_codes",
+   "fieldtype": "Small Text",
+   "label": "Featured items in basket"
+  },
+  {
+   "fieldname": "section_b",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "search_index": 1
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "label": "Boutique",
+   "options": "AWANZ Store"
+  },
+  {
+   "fieldname": "associate",
+   "fieldtype": "Link",
+   "label": "Associate",
+   "options": "AWANZ Associate"
+  },
+  {
+   "fieldname": "column_break_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "touch_at",
+   "fieldtype": "Datetime",
+   "label": "Touch at"
+  },
+  {
+   "fieldname": "days_to_sale",
+   "fieldtype": "Float",
+   "label": "Days to sale"
+  },
+  {
+   "fieldname": "computed_at",
+   "fieldtype": "Datetime",
+   "label": "Computed at"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Campaign Attribution",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "hash",
+ "title_field": "sales_invoice",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "create": 1,
+   "delete": 1,
+   "write": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "report": 1,
+   "share": 1
+  },
+  {
+   "role": "AWANZ Head Office",
+   "read": 1,
+   "create": 1,
+   "delete": 1,
+   "write": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "report": 1,
+   "share": 1
+  },
+  {
+   "role": "AWANZ Regional",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AWANZ Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "AWANZ Associate",
+   "read": 1
+  }
+ ]
+}

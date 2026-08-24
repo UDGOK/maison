@@ -1,5 +1,5 @@
 {#-
-  Maison Return Receipt — 80 mm thermal (Jinja print format for Sales Invoice credit notes, v0.4).
+  AWANZ Return Receipt — 80 mm thermal (Jinja print format for Sales Invoice credit notes, v0.4).
   Helpers from hooks.jinja: get_receipt_context(doc), format_money(v, currency), receipt_qr_svg(doc)
 -#}
 {%- set ctx = get_receipt_context(doc) -%}
@@ -54,7 +54,7 @@
   {% if doc.maison_exchange_invoice %}<div class="row meta"><span class="l label">{% if doc.is_return %}New sale{% else %}Credit note{% endif %}</span><span class="r">{{ doc.maison_exchange_invoice }}</span></div>{% endif %}
   <div class="row meta"><span class="l label">Date</span><span class="r">{{ frappe.utils.format_datetime(doc.posting_date ~ " " ~ doc.posting_time, "dd MMM yyyy HH:mm") }}</span></div>
   {% if ctx.associate_name %}<div class="row meta"><span class="l label">Associate</span><span class="r">{{ ctx.associate_name }}</span></div>{% endif %}
-  {% if doc.maison_manager_approved_by %}<div class="row meta"><span class="l label">Approved by</span><span class="r">{{ frappe.db.get_value("Maison Associate", doc.maison_manager_approved_by, "full_name") or doc.maison_manager_approved_by }}</span></div>{% endif %}
+  {% if doc.maison_manager_approved_by %}<div class="row meta"><span class="l label">Approved by</span><span class="r">{{ frappe.db.get_value("AWANZ Associate", doc.maison_manager_approved_by, "full_name") or doc.maison_manager_approved_by }}</span></div>{% endif %}
   {% if doc.customer %}
     <div class="row meta"><span class="l label">Client</span><span class="r">{{ doc.customer_name }}{% if ctx.tier %} · {{ ctx.tier }}{% endif %}</span></div>
     {% if ctx.client_number %}<div class="row meta"><span class="l label">Client №</span><span class="r">{{ ctx.client_number }}</span></div>{% endif %}

@@ -11,7 +11,7 @@ sitemap = 0
 
 
 def get_context(context):
-	base_context(context, nav="cart", title="Payment — Maison")
+	base_context(context, nav="cart", title="Payment — AWANZ")
 	require_login(context)
 	name = frappe.form_dict.get("pr")
 	if not name or not frappe.db.exists("Payment Request", name):

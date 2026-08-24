@@ -23,7 +23,7 @@ What it generates (deterministic — ``random.Random(HISTORY_SEED)``):
   ERPNext credit notes through ``maison_pos.api.sales.void``.
 
 Idempotent: every invoice carries ``maison_offline_uuid = hist-<seed>-<n>``; a completed run
-stores a marker (``frappe.defaults`` key ``maison_history_seed``) and later calls return
+stores a marker (``frappe.defaults`` key ``awanz_history_seed``) and later calls return
 immediately. An interrupted run resumes where it stopped (existing uuids are skipped).
 Chunks of ``CHUNK_SIZE`` invoices are committed so a ``bench execute`` never holds one giant
 transaction; ``seed_history_remote`` enqueues the same function on the long queue.
@@ -47,9 +47,9 @@ from maison_pos.setup.demo import ABBR, BOUTIQUES, COMPANY, ITEMS, WALK_IN
 HISTORY_SEED = 20260822
 TARGET_INVOICES = 1500
 CHUNK_SIZE = 50
-MARKER_KEY = "maison_history_seed"
+MARKER_KEY = "awanz_history_seed"
 HISTORY_UUID_PREFIX = f"hist-{HISTORY_SEED}-"
-HISTORY_STOCK_REMARK = "Maison demo history stock"
+HISTORY_STOCK_REMARK = "AWANZ demo history stock"
 HISTORY_DEVICE = None  # no device heartbeat for historical sales
 RETURN_SHARE = 0.05  # of the sales inside RETURN_WINDOW_DAYS -> ~12-15 returns
 RETURN_WINDOW_DAYS = 35
@@ -613,7 +613,7 @@ def _make_return(invoice_name: str, rng: random.Random) -> Optional[str]:
 		returns_api = None
 	reason = rng.choice(["Change of mind", "Sizing", "Gift return"])
 	if returns_api is not None and hasattr(returns_api, "return_items"):
-		frappe.db.savepoint("maison_hist_return")
+		frappe.db.savepoint("awanz_hist_return")
 		try:
 			si = frappe.get_doc("Sales Invoice", invoice_name)
 			reasons = getattr(returns_api, "REASONS", None) or ("Change of mind", "Sizing", "Gift return")
@@ -621,19 +621,19 @@ def _make_return(invoice_name: str, rng: random.Random) -> Optional[str]:
 			lines = [{"item_code": r.item_code, "qty": r.qty, "serial_no": r.serial_no, "reason": reason, "condition": "Sellable"} for r in si.items]
 			method = "card" if any((p.mode_of_payment or "").lower() != "cash" for p in si.payments) else "cash"
 			res = returns_api.return_items(invoice=invoice_name, lines=lines, reason=reason, refund_method=method)
-			frappe.db.release_savepoint("maison_hist_return")
+			frappe.db.release_savepoint("awanz_hist_return")
 			if isinstance(res, dict):
 				return res.get("credit_note") or res.get("name") or str(res)
 			return str(res)
 		except Exception:
-			frappe.db.rollback(save_point="maison_hist_return")
+			frappe.db.rollback(save_point="awanz_hist_return")
 			frappe.clear_messages()
 	from maison_pos.api.sales import void
 
 	try:
 		return void(invoice_name, f"History demo return: {reason}")["credit_note"]
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"Maison history return failed for {invoice_name}")
+		frappe.log_error(frappe.get_traceback(), f"AWANZ history return failed for {invoice_name}")
 		frappe.clear_messages()
 		return None
 
@@ -658,7 +658,7 @@ def _post_plan(plan: dict[str, Any], customer_names: dict[str, str], summary: di
 		if not payload:
 			summary["failed"] += 1
 			continue
-		savepoint = "maison_hist"
+		savepoint = "awanz_hist"
 		hard_failure = False
 		try:
 			frappe.db.savepoint(savepoint)
@@ -686,7 +686,7 @@ def _post_plan(plan: dict[str, Any], customer_names: dict[str, str], summary: di
 					queue.insert(i, inv)
 					time.sleep(0.5 * attempts[inv["uuid"]])
 					continue
-			frappe.log_error(frappe.get_traceback(), f"Maison history invoice {inv['uuid']} failed")
+			frappe.log_error(frappe.get_traceback(), f"AWANZ history invoice {inv['uuid']} failed")
 			summary["failed"] += 1
 			continue
 		if commit and len(chunk) >= CHUNK_SIZE:
@@ -710,7 +710,7 @@ def _is_transient(exc: BaseException) -> bool:
 
 
 def _drop_realtime_log() -> None:
-	# 1,500 `maison_sale` events would otherwise be flushed to the live wall on every commit
+	# 1,500 `awanz_sale` events would otherwise be flushed to the live wall on every commit
 	if hasattr(frappe.local, "realtime_log"):
 		frappe.local.realtime_log = []
 
@@ -718,7 +718,7 @@ def _drop_realtime_log() -> None:
 def seed_history(months: int = 6, target: int = TARGET_INVOICES, commit: bool = True, force: bool = False, run_reposts: bool = True) -> dict[str, Any]:
 	"""Generate *months* of history (see module docstring). Safe to re-run; resumes if interrupted."""
 	# --- v0.6 N — Smoke Shop sites get the CloudChaserz history (11 stores, smoke-shop tickets) ---
-	if demo.resolve_vertical() == "Smoke Shop" and not frappe.db.exists("Maison Boutique", BOUTIQUES[0]["code"]):
+	if demo.resolve_vertical() == "Smoke Shop" and not frappe.db.exists("AWANZ Store", BOUTIQUES[0]["code"]):
 		from maison_pos.setup.cloudchaserz.history import seed_history as cc_seed_history
 
 		return cc_seed_history(months=int(months), commit=commit, force=force, run_reposts=run_reposts)
@@ -734,7 +734,7 @@ def seed_history(months: int = 6, target: int = TARGET_INVOICES, commit: bool = 
 	frappe.flags.mute_emails = True
 	frappe.flags.in_demo_seed = True
 	frappe.flags.in_history_seed = True
-	if not frappe.db.exists("Maison Boutique", BOUTIQUES[0]["code"]):
+	if not frappe.db.exists("AWANZ Store", BOUTIQUES[0]["code"]):
 		demo.seed(commit=commit)
 
 	plan = build_plan(months=months, target=target)
@@ -834,7 +834,7 @@ def process_reposts(max_seconds: int = 240) -> dict[str, Any]:
 				repost(doc)
 			done += 1
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), f"Maison history repost {name} failed")
+			frappe.log_error(frappe.get_traceback(), f"AWANZ history repost {name} failed")
 			frappe.clear_messages()
 		frappe.db.commit()
 	remaining = frappe.db.count("Repost Item Valuation", {"status": ("in", ("Queued", "In Progress"))})
@@ -861,7 +861,7 @@ def seed_history_remote(months: int = 6, sync: int = 0) -> dict[str, Any]:
 		"maison_pos.setup.demo_history.seed_history",
 		queue="long",
 		timeout=3600,
-		job_name="maison_seed_history",
+		job_name="awanz_seed_history",
 		months=months,
 	)
 	return {"enqueued": True, "job": getattr(job, "id", None) or str(job), "months": months}

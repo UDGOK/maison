@@ -1,7 +1,7 @@
 /**
  * v0.6 N/Q — age verification (`maison_pos.api.age`) and CloudChaserz Rewards
  * (`maison_pos.api.rewards`). Own module like `v04.ts`: typed client + in-memory mock picked by
- * `VITE_MOCK`, so the core `MaisonApi` contract stays untouched.
+ * `VITE_MOCK`, so the core `AwanzApi` contract stays untouched.
  */
 import { ApiError, type AgeCheckPayload, type RewardTier } from './types'
 import { evaluateAge, parseAamva, todayIso } from '@/scan/aamva'
@@ -29,7 +29,7 @@ export interface AgeCheckResult {
   expired?: 0 | 1
   initials?: string | null
   jurisdiction?: string | null
-  /** `Maison Age Check` name (audit row, masked) */
+  /** `AWANZ Age Check` name (audit row, masked) */
   check?: string
   checked_at?: string
   message: string
@@ -205,7 +205,7 @@ export const mockV06: V06Api = {
       return { program: c ? 'Mock Rewards' : null, program_name: 'Mock Rewards', allow_stacking: 0, points, tiers: DEFAULT_TIERS, affordable: affordableTiers(points, DEFAULT_TIERS), next_reward: nextReward(points, DEFAULT_TIERS) }
     },
     giveaways: async () => ({ giveaways: [{ name: 'MGV-0001', title: 'Mock giveaway', prize_description: 'A prize', end_date: '2030-01-01', entry_rule: 'Per amount', amount_per_entry: 25, my_entries: 0 }] }),
-    program: async () => ({ brand: { brand_name: 'Maison', tagline: 'Fine jewellery & timepieces', support_email: 'concierge@maison.example' }, program_name: 'Mock Rewards', earn_rate: 1, tiers: DEFAULT_TIERS, birthday: { type: 'Percent', value: 15, lead_days: 7, valid_days: 30, label: '15% off' }, copy: PROGRAM_COPY, events: [], giveaways: [], signup_url: '/rewards#join' })
+    program: async () => ({ brand: { brand_name: 'AWANZ', tagline: 'Fine jewellery & timepieces', support_email: 'concierge@maison.example' }, program_name: 'Mock Rewards', earn_rate: 1, tiers: DEFAULT_TIERS, birthday: { type: 'Percent', value: 15, lead_days: 7, valid_days: 30, label: '15% off' }, copy: PROGRAM_COPY, events: [], giveaways: [], signup_url: '/rewards#join' })
   }
 }
 

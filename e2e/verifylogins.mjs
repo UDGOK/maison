@@ -5,7 +5,7 @@ const users=[
  {u:'hou.mtr.a1@cloudchaserz.example', who:'Dante Ruiz', pin:'2580', go:'/pos'},
  {u:'hou.mtr.manager@cloudchaserz.example', who:'Marisol Vega', pin:'1101', go:'/pos'},
  {u:'warehouse@cloudchaserz.example', who:null, pin:null, go:'/pos'},
- {u:'hq@cloudchaserz.example', who:null, pin:null, go:'/maison-dashboard'},
+ {u:'hq@cloudchaserz.example', who:null, pin:null, go:'/awanz-dashboard'},
 ]
 const b=await chromium.launch()
 for(const t of users){

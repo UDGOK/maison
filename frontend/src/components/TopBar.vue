@@ -255,7 +255,7 @@ function lock() {
   padding-left: 16px;
 }
 .topbar.phone .wordmark {
-  /* v0.6 N — the wordmark is a brand token now: "CLOUDCHASERZ" is twice as long as "MAISON" and
+  /* v0.6 N — the wordmark is a brand token now: "CLOUDCHASERZ" is twice as long as "AWANZ" and
      at 0.3em tracking it pushed the menu button off a 390 px screen. Tighter tracking on the phone.
      The brand itself never truncates — the store code beside it yields first (see .ph-boutique). */
   font-size: 14px;
@@ -362,7 +362,7 @@ function lock() {
   border-top: var(--line-w) solid var(--line);
   color: var(--crit);
 }
-/* v0.6 N — "Maison POS" sub-mark under the brand wordmark */
+/* v0.6 N — "AWANZ POS" sub-mark under the brand wordmark */
 .wordmark {
   position: relative;
 }

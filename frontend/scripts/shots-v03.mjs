@@ -8,7 +8,7 @@
 // consent + 3 templates on the (mock) server → reload with the same face auto-attaches
 // ("Recognised · nn%") → Undo logs Undone → a different face does NOT match → decline path creates
 // the client without biometrics → manager revoke purges templates. Falls back to the
-// `window.__maisonRecognitionTest` hook when the detector cannot find a face (e.g. no video file).
+// `window.__awanzRecognitionTest` hook when the detector cannot find a face (e.g. no video file).
 import { chromium } from '../../e2e/node_modules/playwright/index.mjs'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -62,8 +62,8 @@ async function freshDevice(page, mockState) {
   await page.evaluate(async (mock) => {
     localStorage.clear()
     sessionStorage.clear()
-    localStorage.setItem('maisonE2E', '1')
-    if (mock) localStorage.setItem('maison.mock.state', mock)
+    localStorage.setItem('awanzE2E', '1')
+    if (mock) localStorage.setItem('awanz.mock.state', mock)
     const dbs = (await indexedDB.databases?.()) || [{ name: 'maison_pos' }]
     await Promise.all(dbs.map((d) => new Promise((r) => { const req = indexedDB.deleteDatabase(d.name); req.onsuccess = req.onerror = req.onblocked = () => r() })))
   }, mockState || null)
@@ -81,8 +81,8 @@ async function unlock(page, pin = '1234') {
   await page.evaluate(() => document.fonts.ready)
 }
 
-const tileState = (page) => page.evaluate(() => window.__maisonRecognitionTest?.state())
-const mockState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('maison.mock.state') || '{}'))
+const tileState = (page) => page.evaluate(() => window.__awanzRecognitionTest?.state())
+const mockState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('awanz.mock.state') || '{}'))
 const dismissNotices = (page) => page.evaluate(() => document.querySelectorAll('.notice .notice-btn:last-child').forEach((b) => b.click()))
 
 async function waitTile(page, states, timeout = 30000) {
@@ -103,7 +103,7 @@ async function waitVerdict(page, timeout = 30000) {
   let s = await waitTile(page, ['new', 'recognised'], timeout)
   let real = !!s
   if (!s) {
-    await page.evaluate((e) => window.__maisonRecognitionTest.emit({ embedding: e, quality: 0.9 }), FAKE_EMBEDDING)
+    await page.evaluate((e) => window.__awanzRecognitionTest.emit({ embedding: e, quality: 0.9 }), FAKE_EMBEDDING)
     s = await waitTile(page, ['new', 'recognised'], 8000)
   }
   return { state: s, real }
@@ -127,7 +127,7 @@ async function ensureCapture(page) {
     if (!s?.enrolOpen || s.enrolStep === 'saving' || s.enrolStep === 'done') return true
     await page.waitForTimeout(300)
   }
-  await page.evaluate((e) => window.__maisonRecognitionTest.samples([{ embedding: e }, { embedding: e }, { embedding: e }]), FAKE_EMBEDDING)
+  await page.evaluate((e) => window.__awanzRecognitionTest.samples([{ embedding: e }, { embedding: e }, { embedding: e }]), FAKE_EMBEDDING)
   return false
 }
 
@@ -280,12 +280,12 @@ let savedMock = null
   const nadia = (saved.customers || []).find((c) => c.customer_name === 'Nadia Okafor')
   const aTemplates = (saved.templates || []).filter((t) => t.customer === nadia?.name)
   if (aTemplates.length) {
-    await page.evaluate((list) => window.__maisonRecognitionTest.setTemplates(list), aTemplates.map((t) => ({ customer: t.customer, embedding: t.embedding, customer_name: 'Nadia Okafor' })))
+    await page.evaluate((list) => window.__awanzRecognitionTest.setTemplates(list), aTemplates.map((t) => ({ customer: t.customer, embedding: t.embedding, customer_name: 'Nadia Okafor' })))
   }
   const v = await waitVerdict(page)
   check('different face (B) against A\'s templates → New client (no false match)', v.state?.tile === 'new', v.real ? 'real detection' : 'hook')
   const last = await page.evaluate(() => {
-    const s = window.__maisonRecognitionTest.state()
+    const s = window.__awanzRecognitionTest.state()
     return s
   })
   console.log('   B verdict:', JSON.stringify(last))

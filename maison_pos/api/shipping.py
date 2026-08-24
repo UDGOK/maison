@@ -1,12 +1,12 @@
 """Warehouse & shipping API (v0.6 P) — ``maison_pos.api.shipping.*``.
 
 Flow: store **Replenishment Request** → warehouse admin *approve / edit quantities / reject*
-(workflow ``Maison Replenishment Approval``) → ``Maison Shipment`` Pending → Picking → Packed →
+(workflow ``AWANZ Replenishment Approval``) → ``AWANZ Shipment`` Pending → Picking → Packed →
 (rates → buy label) → **Shipped** (Material Transfer ``warehouse → <store> In Transit``) →
 Received at the store (``maison_pos.api.inventory.receive_shipment``).
 
 Scoping: warehouse admins / Head Office see every store; a store manager only their own
-(``maison_pos.scoping``). Every mutation publishes ``maison_wall`` to the ``doctype:Maison Shipment``
+(``maison_pos.scoping``). Every mutation publishes ``awanz_wall`` to the ``doctype:AWANZ Shipment``
 room so the 55" wall and the admin desk update live.
 """
 
@@ -40,8 +40,8 @@ from maison_pos.shipping import (
 )
 from maison_pos.shipping.providers import ShippingError, pick_rate
 
-WALL_ROOM = "doctype:Maison Shipment"
-WALL_EVENT = "maison_wall"
+WALL_ROOM = "doctype:AWANZ Shipment"
+WALL_EVENT = "awanz_wall"
 OPEN_SHIPMENT_STATUSES = ("Pending", "Picking", "Packed", "Shipped")
 SHIPMENT_ORDER = ["Pending", "Picking", "Packed", "Shipped", "Received", "Cancelled"]
 
@@ -153,7 +153,7 @@ def shipment_dict(doc, with_lines: bool = True) -> dict[str, Any]:
 		"received_at": _iso(doc.received_at),
 		"age_seconds": int(age),
 		"notes": doc.notes,
-		"packing_list_url": f"/printview?doctype=Maison%20Shipment&name={doc.name}&format=Maison%20Packing%20List&no_letterhead=1",
+		"packing_list_url": f"/printview?doctype=AWANZ%20Shipment&name={doc.name}&format=AWANZ%20Packing%20List&no_letterhead=1",
 	}
 	if with_lines:
 		out["lines"] = [
@@ -178,7 +178,7 @@ def shipment_dict(doc, with_lines: bool = True) -> dict[str, Any]:
 
 
 def publish_wall(event: str, shipment: Optional[str] = None, **extra: Any) -> None:
-	"""``maison_wall`` realtime event for the wall / admin desk (document room of Maison Shipment)."""
+	"""``awanz_wall`` realtime event for the wall / admin desk (document room of AWANZ Shipment)."""
 	payload = {"event": event, "shipment": shipment, "ts": now_datetime().isoformat(), **extra}
 	try:
 		frappe.publish_realtime(WALL_EVENT, payload, room=WALL_ROOM, after_commit=True)
@@ -194,11 +194,11 @@ def _notify(user: Optional[str], subject: str, doctype: str, name: str, body: st
 			{"doctype": "Notification Log", "for_user": user, "type": "Alert", "document_type": doctype, "document_name": name, "subject": subject, "email_content": body}
 		).insert(ignore_permissions=True)
 	except Exception:  # pragma: no cover
-		frappe.log_error(frappe.get_traceback(), "Maison shipping notification")
+		frappe.log_error(frappe.get_traceback(), "AWANZ shipping notification")
 
 
 def _store_managers(boutique: str) -> list[str]:
-	return frappe.get_all("Maison Associate", filters={"boutique": boutique, "role": "Manager", "enabled": 1}, pluck="user")
+	return frappe.get_all("AWANZ Associate", filters={"boutique": boutique, "role": "Manager", "enabled": 1}, pluck="user")
 
 
 def _assert_doc_access(doc) -> None:
@@ -218,8 +218,8 @@ def _bin_qty(item_code: str, warehouse: Optional[str]) -> float:
 
 
 def create_request(boutique: str, lines: list[dict], reason: Optional[str] = None, priority: Optional[str] = None, from_warehouse: Optional[str] = None) -> Any:
-	"""Insert a ``Maison Replenishment Request`` + its draft Material Request. Caller has scoped *boutique*."""
-	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	"""Insert a ``AWANZ Replenishment Request`` + its draft Material Request. Caller has scoped *boutique*."""
+	b = frappe.get_cached_doc("AWANZ Store", boutique)
 	# v0.6 P — the source must belong to the store's own company (ERPNext forbids cross-company transfers).
 	source = from_warehouse or get_main_warehouse(exclude=b.warehouse, company=b.company)
 	rows = []
@@ -247,7 +247,7 @@ def create_request(boutique: str, lines: list[dict], reason: Optional[str] = Non
 		priority = "Low stock" if any(r.get("stock_alert") for r in rows) else "Normal"
 	req = frappe.get_doc(
 		{
-			"doctype": "Maison Replenishment Request",
+			"doctype": "AWANZ Replenishment Request",
 			"boutique": boutique,
 			"to_warehouse": b.warehouse,
 			"from_warehouse": source,
@@ -282,11 +282,11 @@ def create_request(boutique: str, lines: list[dict], reason: Optional[str] = Non
 	req.db_set("material_request", mr.name, update_modified=False)
 	req.material_request = mr.name
 	for r in rows:
-		if r.get("stock_alert") and frappe.db.exists("Maison Stock Alert", r["stock_alert"]):
-			frappe.db.set_value("Maison Stock Alert", r["stock_alert"], {"material_request": mr.name, "status": "Acknowledged"}, update_modified=False)
+		if r.get("stock_alert") and frappe.db.exists("AWANZ Stock Alert", r["stock_alert"]):
+			frappe.db.set_value("AWANZ Stock Alert", r["stock_alert"], {"material_request": mr.name, "status": "Acknowledged"}, update_modified=False)
 	publish_wall("request", request=req.name, boutique=boutique, priority=priority)
-	for admin in frappe.get_all("Has Role", filters={"role": "Maison Warehouse Admin", "parenttype": "User"}, pluck="parent"):
-		_notify(admin, _("{0} requests {1} unit(s) from the warehouse").format(boutique, int(req.units_requested)), "Maison Replenishment Request", req.name)
+	for admin in frappe.get_all("Has Role", filters={"role": "AWANZ Warehouse Admin", "parenttype": "User"}, pluck="parent"):
+		_notify(admin, _("{0} requests {1} unit(s) from the warehouse").format(boutique, int(req.units_requested)), "AWANZ Replenishment Request", req.name)
 	return req
 
 
@@ -305,14 +305,14 @@ def requests_list(status: Optional[str] = "open", boutique: Optional[str] = None
 		filters["status"] = "Pending Approval"
 	elif status and status != "all":
 		filters["status"] = status
-	names = frappe.get_all("Maison Replenishment Request", filters=filters, pluck="name", order_by="requested_at desc", limit=cint(limit) or 200)
-	rows = [request_dict(frappe.get_doc("Maison Replenishment Request", n)) for n in names]
+	names = frappe.get_all("AWANZ Replenishment Request", filters=filters, pluck="name", order_by="requested_at desc", limit=cint(limit) or 200)
+	rows = [request_dict(frappe.get_doc("AWANZ Replenishment Request", n)) for n in names]
 	return {"requests": rows, "count": len(rows), "scope": "all" if is_supply_unrestricted() else filters.get("boutique")}
 
 
 @frappe.whitelist()
 def request_detail(request: str) -> dict[str, Any]:
-	doc = frappe.get_doc("Maison Replenishment Request", request)
+	doc = frappe.get_doc("AWANZ Replenishment Request", request)
 	_assert_doc_access(doc)
 	return request_dict(doc)
 
@@ -333,10 +333,10 @@ def _approved_lines(req, lines: Any) -> dict[str, float]:
 
 
 def _transition(req, action: str, state: str):
-	"""Run the ``Maison Replenishment Approval`` workflow action (plain state change when the workflow is absent)."""
+	"""Run the ``AWANZ Replenishment Approval`` workflow action (plain state change when the workflow is absent)."""
 	from frappe.model.workflow import WorkflowTransitionError
 
-	if frappe.db.exists("Workflow", {"document_type": "Maison Replenishment Request", "is_active": 1}):
+	if frappe.db.exists("Workflow", {"document_type": "AWANZ Replenishment Request", "is_active": 1}):
 		try:
 			doc = apply_workflow(req, action)
 		except WorkflowTransitionError:
@@ -352,7 +352,7 @@ def _create_shipment_from_request(req, approved: dict[str, float]) -> Any:
 	transit = ensure_transit_warehouse(req.boutique)
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Shipment",
+			"doctype": "AWANZ Shipment",
 			"boutique": req.boutique,
 			"from_warehouse": req.from_warehouse,
 			"transit_warehouse": transit,
@@ -375,7 +375,7 @@ def _create_shipment_from_request(req, approved: dict[str, float]) -> Any:
 def approve(request: str, lines: Any = None, notes: Optional[str] = None) -> dict[str, Any]:
 	"""Warehouse admin: approve (optionally with edited quantities) → submits the Material Request and creates the shipment."""
 	assert_supply_admin()
-	req = frappe.get_doc("Maison Replenishment Request", request)
+	req = frappe.get_doc("AWANZ Replenishment Request", request)
 	if req.status != "Pending Approval":
 		frappe.throw(_("Request {0} is {1}").format(request, req.status), frappe.ValidationError)
 	approved = _approved_lines(req, lines)
@@ -408,11 +408,11 @@ def approve(request: str, lines: Any = None, notes: Optional[str] = None) -> dic
 	shipment = _create_shipment_from_request(req, approved)
 	req.db_set("shipment", shipment.name, update_modified=False)
 	for line in req.lines:
-		if line.stock_alert and frappe.db.exists("Maison Stock Alert", line.stock_alert):
-			frappe.db.set_value("Maison Stock Alert", line.stock_alert, "status", "Acknowledged", update_modified=False)
+		if line.stock_alert and frappe.db.exists("AWANZ Stock Alert", line.stock_alert):
+			frappe.db.set_value("AWANZ Stock Alert", line.stock_alert, "status", "Acknowledged", update_modified=False)
 	publish_wall("approved", shipment.name, boutique=req.boutique, request=req.name, priority=req.priority, print_packing_list=bool(shipping_settings()["auto_print_packing_list"]))
 	for user in {req.requested_by, *_store_managers(req.boutique)}:
-		_notify(user, _("Replenishment {0} approved — shipment {1}").format(req.name, shipment.name), "Maison Shipment", shipment.name)
+		_notify(user, _("Replenishment {0} approved — shipment {1}").format(req.name, shipment.name), "AWANZ Shipment", shipment.name)
 	return {"request": request_dict(req), "shipment": shipment_dict(shipment)}
 
 
@@ -422,7 +422,7 @@ def reject(request: str, reason: str) -> dict[str, Any]:
 	assert_supply_admin()
 	if not (reason or "").strip():
 		frappe.throw(_("A rejection reason is required"), frappe.ValidationError)
-	req = frappe.get_doc("Maison Replenishment Request", request)
+	req = frappe.get_doc("AWANZ Replenishment Request", request)
 	if req.status != "Pending Approval":
 		frappe.throw(_("Request {0} is {1}").format(request, req.status), frappe.ValidationError)
 	req.rejection_reason = reason.strip()
@@ -433,20 +433,20 @@ def reject(request: str, reason: str) -> dict[str, Any]:
 	req = _transition(req, "Reject", "Rejected")
 	# --- v0.8 QA W-D1 — a request raised from a low-stock alert could never be rejected ---
 	# `inventory.replenish` links the alert to the draft Material Request
-	# (`Maison Stock Alert.material_request`). Deleting the MR before clearing that link made
+	# (`AWANZ Stock Alert.material_request`). Deleting the MR before clearing that link made
 	# ERPNext's link check fire (`LinkExistsError`) and rolled the whole rejection back, so the
 	# request sat on the wall for ever with no way out. Every link to the MR goes first.
 	for line in req.lines:
-		if line.stock_alert and frappe.db.exists("Maison Stock Alert", line.stock_alert):
-			frappe.db.set_value("Maison Stock Alert", line.stock_alert, "material_request", None, update_modified=False)
+		if line.stock_alert and frappe.db.exists("AWANZ Stock Alert", line.stock_alert):
+			frappe.db.set_value("AWANZ Stock Alert", line.stock_alert, "material_request", None, update_modified=False)
 	if req.material_request and frappe.db.exists("Material Request", req.material_request):
 		mr_name = req.material_request
 		mr = frappe.get_doc("Material Request", mr_name)
 		req.db_set("material_request", None, update_modified=False)
 		req.material_request = None
 		# any other alert that points at this MR (a second request for the same item) must let go too
-		for alert in frappe.get_all("Maison Stock Alert", filters={"material_request": mr_name}, pluck="name"):
-			frappe.db.set_value("Maison Stock Alert", alert, "material_request", None, update_modified=False)
+		for alert in frappe.get_all("AWANZ Stock Alert", filters={"material_request": mr_name}, pluck="name"):
+			frappe.db.set_value("AWANZ Stock Alert", alert, "material_request", None, update_modified=False)
 		mr.flags.ignore_permissions = True
 		if mr.docstatus == 0:
 			mr.delete()
@@ -455,7 +455,7 @@ def reject(request: str, reason: str) -> dict[str, Any]:
 	# --- end v0.8 QA W-D1 ---
 	publish_wall("rejected", request=req.name, boutique=req.boutique)
 	for user in {req.requested_by, *_store_managers(req.boutique)}:
-		_notify(user, _("Replenishment {0} rejected: {1}").format(req.name, req.rejection_reason), "Maison Replenishment Request", req.name, req.rejection_reason)
+		_notify(user, _("Replenishment {0} rejected: {1}").format(req.name, req.rejection_reason), "AWANZ Replenishment Request", req.name, req.rejection_reason)
 	return {"request": request_dict(req)}
 
 
@@ -479,14 +479,14 @@ def shipments(status: Optional[str] = "open", boutique: Optional[str] = None, li
 		filters["status"] = "Shipped"
 	elif status and status != "all":
 		filters["status"] = status
-	names = frappe.get_all("Maison Shipment", filters=filters, pluck="name", order_by="creation desc", limit=cint(limit) or 200)
-	rows = [shipment_dict(frappe.get_doc("Maison Shipment", n), with_lines=bool(cint(with_lines))) for n in names]
+	names = frappe.get_all("AWANZ Shipment", filters=filters, pluck="name", order_by="creation desc", limit=cint(limit) or 200)
+	rows = [shipment_dict(frappe.get_doc("AWANZ Shipment", n), with_lines=bool(cint(with_lines))) for n in names]
 	return {"shipments": rows, "count": len(rows)}
 
 
 @frappe.whitelist()
 def shipment(shipment: str) -> dict[str, Any]:
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	_assert_doc_access(doc)
 	out = shipment_dict(doc)
 	out["ship_to"] = ship_to_address(doc.boutique)
@@ -508,7 +508,7 @@ def _set_status(doc, status: str) -> None:
 def pick(shipment: str, lines: Any = None) -> dict[str, Any]:
 	"""Start / update picking. ``lines = [{item_code, picked_qty}]``; absent lines default to the full qty."""
 	assert_supply_admin()
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	if doc.status not in ("Pending", "Picking"):
 		frappe.throw(_("Shipment {0} is {1}").format(shipment, doc.status), frappe.ValidationError)
 	picked = {r.get("item_code"): flt(r.get("picked_qty", r.get("qty"))) for r in (_loads(lines, []) or [])}
@@ -527,7 +527,7 @@ def pick(shipment: str, lines: Any = None) -> dict[str, Any]:
 @frappe.whitelist()
 def pick_list(shipment: str) -> dict[str, Any]:
 	"""Pick list with bin locations, sorted by aisle / bay (what the picker walks)."""
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	_assert_doc_access(doc)
 	lines = sorted(
 		(
@@ -552,7 +552,7 @@ def pick_list(shipment: str) -> dict[str, Any]:
 def pack(shipment: str, lines: Any = None, parcels: Any = None) -> dict[str, Any]:
 	"""Mark Packed with the parcels ``[{length, width, height, weight}]`` (default: the estimate)."""
 	assert_supply_admin()
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	if doc.status not in ("Pending", "Picking", "Packed"):
 		frappe.throw(_("Shipment {0} is {1}").format(shipment, doc.status), frappe.ValidationError)
 	picked = {r.get("item_code"): flt(r.get("picked_qty", r.get("qty"))) for r in (_loads(lines, []) or [])}
@@ -585,7 +585,7 @@ def _parcels_for(doc) -> list[dict]:
 def rates(shipment: str, prefer: str = "cheapest", provider: Optional[str] = None) -> dict[str, Any]:
 	"""Quote the configured provider; cheapest auto-selected (``prefer=fastest`` picks the quickest)."""
 	assert_supply_admin()
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	if doc.status in ("Shipped", "Received", "Cancelled"):
 		frappe.throw(_("Shipment {0} is already {1}").format(shipment, doc.status), frappe.ValidationError)
 	try:
@@ -622,7 +622,7 @@ def buy(shipment: str, rate_id: Optional[str] = None, prefer: str = "cheapest", 
 	Refuses when a label has already been bought unless ``replace=1`` (v0.8 QA W-D4).
 	"""
 	assert_supply_admin()
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	if doc.status in ("Shipped", "Received", "Cancelled"):
 		frappe.throw(_("Shipment {0} is already {1}").format(shipment, doc.status), frappe.ValidationError)
 	# --- v0.8 QA W-D4 — buying twice silently orphaned the first label ---
@@ -721,7 +721,7 @@ def _post_ship_transfer(doc) -> str:
 			"posting_date": nowdate(),
 			"posting_time": nowtime(),
 			"set_posting_time": 1,
-			"remarks": f"Maison Shipment {doc.name} → {doc.boutique} (in transit)",
+			"remarks": f"AWANZ Shipment {doc.name} → {doc.boutique} (in transit)",
 			"items": rows,
 		}
 	)
@@ -735,7 +735,7 @@ def _post_ship_transfer(doc) -> str:
 def ship(shipment: str) -> dict[str, Any]:
 	"""Mark **Shipped**: posts the Material Transfer to the store's in-transit warehouse."""
 	assert_supply_admin()
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	if doc.status in ("Shipped", "Received", "Cancelled"):
 		frappe.throw(_("Shipment {0} is already {1}").format(shipment, doc.status), frappe.ValidationError)
 	if not doc.transit_warehouse:
@@ -757,7 +757,7 @@ def ship(shipment: str) -> dict[str, Any]:
 	doc.save()
 	publish_wall("shipped", doc.name, boutique=doc.boutique)
 	for user in _store_managers(doc.boutique):
-		_notify(user, _("Shipment {0} is on its way ({1} {2})").format(doc.name, doc.carrier or "", doc.service or "").strip(), "Maison Shipment", doc.name)
+		_notify(user, _("Shipment {0} is on its way ({1} {2})").format(doc.name, doc.carrier or "", doc.service or "").strip(), "AWANZ Shipment", doc.name)
 	return shipment_dict(doc)
 
 
@@ -772,7 +772,7 @@ def mark(shipment: str, status: str, reason: Optional[str] = None) -> dict[str, 
 	if status == "Shipped":
 		return ship(shipment)
 	if status == "Cancelled":
-		doc = frappe.get_doc("Maison Shipment", shipment)
+		doc = frappe.get_doc("AWANZ Shipment", shipment)
 		if doc.status in ("Shipped", "Received"):
 			frappe.throw(_("A shipped consignment cannot be cancelled — receive it at the store"), frappe.ValidationError)
 		doc.status = "Cancelled"
@@ -798,9 +798,9 @@ def _reopen_request_after_cancel(doc, reason: Optional[str] = None) -> Optional[
 	store is notified.
 	"""
 	name = doc.replenishment_request
-	if not name or not frappe.db.exists("Maison Replenishment Request", name):
+	if not name or not frappe.db.exists("AWANZ Replenishment Request", name):
 		return None
-	req = frappe.get_doc("Maison Replenishment Request", name)
+	req = frappe.get_doc("AWANZ Replenishment Request", name)
 	if req.status != "Approved" or req.shipment != doc.name:
 		return None
 	if req.material_request and frappe.db.exists("Material Request", req.material_request):
@@ -813,7 +813,7 @@ def _reopen_request_after_cancel(doc, reason: Optional[str] = None) -> Optional[
 				req.db_set("material_request", None, update_modified=False)
 				mr.delete()
 		except Exception:  # a partly-served MR stays as it is; the request still re-opens
-			frappe.log_error(frappe.get_traceback(), f"Maison shipment cancel {doc.name}: material request")
+			frappe.log_error(frappe.get_traceback(), f"AWANZ shipment cancel {doc.name}: material request")
 	req.db_set("status", "Pending Approval", update_modified=False)
 	req.db_set("shipment", None, update_modified=False)
 	req.db_set("approved_by", None, update_modified=False)
@@ -823,14 +823,14 @@ def _reopen_request_after_cancel(doc, reason: Optional[str] = None) -> Optional[
 	message = _("Shipment {0} was cancelled — replenishment {1} is back with the warehouse").format(doc.name, req.name)
 	for user in {req.requested_by, *_store_managers(req.boutique)}:
 		if user:
-			_notify(user, message, "Maison Replenishment Request", req.name, reason)
+			_notify(user, message, "AWANZ Replenishment Request", req.name, reason)
 	return req.name
 
 
 @frappe.whitelist()
 def track(shipment: str) -> dict[str, Any]:
 	"""Refresh carrier tracking for one shipment (any user who may read it)."""
-	doc = frappe.get_doc("Maison Shipment", shipment)
+	doc = frappe.get_doc("AWANZ Shipment", shipment)
 	_assert_doc_access(doc)
 	if not doc.tracking_no:
 		return {"shipment": doc.name, "tracking_no": None, "status": doc.tracking_status, "events": []}
@@ -855,10 +855,10 @@ def _track_doc(doc) -> dict[str, Any]:
 
 def refresh_tracking(limit: int = 200) -> dict[str, Any]:
 	"""Hourly scheduler: poll the carrier for every *Shipped* consignment with a tracking number."""
-	names = frappe.get_all("Maison Shipment", filters={"status": "Shipped", "tracking_no": ("!=", "")}, pluck="name", limit=cint(limit) or 200)
+	names = frappe.get_all("AWANZ Shipment", filters={"status": "Shipped", "tracking_no": ("!=", "")}, pluck="name", limit=cint(limit) or 200)
 	out = {"checked": 0, "delivered": [], "errors": 0}
 	for name in names:
-		doc = frappe.get_doc("Maison Shipment", name)
+		doc = frappe.get_doc("AWANZ Shipment", name)
 		info = _track_doc(doc)
 		out["checked"] += 1
 		if info.get("error"):
@@ -890,10 +890,10 @@ def wall() -> dict[str, Any]:
 	assert_supply_admin()
 	s = shipping_settings()
 	pending = [
-		{**request_dict(frappe.get_doc("Maison Replenishment Request", n)), "kind": "request"}
-		for n in frappe.get_all("Maison Replenishment Request", filters={"status": "Pending Approval"}, pluck="name", order_by="requested_at asc")
+		{**request_dict(frappe.get_doc("AWANZ Replenishment Request", n)), "kind": "request"}
+		for n in frappe.get_all("AWANZ Replenishment Request", filters={"status": "Pending Approval"}, pluck="name", order_by="requested_at asc")
 	]
-	open_docs = [frappe.get_doc("Maison Shipment", n) for n in frappe.get_all("Maison Shipment", filters={"status": ("in", OPEN_SHIPMENT_STATUSES)}, pluck="name", order_by="creation asc")]
+	open_docs = [frappe.get_doc("AWANZ Shipment", n) for n in frappe.get_all("AWANZ Shipment", filters={"status": ("in", OPEN_SHIPMENT_STATUSES)}, pluck="name", order_by="creation asc")]
 	today = nowdate()
 	cols = {k: [] for k in WALL_COLUMNS}
 	cols["pending_approval"] = pending
@@ -906,7 +906,7 @@ def wall() -> dict[str, Any]:
 			cols["ready"].append(_card(d))
 		elif d.status == "Shipped" and d.shipped_at and get_datetime(d.shipped_at).date() == get_datetime(today).date():
 			cols["shipped_today"].append(_card(d))
-	received_today = frappe.db.count("Maison Shipment", {"status": "Received", "received_at": (">=", today)})
+	received_today = frappe.db.count("AWANZ Shipment", {"status": "Received", "received_at": (">=", today)})
 	return {
 		"columns": cols,
 		"counts": {k: len(v) for k, v in cols.items()},
@@ -916,9 +916,9 @@ def wall() -> dict[str, Any]:
 		"auto_print_packing_list": bool(s["auto_print_packing_list"]),
 		"auto_print_label": bool(s["auto_print_label"]),
 		"provider": provider_name(),
-		"in_transit": frappe.db.count("Maison Shipment", {"status": "Shipped"}),
+		"in_transit": frappe.db.count("AWANZ Shipment", {"status": "Shipped"}),
 		"received_today": received_today,
-		"open_discrepancies": frappe.db.count("Maison Receiving Discrepancy", {"status": "Open"}),
+		"open_discrepancies": frappe.db.count("AWANZ Receiving Discrepancy", {"status": "Open"}),
 		"server_time": now_datetime().isoformat(),
 	}
 
@@ -929,7 +929,7 @@ def me() -> dict[str, Any]:
 	user = frappe.session.user
 	if user == "Guest":
 		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
-	brand = {"brand_name": "CloudChaserz", "wordmark_text": "CLOUDCHASERZ", "product_name": "Maison POS by CloudChaserz"}
+	brand = {"brand_name": "CloudChaserz", "wordmark_text": "CLOUDCHASERZ", "product_name": "AWANZ POS by CloudChaserz"}
 	try:
 		from maison_pos.brand import get_brand  # v0.6 N (feature-detected)
 
@@ -944,7 +944,7 @@ def me() -> dict[str, Any]:
 		"warehouse_admin": is_warehouse_admin(user),
 		"supply_unrestricted": is_supply_unrestricted(user),
 		"boutique": get_user_boutique(user),
-		"main_warehouse": get_main_warehouse() if frappe.db.exists("Maison Boutique", {"enabled": 1}) else None,
+		"main_warehouse": get_main_warehouse() if frappe.db.exists("AWANZ Store", {"enabled": 1}) else None,
 		"warehouse_boutique": wb,
 		"brand": brand,
 		"provider": provider_name(),
@@ -993,8 +993,8 @@ def discrepancies(status: str = "Open", boutique: Optional[str] = None, limit: i
 		filters["boutique"] = assert_boutique_access(boutique)
 	if status and status != "all":
 		filters["status"] = status
-	names = frappe.get_all("Maison Receiving Discrepancy", filters=filters, pluck="name", order_by="reported_at desc", limit=cint(limit) or 200)
-	rows = [discrepancy_dict(frappe.get_doc("Maison Receiving Discrepancy", n)) for n in names]
+	names = frappe.get_all("AWANZ Receiving Discrepancy", filters=filters, pluck="name", order_by="reported_at desc", limit=cint(limit) or 200)
+	rows = [discrepancy_dict(frappe.get_doc("AWANZ Receiving Discrepancy", n)) for n in names]
 	return {"discrepancies": rows, "count": len(rows)}
 
 
@@ -1004,12 +1004,12 @@ def resolve_discrepancy(discrepancy: str, resolution: str, notes: Optional[str] 
 	warehouse: ``Write off`` issues them, ``Returned to warehouse`` transfers them back; ``Re-ship``
 	raises a new request for the store; ``Accepted`` just closes it (e.g. an *Over* that the store keeps)."""
 	assert_supply_admin()
-	doc = frappe.get_doc("Maison Receiving Discrepancy", discrepancy)
+	doc = frappe.get_doc("AWANZ Receiving Discrepancy", discrepancy)
 	if doc.status == "Resolved":
 		frappe.throw(_("Already resolved"), frappe.ValidationError)
 	if resolution not in ("Write off", "Returned to warehouse", "Re-ship", "Accepted"):
 		frappe.throw(_("Unknown resolution {0}").format(resolution), frappe.ValidationError)
-	sh = frappe.get_doc("Maison Shipment", doc.shipment)
+	sh = frappe.get_doc("AWANZ Shipment", doc.shipment)
 	qty = flt(doc.short_qty) if doc.type == "Short" else flt(doc.damaged_qty) if doc.type == "Damaged" else flt(doc.over_qty)
 	se_name = None
 	if doc.type == "Short" and qty > 0 and resolution in ("Write off", "Returned to warehouse"):
@@ -1164,26 +1164,26 @@ def receive_vendor_po(po: str, lines: Any) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 def supply_summary() -> dict[str, Any]:
 	"""Command dashboard "Supply" tile: open requests, in transit, avg approve→ship hours, discrepancies."""
-	open_requests = frappe.db.count("Maison Replenishment Request", {"status": "Pending Approval"})
-	in_transit = frappe.db.count("Maison Shipment", {"status": "Shipped"})
-	to_ship = frappe.db.count("Maison Shipment", {"status": ("in", ("Pending", "Picking", "Packed"))})
-	rows = frappe.get_all("Maison Shipment", filters={"status": ("in", ("Shipped", "Received")), "approved_at": ("is", "set"), "shipped_at": ("is", "set")}, fields=["approved_at", "shipped_at"], order_by="shipped_at desc", limit=100)
+	open_requests = frappe.db.count("AWANZ Replenishment Request", {"status": "Pending Approval"})
+	in_transit = frappe.db.count("AWANZ Shipment", {"status": "Shipped"})
+	to_ship = frappe.db.count("AWANZ Shipment", {"status": ("in", ("Pending", "Picking", "Packed"))})
+	rows = frappe.get_all("AWANZ Shipment", filters={"status": ("in", ("Shipped", "Received")), "approved_at": ("is", "set"), "shipped_at": ("is", "set")}, fields=["approved_at", "shipped_at"], order_by="shipped_at desc", limit=100)
 	hours = [(get_datetime(r.shipped_at) - get_datetime(r.approved_at)).total_seconds() / 3600.0 for r in rows]
 	avg = round(sum(hours) / len(hours), 1) if hours else None
-	latest = frappe.get_all("Maison Shipment", filters={"status": ("in", OPEN_SHIPMENT_STATUSES)}, fields=["name", "boutique", "status", "carrier", "service", "tracking_status", "priority"], order_by="modified desc", limit=6)
+	latest = frappe.get_all("AWANZ Shipment", filters={"status": ("in", OPEN_SHIPMENT_STATUSES)}, fields=["name", "boutique", "status", "carrier", "service", "tracking_status", "priority"], order_by="modified desc", limit=6)
 	return {
 		"open_requests": open_requests,
 		"to_ship": to_ship,
 		"in_transit": in_transit,
 		"avg_approve_to_ship_hours": avg,
-		"open_discrepancies": frappe.db.count("Maison Receiving Discrepancy", {"status": "Open"}),
-		"received_today": frappe.db.count("Maison Shipment", {"status": "Received", "received_at": (">=", nowdate())}),
+		"open_discrepancies": frappe.db.count("AWANZ Receiving Discrepancy", {"status": "Open"}),
+		"received_today": frappe.db.count("AWANZ Shipment", {"status": "Received", "received_at": (">=", nowdate())}),
 		"latest": latest,
 	}
 
 
 def packing_list_context(doc) -> dict[str, Any]:
-	"""Jinja helper for ``Maison Packing List``: addresses, QR of the shipment, line barcodes (SVG data URIs)."""
+	"""Jinja helper for ``AWANZ Packing List``: addresses, QR of the shipment, line barcodes (SVG data URIs)."""
 	from maison_pos.utils import qr_svg_data_uri
 
 	brand = {"brand_name": "CloudChaserz", "legal_name": "CloudChaserz"}

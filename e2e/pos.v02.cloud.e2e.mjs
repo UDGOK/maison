@@ -1,4 +1,4 @@
-// Maison POS v0.2 end-to-end run — cloud variant (Frappe Cloud site; Administrator via sid cookie, manager via login).
+// AWANZ POS v0.2 end-to-end run — cloud variant (Frappe Cloud site; Administrator via sid cookie, manager via login).
 // Run:  BRIDGE=1 NODE_USE_ENV_PROXY=1 BASE=https://maison-demo.frappe.cloud ADMIN_SID=$(cat /tmp/sid) \
 //       PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node e2e/pos.v02.cloud.e2e.mjs
 // Env:  BASE, ADMIN_SID (Administrator session cookie; GETs only), MANAGER_USER/MANAGER_PWD (image upload, POST with
@@ -322,10 +322,10 @@ if (receiptToken) {
   const guest = await request.newContext({ baseURL: BASE })
   const r = await guest.get(`/r/${receiptToken}`)
   const html = await r.text()
-  record('GET /r/<token> as guest returns 200 with boutique name', r.status() === 200 && html.includes('Maison Oak Street'), `${r.status()} len=${html.length}`)
+  record('GET /r/<token> as guest returns 200 with boutique name', r.status() === 200 && html.includes('AWANZ Oak Street'), `${r.status()} len=${html.length}`)
   const j = await guest.get('/api/method/maison_pos.api.sales.receipt', { params: { token: receiptToken } })
   const body = await j.json().catch(() => ({}))
-  record('guest sales.receipt JSON has boutique, lines, totals and no PII', j.status() === 200 && body.message?.boutique?.name === 'Maison Oak Street' && body.message.lines?.length >= 1 && !('customer_name' in body.message) && !('client_number' in (body.message.client || {})),
+  record('guest sales.receipt JSON has boutique, lines, totals and no PII', j.status() === 200 && body.message?.boutique?.name === 'AWANZ Oak Street' && body.message.lines?.length >= 1 && !('customer_name' in body.message) && !('client_number' in (body.message.client || {})),
     `${j.status()} client=${JSON.stringify(body.message?.client)}`)
   const bad = await guest.get('/r/not-a-real-token')
   record('GET /r/<bad token> is 404', bad.status() === 404, String(bad.status()))
@@ -345,7 +345,7 @@ if (receiptToken) {
       const qr = gp.locator('.mg-qr img')
       const qrN = await qr.count()
       const qrInfo = qrN ? await qr.first().evaluate((i) => ({ src: i.getAttribute('src')?.slice(0, 40), w: i.naturalWidth, h: i.naturalHeight, complete: i.complete })) : null
-      const hasBoutique = (await gp.content()).includes('Maison Oak Street')
+      const hasBoutique = (await gp.content()).includes('AWANZ Oak Street')
       const bg = await gp.evaluate(() => getComputedStyle(document.body).backgroundColor)
       await shot(gp, `guest-receipt-${tag}`)
       record(`GET /r/<token> renders as guest (${tag}) with QR image`, resp.status() === 200 && who.message === 'Guest' && qrN === 1 && !!qrInfo?.complete && qrInfo.w > 0 && hasBoutique,

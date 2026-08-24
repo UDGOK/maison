@@ -4,7 +4,7 @@ The client is buying a product, not a Frappe install. This release makes sure th
 customer — or a member of the tenant's staff — reads anywhere in the product says **Frappe** or
 **ERPNext**.
 
-Everything is driven by the brand fields on **Maison POS Settings** (`brand_name`,
+Everything is driven by the brand fields on **AWANZ POS Settings** (`brand_name`,
 `product_name`, `tagline`, `wordmark_text`, `sub_mark`, `legal_name`, `support_email`,
 `brand_website`, `brand_logo`) and read **at apply time**, so the CloudChaserz tenant, the
 jewellery tenant and every future tenant come out right with no code change. There is no tenant
@@ -38,7 +38,7 @@ POST /api/method/maison_pos.setup.whitelabel.revert_whitelabel
 ```
 
 **Idempotent**: only values that actually differ are written, and the pre-white-label snapshot is
-taken exactly once (stored as the global `maison_whitelabel_backup`) so a later revert restores
+taken exactly once (stored as the global `awanz_whitelabel_backup`) so a later revert restores
 the site rather than the defaults.
 
 Three layers do the work:
@@ -60,7 +60,7 @@ Three layers do the work:
 | `Website Settings.app_name` | site name / "Frappe" | `brand_name` |
 | `title_prefix` | empty → `<title>Login</title>` | `brand_name` → `CloudChaserz - Login`, on every www page |
 | `brand_html` | empty (framework navbar) | the tenant wordmark (`wordmark_text` + `sub_mark`), or `brand_logo` when set |
-| `app_logo`, `favicon`, `splash_image`, `footer_logo` | `/assets/erpnext/images/erpnext-logo.svg`, `frappe-favicon.svg` | `brand_logo`, else a generated `/files/maison-brand-mark.svg` (the wordmark's initial in Monolith Gold) |
+| `app_logo`, `favicon`, `splash_image`, `footer_logo` | `/assets/erpnext/images/erpnext-logo.svg`, `frappe-favicon.svg` | `brand_logo`, else a generated `/files/awanz-brand-mark.svg` (the wordmark's initial in Monolith Gold) |
 | `copyright` | empty | `<year> <legal_name>` |
 | `footer_powered` | *"Powered by **ERPNext**"* (erpnext's `footer_powered.html`) | `product_name`, linked to `brand_website` |
 | `banner_html` | — | left alone when the client wrote it; cleared only when it is the framework's own banner |
@@ -70,7 +70,7 @@ Three layers do the work:
 
 The storefront (`/shop`, `/rewards`, `/r/<token>`) already had its own Monolith Gold header and
 footer, so it never carried the framework's. Two hard-coded strings were fixed on the way:
-`templates/webshop/item.html` said "Maison" in the title and the breadcrumb, and `www/r.html`
+`templates/webshop/item.html` hard-coded the product wordmark in the title and the breadcrumb, and `www/r.html`
 printed the jewellery return policy verbatim (a smoke-shop receipt read *"engraved pieces are
 final sale"*). Both read the brand now.
 
@@ -81,7 +81,7 @@ final sale"*). Both read the brand now.
 | Browser tab | `ERPNext` (`System Settings.app_name`) | `brand_name` |
 | Navbar logo, desk splash | ERPNext logo | brand mark |
 | Help menu | Documentation → docs.erpnext.com · User Forum → discuss.frappe.io · Frappe School · Report an Issue → github.com/frappe/erpnext · Frappe Support | those five hidden **and** their routes blanked (a hidden row still ships its URL in `frappe.boot`); a `<brand> Support` item added, pointing at `support_email` |
-| About dialog | "Frappe Framework", frappe.io / blog / forum / LinkedIn / X / YouTube / Instagram, "© Frappe Technologies" | the tenant's: product name, tagline, website, support address, version, `© <legal_name>` — plus a **Licences and notices** link (§5). `maison_pos/public/js/maison-desk.js`, loaded through `app_include_js` |
+| About dialog | "Frappe Framework", frappe.io / blog / forum / LinkedIn / X / YouTube / Instagram, "© Frappe Technologies" | the tenant's: product name, tagline, website, support address, version, `© <legal_name>` — plus a **Licences and notices** link (§5). `maison_pos/public/js/awanz-desk.js`, loaded through `app_include_js` |
 | Sidebar workspaces | *Frappe CRM*, *ERPNext Settings*, *ERPNext Integrations* | *CloudChaserz CRM*, *Settings*, *CloudChaserz Integrations* — the framework word is dropped, and the tenant name qualifies it when the plain name is already taken |
 | Getting-started widget | *"Let's begin your journey with ERPNext"* + ERPNext tutorial prose | off (`System Settings.enable_onboarding = 0`) |
 | 2FA enrolment | authenticator app showed "Frappe Framework" (`otp_issuer_name`) | `brand_name` |
@@ -108,7 +108,7 @@ still empty or still the installer's default:
   hook — *"Sent via **ERPNext**"* — from every outgoing message.
 * `System Settings.email_footer_address` carries the tenant's `legal_name` and `support_email`
   instead, and is rendered by frappe's own `email_footer.html`.
-* The `X-Frappe-Site` header frappe sets on every message becomes `X-Maison-Site`
+* The `X-Frappe-Site` header frappe sets on every message becomes `X-AWANZ-Site`
   (`make_email_body_message` hook).
 * Both values are also written to `tabDefaultValue`, because `get_footer()` reads them through
   `frappe.db.get_default`, not through the Singles row.
@@ -118,7 +118,7 @@ still empty or still the installer's default:
 
 ### Print formats and PDFs
 
-`Maison Receipt`, `Maison Return Receipt` and `Maison Packing List` already read the brand
+`AWANZ Receipt`, `AWANZ Return Receipt` and `AWANZ Packing List` already read the brand
 (`maison_pos.utils.get_brand_context`) and carry nothing else; the only "frappe" in them is
 `frappe.utils.format_datetime(...)` inside Jinja. Frappe's print view has no "powered by" line,
 and neither Print Settings nor any Letter Head on either site carries one. Nothing to change.
@@ -148,7 +148,7 @@ and neither Print Settings nor any Letter Head on either site carries one. Nothi
 
 ## 3. What a new tenant must set
 
-Fill in **Maison POS Settings** and run `apply_whitelabel()` (or just `bench migrate`):
+Fill in **AWANZ POS Settings** and run `apply_whitelabel()` (or just `bench migrate`):
 
 | Field | Used for |
 |---|---|
@@ -159,7 +159,7 @@ Fill in **Maison POS Settings** and run `apply_whitelabel()` (or just `bench mig
 | `legal_name` | the website footer copyright, the e-mail footer address |
 | `support_email` | the Help menu item, the About dialog, the e-mail footer, the 404 page |
 | `brand_website` | the footer link, the About dialog |
-| `brand_logo` | **optional.** When set it is used verbatim for the favicon, the app logo, the splash and the footer logo, and as a manifest icon. When empty, a square SVG mark is generated from the wordmark's initial in Monolith Gold and stored as the public file `/files/maison-brand-mark.svg` |
+| `brand_logo` | **optional.** When set it is used verbatim for the favicon, the app logo, the splash and the footer logo, and as a manifest icon. When empty, a square SVG mark is generated from the wordmark's initial in Monolith Gold and stored as the public file `/files/awanz-brand-mark.svg` |
 
 Nothing else is required. `whitelabel_status()` returns `ok: false` and a `drift` list if any
 surface has fallen behind the settings.
@@ -234,7 +234,74 @@ fails the run.
 
 ---
 
-## 7. Reverting
+## 7. The `maison_pos` package name (v0.9)
+
+The product is **AWANZ**. v0.9 renamed everything a user can reach — the 47 doctypes
+(`Maison Boutique` → `AWANZ Store`, `Maison Associate` → `AWANZ Associate`, …), the five roles,
+the eleven Script Reports, the three print formats, the two workflows, the desk module
+(`Maison POS` → `AWANZ POS`, so the module folder is now `maison_pos/awanz_pos/`), the app title,
+the brand defaults and the dashboard route (`/maison-dashboard` → `/awanz-dashboard`, with a
+redirect from the old path). `maison_pos/patches/v0_9/rename_to_awanz.py` carries an installed
+site across; it runs in `[pre_model_sync]`, before `bench migrate` reads the JSON files, so
+`frappe.rename_doc` moves the tables with `RENAME TABLE` instead of a second set of doctypes
+appearing beside the old ones.
+
+Three things deliberately kept their old name.
+
+### 7.1 The python package / app name `maison_pos`
+
+`app_name` is `maison_pos`, so the code lives in `maison_pos/`, the module path is
+`maison_pos.api.*`, and every built asset is served from `/assets/maison_pos/…`. That is the
+same category of leak as `/assets/frappe/…` in §6: an identifier in a URL, never a word in the
+product. `app_title` is `AWANZ POS`, which is what the desk, the launcher and the About dialog
+render.
+
+Renaming it is not a code change, it is a **deployment** change:
+
+1. rename the git repository and the app directory, because frappe derives the app name from the
+   folder under `apps/`;
+2. `bench remove-app maison_pos --no-backup` then `bench get-app` + `bench install-app awanz_pos`
+   on **every** site — an app cannot be renamed in place, and the uninstall drops the app's
+   doctypes with `force`;
+3. rewrite `Module Def.app_name`, `Installed Application`, `Custom Field.module`,
+   `Print Format.module` and every `maison_pos.*` string stored in the database (scheduler jobs,
+   workflow transitions, notification method paths, `System Settings.default_app`);
+4. rebuild and redeploy every client bundle, because `/assets/maison_pos/pos/*` is baked into the
+   service worker's precache manifest — a POS that is offline when the asset path changes has no
+   way to fetch the new one;
+5. re-issue the docker image and the `apps.json` used to build it.
+
+On a live chain that is a maintenance window with a real chance of a till not coming back, in
+exchange for a string no cashier, manager or shopper ever sees. It is a separate, planned piece
+of work, not part of a branding pass.
+
+### 7.2 The `maison_*` custom fieldnames
+
+`Sales Invoice.maison_boutique`, `Item.maison_metal`, `Customer.maison_client_number` and 83
+others are **Custom Fields on ERPNext doctypes**, so the fieldname is a database **column** on
+`tabSales Invoice`, `tabItem` and `tabCustomer` — tables with hundreds of thousands of rows on a
+seeded chain. Renaming them means an `ALTER TABLE` per column plus a rewrite of every query,
+report, print format, fixture filter, API payload key and offline IndexedDB record that names
+them, and the POS PWA holds those keys in its local catalogue — an old bundle would write
+`maison_offline_uuid` while the server expected `awanz_offline_uuid`, and idempotency on
+resubmit would silently break.
+
+Against that: a fieldname is visible only to someone who opens the field list in the desk
+customisation screen. Their **labels** are not — those are rebranded, and v0.9's patch and the
+`ensure_awanz_names()` re-assertion in `after_migrate` keep them that way, so no field a user can
+open still reads "Maison".
+
+### 7.3 The jewellery regression tenant's `@maison.example` addresses
+
+The jewellery demo profile seeds its staff as `hq@maison.example`, `chi.oak.a1@maison.example`
+and so on, with the shared password `maison123` (`docs/security.md`). Those are **User document
+names** — frappe's `User.after_rename` rewrites `owner` and `modified_by` on *every* table in the
+site — and they are login credentials on a regression profile that holds no real data. The
+tenant's *brand* is AWANZ everywhere it is rendered; only the mailbox names are historical.
+
+---
+
+## 8. Reverting
 
 ```
 POST /api/method/maison_pos.setup.whitelabel.revert_whitelabel
@@ -252,7 +319,7 @@ Note that `after_migrate` re-applies. To keep a site un-white-labelled, revert *
 
 ---
 
-## 8. Tests
+## 9. Tests
 
 | Suite | What it proves |
 |---|---|

@@ -6,7 +6,7 @@ import fs from 'fs'
 const BASE = 'https://cloudchaserz.frappe.cloud'
 const HOST = 'cloudchaserz.frappe.cloud'
 const SID = fs.readFileSync('/tmp/ccsid', 'utf8').trim()
-const SHOTS = '/home/claude/maison/e2e/qa/shots-secux'
+const SHOTS = '/home/claude/awanz/e2e/qa/shots-secux'
 const ASSOC = { usr: 'ok.mingo.a1@cloudchaserz.example', pwd: 'cloud123', pin: '2580' }
 const STORE = 'OK-MINGO'
 
@@ -70,7 +70,7 @@ const report = {}
   const page = await c.newPage()
   try {
     await page.goto('/pos/unlock', { waitUntil: 'domcontentloaded' })
-    await page.evaluate(() => localStorage.setItem('maisonE2E', '1'))
+    await page.evaluate(() => localStorage.setItem('awanzE2E', '1'))
     await page.goto('/pos', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.unlock select.input', { timeout: 45000 })
     await page.waitForTimeout(1200)
@@ -94,7 +94,7 @@ const report = {}
   const page = await c.newPage()
   try {
     await page.goto('/pos/unlock', { waitUntil: 'domcontentloaded' })
-    await page.evaluate(() => localStorage.setItem('maisonE2E', '1'))
+    await page.evaluate(() => localStorage.setItem('awanzE2E', '1'))
     await page.goto('/pos', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.unlock select.input', { timeout: 45000 })
     await page.selectOption('.unlock select.input >> nth=0', STORE)
@@ -130,7 +130,7 @@ const report = {}
 }
 
 // ---- public screens: rewards, shop, dashboard ----
-for (const [name, path, admin, vw] of [['rewards','/rewards',false,[1440,900]],['shop','/shop',false,[1440,900]],['dashboard','/maison-dashboard',true,[1920,1080]]]) {
+for (const [name, path, admin, vw] of [['rewards','/rewards',false,[1440,900]],['shop','/shop',false,[1440,900]],['dashboard','/awanz-dashboard',true,[1920,1080]]]) {
   const c = admin ? await newCtx({ storageState: adminState(), viewport:{width:vw[0],height:vw[1]} }) : await newCtx({ viewport:{width:vw[0],height:vw[1]} })
   const page = await c.newPage()
   try {

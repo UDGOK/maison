@@ -1,6 +1,6 @@
 # Security & the permission model (v0.7)
 
-This is the map of who may do what on a Maison POS chain, why the lines are drawn where they
+This is the map of who may do what on an AWANZ POS chain, why the lines are drawn where they
 are, and what is deliberately *not* locked down. It was written alongside the fixes for the six
 holes in the QA audit (`e2e/qa/security-ux-report.md`, S1–S6); every one of them has a
 regression test in `maison_pos/tests/test_v0_7_security.py` that reproduces the original exploit
@@ -15,11 +15,11 @@ Related: `maison_pos/scoping.py` (every rule below is one function in there), `d
 
 | Role | Sees | May do |
 |---|---|---|
-| **Maison Associate** | their own boutique | sell, return (no void), create/serve clients, clock in |
-| **Maison Manager** | their own boutique | the above + voids, return approval, price change requests, run their own shop floor (hire / edit / disable associates, reset their PINs) |
-| **Maison Regional** | every boutique | read the chain, appoint managers, no accounting |
-| **Maison Head Office** | every boutique | everything on the retail side, including appointing regionals / head office |
-| **Maison Warehouse Admin** | every boutique's supply documents | approve replenishment, pick/ship/receive — **never sells** |
+| **AWANZ Associate** | their own boutique | sell, return (no void), create/serve clients, clock in |
+| **AWANZ Manager** | their own boutique | the above + voids, return approval, price change requests, run their own shop floor (hire / edit / disable associates, reset their PINs) |
+| **AWANZ Regional** | every boutique | read the chain, appoint managers, no accounting |
+| **AWANZ Head Office** | every boutique | everything on the retail side, including appointing regionals / head office |
+| **AWANZ Warehouse Admin** | every boutique's supply documents | approve replenishment, pick/ship/receive — **never sells** |
 | **System Manager** | everything | the platform administrator |
 
 Two predicates decide almost everything (`maison_pos/scoping.py`):
@@ -27,7 +27,7 @@ Two predicates decide almost everything (`maison_pos/scoping.py`):
 * `is_unrestricted(user)` — Administrator, System Manager, Head Office, Regional. May act on any
   boutique, and is the only kind of user that may hand out privileges.
 * `is_store_scoped(user)` — Manager or Associate. Pinned to the single boutique on their
-  `Maison Associate` row. Everyone else (a portal shopper, an accountant, a plain Stock User)
+  `AWANZ Associate` row. Everyone else (a portal shopper, an accountant, a plain Stock User)
   is governed by core Frappe permissions and is neither.
 
 Store scoping is enforced in three independent places, because any one of them can be bypassed
@@ -36,21 +36,21 @@ by a path the others do not see:
 1. **API level** — `assert_boutique_access(boutique)` on every endpoint that takes a boutique.
 2. **List level** — `permission_query_conditions` (hooks.py) narrow `frappe.client.get_list` /
    `/api/resource/<dt>` for `Sales Invoice`, `Sales Order`, `Delivery Note`, `Customer`,
-   `Maison Associate` and every boutique-stamped Maison doctype.
+   `AWANZ Associate` and every boutique-stamped AWANZ doctype.
 3. **Document level** — `has_permission` hooks for the same doctypes, which is what
    `frappe.client.get` and `Document.check_permission` consult.
 
 ---
 
-## 2. `Maison Associate` is the credential store — treat it as one
+## 2. `AWANZ Associate` is the credential store — treat it as one
 
-This doctype links a Frappe `User` to a boutique, carries the role that the `Maison *` Frappe
+This doctype links a Frappe `User` to a boutique, carries the role that the `AWANZ *` Frappe
 role is synced from, and holds the POS unlock PIN. Three field groups, three permlevels:
 
 | Fields | Permlevel | Read | Write |
 |---|---|---|---|
-| `full_name`, `enabled`, `employee` | 0 | every Maison role | Manager (own store, Associate level), Regional, Head Office, System Manager |
-| `user`, `boutique`, `role` | **1** | every Maison role | Regional, Head Office, System Manager |
+| `full_name`, `enabled`, `employee` | 0 | every AWANZ role | Manager (own store, Associate level), Regional, Head Office, System Manager |
+| `user`, `boutique`, `role` | **1** | every AWANZ role | Regional, Head Office, System Manager |
 | `pin`, `pin_hash`, `pin_set_on`, `failed_pin_attempts` | **2** | **System Manager only** | System Manager only |
 
 ### Why `user` / `boutique` / `role` are permlevel 1 (S1, S5)
@@ -59,7 +59,7 @@ Those three fields *are* the authorisation decision. `role` drives `_sync_user_r
 the matching Frappe role; `boutique` is the value every scoped query keys on; `user` says whose
 record it is. Before v0.7 a store manager had plain `write` at permlevel 0 and could
 `frappe.client.set_value` their own `role` to `HeadOffice` — the sync hook then granted
-`Maison Head Office` with `ignore_permissions=True` and the manager could read all eleven stores.
+`AWANZ Head Office` with `ignore_permissions=True` and the manager could read all eleven stores.
 
 The fix is deliberately layered, because each layer catches a different bypass:
 
@@ -67,7 +67,7 @@ The fix is deliberately layered, because each layer catches a different bypass:
   (`validate_higher_perm_levels`), so nothing changes even if a check is missed;
 * **`scoping.associate_has_permission`** — runs from `Document.check_permission` *before* that
   reset, so the caller gets an honest **403** instead of a silent no-op, and it also scopes reads;
-* **`MaisonAssociate._guard_privileged_fields`** in `validate` — the last line, and the only one
+* **`AWANZAssociate._guard_privileged_fields`** in `validate` — the last line, and the only one
   that still applies when a site's Custom DocPerms have been hand-edited;
 * **`_sync_user_role`** refuses to grant a rank above the *granting* user's own
   (`Associate < Manager < Regional < HeadOffice`), so even server code running with
@@ -75,7 +75,7 @@ The fix is deliberately layered, because each layer catches a different bypass:
   back off the User**, which the old add-only sync never did.
 
 A manager keeps their real job through
-`maison_pos.maison_pos.doctype.maison_associate.maison_associate.upsert` — create or edit an
+`maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.upsert` — create or edit an
 associate **in their own boutique at Associate level**, with `reset_pin` alongside it. Anything
 above that (appointing a manager, moving somebody between stores) is Head Office work.
 
@@ -83,7 +83,7 @@ above that (appointing a manager, moving somebody between stores) is Head Office
 
 A PIN is 4–6 digits: at most a million candidates. Whoever holds the hash walks straight past the
 five-attempt online lockout and cracks it offline, so the hash is a credential, not a checksum.
-The audit found `frappe.client.get_list("Maison Associate", fields=[…,"pin_hash"])` returning
+The audit found `frappe.client.get_list("AWANZ Associate", fields=[…,"pin_hash"])` returning
 every associate of every store, managers included.
 
 * `pin_hash` is a **`Password` field**: the value is encrypted into Frappe's `__Auth` table and
@@ -136,7 +136,7 @@ An anonymous sign-up now:
   `ignore_permissions` on a brand-new document only.
 
 Linking a walk-in to an existing client is a counter decision, so **a signed-in member of staff**
-(a Maison role or System Manager) still gets the linking behaviour and the client number, and the
+(an AWANZ role or System Manager) still gets the linking behaviour and the client number, and the
 call is written to the security log.
 
 *Deliberately left as is:* `salon.signup`. The Salon is a paired in-store tablet — the session
@@ -182,7 +182,7 @@ into. Rejections are `429` with a human sentence and no traceback.
 | `webshop.loyalty_lookup` (by client number + e-mail) | 15 / 10 min | 450 / 10 min |
 | `maison_associate.verify_pin` (authenticated) | 20 / 5 min per associate | 600 / 5 min |
 
-Off switch for load tests: `bench set-config -g maison_rate_limits 0`.
+Off switch for load tests: `bench set-config -g awanz_rate_limits 0`.
 
 *Deliberately left as is:* the campaign webhooks (`campaigns.webhook_klaviyo` / `_brevo`). They
 are HMAC-gated on the first line, are delivered in legitimate bursts from many provider IPs, and
@@ -207,7 +207,7 @@ The line drawn in v0.7:
   characters, text matches are anchored to the start of a name or word instead of `%q%`
   anywhere, results are capped at 25, an **empty** query lists their own store's clients rather
   than the chain's most recent, and every lookup that returns a client from another store is
-  written to `logs/maison_security.log` (`maison_pos/audit.py`) with the user, the store, the
+  written to `logs/awanz_security.log` (`maison_pos/audit.py`) with the user, the store, the
   query and the customer ids.
 * `customers.history` was already scoped to the caller's own boutique.
 
@@ -231,20 +231,20 @@ The line drawn in v0.7:
 
 `maison_pos/patches/v0_7/associate_hardening.py` (runs from `bench migrate`, idempotent):
 
-1. moves every `pbkdf2_sha256$…` value out of the `Maison Associate.pin_hash` column into
+1. moves every `pbkdf2_sha256$…` value out of the `AWANZ Associate.pin_hash` column into
    `__Auth`, leaving asterisks behind;
 2. mirrors the permlevel-1 / permlevel-2 rows into **Custom DocPerm** when the site has any (as
    soon as one Custom DocPerm row exists for a doctype, Frappe ignores the JSON's standard
    permissions) — also re-asserted on every migrate from `setup.install.after_migrate`;
-3. re-syncs every user who has a `Maison Associate` row to exactly the Frappe role that row
+3. re-syncs every user who has a `AWANZ Associate` row to exactly the Frappe role that row
    says, **removing anything extra** — which is what takes back a role somebody granted
    themselves before the fix — and logs each correction to the security log.
 
-After migrating, check `logs/maison_security.log` for two events:
+After migrating, check `logs/awanz_security.log` for two events:
 
 * `patch.v0_7.role_grants_repaired` — a user who was holding a role their associate record did
   not justify; the patch took it back;
-* `patch.v0_7.role_without_associate_record` — a user with a `Maison *` role and **no**
-  `Maison Associate` row at all. The patch deliberately does not touch these (an admin may have
+* `patch.v0_7.role_without_associate_record` — a user with a `AWANZ *` role and **no**
+  `AWANZ Associate` row at all. The patch deliberately does not touch these (an admin may have
   granted Head Office to somebody who does not stand on a shop floor), but each one is
   unrestricted and unattached, so review the list by hand.

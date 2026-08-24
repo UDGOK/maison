@@ -165,7 +165,7 @@ const mockOrders: WebOrder[] = [
   {
     name: 'SAL-ORD-2026-00101',
     boutique: 'CHI-OAK',
-    boutique_name: 'Maison Oak Street',
+    boutique_name: 'AWANZ Oak Street',
     customer: CUSTOMERS[4].name,
     customer_name: CUSTOMERS[4].customer_name,
     contact_email: CUSTOMERS[4].email_id,
@@ -189,7 +189,7 @@ const mockOrders: WebOrder[] = [
   {
     name: 'SAL-ORD-2026-00102',
     boutique: 'CHI-OAK',
-    boutique_name: 'Maison Oak Street',
+    boutique_name: 'AWANZ Oak Street',
     customer: CUSTOMERS[5].name,
     customer_name: CUSTOMERS[5].customer_name,
     transaction_date: new Date().toISOString().slice(0, 10),
@@ -211,7 +211,7 @@ const mockOrders: WebOrder[] = [
   {
     name: 'SAL-ORD-2026-00103',
     boutique: 'CHI-OAK',
-    boutique_name: 'Maison Oak Street',
+    boutique_name: 'AWANZ Oak Street',
     customer: CUSTOMERS[12].name,
     customer_name: CUSTOMERS[12].customer_name,
     transaction_date: new Date().toISOString().slice(0, 10),

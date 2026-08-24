@@ -76,8 +76,8 @@ const wordmarkLen = computed(() => Math.max(1, (brand.wordmark || '').length))
 /**
  * v0.6 R — one correct line under the wordmark.
  *
- * `product_name` already contains the sub-mark ("Maison POS" → "Maison POS by CloudChaserz"), so
- * `subMark · productName` printed it twice: "MAISON POS · MAISON POS BY CLOUDCHASERZ". Print the
+ * `product_name` already contains the sub-mark ("AWANZ POS" → "AWANZ POS by CloudChaserz"), so
+ * `subMark · productName` printed it twice: "AWANZ POS · AWANZ POS BY CLOUDCHASERZ". Print the
  * product name alone when it already carries the sub-mark, otherwise join the two.
  */
 const subline = computed(() => {
@@ -328,7 +328,7 @@ function fail() {
   border-top: var(--line-w) solid var(--line);
 }
 .brand .wordmark {
-  /* clamped by wordmark length: 64px for MAISON (6), ~46px for CLOUDCHASERZ (12) at 1366px */
+  /* clamped by wordmark length: 64px for AWANZ (6), ~46px for CLOUDCHASERZ (12) at 1366px */
   font-size: clamp(20px, calc((100vw - 620px) / (var(--wm-len, 6) * 1.35)), 64px);
   letter-spacing: clamp(0.1em, calc(0.3em - (var(--wm-len, 6) - 8) * 0.02em), 0.3em);
   line-height: 1;

@@ -3,12 +3,12 @@
     {
       "step": "manager login (POST /api/method/login) + CSRF token scraped from /pos",
       "ok": true,
-      "detail": "user=chi.oak.manager@maison.example csrf=72b2319a…"
+      "detail": "user=chi.oak.manager@maison.example csrf=a1035c2f…"
     },
     {
       "step": "manager uploads item image via catalog.upload_item_image",
       "ok": true,
-      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"https://maison-demo.frappe.cloud/files/AC-012-f1db14.png\",\"file_url\":\"/files/AC-012-f1db14.png\",\"file_name\":\"AC-012-00092e.png\"}"
+      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"http://maison.localhost:8000/files/AC-012-e7e42d.png\",\"file_url\":\"/files/AC-012-e7e42d.png\",\"file_name\":\"AC-012-702e28.png\"}"
     },
     {
       "step": "uploaded image URL is served",
@@ -18,12 +18,12 @@
     {
       "step": "bootstrap has settings/barcodes/images",
       "ok": true,
-      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"https://maison-demo.frappe.cloud\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0} ean=2004103867421→BR-006 serial=BR-002-CHI-002 image=https://maison-demo.frappe.cloud/files/AC-012-f1db14.png"
+      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"http://maison.localhost:8000\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0,\"face_recognition_global\":0,\"recognition_model\":\"face-api/faceRecognitionNet@1\",\"match_threshold\":0.6,\"match_distance_threshold\":0.6,\"biometric_retention_months\":36,\"recognition_offline_cache\":1,\"consent_text\":\"I agree that AWANZ may create and store a mathematical template of my facial features (a \\\"face template\\\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. AWANZ will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a AWANZ boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. AWANZ's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.\",\"consent_text_version\":\"2026-08-1\",\"return_window_days\":30,\"exchange_window_days\":60,\"returns_manager_threshold\":2500,\"low_stock_digest_enabled\":1,\"low_stock_notify_regional\":0,\"brand\":{\"brand_name\":\"AWANZ\",\"product_name\":\"AWANZ POS\",\"tagline\":\"Fine jewellery & timepieces\",\"wordmark_text\":\"AWANZ\",\"sub_mark\":\"POS\",\"legal_name\":\"AWANZ Jewelers\",\"support_email\":\"concierge@maison.example\",\"brand_website\":\"https://maison.example\",\"vertical\":\"Jewellery\",\"store_noun\":\"Boutique\",\"developer_name\":\"Futonix\",\"developer_website\":\"https://futonix.com\",\"brand_logo\":null,\"head_office_boutique\":null,\"main_warehouse\":null,\"rewards_program_name\":\"AWANZ Collectors\"},\"vertical\":\"Jewellery\",\"attribute_fields\":[\"maison_metal\",\"maison_carat\",\"maison_stones\",\"maison_certificate_no\",\"maison_appraisal_value\"],\"age_verification_required\":1,\"minimum_age\":21,\"id_scan_enabled\":1,\"webshop_age_restricted_sales\":0,\"rewards_program_name\":\"AWANZ Collectors\",\"reward_allow_stacking\":0,\"birthday_coupon_enabled\":1,\"birthday_coupon_type\":\"Percent\",\"birthday_coupon_value\":15,\"birthday_coupon_lead_days\":7,\"birthday_coupon_valid_days\":30,\"new_arrivals_days\":14,\"giveaway_entries_per_amount\":25} ean=2004103867421→BR-006 serial=TP-008-CHI-E2E5D98E image=http://maison.localhost:8000/files/AC-012-e7e42d.png"
     },
     {
       "step": "customers.search rows carry client_number / loyalty_points / points_value / tier",
       "ok": true,
-      "detail": "William Ashcroft MC906714 pts=0 value=0 tier=Collector"
+      "detail": "Mei-Lin Chen MC528952 pts=3684910 value=3684910 tier=Patron"
     },
     {
       "step": "associate login",
@@ -37,8 +37,8 @@
     },
     {
       "step": "images toggle shows tile photo for item with image",
-      "ok": true,
-      "detail": "src=https://maison-demo.frappe.cloud/files/AC-012-f1db14.png naturalWidth=64"
+      "ok": false,
+      "detail": "src=http://maison.localhost:8000/files/AC-012-e7e42d.png naturalWidth=0"
     },
     {
       "step": "images toggle off hides photos",
@@ -53,27 +53,27 @@
     {
       "step": "wedge scan serial adds that exact serial",
       "ok": true,
-      "detail": "BR-002-CHI-002 (Eternal Solitaire 1.5ct Platinum); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Eternal Solitaire 1.5ct PlatinumBR-002-CHI-002$26,800.00×"
+      "detail": "TP-008-CHI-E2E5D98E (Petite Lune 28mm Yellow Gold); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Petite Lune 28mm Yellow GoldTP-008-CHI-E2E5D98E$17,900.00×"
     },
     {
       "step": "client № keypad lookup attaches client with points",
       "ok": true,
-      "detail": "William AshcroftCollectorClient №MC906714Points 0 ($0.00) Redeem points nothing to redeemDetach"
+      "detail": "Mei-Lin ChenPatronClient №MC528952Points 3,684,910 ($3,684,910.00)Last visit Aug 23, 2026PatronHighest tier Redeem points up to 21,777DetachSuggested for this clientRing Resizing$150.00Bought with Ete"
     },
     {
       "step": "receipt screen shows QR and receipt link",
       "ok": true,
-      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=https://maison-demo.frappe.cloud/r/a5qWqqGWbdb29Wyd"
+      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=http://maison.localhost:8000/r/EbUalQblps_gFMmA"
     },
     {
       "step": "GET /r/<token> as guest returns 200 with boutique name",
       "ok": true,
-      "detail": "200 len=335816"
+      "detail": "200 len=343139"
     },
     {
       "step": "guest sales.receipt JSON has boutique, lines, totals and no PII",
       "ok": true,
-      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••714\",\"tier\":\"Connoisseur\",\"points_earned\":21131,\"points_balance\":21131}"
+      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••952\",\"tier\":\"Patron\",\"points_earned\":13168,\"points_balance\":3698078,\"next_reward\":null,\"giveaway_entries\":10,\"giveaway\":{\"name\":\"GIVE-2026-00019\",\"title\":\"Geek Bar Pulse X giveaway\",\"end_date\":\"2026-09-21\",\"prize\":\"A Geek Bar Pulse X 25K in the flavor of your choice\",\"my_entries\":380},\"reward_tier\":null}"
     },
     {
       "step": "GET /r/<bad token> is 404",
@@ -113,7 +113,7 @@
     {
       "step": "iPhone: cash pay → receipt synced with QR + link",
       "ok": true,
-      "detail": "Synced link=https://maison-demo.frappe.cloud/r/Iqks-x_JLNWKR4rH"
+      "detail": "Synced link=http://maison.localhost:8000/r/rIHNCTnMt9S_6hqO"
     },
     {
       "step": "iPhone: receipt screen has no horizontal overflow",
@@ -121,5 +121,46 @@
       "detail": "scrollWidth-clientWidth=0"
     }
   ],
-  "console": []
+  "console": [
+    {
+      "tag": "pos",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest-desktop",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Unbounded:wght@800;900&display=swap net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest-desktop",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest-phone",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=Unbounded:wght@800;900&display=swap net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "guest-phone",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "phone",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "phone",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    }
+  ]
 }

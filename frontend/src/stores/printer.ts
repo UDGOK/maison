@@ -17,7 +17,7 @@ interface PrinterState {
   lastError: string | null
   printing: boolean
   lastXml: string | null
-  /** v0.4 A — reader picked on this device (Maison Boutique Reader `stripe_reader_id` or row name) */
+  /** v0.4 A — reader picked on this device (AWANZ Store Reader `stripe_reader_id` or row name) */
   reader_id: string | null
   /** v0.4 A — 'auto': reader printer when the picked reader has one, else ePOS; or force a route */
   route: 'auto' | 'reader' | 'epos' | 'browser'
@@ -42,7 +42,7 @@ export const usePrinterStore = defineStore('printer', {
     effectiveIp(s): string {
       return s.printer_ip || useSessionStore().boutique?.printer_ip || ''
     },
-    /** Readers registered on the boutique (Maison Boutique.readers); a simulated one is offered when none. */
+    /** Readers registered on the boutique (AWANZ Store.readers); a simulated one is offered when none. */
     readers(): BoutiqueReader[] {
       const list = (useSessionStore().boutique?.readers || []).filter(
         (r) => r.enabled === undefined || r.enabled

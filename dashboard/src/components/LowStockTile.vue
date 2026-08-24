@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 import type { LowStockBlock } from '../types'
 
-/** v0.4 D — open + acknowledged Maison Stock Alerts; drill-down opens the desk list. */
+/** v0.4 D — open + acknowledged AWANZ Stock Alerts; drill-down opens the desk list. */
 const props = defineProps<{ data: LowStockBlock; returns?: { count: number; value: number } }>()
 const worst = computed(() => Object.entries(props.data.by_boutique).sort((a, b) => b[1] - a[1]).slice(0, 4))
-const listUrl = '/app/maison-stock-alert?status=%5B%22in%22%2C%5B%22Open%22%2C%22Acknowledged%22%5D%5D'
+const listUrl = '/app/awanz-stock-alert?status=%5B%22in%22%2C%5B%22Open%22%2C%22Acknowledged%22%5D%5D'
 </script>
 
 <template>

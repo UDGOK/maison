@@ -2,7 +2,7 @@
 
 ``bench --site maison.localhost execute maison_pos.setup.demo_v04_webshop.seed_webshop``
 
-Creates, idempotently: Webshop Settings (checkout on, Standard Selling, company Maison),
+Creates, idempotently: Webshop Settings (checkout on, Standard Selling, company AWANZ),
 the simulated payment gateway (or Stripe when ``stripe_secret_key`` is in site_config),
 published item groups, one Website Item per sellable demo item with a generated visual and
 its ``maison_web_mode``, a demo web shopper (``client@maison.example`` → Isabella Marchetti),
@@ -20,7 +20,7 @@ from maison_pos.webshop import core, is_payments_installed, is_webshop_installed
 from maison_pos.webshop.art import product_svg
 from maison_pos.webshop.setup import SIMULATED_GATEWAY, WEB_MODE_OF_PAYMENT, create_web_mode_of_payment, create_webshop_custom_fields
 
-COMPANY = "Maison"
+COMPANY = "AWANZ"
 ABBR = "MSN"
 PRICE_LIST = "Standard Selling"
 WEB_USER = "client@maison.example"
@@ -41,11 +41,11 @@ RESERVE_ITEMS = {"BR-001", "BR-002", "BR-004"}  # serialized solitaires with sev
 FEATURED = ["TP-002", "HJ-001", "BR-002", "AC-006", "TP-003", "HJ-003", "AC-007", "BR-009"]
 
 SHORT_DESCRIPTIONS = {
-	"Timepieces": "Swiss automatic movement, sapphire crystal, five-year Maison guarantee.",
-	"High Jewellery": "A unique piece from the Maison atelier, accompanied by its certificate.",
-	"Bridal": "Hand-set in the Maison workshop. Complimentary resizing and engraving.",
-	"Accessories": "Everyday Maison signatures, presented in the house case.",
-	"Services": "Performed in the boutique by Maison artisans.",
+	"Timepieces": "Swiss automatic movement, sapphire crystal, five-year AWANZ guarantee.",
+	"High Jewellery": "A unique piece from the AWANZ atelier, accompanied by its certificate.",
+	"Bridal": "Hand-set in the AWANZ workshop. Complimentary resizing and engraving.",
+	"Accessories": "Everyday AWANZ signatures, presented in the house case.",
+	"Services": "Performed in the boutique by AWANZ artisans.",
 }
 
 
@@ -71,13 +71,13 @@ def ensure_payment_gateway() -> Optional[str]:
 	secret = frappe.conf.get("stripe_secret_key")
 	publishable = frappe.conf.get("stripe_publishable_key")
 	if secret and publishable:
-		if not frappe.db.exists("Stripe Settings", "Maison"):
+		if not frappe.db.exists("Stripe Settings", "AWANZ"):
 			doc = frappe.get_doc(
-				{"doctype": "Stripe Settings", "gateway_name": "Maison", "publishable_key": publishable, "secret_key": secret}
+				{"doctype": "Stripe Settings", "gateway_name": "AWANZ", "publishable_key": publishable, "secret_key": secret}
 			)
 			doc.flags.ignore_permissions = True
 			doc.insert()
-		gateway = "Stripe-Maison"
+		gateway = "Stripe-AWANZ"
 	if not frappe.db.exists("Payment Gateway", gateway):
 		frappe.get_doc({"doctype": "Payment Gateway", "gateway": gateway}).insert(ignore_permissions=True)
 
@@ -91,7 +91,7 @@ def ensure_payment_gateway() -> Optional[str]:
 				"company": company,
 				"is_default": 1,
 				"payment_channel": "Email",
-				"message": "Thank you — complete your Maison payment below.",
+				"message": "Thank you — complete your AWANZ payment below.",
 			}
 		)
 		doc.flags.ignore_permissions = True
@@ -167,7 +167,7 @@ def ensure_item_groups_published() -> None:
 
 def _attach_visual(item) -> Optional[str]:
 	"""Generated SVG → public File on the Item; returns the file url."""
-	file_name = f"maison-{item.item_code.lower()}.svg"
+	file_name = f"awanz-{item.item_code.lower()}.svg"
 	existing = frappe.db.get_value("File", {"attached_to_doctype": "Item", "attached_to_name": item.item_code, "file_name": file_name}, "file_url")
 	if existing:
 		return existing
@@ -328,7 +328,7 @@ def _sample_order(customer: str, boutique: str, lines: list[tuple[str, int]], st
 	# prices must exist (ERPNext's before_tests wipes Item Price; a $0 demo order would look broken)
 	if any(not flt(frappe.db.get_value("Item Price", {"item_code": code, "price_list": PRICE_LIST}, "price_list_rate")) for code, _ in lines):
 		return None
-	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	b = frappe.get_cached_doc("AWANZ Store", boutique)
 	so = frappe.new_doc("Sales Order")
 	so.update(
 		{
@@ -366,26 +366,26 @@ def _sample_order(customer: str, boutique: str, lines: list[tuple[str, int]], st
 def ensure_sample_orders() -> list[str]:
 	out = []
 	customers = [c for c in ("Mei-Lin Chen", "Alexander Petrov", "Hannah Rosenthal") if frappe.db.exists("Customer", c)]
-	if len(customers) < 3 or not frappe.db.exists("Maison Boutique", "CHI-OAK"):
+	if len(customers) < 3 or not frappe.db.exists("AWANZ Store", "CHI-OAK"):
 		return out
 	try:
 		out.append(_sample_order(customers[0], "CHI-OAK", [("AC-001", 1), ("AC-012", 2)], "New"))
 		out.append(_sample_order(customers[1], "CHI-OAK", [("BR-007", 1)], "Ready"))
 		out.append(_sample_order(customers[2], "CHI-OAK", [("BR-001", 1)], "New", mode="Reserve-with-deposit"))
 	except Exception:  # noqa: BLE001 - sample orders are decoration
-		frappe.log_error(frappe.get_traceback(), "maison demo web orders")
+		frappe.log_error(frappe.get_traceback(), "awanz demo web orders")
 	return [o for o in out if o]
 
 
 def ensure_sample_enquiry() -> Optional[str]:
-	if not frappe.db.exists("Item", "HJ-002") or not frappe.db.exists("Maison Boutique", "CHI-OAK"):
+	if not frappe.db.exists("Item", "HJ-002") or not frappe.db.exists("AWANZ Store", "CHI-OAK"):
 		return None
-	existing = frappe.db.get_value("Maison Web Enquiry", {"item_code": "HJ-002", "email": "v.sterling@example.com"}, "name")
+	existing = frappe.db.get_value("AWANZ Web Enquiry", {"item_code": "HJ-002", "email": "v.sterling@example.com"}, "name")
 	if existing:
 		return existing
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Web Enquiry",
+			"doctype": "AWANZ Web Enquiry",
 			"item_code": "HJ-002",
 			"boutique": "CHI-OAK",
 			"customer_name": "Victoria Sterling",
@@ -408,8 +408,8 @@ def ensure_website_home() -> None:
 	if ws.home_page != "shop":
 		ws.home_page = "shop"
 		changed = True
-	if ws.app_name != "Maison":
-		ws.app_name = "Maison"
+	if ws.app_name != "AWANZ":
+		ws.app_name = "AWANZ"
 		changed = True
 	if changed:
 		ws.flags.ignore_permissions = True

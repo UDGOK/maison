@@ -1,0 +1,219 @@
+{
+ "actions": [],
+ "autoname": "format:MRR-{YYYY}-{#####}",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "boutique",
+  "boutique_name",
+  "to_warehouse",
+  "from_warehouse",
+  "column_break_main",
+  "status",
+  "priority",
+  "requested_by",
+  "requested_at",
+  "section_lines",
+  "lines",
+  "section_review",
+  "reason",
+  "rejection_reason",
+  "column_break_review",
+  "approved_by",
+  "approved_at",
+  "material_request",
+  "shipment"
+ ],
+ "fields": [
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Store",
+   "options": "AWANZ Store",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "boutique.boutique_name",
+   "fieldname": "boutique_name",
+   "fieldtype": "Data",
+   "label": "Store Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "to_warehouse",
+   "fieldtype": "Link",
+   "label": "To Warehouse",
+   "options": "Warehouse",
+   "read_only": 1,
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "from_warehouse",
+   "fieldtype": "Link",
+   "label": "From Warehouse",
+   "options": "Warehouse",
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Pending Approval",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending Approval\nApproved\nRejected\nCancelled",
+   "reqd": 1
+  },
+  {
+   "default": "Normal",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Priority",
+   "options": "Normal\nLow stock\nUrgent"
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "requested_at",
+   "fieldtype": "Datetime",
+   "label": "Requested At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_lines",
+   "fieldtype": "Section Break",
+   "label": "Lines"
+  },
+  {
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Lines",
+   "options": "AWANZ Replenishment Line",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_review",
+   "fieldtype": "Section Break",
+   "label": "Review"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "column_break_review",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Reviewed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_at",
+   "fieldtype": "Datetime",
+   "label": "Reviewed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "material_request",
+   "fieldtype": "Link",
+   "label": "Material Request",
+   "options": "Material Request",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shipment",
+   "fieldtype": "Link",
+   "label": "Shipment",
+   "options": "AWANZ Shipment",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Replenishment Request",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "AWANZ Head Office",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "AWANZ Warehouse Admin",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "AWANZ Regional"
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "AWANZ Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "AWANZ Associate"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

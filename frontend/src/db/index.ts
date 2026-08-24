@@ -143,7 +143,7 @@ export interface PendingEnrolmentRow {
   error?: string
 }
 
-export class MaisonDB extends Dexie {
+export class AwanzDB extends Dexie {
   catalog!: EntityTable<Item, 'item_code'>
   prices!: EntityTable<PriceRow, 'item_code'>
   pricing_rules!: EntityTable<PricingRule, 'name'>
@@ -198,7 +198,7 @@ export class MaisonDB extends Dexie {
   }
 }
 
-export const db = new MaisonDB()
+export const db = new AwanzDB()
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const row = await db.settings.get(key)

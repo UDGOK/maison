@@ -1,0 +1,249 @@
+{
+ "actions": [],
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "status",
+  "prize_item",
+  "prize_description",
+  "column_break_a",
+  "start_date",
+  "end_date",
+  "boutique",
+  "section_rule",
+  "entry_rule",
+  "amount_per_entry",
+  "column_break_b",
+  "max_entries_per_invoice",
+  "requires_member",
+  "section_draw",
+  "draw_seed",
+  "drawn_on",
+  "drawn_by",
+  "column_break_c",
+  "winner",
+  "winner_entry",
+  "total_entries",
+  "participants",
+  "draw_audit",
+  "notified_on",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nOpen\nClosed\nDrawn",
+   "default": "Draft",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "prize_item",
+   "fieldtype": "Link",
+   "label": "Prize item",
+   "options": "Item",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "prize_description",
+   "fieldtype": "Data",
+   "label": "Prize description"
+  },
+  {
+   "fieldname": "column_break_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "label": "Store (blank = chain-wide)",
+   "options": "AWANZ Store"
+  },
+  {
+   "fieldname": "section_rule",
+   "fieldtype": "Section Break",
+   "label": "Entry rule"
+  },
+  {
+   "fieldname": "entry_rule",
+   "fieldtype": "Select",
+   "label": "Entry rule",
+   "options": "Per amount\nPer visit",
+   "default": "Per amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount_per_entry",
+   "fieldtype": "Currency",
+   "label": "$ per entry",
+   "default": "25"
+  },
+  {
+   "fieldname": "column_break_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "max_entries_per_invoice",
+   "fieldtype": "Int",
+   "label": "Max entries per receipt",
+   "default": "10"
+  },
+  {
+   "fieldname": "requires_member",
+   "fieldtype": "Check",
+   "label": "Members only (client attached)",
+   "default": "1"
+  },
+  {
+   "fieldname": "section_draw",
+   "fieldtype": "Section Break",
+   "label": "Draw"
+  },
+  {
+   "fieldname": "draw_seed",
+   "fieldtype": "Data",
+   "label": "Draw seed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "drawn_on",
+   "fieldtype": "Datetime",
+   "label": "Drawn on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "drawn_by",
+   "fieldtype": "Link",
+   "label": "Drawn by",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_c",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "winner",
+   "fieldtype": "Link",
+   "label": "Winner",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "winner_entry",
+   "fieldtype": "Link",
+   "label": "Winning entry",
+   "options": "AWANZ Giveaway Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_entries",
+   "fieldtype": "Int",
+   "label": "Total entries",
+   "read_only": 1
+  },
+  {
+   "fieldname": "participants",
+   "fieldtype": "Int",
+   "label": "Participants",
+   "read_only": 1
+  },
+  {
+   "fieldname": "draw_audit",
+   "fieldtype": "Code",
+   "label": "Draw audit (JSON)",
+   "read_only": 1,
+   "options": "JSON"
+  },
+  {
+   "fieldname": "notified_on",
+   "fieldtype": "Datetime",
+   "label": "Winner notified on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Giveaway",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "AWANZ Head Office",
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "role": "AWANZ Regional",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "AWANZ Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "AWANZ Associate",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:GIVE-{YYYY}-{#####}",
+ "naming_rule": "Expression"
+}

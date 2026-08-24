@@ -4,9 +4,9 @@ CloudChaserz is a smoke-shop chain — vape, disposables, e-liquid, glass, hooka
 accessories — with head office and main warehouse in Houston, Texas and eleven stores across
 Houston and Oklahoma. This release makes the platform **tenant-branded**: everything a customer or
 an associate reads comes from brand settings, while the internal doctype and module names stay
-`Maison *` / `maison_pos` (renaming doctypes buys nothing and breaks every integration).
+`AWANZ *` / `maison_pos` (renaming doctypes buys nothing and breaks every integration).
 
-> The product name is **"Maison POS by CloudChaserz"**: CLOUDCHASERZ is the wordmark, "Maison POS"
+> The product name is **"AWANZ POS by CloudChaserz"**: CLOUDCHASERZ is the wordmark, "AWANZ POS"
 > the sub-mark under it.
 
 Related: `docs/shipping.md` (warehouse), `docs/rewards.md` (loyalty), `SPEC_v0.6.md`.
@@ -15,17 +15,17 @@ Related: `docs/shipping.md` (warehouse), `docs/rewards.md` (loyalty), `SPEC_v0.6
 
 ## 1. Brand settings
 
-**Maison POS Settings** carries the tenant's identity. `catalog.bootstrap` returns it as `brand{…}`
+**AWANZ POS Settings** carries the tenant's identity. `catalog.bootstrap` returns it as `brand{…}`
 and the POS, Salon, dashboard, web shop, receipts, e-mails and print formats all read from there —
-there are no hard-coded "Maison" strings in user-facing copy.
+there are no hard-coded "AWANZ" strings in user-facing copy.
 
 | Field | CloudChaserz value |
 |---|---|
 | `brand_name` | `CloudChaserz` |
-| `product_name` | `Maison POS by CloudChaserz` |
+| `product_name` | `AWANZ POS by CloudChaserz` |
 | `tagline` | `Elevate Your Smoking Experience` |
 | `wordmark_text` | `CLOUDCHASERZ` |
-| `sub_mark` | `Maison POS` |
+| `sub_mark` | `AWANZ POS` |
 | `legal_name` | `CloudChaserz World LLC` |
 | `support_email` | `support@cloudchaserzworld.com` |
 | `brand_website` | `https://cloudchaserzworld.com` |
@@ -72,10 +72,10 @@ Eleven stores plus the head-office warehouse. All are `America/Chicago`.
 | `OK-JENKS` | CloudChaserz Jenks | 541 W Main St, Jenks OK 74037 | (918) 228-7009 | Tulsa Metro | Sun–Thu 9–22, Fri–Sat 9–24 | 8.917% |
 | `HOU-WH` | **Main Warehouse / HQ** *(not a store)* | Houston TX | — | Houston | — | — |
 
-`HOU-WH` is a `Maison Boutique` with `is_warehouse = 1`: it owns a warehouse and appears in the
+`HOU-WH` is a `AWANZ Store` with `is_warehouse = 1`: it owns a warehouse and appears in the
 supply flows, but it is excluded from store lists, sales league tables and the storefront.
 
-Each `Maison Boutique` also carries `hours` (JSON), `timezone` and `region`.
+Each `AWANZ Store` also carries `hours` (JSON), `timezone` and `region`.
 
 > ### ⚠️ Tax rates — verify with the CPA
 > The rates above are **approximate combined state + local sales-tax rates** entered so the demo
@@ -94,21 +94,21 @@ Each `Maison Boutique` also carries `hours` (JSON), `timezone` and `region`.
 
 | Role | Sees | Can do |
 |---|---|---|
-| **Maison Associate** | own store | sell, returns within policy, cycle count, clock in/out |
-| **Maison Manager** | **own store only** | everything an associate can, plus approve discounts / out-of-policy returns, request replenishment, confirm receipts, view their store's reports and staff |
-| **Maison Warehouse Admin** | all stores' supply documents, `HOU-WH` stock | approve / edit / reject replenishment requests, pick, pack, buy labels, ship, resolve discrepancies, receive vendor POs at HQ. **Cannot sell.** |
-| **Maison Regional** | the stores in their region | read-only across their region plus manager actions where granted |
-| **Maison Head Office** | everything | full chain view, Command dashboard, price approvals, campaigns |
+| **AWANZ Associate** | own store | sell, returns within policy, cycle count, clock in/out |
+| **AWANZ Manager** | **own store only** | everything an associate can, plus approve discounts / out-of-policy returns, request replenishment, confirm receipts, view their store's reports and staff |
+| **AWANZ Warehouse Admin** | all stores' supply documents, `HOU-WH` stock | approve / edit / reject replenishment requests, pick, pack, buy labels, ship, resolve discrepancies, receive vendor POs at HQ. **Cannot sell.** |
+| **AWANZ Regional** | the stores in their region | read-only across their region plus manager actions where granted |
+| **AWANZ Head Office** | everything | full chain view, Command dashboard, price approvals, campaigns |
 
 Store scoping for managers and associates is enforced in **three** places, and all three matter:
 
-1. **User Permission** on the store's Warehouse plus `Maison Associate.boutique`.
+1. **User Permission** on the store's Warehouse plus `AWANZ Associate.boutique`.
 2. **Server-side in every endpoint** — `maison_pos/scoping.py` (`assert_boutique_access`,
    `get_allowed_boutiques`); an endpoint that takes a `boutique` argument raises
    `frappe.PermissionError` (HTTP 403) for anyone else's store.
 3. **Desk list views** — `permission_query_conditions` / `has_permission` hooks, so a manager
    opening Stock Entry, Purchase Receipt, Material Request, Sales Invoice, Employee or
-   `Maison Shipment` in the Frappe desk sees only their own store's rows.
+   `AWANZ Shipment` in the Frappe desk sees only their own store's rows.
 
 `maison_pos/tests/test_v0_6_scoping_http.py` and `e2e/cloudchaserz.e2e.mjs` both prove this over
 real HTTP, not just in-process: manager A gets 403 on store B's bootstrap, inbound shipments,
@@ -121,9 +121,9 @@ replenishment requests and shipments, and the live dashboard shows them only the
 | Sales Invoice | own store | own store | — | region | all |
 | Stock Entry / Purchase Receipt | own store | own store | HQ + all transfers | region | all |
 | Material Request / Replenishment Request | create (own) | create + view (own) | **approve / reject (all)** | region | all |
-| Maison Shipment | own store (inbound) | own store (inbound) | **all** | region | all |
+| AWANZ Shipment | own store (inbound) | own store (inbound) | **all** | region | all |
 | Receiving Discrepancy | — | own store | **all** | region | all |
-| Maison Associate / Employee / Shift | self | own store | — | region | all |
+| AWANZ Associate / Employee / Shift | self | own store | — | region | all |
 | Reports | — | own store | supply only | region | all |
 
 ---
@@ -134,13 +134,13 @@ Password for every demo account: **`cloud123`**. PINs unlock the POS after login
 
 | User | Role | PIN |
 |---|---|---|
-| `<code>.manager@cloudchaserz.example` | Maison Manager | unique per store (see below) |
-| `<code>.a1@cloudchaserz.example` | Maison Associate | `2580` |
-| `<code>.a2@cloudchaserz.example` | Maison Associate | `1357` |
-| `hq@cloudchaserz.example` | Maison Head Office | — |
-| `warehouse@cloudchaserz.example` | Maison Warehouse Admin | — |
-| `regional.ok@cloudchaserz.example` | Maison Regional (Oklahoma + Tulsa Metro) | — |
-| `regional.tx@cloudchaserz.example` | Maison Regional (Houston) | — |
+| `<code>.manager@cloudchaserz.example` | AWANZ Manager | unique per store (see below) |
+| `<code>.a1@cloudchaserz.example` | AWANZ Associate | `2580` |
+| `<code>.a2@cloudchaserz.example` | AWANZ Associate | `1357` |
+| `hq@cloudchaserz.example` | AWANZ Head Office | — |
+| `warehouse@cloudchaserz.example` | AWANZ Warehouse Admin | — |
+| `regional.ok@cloudchaserz.example` | AWANZ Regional (Oklahoma + Tulsa Metro) | — |
+| `regional.tx@cloudchaserz.example` | AWANZ Regional (Houston) | — |
 
 Manager PINs: `HOU-MTR` 1101 · `OK-SAP` 2202 · `OK-BA` 3303 · `OK-BIX` 4404 · `OK-STUL` 5505 ·
 `OK-OWA` 6606 · `OK-MUS` 7707 · `OK-MINGO` 8808 · `OK-ETUL` 9909 · `OK-YALE` 1212 ·
@@ -156,7 +156,7 @@ Manager PINs: `HOU-MTR` 1101 · `OK-SAP` 2202 · `OK-BA` 3303 · `OK-BIX` 4404 �
 Every item in a 21+ group carries `maison_age_restricted = 1`. Ringing one up raises the age gate
 before it reaches the basket; nothing is sold until it passes.
 
-Two paths, both ending in a `Maison Age Check`:
+Two paths, both ending in a `AWANZ Age Check`:
 
 * **Scan** — the PDF417 barcode on the back of a US driver's licence or state ID. The AAMVA payload
   is parsed **on the device** (`frontend/src/scan/aamva.ts`) for date of birth, expiry, initials and
@@ -169,7 +169,7 @@ gate is open, and the receipt prints `ID CHECKED · 21+ VERIFIED`.
 
 ### What is stored — and what is not
 
-`Maison Age Check` keeps only the **outcome**: verified yes/no, the reason, the method
+`AWANZ Age Check` keeps only the **outcome**: verified yes/no, the reason, the method
 (Scan / Manual), the two initials, the issuing state, the store, who checked and when. The
 barcode payload, the full name, the licence number, the address and the exact date of birth are
 **never written to the database**. The screen says so, in those words, under the scan box.
@@ -232,7 +232,7 @@ POST /api/method/maison_pos.api.insights.compute                     {"narrative
 
 `seed_history_remote` enqueues on the `long` queue; poll `status` for the marker.
 
-Then: `/pos` · `/warehouse` · `/warehouse-wall` · `/maison-dashboard` · `/shop` · `/rewards` ·
+Then: `/pos` · `/warehouse` · `/warehouse-wall` · `/awanz-dashboard` · `/shop` · `/rewards` ·
 `/salon`.
 
 ## 7. Site time zone — moving a seeded site safely

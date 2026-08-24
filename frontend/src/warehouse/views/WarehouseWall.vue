@@ -2,7 +2,7 @@
 /**
  * v0.6 P — the 55" Warehouse Wall (`/warehouse-wall`, 1920×1080 / 4K landscape): five kanban columns,
  * big type, live age timers, ⚑ priority, sound/flash on a newly approved shipment, realtime + 10 s polling,
- * auto-print of packing list / label through a hidden iframe (`window.__maisonLastWallPrint`).
+ * auto-print of packing list / label through a hidden iframe (`window.__awanzLastWallPrint`).
  * Tap a card → Pick / Packed / Buy label / Print / Ship.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
 
     <div v-if="wh.meError || (wh.me && !wh.allowed)" class="gate" data-testid="wall-gate">
       <div class="display">Warehouse admin role required</div>
-      <div class="muted">{{ wh.meError || `${wh.me?.user} is not a Maison Warehouse Admin` }}</div>
+      <div class="muted">{{ wh.meError || `${wh.me?.user} is not an AWANZ Warehouse Admin` }}</div>
       <a class="btn" href="/login?redirect-to=/warehouse-wall">Sign in</a>
     </div>
 

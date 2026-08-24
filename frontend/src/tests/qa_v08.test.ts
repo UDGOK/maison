@@ -39,7 +39,7 @@ describe('W-D2 — the request age comes from the server', () => {
 describe('W-N3 — no desk links in messages shown to staff', () => {
   it('keeps the document name and drops the /app route', () => {
     const linkExists =
-      'Cannot delete or cancel because Material Request https://cloudchaserz.frappe.cloud/app/material-request/MAT-MR-2026-00017 is linked with Maison Stock Alert MSA-2026-00017'
+      'Cannot delete or cancel because Material Request https://cloudchaserz.frappe.cloud/app/material-request/MAT-MR-2026-00017 is linked with AWANZ Stock Alert MSA-2026-00017'
     const out = humanizeServerMessage(linkExists)
     expect(out).toContain('MAT-MR-2026-00017')
     expect(out).toContain('MSA-2026-00017')

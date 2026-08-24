@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 export const BASE = 'https://cloudchaserz.frappe.cloud'
-export const SHOTS = '/home/claude/maison/e2e/qa/shots-dashboard'
+export const SHOTS = '/home/claude/awanz/e2e/qa/shots-dashboard'
 mkdirSync(SHOTS, { recursive: true })
 export const SID = readFileSync('/tmp/ccsid', 'utf8').trim()
 
@@ -14,7 +14,7 @@ export const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + String(detail).slice(0, 300) : ''}`)
   return ok
 }
-export const save = (file) => writeFileSync(path.join('/home/claude/maison/e2e/qa', file), JSON.stringify(results, null, 1))
+export const save = (file) => writeFileSync(path.join('/home/claude/awanz/e2e/qa', file), JSON.stringify(results, null, 1))
 export const money = (s) => Number(String(s).replace(/[^\d.-]/g, '').replace(/−/g, '-')) || 0
 
 export async function launch({ viewport = { width: 1920, height: 1080 }, sid = SID } = {}) {

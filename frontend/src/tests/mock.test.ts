@@ -30,8 +30,8 @@ describe('mock API', () => {
   })
 
   it('fails with NETWORK when offline flag is set', async () => {
-    ;(window as any).__maisonOffline = true
+    ;(window as any).__awanzOffline = true
     await expect(mockApi.dashboard.heartbeat('CHI-OAK', 'd', 0)).rejects.toMatchObject({ code: 'NETWORK' })
-    ;(window as any).__maisonOffline = false
+    ;(window as any).__awanzOffline = false
   })
 })

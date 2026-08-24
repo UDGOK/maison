@@ -1,4 +1,4 @@
-// Maison POS v0.2 end-to-end run against the real bench (images, scanning, client №, receipt QR, iPhone).
+// AWANZ POS v0.2 end-to-end run against the real bench (images, scanning, client №, receipt QR, iPhone).
 // Run:  PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/pos.v02.e2e.mjs
 // Env:  BASE (default http://maison.localhost:8000), ASSOC_USER/ASSOC_PWD, ADMIN_PWD
 import { chromium, request } from 'playwright'
@@ -190,7 +190,7 @@ async function ensureTwoFreeSerials() {
   if (Object.entries(b.serials).some(([ic, list]) => list.length >= 2 && byCode[ic])) return
   const code = b.items.find((i) => i.has_serial_no)?.item_code
   if (!code) return
-  const bq = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+  const bq = (await admin.list('AWANZ Store', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
   const tag = Math.random().toString(36).slice(2, 6).toUpperCase()
   await admin.post('frappe.client.insert', {
     doc: {
@@ -204,7 +204,7 @@ async function ensureTwoFreeSerials() {
 async function ensureStock(code, min = 6) {
   const b = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
   if ((b.stock?.[code] || 0) >= min) return
-  const bq = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+  const bq = (await admin.list('AWANZ Store', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
   await admin.post('frappe.client.insert', {
     doc: {
       doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,
@@ -323,10 +323,10 @@ if (receiptToken) {
   const guest = await request.newContext({ baseURL: BASE })
   const r = await guest.get(`/r/${receiptToken}`)
   const html = await r.text()
-  record('GET /r/<token> as guest returns 200 with boutique name', r.status() === 200 && html.includes('Maison Oak Street'), `${r.status()} len=${html.length}`)
+  record('GET /r/<token> as guest returns 200 with boutique name', r.status() === 200 && html.includes('AWANZ Oak Street'), `${r.status()} len=${html.length}`)
   const j = await guest.get('/api/method/maison_pos.api.sales.receipt', { params: { token: receiptToken } })
   const body = await j.json().catch(() => ({}))
-  record('guest sales.receipt JSON has boutique, lines, totals and no PII', j.status() === 200 && body.message?.boutique?.name === 'Maison Oak Street' && body.message.lines?.length >= 1 && !('customer_name' in body.message) && !('client_number' in (body.message.client || {})),
+  record('guest sales.receipt JSON has boutique, lines, totals and no PII', j.status() === 200 && body.message?.boutique?.name === 'AWANZ Oak Street' && body.message.lines?.length >= 1 && !('customer_name' in body.message) && !('client_number' in (body.message.client || {})),
     `${j.status()} client=${JSON.stringify(body.message?.client)}`)
   const bad = await guest.get('/r/not-a-real-token')
   record('GET /r/<bad token> is 404', bad.status() === 404, String(bad.status()))

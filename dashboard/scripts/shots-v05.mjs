@@ -37,7 +37,7 @@ for (const size of SIZES) {
   const login = await page.request.post(`${BASE}/api/method/login`, { data: ADMIN })
   if (!login.ok()) throw new Error(`login failed: ${login.status()}`)
   for (const t of TABS) {
-    const url = `${BASE}/maison-dashboard?view=${t.view}${t.sub ? '&sub=' + t.sub : ''}`
+    const url = `${BASE}/awanz-dashboard?view=${t.view}${t.sub ? '&sub=' + t.sub : ''}`
     const t0 = Date.now()
     await page.goto(url, { waitUntil: 'networkidle' })
     let ok = true

@@ -1,0 +1,209 @@
+{
+ "actions": [],
+ "autoname": "field:user",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "full_name",
+  "enabled",
+  "column_break_main",
+  "boutique",
+  "role",
+  "employee",
+  "section_pin",
+  "pin",
+  "pin_hash",
+  "pin_set_on",
+  "failed_pin_attempts"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1,
+   "permlevel": 1
+  },
+  {
+   "fetch_from": "user.full_name",
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Boutique",
+   "options": "AWANZ Store",
+   "permlevel": 1,
+   "description": "v0.7 S1 — permlevel 1: a store user cannot re-point their own record at another store."
+  },
+  {
+   "default": "Associate",
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Role",
+   "options": "Associate\nManager\nRegional\nHeadOffice",
+   "reqd": 1,
+   "permlevel": 1,
+   "description": "v0.7 S1 — permlevel 1: only Head Office / Regional / System Manager may change it. The Frappe role is synced from here and can never exceed the grantor's own rank."
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "description": "v0.4 — HRMS / ERPNext Employee for clock-in, commissions and payroll export."
+  },
+  {
+   "fieldname": "section_pin",
+   "fieldtype": "Section Break",
+   "label": "POS PIN"
+  },
+  {
+   "fieldname": "pin",
+   "fieldtype": "Password",
+   "label": "Set New PIN",
+   "description": "4-6 digits. Hashed on save (PBKDF2-SHA256) and cleared; the hash never leaves the server. Head Office / managers set PINs with maison_associate.reset_pin.",
+   "permlevel": 2
+  },
+  {
+   "fieldname": "pin_hash",
+   "fieldtype": "Password",
+   "hidden": 1,
+   "label": "PIN Hash",
+   "read_only": 1,
+   "no_copy": 1,
+   "permlevel": 2,
+   "description": "v0.7 S2 — stored encrypted outside this table (Password fieldtype -> __Auth); the column only ever holds asterisks."
+  },
+  {
+   "fieldname": "pin_set_on",
+   "fieldtype": "Datetime",
+   "label": "PIN Set On",
+   "read_only": 1,
+   "no_copy": 1,
+   "permlevel": 2
+  },
+  {
+   "default": "0",
+   "fieldname": "failed_pin_attempts",
+   "fieldtype": "Int",
+   "label": "Failed PIN Attempts",
+   "read_only": 1,
+   "no_copy": 1,
+   "permlevel": 2
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-23 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Associate",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "AWANZ Head Office",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "report": 1,
+   "role": "AWANZ Regional",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "AWANZ Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "AWANZ Associate"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "AWANZ Head Office",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "AWANZ Regional",
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "AWANZ Manager"
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "AWANZ Associate"
+  },
+  {
+   "permlevel": 2,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name",
+ "track_changes": 1
+}

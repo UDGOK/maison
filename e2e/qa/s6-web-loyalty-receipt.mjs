@@ -52,8 +52,8 @@ await page.waitForTimeout(3000)
 const thanks = (await page.locator('[data-testid=feedback-form]').innerText()).replace(/\s+/g, ' ')
 record('B · feedback is accepted from the receipt page', /thank you/i.test(thanks), thanks.slice(0, 120))
 await shot(page, 'public-receipt-feedback')
-const rows = await admin.list('Maison Feedback', { sales_invoice: inv.name }, ['name', 'rating', 'comment', 'boutique', 'customer', 'status'], 5)
-record('B · feedback reaches HQ as a Maison Feedback record', rows.length === 1 && Number(rows[0].rating) === 2, JSON.stringify(rows[0]))
+const rows = await admin.list('AWANZ Feedback', { sales_invoice: inv.name }, ['name', 'rating', 'comment', 'boutique', 'customer', 'status'], 5)
+record('B · feedback reaches HQ as an AWANZ Feedback record', rows.length === 1 && Number(rows[0].rating) === 2, JSON.stringify(rows[0]))
 const summary = await admin.get('maison_pos.api.feedback.summary', {}).catch((e) => ({ err: String(e).slice(0, 120) }))
 record('B · HQ feedback summary includes the new rating', JSON.stringify(summary).includes(String(rows[0]?.name)) || (summary?.count ?? summary?.total ?? 0) > 0, JSON.stringify(summary).slice(0, 220))
 // low rating alert
@@ -63,7 +63,7 @@ record('B · a rating ≤ 2 alerts the store manager', notif.length > 0 || todo.
   `alerted=${rows[0]?.alerted} notifications=${notif.length} ${JSON.stringify(notif.slice(0, 2))} todos=${todo.length}`)
 // one per invoice
 const again = await guest.rawPost('maison_pos.api.feedback.submit', { token, rating: 5, comment: 'QA4 duplicate probe' })
-const rows2 = await admin.list('Maison Feedback', { sales_invoice: inv.name }, ['name', 'rating'], 5)
+const rows2 = await admin.list('AWANZ Feedback', { sales_invoice: inv.name }, ['name', 'rating'], 5)
 record('B · only one feedback per receipt is stored', rows2.length === 1, `${rows2.length} rows; second submit → ${again.status} ${JSON.stringify(again.body?.message || again.body?.exception).slice(0, 120)}`)
 // a bad token must not accept feedback
 const badTok = await guest.rawPost('maison_pos.api.feedback.submit', { token: 'nosuchtoken1234', rating: 5 })

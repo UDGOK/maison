@@ -9,7 +9,7 @@ sitemap = 0
 
 
 def get_context(context):
-	base_context(context, nav="account", title="Your orders — Maison")
+	base_context(context, nav="account", title="Your orders — AWANZ")
 	require_login(context)
 	from maison_pos.api.webshop import my_orders
 

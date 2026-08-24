@@ -3,7 +3,7 @@
  * PDF) is loaded into a hidden iframe and `contentWindow.print()` is called. With Chrome started as
  * `--kiosk --kiosk-printing` the dialog is skipped and the default printer prints (docs/shipping.md).
  *
- * Every job is recorded on `window.__maisonLastWallPrint` (and a `maison-wall-print` event fires) so the
+ * Every job is recorded on `window.__awanzLastWallPrint` (and a `awanz-wall-print` event fires) so the
  * e2e can assert the hook without a printer.
  */
 export interface WallPrintJob {
@@ -17,19 +17,19 @@ export interface WallPrintJob {
 
 declare global {
   interface Window {
-    __maisonLastWallPrint?: WallPrintJob
-    __maisonWallPrints?: WallPrintJob[]
-    __maisonWallPrintDry?: boolean
+    __awanzLastWallPrint?: WallPrintJob
+    __awanzWallPrints?: WallPrintJob[]
+    __awanzWallPrintDry?: boolean
   }
 }
 
-const FRAME_ID = 'maison-wall-print-frame'
+const FRAME_ID = 'awanz-wall-print-frame'
 let queue: Promise<void> = Promise.resolve()
 
 function record(job: WallPrintJob) {
-  window.__maisonLastWallPrint = job
-  window.__maisonWallPrints = [...(window.__maisonWallPrints || []), job].slice(-50)
-  window.dispatchEvent(new CustomEvent('maison-wall-print', { detail: job }))
+  window.__awanzLastWallPrint = job
+  window.__awanzWallPrints = [...(window.__awanzWallPrints || []), job].slice(-50)
+  window.dispatchEvent(new CustomEvent('awanz-wall-print', { detail: job }))
 }
 
 function isPdf(url: string): boolean {
@@ -41,7 +41,7 @@ export function printDocument(kind: WallPrintJob['kind'], url: string, shipment:
   const run = (): Promise<WallPrintJob> =>
     new Promise((resolve) => {
       const job: WallPrintJob = { kind, url, shipment, at: new Date().toISOString(), via: 'iframe' }
-      if (typeof document === 'undefined' || window.__maisonWallPrintDry) {
+      if (typeof document === 'undefined' || window.__awanzWallPrintDry) {
         job.via = 'dry'
         record(job)
         resolve(job)
@@ -111,5 +111,5 @@ export function printDocument(kind: WallPrintJob['kind'], url: string, shipment:
 }
 
 export function packingListUrl(shipment: string): string {
-  return `/printview?doctype=Maison%20Shipment&name=${encodeURIComponent(shipment)}&format=Maison%20Packing%20List&no_letterhead=1`
+  return `/printview?doctype=AWANZ%20Shipment&name=${encodeURIComponent(shipment)}&format=AWANZ%20Packing%20List&no_letterhead=1`
 }

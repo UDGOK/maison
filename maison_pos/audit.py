@@ -1,6 +1,6 @@
 """v0.7 — a single, boring place to record security-relevant events.
 
-Everything lands in ``logs/maison_security.log`` on the site as one JSON object per line, so it
+Everything lands in ``logs/awanz_security.log`` on the site as one JSON object per line, so it
 can be shipped somewhere and grepped without a schema migration. Three rules:
 
 * it never raises — an audit line must not be able to fail a sale;
@@ -8,7 +8,7 @@ can be shipped somewhere and grepped without a schema migration. Three rules:
   the event is *about* (a customer id, never their phone number);
 * it is called on the paths the QA audit found interesting: cross-store client lookups
   (v0.7 S6), guest sign-ups that landed on an existing client (S3), and refused privilege
-  changes on ``Maison Associate`` (S1/S5).
+  changes on ``AWANZ Associate`` (S1/S5).
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ from typing import Any
 
 import frappe
 
-LOGGER = "maison_security"
+LOGGER = "awanz_security"
 
 
 def logger() -> "logging.Logger":
-	"""``logs/maison_security.log``, pinned to INFO.
+	"""``logs/awanz_security.log``, pinned to INFO.
 
 	``frappe.logger`` inherits the bench log level, which is WARNING on a dev server and ERROR
 	in production — an audit trail that is dropped by default is not an audit trail.

@@ -15,7 +15,7 @@
  *   4. Scoping — store manager A is refused store B's bootstrap / inventory alerts / shipments.
  *   5. Warehouse — low stock → replenishment request → approval on /warehouse → wall card + auto-print
  *      → rates cheapest-first → buy label → ship → store Receive with a scan → balances moved.
- *   6. Dashboard — /maison-dashboard as hq@: Live store cards, Products (Trending, Top by store),
+ *   6. Dashboard — /awanz-dashboard as hq@: Live store cards, Products (Trending, Top by store),
  *      a new sale moves the right store card within a few seconds.
  *   7. Storefront — /shop, /rewards branded with the exact programme copy; /salon pairs and mirrors.
  *
@@ -153,7 +153,7 @@ async function loggedCtx(user, opts = {}) {
 }
 async function unlockPos(page, user, store) {
   await page.goto('/pos/unlock', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => { localStorage.setItem('maisonE2E', '1') })
+  await page.evaluate(() => { localStorage.setItem('awanzE2E', '1') })
   await page.goto('/pos', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.unlock select.input', { timeout: 45000 })
   await page.selectOption('.unlock select.input >> nth=0', store)
@@ -228,8 +228,8 @@ const AGE_ITEM = pick(true)
 record('site is the seeded CloudChaserz tenant (11 stores + HOU-WH, 160 items, 3,002 history invoices)',
   status.seeded && status.stores.length === 12 && status.stores.includes('HOU-WH') && status.items === 160 && status.history.invoices >= 3000,
   `company=${status.company} stores=${status.stores.length} items=${status.items} history=${status.history.invoices} program=${status.loyalty_program}`)
-record('brand tokens are CloudChaserz (Smoke Shop vertical, CLOUDCHASERZ wordmark, "Maison POS" sub-mark)',
-  brand.brand_name === 'CloudChaserz' && brand.wordmark_text === 'CLOUDCHASERZ' && brand.sub_mark === 'Maison POS' && brand.vertical === 'Smoke Shop' && brand.store_noun === 'Store',
+record('brand tokens are CloudChaserz (Smoke Shop vertical, CLOUDCHASERZ wordmark, "AWANZ" sub-mark)',
+  brand.brand_name === 'CloudChaserz' && brand.wordmark_text === 'CLOUDCHASERZ' && brand.sub_mark === 'AWANZ' && brand.vertical === 'Smoke Shop' && brand.store_noun === 'Store',
   JSON.stringify({ brand: brand.brand_name, wordmark: brand.wordmark_text, sub: brand.sub_mark, vertical: brand.vertical, tagline: brand.tagline, program: brand.rewards_program_name }))
 // Frappe CRM is intentionally absent; every CRM touchpoint is feature-detected (crm.crm_installed)
 const installedApps = (await admin.get('frappe.client.get_list', {
@@ -251,7 +251,7 @@ log(`  21+ item  ${AGE_ITEM?.item_code} (${AGE_ITEM?.item_name}) $${prices[AGE_I
 
 // repeated verification runs eat the demo stock — top the two test items up at the till's store so
 // the seeded shelf is left as it was found.
-const storeA = (await admin.list('Maison Boutique', { name: STORE_A }, ['name', 'company', 'warehouse'], 5))[0]
+const storeA = (await admin.list('AWANZ Store', { name: STORE_A }, ['name', 'company', 'warehouse'], 5))[0]
 for (const it of [OPEN_ITEM, AGE_ITEM]) {
   if ((stockA[it.item_code] || 0) >= 30) { log(`  top-up not needed for ${it.item_code} (${stockA[it.item_code]} on hand)`); continue }
   await admin.post('frappe.client.insert', {
@@ -285,9 +285,9 @@ const unlockBox = await pos.evaluate(() => {
   return { vw: window.innerWidth, rightEdge: right ? Math.round(right.right) : null, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }
 })
 const unlockSub = (await pos.locator('.unlock .brand .label').innerText().catch(() => '')).replace(/\s+/g, ' ').trim()
-if (/maison pos.*maison pos/i.test(unlockSub)) {
+if (/awanz\b.*awanz pos/i.test(unlockSub)) {
   note('the unlock screen prints the sub-mark twice',
-    `"${unlockSub}" — UnlockView.vue renders \`{{ brand.subMark }} · {{ brand.productName }}\`, and productName already contains the sub-mark ("Maison POS by CloudChaserz").`)
+    `"${unlockSub}" — UnlockView.vue renders \`{{ brand.subMark }} · {{ brand.productName }}\`, and productName already contains the sub-mark ("AWANZ POS by CloudChaserz").`)
 }
 record('the unlock screen fits the 1366x1024 POS viewport (no horizontal overflow)',
   unlockBox.overflow <= 0 && (unlockBox.rightEdge === null || unlockBox.rightEdge <= unlockBox.vw + 1),
@@ -297,8 +297,8 @@ await shot(pos, 'pos-unlock-1366')
 await unlockPos(pos, ASSOC_A, STORE_A)
 const wordmark = (await pos.locator('[data-testid=wordmark]').innerText()).replace(/\s+/g, ' ').trim()
 const topbar = (await pos.locator('.topbar').innerText()).replace(/\s+/g, ' ').trim()
-record('POS top bar: CLOUDCHASERZ wordmark first, "Maison POS" only as the sub-mark, store code shown',
-  /^CLOUDCHASERZ/.test(wordmark) && /Maison POS/i.test(wordmark) && topbar.includes(STORE_A),
+record('POS top bar: CLOUDCHASERZ wordmark first, "AWANZ" only as the sub-mark, store code shown',
+  /^CLOUDCHASERZ/.test(wordmark) && /AWANZ/i.test(wordmark) && topbar.includes(STORE_A),
   `wordmark="${wordmark}" topbar="${topbar.slice(0, 120)}"`)
 // the compact bar (<= 1400 px) hides the store name by design; widen to prove it renders
 await pos.setViewportSize({ width: 1600, height: 1024 })
@@ -397,10 +397,10 @@ const r2 = await assocApi.post('maison_pos.api.age.verify_scan', { raw: expired,
 record('age.verify_scan refuses an expired licence', r2.ok === false && r2.outcome === 'Expired',
   JSON.stringify({ ok: r2.ok, outcome: r2.outcome, message: r2.message }))
 const r3 = await assocApi.post('maison_pos.api.age.verify_scan', { raw: validId, boutique: STORE_A })
-record('age.verify_scan passes a valid 21+ licence and logs a Maison Age Check',
+record('age.verify_scan passes a valid 21+ licence and logs an AWANZ Age Check',
   r3.ok === true && r3.outcome === 'Verified' && !!r3.check,
   JSON.stringify({ ok: r3.ok, outcome: r3.outcome, age: r3.age, method: r3.method, check: r3.check }))
-const ageDoc = r3.check ? (await admin.list('Maison Age Check', { name: r3.check }, ['name', 'outcome', 'method', 'initials', 'boutique', 'issuer', 'age_years', 'ts'], 5))[0] : null
+const ageDoc = r3.check ? (await admin.list('AWANZ Age Check', { name: r3.check }, ['name', 'outcome', 'method', 'initials', 'boutique', 'issuer', 'age_years', 'ts'], 5))[0] : null
 record('the age check stores no PII beyond the masked initials',
   !!ageDoc && !JSON.stringify(ageDoc).includes('RIVERA') && !JSON.stringify(ageDoc).includes('123 MAIN ST'),
   JSON.stringify(ageDoc))
@@ -626,8 +626,8 @@ if (leakRows.length) {
 // ================================================================================================
 log('\n=== 5. Warehouse ===================================================')
 const shipSettings = await admin.get('maison_pos.api.shipping.me').catch(() => ({}))
-const whBoutique = (await admin.list('Maison Boutique', { name: WH_STORE }, ['name', 'company', 'warehouse', 'transit_warehouse'], 5))[0]
-const HQ_WH = shipSettings?.main_warehouse || (await admin.list('Maison Boutique', { is_warehouse: 1 }, ['warehouse'], 5))[0]?.warehouse
+const whBoutique = (await admin.list('AWANZ Store', { name: WH_STORE }, ['name', 'company', 'warehouse', 'transit_warehouse'], 5))[0]
+const HQ_WH = shipSettings?.main_warehouse || (await admin.list('AWANZ Store', { is_warehouse: 1 }, ['warehouse'], 5))[0]?.warehouse
 const bootW = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: WH_STORE })
 const stockW = bootW.stock || {}
 // a low-stock, non-serialized item the store carries — the alert list drives the request
@@ -700,7 +700,7 @@ const desk = await deskCtx.newPage()
 wireConsole(desk, 'warehouse')
 await desk.goto('/warehouse', { waitUntil: 'domcontentloaded' })
 await desk.waitForSelector('[data-testid=warehouse-desk]', { timeout: 45000 })
-record('/warehouse desk opens for the Maison Warehouse Admin', true,
+record('/warehouse desk opens for the AWANZ Warehouse Admin', true,
   (await desk.locator('[data-testid=warehouse-desk]').first().innerText()).replace(/\s+/g, ' ').trim().slice(0, 140))
 await shot(desk, 'warehouse-desk')
 
@@ -708,7 +708,7 @@ await shot(desk, 'warehouse-desk')
 const wallCtx = await loggedCtx(WH_USER, { viewport: { width: 1920, height: 1080 } })
 const wall = await wallCtx.newPage()
 wireConsole(wall, 'wall')
-await wall.addInitScript(() => { window.__maisonWallPrintDry = true })
+await wall.addInitScript(() => { window.__awanzWallPrintDry = true })
 await wall.goto('/warehouse-wall', { waitUntil: 'domcontentloaded' })
 await wall.waitForSelector('[data-testid=warehouse-wall]', { timeout: 45000 })
 const wallConn = (await wall.locator('[data-testid=wall-connection]').innerText().catch(() => '')).replace(/\s+/g, ' ').trim()
@@ -729,7 +729,7 @@ const shipList = await admin.get('maison_pos.api.shipping.shipments', { status: 
 const mine = (shipList.shipments || []).find((s) => s.request === requestName || s.replenishment_request === requestName)
 const shipmentName = mine?.name || null
 artifacts.shipments.push(shipmentName)
-record('approval creates a Maison Shipment for the store', !!shipmentName,
+record('approval creates an AWANZ Shipment for the store', !!shipmentName,
   `${shipmentName} status=${mine?.status} lines=${JSON.stringify((mine?.lines || []).map((l) => [l.item_code, l.qty]))}`)
 if (!shipmentName) throw new Error('no shipment created — cannot continue the warehouse loop')
 const approvedQty = Number((mine.lines || []).find((l) => l.item_code === WH_ITEM)?.qty || 0)
@@ -743,9 +743,9 @@ const cardText = cardOk ? (await wall.locator(cardSel).innerText()).replace(/\s+
 record('the approved shipment appears as a card on the 1920x1080 wall over realtime', cardOk, cardText.slice(0, 200))
 record('the wall card carries the store code and the unit count',
   /(?:OK|HOU)-[A-Z]+/.test(cardText) && /\d+\s*UNITS/i.test(cardText), cardText.slice(0, 160))
-const printJob = await wall.waitForFunction(() => window.__maisonLastWallPrint || null, null, { timeout: 30000 })
+const printJob = await wall.waitForFunction(() => window.__awanzLastWallPrint || null, null, { timeout: 30000 })
   .then((h) => h.jsonValue()).catch(() => null)
-record('auto-print of the packing list fired on the wall (window.__maisonLastWallPrint)',
+record('auto-print of the packing list fired on the wall (window.__awanzLastWallPrint)',
   !!printJob && printJob.kind === 'packing_list' && String(printJob.shipment) === String(shipmentName), JSON.stringify(printJob))
 const wallConn2 = (await wall.locator('[data-testid=wall-connection]').innerText().catch(() => '')).replace(/\s+/g, ' ').trim()
 record('the wall upgrades to the LIVE realtime transport', /live/i.test(wallConn2), `"${wallConn}" at first paint → "${wallConn2}" once the card landed`)
@@ -819,7 +819,7 @@ log('\n=== 6. Dashboard ===================================================')
 const dashCtx = await loggedCtx(HQ_USER, { viewport: { width: 1920, height: 1080 } })
 const dash = await dashCtx.newPage()
 wireConsole(dash, 'dashboard')
-await dash.goto('/maison-dashboard', { waitUntil: 'domcontentloaded' })
+await dash.goto('/awanz-dashboard', { waitUntil: 'domcontentloaded' })
 await dash.waitForSelector('[data-testid="live-cards"] .bcard', { timeout: 60000 })
 await dash.waitForFunction(() => document.querySelector('.top .live')?.textContent?.includes('Live'), null, { timeout: 45000 }).catch(() => {})
 await dash.waitForTimeout(1200)
@@ -922,10 +922,10 @@ await shopPage.goto('/shop', { waitUntil: 'domcontentloaded' })
 await shopPage.waitForTimeout(2500)
 const shopText = (await shopPage.locator('body').innerText()).replace(/\s+/g, ' ')
 const shopHtml = await shopPage.content()
-const strayMaison = (shopHtml.replace(/\/assets\/maison_pos[^"']*/g, '').match(/Maison/g) || []).length
+const strayAWANZ = (shopHtml.replace(/\/assets\/maison_pos[^"']*/g, '').match(/AWANZ/g) || []).length
 record('/shop renders branded CloudChaserz with the smoke-shop catalogue',
   /CLOUDCHASERZ/i.test(shopText) && /Glass & Rigs|Disposables|E-Liquid/i.test(shopText) && !/no such element|\{\{/.test(shopText),
-  `stray "Maison" strings outside asset paths: ${strayMaison} (the "Maison POS" sub-mark) · ${shopText.slice(0, 140)}`)
+  `stray "AWANZ" strings outside asset paths: ${strayAWANZ} (the "AWANZ" sub-mark) · ${shopText.slice(0, 140)}`)
 await shot(shopPage, 'shop-1440', true)
 
 const rewardsPage = await webCtx.newPage()
@@ -954,7 +954,7 @@ wireConsole(salon, 'salon')
 let salonSession = null
 try {
   // release anything an earlier run left paired
-  for (const s of await admin.list('Maison Salon Session', { boutique: STORE_A, status: 'Paired' }, ['name'], 20)) {
+  for (const s of await admin.list('AWANZ Salon Session', { boutique: STORE_A, status: 'Paired' }, ['name'], 20)) {
     await admin.post('maison_pos.api.salon.unpair_pos', { session: s.name }).catch(() => null)
   }
   await salonPos.click('.topbar .nav-btn[title="Settings"]')
@@ -972,7 +972,7 @@ try {
   for (const d of code) await salon.click(`[data-testid=salon-keypad] button:text-is("${d}")`)
   await salon.waitForFunction(() => document.documentElement.dataset.salonView === 'ambient', null, { timeout: 35000 })
   await salonPos.waitForFunction(() => document.querySelector('[data-testid=salon-status]')?.textContent?.includes('Paired'), null, { timeout: 25000 })
-  salonSession = (await admin.list('Maison Salon Session', { boutique: STORE_A, status: 'Paired' }, ['name'], 5))[0]?.name
+  salonSession = (await admin.list('AWANZ Salon Session', { boutique: STORE_A, status: 'Paired' }, ['name'], 5))[0]?.name
   record('/salon pairs with the POS from the pairing code', !!salonSession, `code ${code} → session ${salonSession}`)
   await shot(salon, 'salon-ambient-1024')
 
@@ -1002,7 +1002,7 @@ try {
     `focus="${focusName}" salon $${salonTotal} vs POS $${posTotal}`)
   await shot(salon, 'salon-basket-mirror-1024')
   const salonClock = (await salon.locator('[data-testid=salon-clock]').innerText().catch(() => '')).trim()
-  const serverNow = String((await admin.list('Maison Age Check', {}, ['ts'], 1))[0]?.ts || '')
+  const serverNow = String((await admin.list('AWANZ Age Check', {}, ['ts'], 1))[0]?.ts || '')
   note('the Salon (and dashboard) clock is browser-local, not store-local',
     `Salon shows "${salonClock}" while the site clock is ${serverNow} — the greeting ("Good morning/evening") is derived from it, so a client display in a different timezone to the browser greets the wrong part of the day. Same class as the v0.1 dashboard-clock observation.`)
 } catch (e) {
@@ -1016,7 +1016,7 @@ await salonPos.waitForTimeout(800)
 const basketLeft = await salonPos.locator('.basket .line').count().catch(() => 0)
 if (salonSession) await admin.post('maison_pos.api.salon.unpair_pos', { session: salonSession }).catch(() => null)
 record('cleanup: the demo POS basket is empty and the Salon is unpaired',
-  basketLeft === 0 && !(await admin.list('Maison Salon Session', { boutique: STORE_A, status: 'Paired' }, ['name'], 5)).length,
+  basketLeft === 0 && !(await admin.list('AWANZ Salon Session', { boutique: STORE_A, status: 'Paired' }, ['name'], 5)).length,
   `basket lines=${basketLeft}`)
 await salonCtx.close()
 await salonPosCtx.close()

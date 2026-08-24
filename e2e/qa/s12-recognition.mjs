@@ -14,17 +14,17 @@ const vec = (seed) => Array.from({ length: 128 }, (_, i) => Math.sin(seed * 7.13
 const far = (base) => base.map((x) => x + 0.1)
 
 // ---------- 1. it ships OFF
-const set = await admin.doc('Maison POS Settings')
-const storeOverrideBefore = (await admin.value('Maison Boutique', L.STORE, ['face_recognition_enabled'])).face_recognition_enabled || 'Inherit'
+const set = await admin.doc('AWANZ POS Settings')
+const storeOverrideBefore = (await admin.value('AWANZ Store', L.STORE, ['face_recognition_enabled'])).face_recognition_enabled || 'Inherit'
 record('C · client recognition is OFF globally (as shipped)', !Number(set.face_recognition_enabled),
-  `Maison POS Settings.face_recognition_enabled=${set.face_recognition_enabled}; consent_text_version=${set.consent_text_version}; model=${set.recognition_model}; threshold=${set.match_distance_threshold}`)
-const overrides = await admin.list('Maison Boutique', {}, ['name', 'face_recognition_enabled'], 20)
+  `AWANZ POS Settings.face_recognition_enabled=${set.face_recognition_enabled}; consent_text_version=${set.consent_text_version}; model=${set.recognition_model}; threshold=${set.match_distance_threshold}`)
+const overrides = await admin.list('AWANZ Store', {}, ['name', 'face_recognition_enabled'], 20)
 record('C · no store overrides recognition on', overrides.every((b) => !b.face_recognition_enabled || b.face_recognition_enabled === 'Inherit'), JSON.stringify(overrides.map((b) => [b.name, b.face_recognition_enabled || 'Inherit'])))
 const boot = await assoc.get('maison_pos.api.catalog.bootstrap', { boutique: L.STORE })
 record('C · the POS bootstrap reports recognition disabled for this store', !Number(boot.settings.face_recognition_enabled) && !Number(boot.settings.face_recognition_global),
   `face_recognition_enabled=${boot.settings.face_recognition_enabled} global=${boot.settings.face_recognition_global}`)
 const consented = await admin.list('Customer', { maison_face_consent: 1 }, ['name'], 20)
-const templates = await admin.list('Maison Face Template', {}, ['name'], 20).catch(() => [])
+const templates = await admin.list('AWANZ Face Template', {}, ['name'], 20).catch(() => [])
 record('C · no client is enrolled and no face template exists', consented.length === 0 && templates.length === 0, `consented=${consented.length} templates=${templates.length}`)
 // off → the API refuses
 const offEnroll = await assoc.rawPost('maison_pos.api.recognition.enroll', {
@@ -38,8 +38,8 @@ const created0 = await admin.list('Customer', { customer_name: `QA4 Recog ${TAG}
 record('C · a refused enrolment creates nothing', created0.length === 0, `${created0.length} customers created`)
 
 // ---------- 2. enable for THIS STORE ONLY (store override, never the global switch)
-await admin.post('frappe.client.set_value', { doctype: 'Maison Boutique', name: L.STORE, fieldname: 'face_recognition_enabled', value: 'On' })
-const after = await admin.value('Maison POS Settings', 'Maison POS Settings', ['face_recognition_enabled'])
+await admin.post('frappe.client.set_value', { doctype: 'AWANZ Store', name: L.STORE, fieldname: 'face_recognition_enabled', value: 'On' })
+const after = await admin.value('AWANZ POS Settings', 'AWANZ POS Settings', ['face_recognition_enabled'])
 record('C · enabling the store override leaves the global switch off', !Number(after.face_recognition_enabled),
   `global=${after.face_recognition_enabled}, ${L.STORE} override=On (restored to ${storeOverrideBefore} at the end)`)
 try {
@@ -64,7 +64,7 @@ try {
   })
   record('C · only the recorded consent methods are accepted', badMethod.status !== 200, `${badMethod.status} ${String(badMethod.body?.exception || '').slice(0, 120)}`)
   record('C · none of the refused attempts created a client or a template',
-    (await admin.list('Customer', { customer_name: `QA4 Recog ${TAG}` }, ['name'], 5)).length === 0 && (await admin.list('Maison Face Template', {}, ['name'], 5).catch(() => [])).length === 0)
+    (await admin.list('Customer', { customer_name: `QA4 Recog ${TAG}` }, ['name'], 5)).length === 0 && (await admin.list('AWANZ Face Template', {}, ['name'], 5).catch(() => [])).length === 0)
 
   // a consented enrolment
   const ok = await assoc.post('maison_pos.api.recognition.enroll', {
@@ -74,10 +74,10 @@ try {
   })
   created.customers.push(ok.customer); created.consents.push(ok.consent)
   record('C · a consented enrolment stores the consent and the templates', ok.template_count === 3 && !!ok.consent, JSON.stringify({ customer: ok.customer, consent: ok.consent, templates: ok.template_count, created: ok.created }))
-  const consentDoc = await admin.doc('Maison Biometric Consent', ok.consent)
+  const consentDoc = await admin.doc('AWANZ Biometric Consent', ok.consent)
   record('C · the consent record snapshots the wording, method, store and device', consentDoc.status === 'Active' && consentDoc.method === 'Hold-to-agree' && consentDoc.boutique === L.STORE && !!consentDoc.consent_text,
     `${consentDoc.status} ${consentDoc.method} v${consentDoc.consent_text_version} @${consentDoc.boutique} device=${consentDoc.device_id} ip=${consentDoc.ip ? 'set' : 'none'}`)
-  const tpls = await admin.list('Maison Face Template', { parent: ok.customer }, ['name'], 10, 'creation asc').catch(() => [])
+  const tpls = await admin.list('AWANZ Face Template', { parent: ok.customer }, ['name'], 10, 'creation asc').catch(() => [])
   const tplDoc = await admin.doc('Customer', ok.customer)
   const tplRows = tplDoc.maison_face_templates || []
   record('C · templates are vectors only — no image is stored', tplRows.length === 3 && tplRows.every((t) => !!t.embedding && !t.image && !t.photo),
@@ -98,14 +98,14 @@ try {
   const dTpl = await admin.doc('Customer', declined.customer)
   record('C · "No thanks" still creates the client but stores no biometrics', !Number(dCust.maison_face_consent) && (dTpl.maison_face_templates || []).length === 0,
     `customer=${declined.customer} consent=${dCust.maison_face_consent} templates=${(dTpl.maison_face_templates || []).length}`)
-  const ev = await admin.list('Maison Recognition Event', { customer: declined.customer }, ['name', 'outcome'], 5).catch(() => [])
+  const ev = await admin.list('AWANZ Recognition Event', { customer: declined.customer }, ['name', 'outcome'], 5).catch(() => [])
   record('C · the decline is logged as an event', ev.some((e) => e.outcome === 'Declined'), JSON.stringify(ev))
 
   // revoke
   const rev = await mgr.post('maison_pos.api.recognition.revoke', { customer: ok.customer, reason: `QA4 ${TAG} cleanup`, boutique: L.STORE, device_id: `QA4-${TAG}` })
   const afterRev = await admin.doc('Customer', ok.customer)
-  const consentAfter = await admin.value('Maison Biometric Consent', ok.consent, ['status', 'revoked_by', 'revoked_at', 'revoke_reason'])
-  const evR = await admin.list('Maison Recognition Event', { customer: ok.customer }, ['name', 'outcome'], 10).catch(() => [])
+  const consentAfter = await admin.value('AWANZ Biometric Consent', ok.consent, ['status', 'revoked_by', 'revoked_at', 'revoke_reason'])
+  const evR = await admin.list('AWANZ Recognition Event', { customer: ok.customer }, ['name', 'outcome'], 10).catch(() => [])
   record('C · a manager can revoke: templates purged, consent Revoked, event logged',
     (afterRev.maison_face_templates || []).length === 0 && !Number(afterRev.maison_face_consent) && consentAfter.status === 'Revoked' && evR.some((e) => e.outcome === 'Revoked'),
     `templates=${(afterRev.maison_face_templates || []).length} consent=${consentAfter.status} by=${consentAfter.revoked_by} at=${consentAfter.revoked_at} events=${JSON.stringify(evR.map((e) => e.outcome))}`)
@@ -113,9 +113,9 @@ try {
   record('C · the revoked client is gone from the device template list', !(listAfter.templates || listAfter.rows || []).some((t) => t.customer === ok.customer), `${JSON.stringify(listAfter).slice(0, 140)}`)
 } finally {
   // ---------- 3. restore
-  await admin.post('frappe.client.set_value', { doctype: 'Maison Boutique', name: L.STORE, fieldname: 'face_recognition_enabled', value: storeOverrideBefore })
-  const back = await admin.value('Maison Boutique', L.STORE, ['face_recognition_enabled'])
-  const glob = await admin.value('Maison POS Settings', 'Maison POS Settings', ['face_recognition_enabled'])
+  await admin.post('frappe.client.set_value', { doctype: 'AWANZ Store', name: L.STORE, fieldname: 'face_recognition_enabled', value: storeOverrideBefore })
+  const back = await admin.value('AWANZ Store', L.STORE, ['face_recognition_enabled'])
+  const glob = await admin.value('AWANZ POS Settings', 'AWANZ POS Settings', ['face_recognition_enabled'])
   const still = await admin.list('Customer', { maison_face_consent: 1 }, ['name'], 10)
   record('C · the store override and the global switch are back to their original values',
     (back.face_recognition_enabled || 'Inherit') === storeOverrideBefore && !Number(glob.face_recognition_enabled) && still.length === 0,

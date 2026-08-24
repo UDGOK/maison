@@ -4,7 +4,7 @@ const HQ = 'HOU-WH - CCZ', SWH = `${STORE} - CCZ`, COMPANY = 'CloudChaserz'
 const ITEMS = [{ code: 'KRT-001', drop: 10 }, { code: 'HKA-004', drop: 11 }]
 const bin = async (item, wh) => Number((await a.list('Bin', { item_code: item, warehouse: wh }, ['actual_qty']))[0]?.actual_qty || 0)
 const alertsFor = async (item, wh, status = null) =>
-  a.list('Maison Stock Alert', { item_code: item, warehouse: wh, ...(status ? { status } : {}) }, ['name', 'status', 'qty', 'reorder_level', 'reorder_qty', 'boutique', 'first_seen', 'last_seen', 'notified'], 20, 'creation desc')
+  a.list('AWANZ Stock Alert', { item_code: item, warehouse: wh, ...(status ? { status } : {}) }, ['name', 'status', 'qty', 'reorder_level', 'reorder_qty', 'boutique', 'first_seen', 'last_seen', 'notified'], 20, 'creation desc')
 const runScan = async () => {
   const before = (await a.list('Scheduled Job Log', { scheduled_job_type: 'inventory.low_stock_scan' }, ['name'], 1, 'creation desc'))[0]?.name
   await a.post('frappe.core.doctype.scheduled_job_type.scheduled_job_type.execute_event', { doc: JSON.stringify({ name: 'inventory.low_stock_scan' }) })
@@ -56,7 +56,7 @@ record('alert qty/level match the Bin and the Item Reorder row',
 // no alert for an item that is still above its level, and none for the other store
 const above = await alertsFor('ROL-001', SWH, 'Open')
 record('no alert for an item still above its level', above.length === 0, `ROL-001 @ ${SWH}: ${above.length} open`)
-const other = await a.list('Maison Stock Alert', { item_code: ITEMS[0].code, warehouse: `${STORE2} - CCZ`, status: 'Open' }, ['name'], 10)
+const other = await a.list('AWANZ Stock Alert', { item_code: ITEMS[0].code, warehouse: `${STORE2} - CCZ`, status: 'Open' }, ['name'], 10)
 record('no alert raised on an unaffected store', other.length === 0, `${ITEMS[0].code} @ ${STORE2}: ${other.length} open`)
 
 // ---- 1.2 idempotency
@@ -69,7 +69,7 @@ record('re-running the scan creates no duplicate alert', s2 === 'Complete' && IT
 record('re-run refreshes last_seen on the existing alert', new Date(dup[ITEMS[0].code][0].last_seen) >= new Date(before2.last_seen),
   `last_seen ${before2.last_seen} -> ${dup[ITEMS[0].code][0].last_seen}`)
 record('the new alerts were flagged notified (desk bell)', dup[ITEMS[0].code][0].notified === 1, `notified=${dup[ITEMS[0].code][0].notified}`)
-const notif = await a.list('Notification Log', { document_type: 'Maison Stock Alert', document_name: dup[ITEMS[0].code][0].name }, ['name', 'for_user', 'subject'], 20)
+const notif = await a.list('Notification Log', { document_type: 'AWANZ Stock Alert', document_name: dup[ITEMS[0].code][0].name }, ['name', 'for_user', 'subject'], 20)
 record('Notification Log entries created for the store manager / head office', notif.length > 0,
   `${notif.length} logs; users=${[...new Set(notif.map(n => n.for_user))].join(', ').slice(0, 200)}; subject="${notif[0]?.subject || ''}"`)
 
@@ -85,7 +85,7 @@ const target = dup[ITEMS[0].code][0].name
 const ack = await m1.post('maison_pos.api.inventory.acknowledge', { alert: target })
 record('manager acknowledges an alert', ack.status === 'Acknowledged', JSON.stringify(ack))
 const ackDoc = (await alertsFor(ITEMS[0].code, SWH))[0]
-record('acknowledged_by / acknowledged_at recorded', !!ackDoc, JSON.stringify(await a.value('Maison Stock Alert', target, ['status', 'acknowledged_by', 'acknowledged_at'])))
+record('acknowledged_by / acknowledged_at recorded', !!ackDoc, JSON.stringify(await a.value('AWANZ Stock Alert', target, ['status', 'acknowledged_by', 'acknowledged_at'])))
 const s3 = await runScan()
 const stillAck = await alertsFor(ITEMS[0].code, SWH, 'Acknowledged')
 record('a re-scan keeps an Acknowledged alert acknowledged (no re-open, no duplicate)', stillAck.length === 1 && stillAck[0].name === target,

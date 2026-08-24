@@ -6,7 +6,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import nowdate
 
-from maison_pos.maison_pos.doctype.maison_price_change_request.maison_price_change_request import (
+from maison_pos.awanz_pos.doctype.awanz_price_change_request.awanz_price_change_request import (
 	STATE_APPROVED,
 	STATE_PENDING,
 	STATE_REJECTED,
@@ -17,7 +17,7 @@ from maison_pos.tests.helpers import ensure_demo_data
 
 def _approve(doc, action: str = "Approve"):
 	"""Drive the workflow when installed, otherwise emulate the state change."""
-	if frappe.db.exists("Workflow", "Maison Price Approval"):
+	if frappe.db.exists("Workflow", "AWANZ Price Approval"):
 		from frappe.model.workflow import apply_workflow
 
 		return apply_workflow(doc, action)
@@ -44,7 +44,7 @@ class TestPriceChangeApproval(FrappeTestCase):
 	def _request(self, item_code="AC-001", boutique="CHI-OAK", rate=2_200, **kw):
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Price Change Request",
+				"doctype": "AWANZ Price Change Request",
 				"item_code": item_code,
 				"boutique": boutique,
 				"proposed_rate": rate,
@@ -59,7 +59,7 @@ class TestPriceChangeApproval(FrappeTestCase):
 	def test_draft_captures_current_rate_and_warehouse(self):
 		doc = self._request()
 		self.assertEqual(doc.current_rate, 2_400)
-		self.assertEqual(doc.warehouse, frappe.db.get_value("Maison Boutique", "CHI-OAK", "warehouse"))
+		self.assertEqual(doc.warehouse, frappe.db.get_value("AWANZ Store", "CHI-OAK", "warehouse"))
 		self.assertEqual(doc.workflow_state, "Draft")
 
 	def test_submit_moves_to_pending(self):

@@ -22,7 +22,7 @@ walk=set(r["customer"] for r in dq.get_list("POS Profile", fields=["customer"], 
 issues=[]
 
 # ---- Daily Sales ----
-m = run("Maison Daily Sales", {"from_date":DAY,"to_date":DAY,"boutique":B})
+m = run("AWANZ Daily Sales", {"from_date":DAY,"to_date":DAY,"boutique":B})
 ds = rows(m)[0]
 print("DAILY SALES row:", json.dumps(ds, default=str))
 gross=sum(float(r["net_total"]) for r in inv if not r["is_return"])
@@ -45,7 +45,7 @@ avg = ds.get("avg_ticket"); print(f"  avg_ticket report={avg} | gross/tickets={r
 ipt = ds.get("items_per_ticket"); print(f"  items_per_ticket report={ipt} | calc={round(units/tickets,2)}")
 
 # ---- Sales by Item (today, HOU-MTR) ----
-m = run("Maison Sales by Item", {"from_date":DAY,"to_date":DAY,"boutique":B,"group_by":"Item"})
+m = run("AWANZ Sales by Item", {"from_date":DAY,"to_date":DAY,"boutique":B,"group_by":"Item"})
 si = {r["key"]: r for r in rows(m)}
 agg=defaultdict(lambda: dict(us=0.0,ur=0.0,gross=0.0,retv=0.0,net=0.0))
 for l in lines:
@@ -62,7 +62,7 @@ for code,a in agg.items():
 print(f"\nSALES BY ITEM: {len(si)} report rows vs {len(agg)} recomputed items — {bad} field mismatches")
 
 # ---- Sales by Associate ----
-m = run("Maison Sales by Associate", {"from_date":DAY,"to_date":DAY,"boutique":B})
+m = run("AWANZ Sales by Associate", {"from_date":DAY,"to_date":DAY,"boutique":B})
 sa = {r.get("associate"): r for r in rows(m)}
 A=defaultdict(lambda: dict(net=0.0,tickets=0,rets=0,wc=0))
 for r in inv:
@@ -80,7 +80,7 @@ for k,v in A.items():
         if int(r.get("tickets",0))!=v["tickets"]: issues.append(f"SalesByAssociate {k}.tickets: {r.get('tickets')} vs {v['tickets']}")
 
 # ---- Hourly heatmap ----
-m = run("Maison Hourly Sales Heatmap", {"from_date":DAY,"to_date":DAY,"boutique":B})
+m = run("AWANZ Hourly Sales Heatmap", {"from_date":DAY,"to_date":DAY,"boutique":B})
 hm = rows(m)
 H=defaultdict(float)
 for r in inv: H[int(str(r["posting_time"]).split(":")[0])] += float(r["grand_total"])
@@ -88,13 +88,13 @@ print(f"\nHOURLY HEATMAP: {len(hm)} rows; sample={json.dumps(hm[0], default=str)
 print("  calc by hour (grand_total):", {k:round(v,2) for k,v in sorted(H.items())})
 
 # ---- Returns ----
-m = run("Maison Returns", {"from_date":DAY,"to_date":DAY,"boutique":B})
+m = run("AWANZ Returns", {"from_date":DAY,"to_date":DAY,"boutique":B})
 rr = rows(m)
 print(f"\nRETURNS: {len(rr)} rows; total value={round(sum(float(x.get('returns_value',x.get('value',0)) or 0) for x in rr),2)} | calc returns count={rets} value={round(retv,2)}")
 for x in rr: print("   ", json.dumps(x, default=str)[:200])
 
 # ---- Client Purchases RFM ----
-m = run("Maison Client Purchases", {"from_date":"2026-05-22","to_date":DAY,"boutique":B})
+m = run("AWANZ Client Purchases", {"from_date":"2026-05-22","to_date":DAY,"boutique":B})
 cp = rows(m)
 print(f"\nCLIENT PURCHASES: {len(cp)} rows; first={json.dumps(cp[0], default=str)[:300] if cp else None}")
 if cp:
@@ -102,4 +102,4 @@ if cp:
     ci = dq.get_list("Sales Invoice", filters={"docstatus":1,"is_pos":1,"customer":c0.get("customer"),"maison_boutique":B,"posting_date":("between",["2026-05-22",DAY])}, fields=["name","grand_total","net_total","posting_date","is_return"], limit=200)
     print(f"   recompute for {c0.get('customer')}: invoices={len([x for x in ci if not x['is_return']])} net_total_sum={round(sum(float(x['net_total']) for x in ci),2)} grand_sum={round(sum(float(x['grand_total']) for x in ci),2)} last={max(str(x['posting_date']) for x in ci)}")
 print(f"\n{len(issues)} discrepancies"); [print('  !',i) for i in issues[:25]]
-json.dump({"issues":issues}, open("/home/claude/maison/e2e/qa/results-d9.json","w"), indent=1, default=str)
+json.dump({"issues":issues}, open("/home/claude/awanz/e2e/qa/results-d9.json","w"), indent=1, default=str)

@@ -3,8 +3,8 @@
  * against fake-indexeddb and a stubbed API.
  */
 import { humanizeServerMessage, isSessionExpired, SESSION_EXPIRED_MESSAGE } from '@/utils/text'
-import type { MaisonDB, QueueRow, ReceiptSnapshot } from '@/db'
-import { ApiError, type MaisonApi, type POSInvoice, type SubmitResult } from '@/api/types'
+import type { AwanzDB, QueueRow, ReceiptSnapshot } from '@/db'
+import { ApiError, type AwanzApi, type POSInvoice, type SubmitResult } from '@/api/types'
 
 export const BACKOFF_BASE_MS = 2000
 export const BACKOFF_MAX_MS = 5 * 60 * 1000
@@ -30,8 +30,8 @@ export interface ReplayOutcome {
 export class QueueReplayer {
   private running = false
   constructor(
-    private db: MaisonDB,
-    private api: MaisonApi,
+    private db: AwanzDB,
+    private api: AwanzApi,
     private now: () => number = () => Date.now(),
     private batchSize = 10
   ) {}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D3 — recompute Maison Product Trend rows (7d) from Sales Invoice Item + Bin and compare to product_trends()."""
+"""D3 — recompute AWANZ Product Trend rows (7d) from Sales Invoice Item + Bin and compare to product_trends()."""
 import json, time
 from collections import defaultdict
 from datetime import date, timedelta
@@ -39,7 +39,7 @@ for L in lines:
     A["u112"] += q
 
 # stock
-whs = {b["name"]: b["warehouse"] for b in dq.get_list("Maison Boutique", fields=["name","warehouse","enabled"], limit=50)}
+whs = {b["name"]: b["warehouse"] for b in dq.get_list("AWANZ Store", fields=["name","warehouse","enabled"], limit=50)}
 by_wh = {v:k for k,v in whs.items() if v}
 bins = dq.get_list("Bin", filters={"warehouse":("in",list(by_wh))}, fields=["item_code","warehouse","actual_qty"], limit=20000)
 stock = {}
@@ -104,4 +104,4 @@ print("\nsample (top 5 by API order):")
 for r in pt["rows"][:5]:
     print(f"  {r['item_code']:10} {r['item_name'][:34]:34} u={r['units']:6} prev={r['units_prev']:6} d%={r['delta_pct']} badge={r['badge']:12} onhand={r['on_hand']:7} ST={r['sell_through']} DOH={r['days_on_hand']} stores={r['store_count']}")
 json.dump({"issues":issues,"t_ms":t_pt*1000,"total":pt["total"],"computed_at":pt["computed_at"],"last_run":pt.get("last_run")},
-          open("/home/claude/maison/e2e/qa/results-d3.json","w"), indent=1, default=str)
+          open("/home/claude/awanz/e2e/qa/results-d3.json","w"), indent=1, default=str)

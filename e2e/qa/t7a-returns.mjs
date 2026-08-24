@@ -80,10 +80,10 @@ try {
   await shot(page, 'returns-done-card')
 
   // ---- 7.11 return receipt prints
-  await page.evaluate(() => { window.__maisonLastReaderPrint = undefined })
+  await page.evaluate(() => { window.__awanzLastReaderPrint = undefined })
   await page.click('button:has-text("Print return receipt")')
   await page.waitForTimeout(4000)
-  const png = await page.evaluate(() => window.__maisonLastReaderPrint || null)
+  const png = await page.evaluate(() => window.__awanzLastReaderPrint || null)
   const printedMsg = (await page.locator('.summary').innerText()).replace(/\s+/g, ' ')
   record('7.11 the return receipt prints', !!png || /Printed|print dialog/i.test(printedMsg), `reader PNG=${png ? png.length : 0}; "${printedMsg.slice(0, 160)}"`)
   await shot(page, 'returns-printed')

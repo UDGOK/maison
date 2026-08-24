@@ -33,7 +33,7 @@ READERS: list[dict[str, Any]] = [
 
 def ensure_reorder_levels() -> int:
 	n = 0
-	warehouses = [(b.name, b.warehouse) for b in frappe.get_all("Maison Boutique", fields=["name", "warehouse"])]
+	warehouses = [(b.name, b.warehouse) for b in frappe.get_all("AWANZ Store", fields=["name", "warehouse"])]
 	for code, (level, qty) in REORDER_LEVELS.items():
 		if not frappe.db.exists("Item", code):
 			continue
@@ -60,8 +60,8 @@ def ensure_reorder_levels() -> int:
 
 def ensure_readers() -> int:
 	n = 0
-	for b in frappe.get_all("Maison Boutique", pluck="name"):
-		doc = frappe.get_doc("Maison Boutique", b)
+	for b in frappe.get_all("AWANZ Store", pluck="name"):
+		doc = frappe.get_doc("AWANZ Store", b)
 		if doc.get("readers"):
 			continue
 		for i, spec in enumerate(READERS, start=1):
@@ -75,16 +75,16 @@ def ensure_readers() -> int:
 def ensure_sample_alerts() -> list[str]:
 	created = []
 	for code, boutique in SAMPLE_ALERTS:
-		wh = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+		wh = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 		if not wh or not frappe.db.exists("Item", code):
 			continue
-		if frappe.db.exists("Maison Stock Alert", {"item_code": code, "warehouse": wh, "status": ("in", ("Open", "Acknowledged"))}):
+		if frappe.db.exists("AWANZ Stock Alert", {"item_code": code, "warehouse": wh, "status": ("in", ("Open", "Acknowledged"))}):
 			continue
 		level = frappe.db.get_value("Item Reorder", {"parent": code, "warehouse": wh}, ["warehouse_reorder_level", "warehouse_reorder_qty"], as_dict=True) or {}
 		qty = flt(frappe.db.get_value("Bin", {"item_code": code, "warehouse": wh}, "actual_qty"))
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Stock Alert",
+				"doctype": "AWANZ Stock Alert",
 				"item_code": code,
 				"warehouse": wh,
 				"boutique": boutique,
@@ -105,9 +105,9 @@ def ensure_sample_alerts() -> list[str]:
 def seed_inventory_v04() -> dict[str, Any]:
 	from maison_pos.api.returns import ensure_exchange_mode_of_payment
 
-	for company in {r.company for r in frappe.get_all("Maison Boutique", fields=["company"]) if r.company}:
+	for company in {r.company for r in frappe.get_all("AWANZ Store", fields=["company"]) if r.company}:
 		ensure_exchange_mode_of_payment(company)
-	damaged = [ensure_damaged_warehouse(b) for b in frappe.get_all("Maison Boutique", pluck="name")]
+	damaged = [ensure_damaged_warehouse(b) for b in frappe.get_all("AWANZ Store", pluck="name")]
 	levels = ensure_reorder_levels()
 	readers = ensure_readers()
 	alerts = ensure_sample_alerts()

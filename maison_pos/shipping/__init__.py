@@ -1,7 +1,7 @@
 """Warehouse & shipping helpers (v0.6 P): main warehouse, in-transit warehouses, addresses, provider.
 
-Feature detection: the v0.6 N seed marks the head-office warehouse with ``Maison Boutique.is_warehouse``
-and ``Maison POS Settings.main_warehouse`` / ``head_office_boutique``; on an older seed neither field
+Feature detection: the v0.6 N seed marks the head-office warehouse with ``AWANZ Store.is_warehouse``
+and ``AWANZ POS Settings.main_warehouse`` / ``head_office_boutique``; on an older seed neither field
 exists and the first enabled boutique's warehouse acts as the source.
 """
 
@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-WAREHOUSE_ADMIN_ROLE = "Maison Warehouse Admin"
+WAREHOUSE_ADMIN_ROLE = "AWANZ Warehouse Admin"
 SETTINGS_FIELDS = {
 	"shipping_provider": "Simulated",
 	"ship_from_name": "CloudChaserz Main Warehouse",
@@ -45,7 +45,7 @@ def settings() -> dict[str, Any]:
 	"""Shipping-related settings with defaults for fields that do not exist yet."""
 	stored: dict[str, Any] = {}
 	try:
-		stored = frappe.db.get_singles_dict("Maison POS Settings") or {}
+		stored = frappe.db.get_singles_dict("AWANZ POS Settings") or {}
 	except Exception:
 		stored = {}
 	out = dict(SETTINGS_FIELDS)
@@ -59,14 +59,14 @@ def settings() -> dict[str, Any]:
 
 
 def warehouse_boutique() -> Optional[str]:
-	"""The ``Maison Boutique`` row that represents the main warehouse (``is_warehouse=1``), if any."""
-	if _meta_has("Maison Boutique", "is_warehouse"):
-		name = frappe.db.get_value("Maison Boutique", {"is_warehouse": 1, "enabled": 1}, "name")
+	"""The ``AWANZ Store`` row that represents the main warehouse (``is_warehouse=1``), if any."""
+	if _meta_has("AWANZ Store", "is_warehouse"):
+		name = frappe.db.get_value("AWANZ Store", {"is_warehouse": 1, "enabled": 1}, "name")
 		if name:
 			return name
-	if _meta_has("Maison POS Settings", "head_office_boutique"):
-		name = frappe.db.get_single_value("Maison POS Settings", "head_office_boutique")
-		if name and frappe.db.exists("Maison Boutique", name):
+	if _meta_has("AWANZ POS Settings", "head_office_boutique"):
+		name = frappe.db.get_single_value("AWANZ POS Settings", "head_office_boutique")
+		if name and frappe.db.exists("AWANZ Store", name):
 			return name
 	return None
 
@@ -86,41 +86,41 @@ def get_main_warehouse(exclude: Optional[str] = None, company: Optional[str] = N
 			return False
 		return not company or frappe.db.get_value("Warehouse", wh, "company") == company
 
-	if _meta_has("Maison POS Settings", "main_warehouse"):
-		wh = frappe.db.get_single_value("Maison POS Settings", "main_warehouse")
+	if _meta_has("AWANZ POS Settings", "main_warehouse"):
+		wh = frappe.db.get_single_value("AWANZ POS Settings", "main_warehouse")
 		if ok(wh):
 			return wh
 	wb = warehouse_boutique()
 	if wb:
-		wh = frappe.db.get_value("Maison Boutique", wb, "warehouse")
+		wh = frappe.db.get_value("AWANZ Store", wb, "warehouse")
 		if ok(wh):
 			return wh
 	filters: dict[str, Any] = {"enabled": 1}
 	if company:
 		filters["company"] = company
-	for wh in frappe.get_all("Maison Boutique", filters=filters, pluck="warehouse", order_by="name"):
+	for wh in frappe.get_all("AWANZ Store", filters=filters, pluck="warehouse", order_by="name"):
 		if ok(wh):
 			return wh
-	frappe.throw(_("No main warehouse configured (Maison POS Settings → main_warehouse)"), frappe.ValidationError)
+	frappe.throw(_("No main warehouse configured (AWANZ POS Settings → main_warehouse)"), frappe.ValidationError)
 
 
 def is_warehouse_boutique(boutique: str) -> bool:
-	if not boutique or not _meta_has("Maison Boutique", "is_warehouse"):
+	if not boutique or not _meta_has("AWANZ Store", "is_warehouse"):
 		return False
-	return bool(cint(frappe.db.get_value("Maison Boutique", boutique, "is_warehouse")))
+	return bool(cint(frappe.db.get_value("AWANZ Store", boutique, "is_warehouse")))
 
 
 def store_boutiques() -> list[str]:
 	"""Enabled boutiques that are stores (the warehouse row excluded when the field exists)."""
 	filters: dict[str, Any] = {"enabled": 1}
-	if _meta_has("Maison Boutique", "is_warehouse"):
+	if _meta_has("AWANZ Store", "is_warehouse"):
 		filters["is_warehouse"] = 0
-	return frappe.get_all("Maison Boutique", filters=filters, pluck="name", order_by="name")
+	return frappe.get_all("AWANZ Store", filters=filters, pluck="name", order_by="name")
 
 
 def ensure_transit_warehouse(boutique: str) -> str:
 	"""``<code> In Transit - <abbr>`` (Warehouse Type *Transit*), created on demand and remembered on the boutique."""
-	b = frappe.db.get_value("Maison Boutique", boutique, ["name", "company", "warehouse", "transit_warehouse"], as_dict=True)
+	b = frappe.db.get_value("AWANZ Store", boutique, ["name", "company", "warehouse", "transit_warehouse"], as_dict=True)
 	if not b:
 		frappe.throw(_("Boutique {0} does not exist").format(boutique), frappe.DoesNotExistError)
 	if b.get("transit_warehouse") and frappe.db.exists("Warehouse", b.transit_warehouse):
@@ -141,9 +141,9 @@ def ensure_transit_warehouse(boutique: str) -> str:
 		doc.flags.ignore_permissions = True
 		doc.insert()
 		name = doc.name
-	if _meta_has("Maison Boutique", "transit_warehouse"):
-		frappe.db.set_value("Maison Boutique", boutique, "transit_warehouse", name, update_modified=False)
-		frappe.clear_document_cache("Maison Boutique", boutique)
+	if _meta_has("AWANZ Store", "transit_warehouse"):
+		frappe.db.set_value("AWANZ Store", boutique, "transit_warehouse", name, update_modified=False)
+		frappe.clear_document_cache("AWANZ Store", boutique)
 	grant_transit_permissions(boutique, name)
 	return name
 
@@ -151,7 +151,7 @@ def ensure_transit_warehouse(boutique: str) -> str:
 def grant_transit_permissions(boutique: str, transit: str) -> int:
 	"""The in-transit warehouse belongs to the store: every user with a Warehouse User Permission on the
 	store warehouse also gets one on ``<store> In Transit`` (so the receipt Stock Entry is readable in the desk)."""
-	store_wh = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+	store_wh = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 	if not store_wh:
 		return 0
 	users = frappe.get_all("User Permission", filters={"allow": "Warehouse", "for_value": store_wh}, pluck="user")
@@ -182,8 +182,8 @@ def ship_from_address() -> dict[str, Any]:
 
 
 def ship_to_address(boutique: str) -> dict[str, Any]:
-	"""Store address from Maison Boutique (v0.6 ship-to fields with fallbacks to the v0.1 address line / city)."""
-	doc = frappe.get_cached_doc("Maison Boutique", boutique)
+	"""Store address from AWANZ Store (v0.6 ship-to fields with fallbacks to the v0.1 address line / city)."""
+	doc = frappe.get_cached_doc("AWANZ Store", boutique)
 	city = doc.get("city") or ""
 	state = doc.get("ship_state") or doc.get("state") or ""
 	postal = doc.get("ship_postal_code") or doc.get("postal_code") or doc.get("zip") or doc.get("pincode") or ""

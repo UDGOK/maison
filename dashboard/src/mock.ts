@@ -179,14 +179,14 @@ export function mockLowStock(): LiveSummary['low_stock'] {
 
 export function mockReports(): ReportLink[] {
   const rows: [string, string, string][] = [
-    ['Maison Sales Tax Summary', 'Tax', 'Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings.'],
-    ['Maison Daily Sales', 'Sales', 'Per boutique per day: gross, discounts, returns, net, tax, cash, card, tickets, avg ticket, items/ticket.'],
-    ['Maison Sales by Item', 'Sales', 'By item, item group or department; returns netted.'],
-    ['Maison Sales by Associate', 'Sales', 'Tickets, net sales, avg ticket, clients attached per associate.'],
-    ['Maison Hourly Sales Heatmap', 'Sales', 'Weekday × hour net sales per boutique.'],
-    ['Maison Client Purchases', 'Clients', 'RFM per client: recency, frequency, monetary, tier, lifetime.'],
-    ['Maison Serial Ledger', 'Inventory', 'Every serial: received → sold / returned / transferred, current location.'],
-    ['Maison Returns', 'Returns', 'Credit notes by reason / boutique / associate, or line detail.'],
+    ['AWANZ Sales Tax Summary', 'Tax', 'Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings.'],
+    ['AWANZ Daily Sales', 'Sales', 'Per boutique per day: gross, discounts, returns, net, tax, cash, card, tickets, avg ticket, items/ticket.'],
+    ['AWANZ Sales by Item', 'Sales', 'By item, item group or department; returns netted.'],
+    ['AWANZ Sales by Associate', 'Sales', 'Tickets, net sales, avg ticket, clients attached per associate.'],
+    ['AWANZ Hourly Sales Heatmap', 'Sales', 'Weekday × hour net sales per boutique.'],
+    ['AWANZ Client Purchases', 'Clients', 'RFM per client: recency, frequency, monetary, tier, lifetime.'],
+    ['AWANZ Serial Ledger', 'Inventory', 'Every serial: received → sold / returned / transferred, current location.'],
+    ['AWANZ Returns', 'Returns', 'Credit notes by reason / boutique / associate, or line detail.'],
   ]
   return rows.map(([name, group, description]) => ({ name, group, description, installed: true, url: `/app/query-report/${encodeURIComponent(name)}`, csv: `/api/method/maison_pos.api.reports.export?report=${encodeURIComponent(name)}` }))
 }

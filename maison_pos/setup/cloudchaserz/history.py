@@ -8,7 +8,7 @@ Plan (deterministic, ``random.Random(HISTORY_SEED)``): ~6,000 POS invoices over 
 the 11 stores (traffic per ``stores.STORE_WEIGHT``, weekday + seasonal curve, each store's own
 opening hours), 1–4 units per ticket, average ticket $25–80, ~55 % member sales with repeat
 visits per client cadence, Cash / Card mix, a few returns in the last 35 days. Age checks are
-skipped for history (``frappe.flags.in_history_seed``) — a masked ``Maison Age Check`` row is
+skipped for history (``frappe.flags.in_history_seed``) — a masked ``AWANZ Age Check`` row is
 written for a sample of restricted-item tickets instead so the log looks lived in.
 
 Posting reuses ``demo_history`` (chunked commits, transient-error retries, resumable marker);
@@ -35,7 +35,7 @@ from maison_pos.setup.cloudchaserz import stores
 
 HISTORY_SEED = 20260823
 TARGET_INVOICES = 6000  # for 6 months; scaled with `months`
-MARKER_KEY = "maison_history_seed_cloudchaserz"
+MARKER_KEY = "awanz_history_seed_cloudchaserz"
 UUID_PREFIX = f"hist-cc{HISTORY_SEED}-"
 STOCK_REMARK = "CloudChaserz demo history stock"
 RETURN_SHARE = 0.012
@@ -304,9 +304,9 @@ def ensure_history_clients(clients: list[dict[str, Any]]) -> int:
 
 def _sample_age_checks(plan: dict[str, Any], rng: random.Random) -> int:
 	"""Masked audit rows for ~8 % of restricted-item tickets (history skips the live gate)."""
-	if not frappe.db.exists("DocType", "Maison Age Check"):
+	if not frappe.db.exists("DocType", "AWANZ Age Check"):
 		return 0
-	if frappe.db.exists("Maison Age Check", {"offline_uuid": ("like", f"{UUID_PREFIX}%")}):
+	if frappe.db.exists("AWANZ Age Check", {"offline_uuid": ("like", f"{UUID_PREFIX}%")}):
 		return 0
 	n = 0
 	for inv in plan["invoices"]:
@@ -315,7 +315,7 @@ def _sample_age_checks(plan: dict[str, Any], rng: random.Random) -> int:
 		outcome = rng.choices(["Verified", "Verified", "Verified", "Underage", "Expired"], weights=[10, 10, 10, 1, 1])[0]
 		age = rng.randint(21, 58) if outcome != "Underage" else rng.randint(17, 20)
 		si = frappe.db.get_value("Sales Invoice", {"maison_offline_uuid": inv["uuid"]}, "name")
-		frappe.get_doc({"doctype": "Maison Age Check", "boutique": inv["boutique"], "associate": frappe.db.get_value("Maison Associate", {"user": inv["associate"]}, "name"), "method": "Scan" if rng.random() < 0.8 else "Manual", "outcome": outcome, "ts": inv["ts"], "age_years": age, "dob_year_ok": 1 if age >= 21 else 0, "minimum_age": 21, "initials": rng.choice(FIRST_NAMES)[0] + rng.choice(LAST_NAMES)[0], "id_expired": 1 if outcome == "Expired" else 0, "issuer": "TX" if inv["boutique"].startswith("HOU") else "OK", "dob_year": inv["ts"].year - age, "offline_uuid": inv["uuid"], "sales_invoice": si if outcome == "Verified" else None}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Age Check", "boutique": inv["boutique"], "associate": frappe.db.get_value("AWANZ Associate", {"user": inv["associate"]}, "name"), "method": "Scan" if rng.random() < 0.8 else "Manual", "outcome": outcome, "ts": inv["ts"], "age_years": age, "dob_year_ok": 1 if age >= 21 else 0, "minimum_age": 21, "initials": rng.choice(FIRST_NAMES)[0] + rng.choice(LAST_NAMES)[0], "id_expired": 1 if outcome == "Expired" else 0, "issuer": "TX" if inv["boutique"].startswith("HOU") else "OK", "dob_year": inv["ts"].year - age, "offline_uuid": inv["uuid"], "sales_invoice": si if outcome == "Verified" else None}).insert(ignore_permissions=True)
 		n += 1
 	return n
 

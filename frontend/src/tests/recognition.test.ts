@@ -7,8 +7,8 @@ import { StabilityTracker } from '@/recognition/stability'
 import { HoldToAgree, signatureValid, strokeLength } from '@/recognition/consent'
 import { EnrolmentQueue } from '@/recognition/enrolments'
 import { TemplateCache, matchEmbedding } from '@/recognition/matcher'
-import { MaisonDB } from '@/db'
-import { ApiError, normalizeSettings, DEFAULT_SETTINGS, type MaisonApi } from '@/api/types'
+import { AwanzDB } from '@/db'
+import { ApiError, normalizeSettings, DEFAULT_SETTINGS, type AwanzApi } from '@/api/types'
 import { mockApi, __resetMock, __mockRecognition } from '@/api/mock'
 
 // ---------------------------------------------------------------------------------------------
@@ -350,9 +350,9 @@ describe('settings normalisation (v0.3 fields)', () => {
 
 let dbi = 0
 describe('enrolment queue replay', () => {
-  let db: MaisonDB
+  let db: AwanzDB
   beforeEach(() => {
-    db = new MaisonDB(`rec_${dbi++}`)
+    db = new AwanzDB(`rec_${dbi++}`)
   })
   const pending = (kind: 'enroll' | 'decline', phone: string) => ({
     kind,
@@ -382,7 +382,7 @@ describe('enrolment queue replay', () => {
           return { customer: `C-${r.phone}` }
         }
       }
-    } as unknown as MaisonApi
+    } as unknown as AwanzApi
     const q = new EnrolmentQueue(db, api)
     // the store hands over reactive proxies + Float32Array descriptors; the queue must store plain data
     const reactiveish = reactive(pending('enroll', '111'))
@@ -416,7 +416,7 @@ describe('enrolment queue replay', () => {
         },
         decline: async () => ({ customer: 'X' })
       }
-    } as unknown as MaisonApi
+    } as unknown as AwanzApi
     const q = new EnrolmentQueue(db, api)
     const row = await q.enqueue(pending('enroll', '333'))
     expect(row.offline_uuid).toMatch(/^[0-9a-f-]{36}$/)
@@ -441,7 +441,7 @@ describe('enrolment queue replay', () => {
         },
         decline: async () => ({ customer: 'ok' })
       }
-    } as unknown as MaisonApi
+    } as unknown as AwanzApi
     const q = new EnrolmentQueue(db, api)
     await q.enqueue(pending('enroll', 'bad'))
     await q.enqueue(pending('enroll', 'good'))
@@ -453,9 +453,9 @@ describe('enrolment queue replay', () => {
 })
 
 describe('template cache + matcher', () => {
-  let db: MaisonDB
+  let db: AwanzDB
   beforeEach(() => {
-    db = new MaisonDB(`rec_${dbi++}`)
+    db = new AwanzDB(`rec_${dbi++}`)
   })
 
   it('applies snapshots (full + delta with deletions) and matches locally when offline', async () => {
@@ -464,7 +464,7 @@ describe('template cache + matcher', () => {
     expect(await cache.count()).toBe(3)
     await cache.apply({ templates: [], deleted: ['B'] }, false)
     expect(await cache.count()).toBe(2)
-    const api = { recognition: { match: async () => { throw new Error('should not be called offline') } } } as unknown as MaisonApi
+    const api = { recognition: { match: async () => { throw new Error('should not be called offline') } } } as unknown as AwanzApi
     const out = await matchEmbedding({ db, api, online: () => false }, jitter(vec(1), 5), 'm', 'CHI-OAK', 0.6)
     expect(out.match?.customer).toBe('A')
     expect(out.source).toBe('local')
@@ -486,7 +486,7 @@ describe('template cache + matcher', () => {
           threshold: serverThreshold
         })
       }
-    } as unknown as MaisonApi
+    } as unknown as AwanzApi
     let out = await matchEmbedding({ db, api, online: () => true }, jitter(vec(1), 1, 0.3), 'm', 'CHI-OAK', 0.6)
     expect(out.match?.customer).toBe('Z')
     expect(out.source).toBe('server')
@@ -511,7 +511,7 @@ describe('template cache + matcher', () => {
     expect(out.match).toBeNull()
     expect(out.threshold).toBe(0.4)
     // server rows without a distance are ignored (never trust a bare score)
-    const legacy = { recognition: { match: async () => ({ matches: [{ customer: 'Z', customer_name: 'Zed', score: 0.99 }], threshold: 0.6 }) } } as unknown as MaisonApi
+    const legacy = { recognition: { match: async () => ({ matches: [{ customer: 'Z', customer_name: 'Zed', score: 0.99 }], threshold: 0.6 }) } } as unknown as AwanzApi
     out = await matchEmbedding({ db, api: legacy, online: () => true }, vec(77), 'm', 'CHI-OAK', 0.6)
     expect(out.match).toBeNull()
   })

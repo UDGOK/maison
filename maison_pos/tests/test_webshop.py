@@ -33,7 +33,7 @@ class TestWebshop(FrappeTestCase):
 		# timepiece the tests rely on into Oak Street (rolled back with the class transaction)
 		from maison_pos.setup.demo import _stock_entry_doc
 
-		warehouse = frappe.db.get_value("Maison Boutique", "CHI-OAK", "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", "CHI-OAK", "warehouse")
 		rows = []
 		for code in ("TP-001", "TP-002"):
 			serial = f"{code}-CHI-T{frappe.generate_hash(length=4).upper()}"
@@ -94,7 +94,7 @@ class TestWebshop(FrappeTestCase):
 		frappe.set_user("Guest")
 		out = enquire("HJ-001", "Test Guest", email="guest.test@example.com", phone=None, message="Viewing?", boutique="CHI-OAK")
 		frappe.set_user("Administrator")
-		doc = frappe.get_doc("Maison Web Enquiry", out["enquiry"])
+		doc = frappe.get_doc("AWANZ Web Enquiry", out["enquiry"])
 		self.assertEqual(doc.boutique, "CHI-OAK")
 		self.assertEqual(doc.status, "New")
 		self.assertEqual(doc.item_name, "Cascade Diamond Riviere Necklace")
@@ -144,7 +144,7 @@ class TestWebshop(FrappeTestCase):
 		self.assertEqual(so.maison_web_status, "New")
 		self.assertEqual(so.customer, WEB_CUSTOMER)
 		self.assertEqual(so.order_type, "Sales")
-		chi_wh = frappe.db.get_value("Maison Boutique", "CHI-OAK", "warehouse")
+		chi_wh = frappe.db.get_value("AWANZ Store", "CHI-OAK", "warehouse")
 		self.assertTrue(all(i.warehouse == chi_wh for i in so.items))
 		self.assertGreater(so.total_taxes_and_charges, 0)  # Illinois tax of the boutique of collection
 		# in the Oak Street queue, not in the New York one

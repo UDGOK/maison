@@ -96,7 +96,7 @@ def shop_context() -> dict[str, Any]:
 		"user": user if signed_in else None,
 		"full_name": full_name or "",
 		"cart_count": cart_count,
-		"boutiques": core.boutiques() if frappe.db.exists("DocType", "Maison Boutique") else [],
+		"boutiques": core.boutiques() if frappe.db.exists("DocType", "AWANZ Store") else [],
 		"groups": frappe.get_all(
 			"Item Group", filters={"show_in_website": 1, "is_group": 0}, fields=["name", "route"], order_by="weightage desc, name asc"
 		)

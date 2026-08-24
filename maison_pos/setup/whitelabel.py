@@ -1,7 +1,7 @@
 """v0.7 — white-label: nothing in the product surface says "Frappe" or "ERPNext".
 
 The client buys a product, not a Frappe install. Everything here reads
-:mod:`maison_pos.brand` (``Maison POS Settings``) **at apply time**, so the jewellery tenant
+:mod:`maison_pos.brand` (``AWANZ POS Settings``) **at apply time**, so the jewellery tenant
 and every future tenant come out right without a line of code changing.
 
 Three layers, all idempotent and all reversible:
@@ -37,14 +37,14 @@ import frappe
 from frappe.utils import cint, now_datetime
 
 # Marker + snapshot of the values we overwrote, so a revert restores the site exactly.
-BACKUP_KEY = "maison_whitelabel_backup"
+BACKUP_KEY = "awanz_whitelabel_backup"
 VERSION = "0.7"
 
 # `scrub_response` runs on every response; the product name it brands headers with is cached in
 # redis rather than re-read from the database each time. Invalidated by apply / revert.
-PRODUCT_NAME_CACHE_KEY = "maison_product_name"
-BRAND_MARK_CACHE_KEY = "maison_brand_mark_url"
-FALLBACK_PRODUCT_NAME = "Maison POS"
+PRODUCT_NAME_CACHE_KEY = "awanz_product_name"
+BRAND_MARK_CACHE_KEY = "awanz_brand_mark_url"
+FALLBACK_PRODUCT_NAME = "AWANZ POS"
 FALLBACK_MARK = "/assets/maison_pos/favicon.svg"
 
 # Frappe / ERPNext strings that live outside any Jinja block in ``frappe/templates/base.html``
@@ -128,7 +128,7 @@ def brand_mark_url(brand: Optional[dict[str, Any]] = None) -> str:
 
 def _stored_brand_logo() -> Optional[str]:
 	try:
-		return frappe.db.get_single_value("Maison POS Settings", "brand_logo")
+		return frappe.db.get_single_value("AWANZ POS Settings", "brand_logo")
 	except Exception:
 		return None
 
@@ -155,7 +155,7 @@ def _mark_svg(brand: dict[str, Any]) -> str:
 
 def _ensure_generated_mark(brand: dict[str, Any]) -> str:
 	"""Create / refresh the generated brand mark File. Idempotent: content-addressed by brand."""
-	file_name = "maison-brand-mark.svg"
+	file_name = "awanz-brand-mark.svg"
 	content = _mark_svg(brand)
 	existing = frappe.db.get_value(
 		"File", {"file_name": file_name, "is_private": 0}, ["name", "file_url"], as_dict=True
@@ -192,16 +192,16 @@ def _wordmark_html(brand: dict[str, Any]) -> str:
 	if logo:
 		return (
 			f'<img src="{_relative(str(logo))}" alt="{frappe.utils.escape_html(wordmark)}" '
-			'class="maison-wordmark-logo" style="max-height:28px">'
+			'class="awanz-wordmark-logo" style="max-height:28px">'
 		)
 	out = (
-		'<span class="maison-wordmark" style="font-family:Unbounded,\'Arial Black\',sans-serif;'
+		'<span class="awanz-wordmark" style="font-family:Unbounded,\'Arial Black\',sans-serif;'
 		'font-weight:900;letter-spacing:.22em">'
 		f"{frappe.utils.escape_html(wordmark)}</span>"
 	)
 	if sub:
 		out += (
-			'<small class="maison-submark" style="display:block;font-size:9px;letter-spacing:.28em;'
+			'<small class="awanz-submark" style="display:block;font-size:9px;letter-spacing:.28em;'
 			f'opacity:.6">{frappe.utils.escape_html(sub)}</small>'
 		)
 	return out
@@ -210,7 +210,7 @@ def _wordmark_html(brand: dict[str, Any]) -> str:
 def developer_credit(brand: dict[str, Any]) -> str:
 	"""``Powered by <developer>`` — who built the platform, linked when a site is configured.
 
-	Brand-driven (``Maison POS Settings.developer_name`` / ``developer_website``) so every
+	Brand-driven (``AWANZ POS Settings.developer_name`` / ``developer_website``) so every
 	tenant of this platform carries the credit without a code change, and clearing the field
 	removes it entirely.
 	"""
@@ -221,7 +221,7 @@ def developer_credit(brand: dict[str, Any]) -> str:
 	site = str(brand.get("developer_website") or "").strip()
 	if site:
 		label = (
-			f'<a class="maison-dev-credit" href="{frappe.utils.escape_html(site)}" '
+			f'<a class="awanz-dev-credit" href="{frappe.utils.escape_html(site)}" '
 			f'target="_blank" rel="noreferrer noopener">{label}</a>'
 		)
 	return f"Powered by {label}"
@@ -350,7 +350,7 @@ def _snapshot() -> dict[str, Any]:
 #
 # `/login` and every standard web page render `Website Settings.footer_powered`, which
 # `apply_whitelabel` *stores*: a site white-labelled before the developer credit existed kept the
-# old line for ever ("Maison POS by CloudChaserz" — no "Powered by", no developer), which is why
+# old line for ever ("AWANZ POS by CloudChaserz" — no "Powered by", no developer), which is why
 # QA found the credit missing on the whole customer-facing website. Only sites that already opted
 # into the white-label (a backup snapshot exists) are touched — this never white-labels a site by
 # itself.
@@ -367,7 +367,7 @@ def refresh_footer_credit() -> dict[str, Any]:
 		frappe.clear_cache()
 		return {"changed": True}
 	except Exception:  # pragma: no cover - never break a migrate over a footer line
-		frappe.log_error(frappe.get_traceback(), "maison footer credit refresh")
+		frappe.log_error(frappe.get_traceback(), "awanz footer credit refresh")
 		return {"error": True}
 # --- end v0.8 QA U1 ---
 
@@ -634,12 +634,12 @@ def website_context(context) -> dict[str, Any]:
 		out["logo"] = _cached_mark_url(brand)
 
 	out["app_name"] = context.get("app_name") or brand["brand_name"]
-	out["maison_brand"] = brand
+	out["awanz_brand"] = brand
 
 	# `Website Settings.title_prefix` puts the tenant on the <title> of every page the framework
 	# renders ("CloudChaserz - Login"). Frappe applies it just before this hook runs, and only
 	# skips pages whose title *starts* with the prefix — so a page we own whose title already
-	# carries the brand later in the string ("Maison POS by CloudChaserz") comes out doubled.
+	# carries the brand later in the string ("AWANZ POS by CloudChaserz") comes out doubled.
 	prefix = str(context.get("title_prefix") or "")
 	if not prefix:
 		prefix = str(brand["brand_name"])
@@ -675,11 +675,11 @@ def _cached_mark_url(brand: dict[str, Any]) -> str:
 
 
 def extend_bootinfo(bootinfo) -> None:
-	"""``extend_bootinfo`` — brand tokens for the desk chrome (``public/js/maison-desk.js``)."""
+	"""``extend_bootinfo`` — brand tokens for the desk chrome (``public/js/awanz-desk.js``)."""
 	try:
-		bootinfo.maison_brand = _live_brand()
+		bootinfo.awanz_brand = _live_brand()
 	except Exception:
-		bootinfo.maison_brand = {}
+		bootinfo.awanz_brand = {}
 
 
 def scrub_response(response=None, request=None) -> None:
@@ -712,7 +712,7 @@ def scrub_response(response=None, request=None) -> None:
 				response.set_data(body)
 	except Exception:
 		# never let branding break a response
-		frappe.logger().debug("maison white-label response scrub failed", exc_info=True)
+		frappe.logger().debug("awanz white-label response scrub failed", exc_info=True)
 
 
 def _server_token() -> str:
@@ -736,11 +736,11 @@ def scrub_email_headers(email) -> None:
 		site_url = frappe.utils.get_url()
 		if "X-Frappe-Site" in email.msg_root:
 			del email.msg_root["X-Frappe-Site"]
-		if "X-Maison-Site" in email.msg_root:
-			del email.msg_root["X-Maison-Site"]
-		email.msg_root["X-Maison-Site"] = site_url
+		if "X-AWANZ-Site" in email.msg_root:
+			del email.msg_root["X-AWANZ-Site"]
+		email.msg_root["X-AWANZ-Site"] = site_url
 	except Exception:
-		frappe.logger().debug("maison white-label email header scrub failed", exc_info=True)
+		frappe.logger().debug("awanz white-label email header scrub failed", exc_info=True)
 
 
 # ---------------------------------------------------------------------------

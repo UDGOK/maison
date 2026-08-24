@@ -70,7 +70,7 @@ async function load() {
   error.value = ''
   server.value = null
   try {
-    if (!sync.browserOnline || window.__maisonOffline) throw new Error('Offline: showing device totals only')
+    if (!sync.browserOnline || window.__awanzOffline) throw new Error('Offline: showing device totals only')
     server.value = await api.sales.list(session.boutique!.name, date.value)
   } catch (e) {
     error.value = (e as Error).message
@@ -80,7 +80,7 @@ async function load() {
 }
 onMounted(() => {
   void load()
-  if (sync.browserOnline && !window.__maisonOffline) void inventory.refresh()
+  if (sync.browserOnline && !window.__awanzOffline) void inventory.refresh()
 })
 
 function printReport() {

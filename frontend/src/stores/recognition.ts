@@ -555,7 +555,7 @@ function provisionalCustomer(d: EnrolDraft): Customer {
 export function isE2E(): boolean {
   if (import.meta.env.VITE_E2E === '1') return true
   try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem('maisonE2E') === '1'
+    return typeof localStorage !== 'undefined' && localStorage.getItem('awanzE2E') === '1'
   } catch {
     return false
   }
@@ -573,17 +573,17 @@ export interface RecognitionTestHook {
 
 declare global {
   interface Window {
-    __maisonRecognitionTest?: RecognitionTestHook
+    __awanzRecognitionTest?: RecognitionTestHook
   }
 }
 
 /**
- * E2E hook (`VITE_E2E=1` or `localStorage.maisonE2E === '1'`): lets Playwright inject
+ * E2E hook (`VITE_E2E=1` or `localStorage.awanzE2E === '1'`): lets Playwright inject
  * embeddings and seed templates without a face in front of the camera.
  */
 function installTestHook(store: ReturnType<typeof useRecognitionStore>) {
   if (typeof window === 'undefined' || !isE2E()) return
-  window.__maisonRecognitionTest = {
+  window.__awanzRecognitionTest = {
     async emit(c) {
       const bbox = c.bbox || { x: 200, y: 100, width: 240, height: 240 }
       const cand: RecognitionCandidate = { embedding: c.embedding, quality: c.quality ?? 0.9, bbox, model: store.model, liveness: 'injected', t: performance.now() }

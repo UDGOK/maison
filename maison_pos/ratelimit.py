@@ -23,7 +23,7 @@ This module fixes both:
 
 Both raise ``frappe.RateLimitExceededError`` → HTTP **429** with a human message.
 
-Off switch for load tests / e2e: ``bench set-config -g maison_rate_limits 0``.
+Off switch for load tests / e2e: ``bench set-config -g awanz_rate_limits 0``.
 """
 
 from __future__ import annotations
@@ -136,7 +136,7 @@ def enabled() -> bool:
 	"""Limits apply to real HTTP requests only (in-process unit tests are not throttled)."""
 	if not getattr(frappe.local, "request", None):
 		return False
-	return cint(frappe.conf.get("maison_rate_limits", 1)) != 0
+	return cint(frappe.conf.get("awanz_rate_limits", 1)) != 0
 
 
 def _hit(key: str, limit: int, seconds: int) -> bool:
@@ -148,7 +148,7 @@ def _hit(key: str, limit: int, seconds: int) -> bool:
 		if count == 1:
 			cache.expire(cache_key, seconds)
 	except Exception:  # pragma: no cover — a broken cache must not take the endpoint down
-		frappe.log_error(frappe.get_traceback(), "maison rate limit")
+		frappe.log_error(frappe.get_traceback(), "awanz rate limit")
 		return False
 	return count > limit
 
@@ -185,11 +185,11 @@ def guard(
 	who = client_ip()
 	if identity:
 		who = f"{who}|{identity}"
-	if _hit(f"maison_rl:{endpoint}:{who}", limit, seconds):
+	if _hit(f"awanz_rl:{endpoint}:{who}", limit, seconds):
 		_reject(seconds)
 	ceiling = global_limit if global_limit is not None else limit * 20
 	window = global_seconds or seconds
-	if _hit(f"maison_rl_all:{endpoint}", ceiling, window):
+	if _hit(f"awanz_rl_all:{endpoint}", ceiling, window):
 		# the endpoint as a whole is over its ceiling — shed load rather than fall over
 		_reject(window)
 

@@ -97,7 +97,7 @@ export const useSyncStore = defineStore('sync', {
       const session = useSessionStore()
       if (!session.boutique) return
       // Mock offline toggle flips navigator.onLine semantics for us
-      if (typeof window !== 'undefined' && window.__maisonOffline) {
+      if (typeof window !== 'undefined' && window.__awanzOffline) {
         this.serverReachable = false
         return
       }
@@ -126,7 +126,7 @@ export const useSyncStore = defineStore('sync', {
     },
     async replay() {
       if (this.replaying) return
-      if (typeof window !== 'undefined' && window.__maisonOffline) {
+      if (typeof window !== 'undefined' && window.__awanzOffline) {
         this.serverReachable = false
         return
       }

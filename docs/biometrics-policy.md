@@ -1,14 +1,14 @@
-# Maison POS — Biometric Data Policy (client recognition, v0.3)
+# AWANZ POS — Biometric Data Policy (client recognition, v0.3)
 
-Template policy for the optional camera-based client recognition feature of Maison POS.
+Template policy for the optional camera-based client recognition feature of AWANZ POS.
 Head Office legal must review and adapt it before the feature is switched on in any
 boutique. Text in `[brackets]` is to be completed per company / jurisdiction.
 
 ## 1. Scope and default state
 
-- Recognition is **off by default** for every boutique. `Maison POS Settings →
+- Recognition is **off by default** for every boutique. `AWANZ POS Settings →
   Client recognition (camera)` is the master switch and only **Head Office** can change it;
-  each `Maison Boutique` carries an override (`Inherit` / `On` / `Off`) so a single store can
+  each `AWANZ Store` carries an override (`Inherit` / `On` / `Off`) so a single store can
   be excluded (e.g. a jurisdiction where the legal review is not complete).
 - Only **consented clients** are ever enrolled or matched. A walk-in client who is not
   enrolled is never identified, scored or logged by name — a "no match" event carries no
@@ -25,12 +25,12 @@ boutique. Text in `[brackets]` is to be completed per company / jurisdiction.
 | The **consent record**: text version + snapshot of the wording shown, method (hold‑to‑agree / signature stroke), boutique, associate, device, timestamp, IP | Signature images are optional; when used they are stored as a private file attached to the consent record |
 | **Recognition events**: outcome (Matched / NoMatch / Enrolled / Undone / Declined / Revoked / Purged), score, boutique, device, linked invoice | Templates of anyone who declined (`Declined` creates/links the client record *without* biometrics) |
 
-Templates live as `Maison Face Template` rows on the Customer; they are linked to exactly
-one `Maison Biometric Consent` and are deleted together with it.
+Templates live as `AWANZ Face Template` rows on the Customer; they are linked to exactly
+one `AWANZ Biometric Consent` and are deleted together with it.
 
 ## 3. Retention and destruction schedule (BIPA §15(a))
 
-Maison permanently destroys a client's face templates at the **earliest** of:
+AWANZ permanently destroys a client's face templates at the **earliest** of:
 
 1. the client withdrawing consent (any boutique manager can do this from the Client screen
    — "Delete biometric data" — or Head Office from the Customer record);
@@ -61,28 +61,28 @@ version.
 
 ### English (`consent_text_version` 2026-08-1)
 
-> I agree that Maison may create and store a mathematical template of my facial features (a
+> I agree that AWANZ may create and store a mathematical template of my facial features (a
 > "face template") so that this boutique can recognise me and offer personalised service
-> when I visit. No photograph or video of my face is kept; only the template. Maison will
+> when I visit. No photograph or video of my face is kept; only the template. AWANZ will
 > not sell, lease or trade my face template, will not use it for any purpose other than
 > identifying me as a client, and will permanently destroy it when I withdraw my consent,
-> when I have not visited a Maison boutique for 36 months, or sooner if required by law —
+> when I have not visited an AWANZ boutique for 36 months, or sooner if required by law —
 > whichever comes first. I may withdraw this consent at any time by asking any boutique
-> manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and
+> manager or by writing to privacy@maison.example. AWANZ's Biometric Data Retention and
 > Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.
 
 ### Español (misma versión 2026-08-1)
 
-> Acepto que Maison cree y conserve una plantilla matemática de mis rasgos faciales (una
+> Acepto que AWANZ cree y conserve una plantilla matemática de mis rasgos faciales (una
 > "plantilla facial") para que esta boutique pueda reconocerme y ofrecerme un servicio
 > personalizado cuando la visite. No se conserva ninguna fotografía ni vídeo de mi rostro;
-> únicamente la plantilla. Maison no venderá, alquilará ni intercambiará mi plantilla
+> únicamente la plantilla. AWANZ no venderá, alquilará ni intercambiará mi plantilla
 > facial, no la utilizará para ningún fin distinto de identificarme como cliente y la
 > destruirá de forma permanente cuando retire mi consentimiento, cuando no haya visitado
-> una boutique Maison durante 36 meses o antes si la ley lo exige, lo que ocurra primero.
+> una boutique AWANZ durante 36 meses o antes si la ley lo exige, lo que ocurra primero.
 > Puedo retirar este consentimiento en cualquier momento dirigiéndome a cualquier gerente
 > de boutique o escribiendo a privacy@maison.example. La Política de Conservación y
-> Destrucción de Datos Biométricos de Maison está disponible en todas las boutiques y en
+> Destrucción de Datos Biométricos de AWANZ está disponible en todas las boutiques y en
 > maison.example/privacy/biometrics.
 
 ## 5. Boutique entrance signage
@@ -101,9 +101,9 @@ requires "clear and conspicuous" signage near every entrance):
 
 ## 6. Jurisdiction notes (not legal advice)
 
-| Jurisdiction | Key obligations | How Maison POS supports them |
+| Jurisdiction | Key obligations | How AWANZ POS supports them |
 | --- | --- | --- |
-| **Illinois — BIPA** (740 ILCS 14) — e.g. `CHI-OAK` | Written informed consent before collection; public written retention/destruction policy; no sale/lease/trade; no profit; reasonable security; statutory damages per violation (private right of action) | Consent record with text snapshot + method; this policy; daily purge; templates never leave Maison systems; `revoke` available to managers |
+| **Illinois — BIPA** (740 ILCS 14) — e.g. `CHI-OAK` | Written informed consent before collection; public written retention/destruction policy; no sale/lease/trade; no profit; reasonable security; statutory damages per violation (private right of action) | Consent record with text snapshot + method; this policy; daily purge; templates never leave AWANZ systems; `revoke` available to managers |
 | **California — CCPA/CPRA** | Biometric data is *sensitive personal information*: notice at collection, "Limit the use of my sensitive PI" right, right to delete, right to know | Signage + consent text = notice; `revoke` = delete; consent/events exportable from the desk for access requests |
 | **Texas — CUBI** (Bus. & Com. Code §503.001) | Notice + consent before capture; no sale except narrow exceptions; destroy within a reasonable time, max 1 year after the purpose expires; AG enforcement | Same flow; retention ≤ 36 months with inactivity rule — legal to confirm the "purpose expires" reading |
 | **Washington — RCW 19.375** | Notice, consent, or mechanism to prevent commercial use; retention no longer than reasonably necessary; reasonable care | Same flow; retention policy |
@@ -132,7 +132,7 @@ requires "clear and conspicuous" signage near every entrance):
 2. Signage installed at every entrance (§5) and photographed for the compliance file.
 3. This policy published and linked from the receipt footer / website.
 4. Associates trained: consent is the client's choice, never a condition of service.
-5. `Maison POS Settings → Client recognition` on (global) and boutique override set to
+5. `AWANZ POS Settings → Client recognition` on (global) and boutique override set to
    `On` (or `Inherit`), threshold left at 0.55 unless tested otherwise.
 6. Record the switch-on date in the compliance file; review yearly.
 
@@ -142,7 +142,7 @@ requires "clear and conspicuous" signage near every entrance):
   (`recognition.revoke`). Confirms: templates deleted, consent `Revoked`, Customer flag
   cleared, `Revoked` event logged. Devices drop the client from their offline cache on the
   next `templates` sync. Confirm to the client in writing within 30 days.
-- **Access request**: export the `Maison Biometric Consent` and `Maison Recognition Event`
+- **Access request**: export the `AWANZ Biometric Consent` and `AWANZ Recognition Event`
   records for the customer from the desk; the template vector itself is not meaningful to a
   person but can be provided on request.
 - **Breach**: follow the company incident plan; biometric data breaches are notifiable in

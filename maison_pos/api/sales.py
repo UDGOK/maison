@@ -3,7 +3,7 @@
 ``submit_batch`` is the heart of offline-first sync:
 
 * each POSInvoice carries a client-generated ``offline_uuid``; the server keeps a
-  ``Maison Sync Log`` row per uuid and the uuid is also stored on the Sales
+  ``AWANZ Sync Log`` row per uuid and the uuid is also stored on the Sales
   Invoice (unique custom field), so replays return ``status: "duplicate"``;
 * each invoice is wrapped in a DB savepoint so a failure (e.g. a serial number
   sold elsewhere while the device was offline) is reported with a structured
@@ -21,8 +21,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate, nowdate
 
-from maison_pos.maison_pos.doctype.maison_sync_log import maison_sync_log as synclog
-from maison_pos.scoping import assert_boutique_access, assert_roles, is_manager_or_above, ALL_MAISON_ROLES
+from maison_pos.awanz_pos.doctype.awanz_sync_log import awanz_sync_log as synclog
+from maison_pos.scoping import assert_boutique_access, assert_roles, is_manager_or_above, ALL_AWANZ_ROLES
 from maison_pos.scoping import assert_can_sell  # v0.6 O/P — warehouse admins / the warehouse row never sell
 from maison_pos.utils import parse_datetime, receipt_payload
 
@@ -38,7 +38,7 @@ ERR_STOCK = "INSUFFICIENT_STOCK"
 ERR_SERVER = "SERVER_ERROR"
 
 
-class MaisonPOSError(frappe.ValidationError):
+class AwanzPOSError(frappe.ValidationError):
 	"""Validation error that carries a machine-readable ``error_code``."""
 
 	error_code = ERR_VALIDATION
@@ -50,16 +50,16 @@ class MaisonPOSError(frappe.ValidationError):
 		self.extra = extra
 
 
-class SerialUnavailableError(MaisonPOSError):
+class SerialUnavailableError(AwanzPOSError):
 	error_code = ERR_SERIAL_UNAVAILABLE
 
 
-class PaymentMismatchError(MaisonPOSError):
+class PaymentMismatchError(AwanzPOSError):
 	error_code = ERR_PAYMENT
 
 
 def _error_code_for(exc: BaseException) -> str:
-	if isinstance(exc, MaisonPOSError):
+	if isinstance(exc, AwanzPOSError):
 		return exc.error_code
 	# --- v0.6 N/Q ---
 	if getattr(exc, "error_code", None) in ("REWARD_INVALID",):
@@ -151,24 +151,24 @@ def _payload_net(payload: dict[str, Any]) -> float:
 
 def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	"""Construct (but do not insert) a POS Sales Invoice from a POSInvoice payload."""
-	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	b = frappe.get_cached_doc("AWANZ Store", boutique)
 	pos_profile = frappe.get_cached_doc("POS Profile", b.pos_profile)
 	company = b.company
 
 	customer = payload.get("customer") or pos_profile.customer
 	if not customer:
-		raise MaisonPOSError(_("No customer on the invoice and the POS Profile has no default customer"))
+		raise AwanzPOSError(_("No customer on the invoice and the POS Profile has no default customer"))
 	if not frappe.db.exists("Customer", customer):
-		raise MaisonPOSError(_("Customer {0} does not exist").format(customer), ERR_NOT_FOUND)
+		raise AwanzPOSError(_("Customer {0} does not exist").format(customer), ERR_NOT_FOUND)
 
 	items = payload.get("items") or []
 	if not items:
-		raise MaisonPOSError(_("Invoice has no items"))
+		raise AwanzPOSError(_("Invoice has no items"))
 	payments = payload.get("payments") or []
 	# --- v0.4 G (webshop): collecting a web order — the online payment is an advance on the Sales Order ---
 	sales_order = payload.get("sales_order")
 	if sales_order and not frappe.db.exists("Sales Order", {"name": sales_order, "docstatus": 1}):
-		raise MaisonPOSError(_("Sales Order {0} does not exist").format(sales_order), ERR_NOT_FOUND)
+		raise AwanzPOSError(_("Sales Order {0} does not exist").format(sales_order), ERR_NOT_FOUND)
 	# --- end v0.4 G ---
 	# --- v0.8 POS D3 — a comp / 100 % discount is a legitimate sale, and it has nothing to tender ---
 	# The till already sends an empty `payments` array when the basket comes to zero (`PayView.finalize`);
@@ -211,10 +211,10 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	for row in items:
 		item_code = row.get("item_code")
 		if not item_code or not frappe.db.exists("Item", item_code):
-			raise MaisonPOSError(_("Item {0} does not exist").format(item_code), ERR_NOT_FOUND)
+			raise AwanzPOSError(_("Item {0} does not exist").format(item_code), ERR_NOT_FOUND)
 		qty = flt(row.get("qty") or 1)
 		if qty <= 0:
-			raise MaisonPOSError(_("Quantity must be positive for {0}").format(item_code))
+			raise AwanzPOSError(_("Quantity must be positive for {0}").format(item_code))
 		# POSInvoice semantics (SPEC.md): `rate` = unit list rate shown on the tile, `discount_amount` =
 		# manual + promotion discount for the WHOLE line (the device computes its total as
 		# qty * rate - discount_amount). ERPNext's Sales Invoice Item keeps `discount_amount` per unit and
@@ -286,7 +286,7 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	if points > 0 and not si.get("maison_reward_tier"):
 		lp = _loyalty_details(customer, company)
 		if not lp:
-			raise MaisonPOSError(_("Customer {0} is not enrolled in a loyalty program").format(customer))
+			raise AwanzPOSError(_("Customer {0} is not enrolled in a loyalty program").format(customer))
 		si.update(
 			{
 				"redeem_loyalty_points": 1,
@@ -336,7 +336,7 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 # the customer has already paid for*. A gap no larger than one unit at the invoice's currency
 # precision — i.e. what Commercial Rounding can produce out of the same numbers — is booked to the
 # store's write-off account instead of raising. Never silently: the amount, the direction and the
-# account land on the invoice notes, in a Comment, in the `Maison Sync Log` and in the batch
+# account land on the invoice notes, in a Comment, in the `AWANZ Sync Log` and in the batch
 # result the device gets back. Anything larger is still a real disagreement and is still refused.
 # ---------------------------------------------------------------------------
 def _rounding_tolerance(si) -> float:
@@ -486,11 +486,11 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 	if log and log["status"] == "Success" and log["invoice"] and frappe.db.exists("Sales Invoice", log["invoice"]):
 		return _duplicate_result(offline_uuid, log["invoice"])
 
-	savepoint = f"maison_batch_{idx}"
+	savepoint = f"awanz_batch_{idx}"
 	frappe.db.savepoint(savepoint)
 	try:
 		boutique = assert_can_sell(payload.get("boutique"))  # v0.6 O/P
-		warehouse = frappe.get_cached_value("Maison Boutique", boutique, "warehouse")
+		warehouse = frappe.get_cached_value("AWANZ Store", boutique, "warehouse")
 		check_serials_available(payload.get("items") or [], warehouse)
 
 		si = build_sales_invoice(payload, boutique)
@@ -538,7 +538,7 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 		frappe.db.rollback(save_point=savepoint)
 		code = _error_code_for(exc)
 		message = str(exc) or exc.__class__.__name__
-		frappe.log_error(frappe.get_traceback(), f"Maison submit_batch {offline_uuid} [{code}]")
+		frappe.log_error(frappe.get_traceback(), f"AWANZ submit_batch {offline_uuid} [{code}]")
 		frappe.clear_messages()
 		try:
 			synclog.record(
@@ -551,7 +551,7 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 				error_code=code,
 			)
 		except Exception:  # pragma: no cover - logging must never break the batch
-			frappe.log_error(frappe.get_traceback(), "Maison sync log write failed")
+			frappe.log_error(frappe.get_traceback(), "AWANZ sync log write failed")
 		result = {"offline_uuid": offline_uuid, "status": "error", "error": message, "error_code": code}
 		extra = getattr(exc, "extra", None)
 		if extra:
@@ -565,7 +565,7 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 @frappe.whitelist()
 def submit_batch(invoices: Any) -> dict[str, Any]:
 	"""Submit a batch of POSInvoice payloads. Returns ``{results: [...]}`` (one per input, same order)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if isinstance(invoices, str):
 		invoices = json.loads(invoices or "[]")
 	if not isinstance(invoices, builtins.list):  # `list` is shadowed by the endpoint below
@@ -705,8 +705,8 @@ def void(invoice: str, reason: str) -> dict[str, Any]:
 			"maison_boutique": src.get("maison_boutique"),
 			# v0.6 D3 — see events.sales_invoice.stamp_store: a return with no `set_warehouse`
 			# slips past the per-user Warehouse User Permission
-			"set_warehouse": src.get("set_warehouse") or frappe.db.get_value("Maison Boutique", src.get("maison_boutique"), "warehouse"),
-			"maison_associate": frappe.db.get_value("Maison Associate", {"user": frappe.session.user}, "name"),
+			"set_warehouse": src.get("set_warehouse") or frappe.db.get_value("AWANZ Store", src.get("maison_boutique"), "warehouse"),
+			"maison_associate": frappe.db.get_value("AWANZ Associate", {"user": frappe.session.user}, "name"),
 			"maison_notes": _("VOID: {0}").format(reason),
 			"maison_offline_uuid": None,
 			"maison_terminal_ref": src.get("maison_terminal_ref"),
@@ -782,7 +782,7 @@ def _invoice_for(invoice_or_token: str):
 @frappe.whitelist(methods=["POST"])
 def email_receipt(invoice_or_token: str, email: str) -> dict[str, Any]:
 	"""E-mail the public receipt link for a sale. Fails loudly when mail is not configured."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	from maison_pos.ratelimit import guard
 
 	guard("sales.email_receipt", 30, 300, global_limit=600)
@@ -825,7 +825,7 @@ def email_receipt(invoice_or_token: str, email: str) -> dict[str, Any]:
 			frappe.ValidationError,
 		)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison sales email receipt")
+		frappe.log_error(frappe.get_traceback(), "awanz sales email receipt")
 		frappe.clear_messages()
 		frappe.throw(_("The receipt could not be e-mailed. Please try again or print it."), frappe.ValidationError)
 

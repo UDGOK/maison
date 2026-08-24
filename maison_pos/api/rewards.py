@@ -1,18 +1,18 @@
-"""v0.6 Q — **CloudChaserz Rewards** on top of ERPNext Loyalty + Maison coupons / campaigns.
+"""v0.6 Q — **CloudChaserz Rewards** on top of ERPNext Loyalty + AWANZ coupons / campaigns.
 
 * **Earning**: the ERPNext Loyalty Program does the accounting — ``$1 = 1 point`` on the net
   paid amount (``collection_factor = 1`` on the base tier, points on ``net_total`` excl. tax).
   ERPNext reverses the points of a returned sale (negative Loyalty Point Entry) and the balance
   never goes negative (``_affordable``).
-* **Redeeming**: fixed tiers — ``Maison Reward Tier`` rows ($5 off at 100 points, $10 at 200,
+* **Redeeming**: fixed tiers — ``AWANZ Reward Tier`` rows ($5 off at 100 points, $10 at 200,
   $15 at 300). The POS sends ``reward_tier`` (one tier per transaction; ``reward_allow_stacking``
   lets it send ``reward_tiers: [..]``) and the server converts the tier into
   ``loyalty_points_redeemed`` at the program's conversion factor so the existing ERPNext
   redemption path (``loyalty_amount``, redemption account, Loyalty Point Entry) is reused.
-* **Birthday coupon**: ``issue_birthday_coupons`` (daily) auto-issues a ``Maison Coupon``
+* **Birthday coupon**: ``issue_birthday_coupons`` (daily) auto-issues a ``AWANZ Coupon``
   bound to the client 7 days before the birthday, valid 30 days, + a campaign touch.
 * **Monthly promotions**: ``send_monthly_promotions`` (daily, acts on the 1st) turns the
-  month's ``Maison Promotion Calendar`` into a sent campaign with the featured items.
+  month's ``AWANZ Promotion Calendar`` into a sent campaign with the featured items.
 * **New arrivals**: ``new_arrivals_campaign`` (weekly) builds a campaign from Items created
   in the last N days with per-store availability.
 * **Giveaways**: entries on invoice submit, reversed on return, seeded audited draw.
@@ -32,7 +32,7 @@ from frappe import _
 from frappe.utils import add_days, cint, flt, get_url, getdate, now_datetime, nowdate
 
 from maison_pos.brand import get_age_settings, get_brand, get_rewards_settings
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, is_manager_or_above
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, is_manager_or_above
 
 ERR_REWARD = "REWARD_INVALID"
 
@@ -73,7 +73,7 @@ def default_program(company: Optional[str] = None) -> Optional[dict[str, Any]]:
 
 def reward_tiers(program: Optional[str] = None, company: Optional[str] = None) -> list[dict[str, Any]]:
 	"""Enabled tiers of *program* (or the company's default program), cheapest first."""
-	if not frappe.db.exists("DocType", "Maison Reward Tier"):
+	if not frappe.db.exists("DocType", "AWANZ Reward Tier"):
 		return []
 	if not program:
 		p = default_program(company)
@@ -81,7 +81,7 @@ def reward_tiers(program: Optional[str] = None, company: Optional[str] = None) -
 	if not program:
 		return []
 	rows = frappe.get_all(
-		"Maison Reward Tier",
+		"AWANZ Reward Tier",
 		filters={"loyalty_program": program, "enabled": 1},
 		fields=["name", "title", "points", "amount", "sort_order", "description"],
 		order_by="points asc, sort_order asc",
@@ -93,8 +93,8 @@ def ensure_default_tiers(program: str) -> list[str]:
 	"""$5/100 · $10/200 · $15/300 (idempotent)."""
 	created = []
 	for points, amount in ((100, 5), (200, 10), (300, 15)):
-		if not frappe.db.exists("Maison Reward Tier", {"loyalty_program": program, "points": points}):
-			doc = frappe.get_doc({"doctype": "Maison Reward Tier", "loyalty_program": program, "points": points, "amount": amount, "enabled": 1, "sort_order": points, "title": f"${amount} off at {points} points"})
+		if not frappe.db.exists("AWANZ Reward Tier", {"loyalty_program": program, "points": points}):
+			doc = frappe.get_doc({"doctype": "AWANZ Reward Tier", "loyalty_program": program, "points": points, "amount": amount, "enabled": 1, "sort_order": points, "title": f"${amount} off at {points} points"})
 			doc.flags.ignore_permissions = True
 			doc.insert()
 			created.append(doc.name)
@@ -131,7 +131,7 @@ def points_for_tiers(tier_names: list[str], program: str) -> tuple[int, float, l
 	"""Validate the chosen tiers and return ``(points_to_redeem, discount_amount, tiers)``."""
 	rows = []
 	for name in tier_names:
-		row = frappe.db.get_value("Maison Reward Tier", name, ["name", "title", "points", "amount", "enabled", "loyalty_program"], as_dict=True)
+		row = frappe.db.get_value("AWANZ Reward Tier", name, ["name", "title", "points", "amount", "enabled", "loyalty_program"], as_dict=True)
 		if not row or not cint(row.enabled):
 			raise RewardError(_("Reward tier {0} is not available").format(name))
 		if row.loyalty_program != program:
@@ -191,7 +191,7 @@ def apply_to_invoice(si, payload: dict[str, Any]) -> None:
 			"maison_reward_tier": rows[0].name,
 		}
 	)
-	si.flags.maison_reward_tiers = [r.name for r in rows]
+	si.flags.awanz_reward_tiers = [r.name for r in rows]
 
 
 def validate_invoice(doc, method: Optional[str] = None) -> None:
@@ -209,11 +209,11 @@ def validate_invoice(doc, method: Optional[str] = None) -> None:
 @frappe.whitelist()
 def tiers(customer: Optional[str] = None, boutique: Optional[str] = None) -> dict[str, Any]:
 	"""Tiers + what this client can afford now (POS "Redeem" sheet)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	company = None
 	if boutique:
 		boutique = assert_boutique_access(boutique)
-		company = frappe.db.get_value("Maison Boutique", boutique, "company")
+		company = frappe.db.get_value("AWANZ Store", boutique, "company")
 	# v0.6 D5 — an anonymous basket has no member card: no balance, no affordable tier
 	if is_walk_in(customer):
 		customer = None
@@ -237,7 +237,7 @@ def receipt_extras(doc) -> dict[str, Any]:
 	"""Points earned / balance / next reward / giveaway entries for the receipt + Salon."""
 	out: dict[str, Any] = {"program_name": get_rewards_settings()["rewards_program_name"], "points_earned": 0.0, "points_balance": 0.0, "next_reward": None, "giveaway_entries": cint(doc.get("maison_giveaway_entries")), "giveaway": None, "reward_tier": None}
 	if doc.get("maison_reward_tier"):
-		t = frappe.db.get_value("Maison Reward Tier", doc.maison_reward_tier, ["title", "points", "amount"], as_dict=True)
+		t = frappe.db.get_value("AWANZ Reward Tier", doc.maison_reward_tier, ["title", "points", "amount"], as_dict=True)
 		if t:
 			out["reward_tier"] = {"title": t.title, "points": cint(t.points), "amount": flt(t.amount)}
 	# v0.6 D5 — an anonymous receipt never prints a member card
@@ -248,10 +248,10 @@ def receipt_extras(doc) -> dict[str, Any]:
 			out["points_earned"] = flt(frappe.db.get_value("Loyalty Point Entry", {"invoice_type": "Sales Invoice", "invoice": doc.name, "redeem_against": ("is", "not set")}, "loyalty_points"))
 		out["next_reward"] = next_reward(out["points_balance"], reward_tiers(program=program))
 	if out["giveaway_entries"]:
-		g = frappe.db.get_value("Maison Giveaway Entry", {"sales_invoice": doc.name, "reversed": 0}, "giveaway")
+		g = frappe.db.get_value("AWANZ Giveaway Entry", {"sales_invoice": doc.name, "reversed": 0}, "giveaway")
 		if g:
-			gv = frappe.db.get_value("Maison Giveaway", g, ["title", "end_date", "prize_description"], as_dict=True)
-			total = cint(frappe.db.get_value("Maison Giveaway Entry", {"giveaway": g, "customer": doc.customer, "reversed": 0}, "sum(entries)"))
+			gv = frappe.db.get_value("AWANZ Giveaway", g, ["title", "end_date", "prize_description"], as_dict=True)
+			total = cint(frappe.db.get_value("AWANZ Giveaway Entry", {"giveaway": g, "customer": doc.customer, "reversed": 0}, "sum(entries)"))
 			out["giveaway"] = {"name": g, "title": gv.title, "end_date": str(gv.end_date), "prize": gv.prize_description, "my_entries": total}
 	return out
 
@@ -262,7 +262,7 @@ def receipt_extras(doc) -> dict[str, Any]:
 def open_giveaways(boutique: Optional[str], date: Any = None) -> list[dict[str, Any]]:
 	date = getdate(date or nowdate())
 	rows = frappe.get_all(
-		"Maison Giveaway",
+		"AWANZ Giveaway",
 		filters={"status": "Open", "start_date": ("<=", date), "end_date": (">=", date)},
 		fields=["name", "title", "boutique", "entry_rule", "amount_per_entry", "max_entries_per_invoice", "requires_member", "prize_description", "end_date"],
 	)
@@ -320,28 +320,28 @@ def on_invoice_submit(doc, method: Optional[str] = None) -> None:
 	try:
 		rebase_points_on_net(doc)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison loyalty net rebase")
+		frappe.log_error(frappe.get_traceback(), "awanz loyalty net rebase")
 	try:
 		from maison_pos.api.age import link_check_to_invoice
 
 		link_check_to_invoice(doc)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison age check link")
-	if frappe.flags.in_history_seed and not frappe.flags.maison_seed_giveaways:
+		frappe.log_error(frappe.get_traceback(), "awanz age check link")
+	if frappe.flags.in_history_seed and not frappe.flags.awanz_seed_giveaways:
 		return
 	walk_in = _is_walk_in(doc.customer)
 	total = 0
 	for g in open_giveaways(doc.get("maison_boutique"), doc.posting_date):
 		if cint(g.requires_member) and walk_in:
 			continue
-		gdoc = frappe.get_cached_doc("Maison Giveaway", g.name)
+		gdoc = frappe.get_cached_doc("AWANZ Giveaway", g.name)
 		n = gdoc.entries_for(flt(doc.net_total))
 		if n <= 0:
 			continue
-		if frappe.db.exists("Maison Giveaway Entry", {"giveaway": g.name, "sales_invoice": doc.name}):
+		if frappe.db.exists("AWANZ Giveaway Entry", {"giveaway": g.name, "sales_invoice": doc.name}):
 			continue
 		frappe.get_doc(
-			{"doctype": "Maison Giveaway Entry", "giveaway": g.name, "customer": doc.customer, "entries": n, "sales_invoice": doc.name, "boutique": doc.get("maison_boutique"), "ts": now_datetime()}
+			{"doctype": "AWANZ Giveaway Entry", "giveaway": g.name, "customer": doc.customer, "entries": n, "sales_invoice": doc.name, "boutique": doc.get("maison_boutique"), "ts": now_datetime()}
 		).insert(ignore_permissions=True)
 		total += n
 	if total:
@@ -352,8 +352,8 @@ def on_invoice_submit(doc, method: Optional[str] = None) -> None:
 def on_invoice_cancel(doc, method: Optional[str] = None) -> None:
 	if not doc.get("is_pos"):
 		return
-	for name in frappe.get_all("Maison Giveaway Entry", {"sales_invoice": doc.name}, pluck="name"):
-		frappe.db.set_value("Maison Giveaway Entry", name, "reversed", 1, update_modified=False)
+	for name in frappe.get_all("AWANZ Giveaway Entry", {"sales_invoice": doc.name}, pluck="name"):
+		frappe.db.set_value("AWANZ Giveaway Entry", name, "reversed", 1, update_modified=False)
 
 
 def rebase_points_after_return(invoice: str) -> None:
@@ -519,13 +519,13 @@ def on_return_submit(doc, method: Optional[str] = None) -> None:
 	"""A credit note reverses the entries of the original sale (points are reversed by ERPNext)."""
 	if not doc.get("is_return") or not doc.get("return_against"):
 		return
-	for name in frappe.get_all("Maison Giveaway Entry", {"sales_invoice": doc.return_against, "reversed": 0}, pluck="name"):
-		frappe.db.set_value("Maison Giveaway Entry", name, "reversed", 1, update_modified=False)
+	for name in frappe.get_all("AWANZ Giveaway Entry", {"sales_invoice": doc.return_against, "reversed": 0}, pluck="name"):
+		frappe.db.set_value("AWANZ Giveaway Entry", name, "reversed", 1, update_modified=False)
 	# v0.8 POS D12 — ERPNext has just rebuilt the original's accrual on a tax-inclusive base
 	try:
 		rebase_points_after_return(doc.return_against)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison loyalty return rebase")
+		frappe.log_error(frappe.get_traceback(), "awanz loyalty return rebase")
 
 
 def on_return_cancel(doc, method: Optional[str] = None) -> None:
@@ -535,7 +535,7 @@ def on_return_cancel(doc, method: Optional[str] = None) -> None:
 	try:
 		rebase_points_after_return(doc.return_against)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison loyalty return rebase (cancel)")
+		frappe.log_error(frappe.get_traceback(), "awanz loyalty return rebase (cancel)")
 
 
 def is_walk_in(customer: Optional[str] = None, customer_name: Optional[str] = None) -> bool:
@@ -566,13 +566,13 @@ _is_walk_in = is_walk_in
 @frappe.whitelist()
 def giveaways(boutique: Optional[str] = None, customer: Optional[str] = None) -> dict[str, Any]:
 	"""Open giveaways for the store (+ the client's entries)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique:
 		boutique = assert_boutique_access(boutique)
 	rows = open_giveaways(boutique)
 	out = []
 	for g in rows:
-		mine = cint(frappe.db.get_value("Maison Giveaway Entry", {"giveaway": g.name, "customer": customer, "reversed": 0}, "sum(entries)")) if customer else 0
+		mine = cint(frappe.db.get_value("AWANZ Giveaway Entry", {"giveaway": g.name, "customer": customer, "reversed": 0}, "sum(entries)")) if customer else 0
 		out.append({**g, "amount_per_entry": flt(g.amount_per_entry), "my_entries": mine, "end_date": str(g.end_date)})
 	return {"giveaways": out}
 
@@ -580,12 +580,12 @@ def giveaways(boutique: Optional[str] = None, customer: Optional[str] = None) ->
 @frappe.whitelist()
 def draw(giveaway: str, seed: Optional[str] = None, notify: int = 1) -> dict[str, Any]:
 	"""Draw the winner (Head Office). Seeded PRNG over the sorted entry list → auditable / replayable."""
-	if not (is_manager_or_above() and ("Maison Head Office" in frappe.get_roles() or "System Manager" in frappe.get_roles())):
+	if not (is_manager_or_above() and ("AWANZ Head Office" in frappe.get_roles() or "System Manager" in frappe.get_roles())):
 		frappe.throw(_("Only Head Office may draw a giveaway"), frappe.PermissionError)
-	doc = frappe.get_doc("Maison Giveaway", giveaway)
+	doc = frappe.get_doc("AWANZ Giveaway", giveaway)
 	if doc.status == "Drawn":
 		frappe.throw(_("{0} has already been drawn").format(giveaway), frappe.ValidationError)
-	entries = frappe.get_all("Maison Giveaway Entry", filters={"giveaway": giveaway, "reversed": 0}, fields=["name", "customer", "entries"], order_by="name asc")
+	entries = frappe.get_all("AWANZ Giveaway Entry", filters={"giveaway": giveaway, "reversed": 0}, fields=["name", "customer", "entries"], order_by="name asc")
 	if not entries:
 		frappe.throw(_("No entries to draw from"), frappe.ValidationError)
 	seed = seed or hashlib.sha256(f"{giveaway}|{now_datetime().isoformat()}|{frappe.session.user}".encode()).hexdigest()[:16]
@@ -621,7 +621,7 @@ def _notify_winner(doc) -> None:
 	email = frappe.db.get_value("Customer", doc.winner, "email_id")
 	try:
 		frappe.get_doc(
-			{"doctype": "Maison Client Interaction", "customer": doc.winner, "type": "Note", "note": f"Won giveaway {doc.title} ({doc.prize_description or doc.prize_item or ''})", "ts": now_datetime(), "status": "Done", "done_on": now_datetime()}
+			{"doctype": "AWANZ Client Interaction", "customer": doc.winner, "type": "Note", "note": f"Won giveaway {doc.title} ({doc.prize_description or doc.prize_item or ''})", "ts": now_datetime(), "status": "Done", "done_on": now_datetime()}
 		).insert(ignore_permissions=True)
 	except Exception:
 		pass
@@ -629,8 +629,8 @@ def _notify_winner(doc) -> None:
 		try:
 			frappe.sendmail(recipients=[email], subject=f"You won — {doc.title} · {brand['brand_name']}", message=f"<p>Congratulations! You are the winner of <b>{doc.title}</b>.</p><p>Prize: {doc.prize_description or doc.prize_item}</p><p>Visit any {brand['brand_name']} store to collect it.</p>", delayed=True)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison giveaway notify")
-	frappe.db.set_value("Maison Giveaway", doc.name, "notified_on", now_datetime(), update_modified=False)
+			frappe.log_error(frappe.get_traceback(), "awanz giveaway notify")
+	frappe.db.set_value("AWANZ Giveaway", doc.name, "notified_on", now_datetime(), update_modified=False)
 
 
 # ---------------------------------------------------------------------------
@@ -644,12 +644,12 @@ def _birthday_code(customer: str, year: int) -> str:
 def issue_birthday_coupons(today: Any = None) -> dict[str, Any]:
 	"""Daily job: a birthday coupon for every client whose birthday is ``lead_days`` away (once a year)."""
 	settings = get_rewards_settings()
-	if not settings["birthday_coupon_enabled"] or not frappe.db.exists("DocType", "Maison Client Profile"):
+	if not settings["birthday_coupon_enabled"] or not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return {"issued": [], "skipped": "disabled"}
 	today = getdate(today or nowdate())
 	target = add_days(today, settings["birthday_coupon_lead_days"])
 	issued: list[str] = []
-	profiles = frappe.get_all("Maison Client Profile", filters={"birthday": ("is", "set")}, fields=["customer", "birthday", "do_not_email"])
+	profiles = frappe.get_all("AWANZ Client Profile", filters={"birthday": ("is", "set")}, fields=["customer", "birthday", "do_not_email"])
 	campaign = _birthday_campaign()
 	for p in profiles:
 		bd = getdate(p.birthday)
@@ -658,11 +658,11 @@ def issue_birthday_coupons(today: Any = None) -> dict[str, Any]:
 		if not frappe.db.exists("Customer", p.customer) or frappe.db.get_value("Customer", p.customer, "disabled"):
 			continue
 		code = _birthday_code(p.customer, target.year)
-		if frappe.db.exists("Maison Coupon", code):
+		if frappe.db.exists("AWANZ Coupon", code):
 			continue
 		coupon = frappe.get_doc(
 			{
-				"doctype": "Maison Coupon",
+				"doctype": "AWANZ Coupon",
 				"code": code,
 				"title": f"Birthday {target.year} — {frappe.db.get_value('Customer', p.customer, 'customer_name')}",
 				"enabled": 1,
@@ -680,7 +680,7 @@ def issue_birthday_coupons(today: Any = None) -> dict[str, Any]:
 		issued.append(code)
 		try:
 			frappe.get_doc(
-				{"doctype": "Maison Client Interaction", "customer": p.customer, "type": "Birthday", "note": f"Birthday coupon {code} issued (valid until {coupon.valid_upto})", "ts": now_datetime(), "status": "Done", "done_on": now_datetime()}
+				{"doctype": "AWANZ Client Interaction", "customer": p.customer, "type": "Birthday", "note": f"Birthday coupon {code} issued (valid until {coupon.valid_upto})", "ts": now_datetime(), "status": "Done", "done_on": now_datetime()}
 			).insert(ignore_permissions=True)
 		except Exception:
 			pass
@@ -698,7 +698,7 @@ def issue_birthday_coupons(today: Any = None) -> dict[str, Any]:
 						delayed=True,
 					)
 				except Exception:
-					frappe.log_error(frappe.get_traceback(), "maison birthday coupon mail")
+					frappe.log_error(frappe.get_traceback(), "awanz birthday coupon mail")
 	return {"issued": issued, "date": str(today), "target": str(target)}
 
 
@@ -709,13 +709,13 @@ def _discount_label(settings: dict[str, Any]) -> str:
 
 
 def _birthday_campaign() -> Optional[str]:
-	if not frappe.db.exists("DocType", "Maison Campaign"):
+	if not frappe.db.exists("DocType", "AWANZ Campaign"):
 		return None
-	name = frappe.db.get_value("Maison Campaign", {"campaign_code": "BIRTHDAY"}, "name")
+	name = frappe.db.get_value("AWANZ Campaign", {"campaign_code": "BIRTHDAY"}, "name")
 	if name:
 		return name
 	try:
-		doc = frappe.get_doc({"doctype": "Maison Campaign", "title": "Birthday rewards", "campaign_code": "BIRTHDAY", "channel": "Email", "status": "Sent", "send_date": nowdate(), "segment_signal_type": "Birthday"})
+		doc = frappe.get_doc({"doctype": "AWANZ Campaign", "title": "Birthday rewards", "campaign_code": "BIRTHDAY", "channel": "Email", "status": "Sent", "send_date": nowdate(), "segment_signal_type": "Birthday"})
 		doc.flags.ignore_permissions = True
 		doc.insert()
 		return doc.name
@@ -725,7 +725,7 @@ def _birthday_campaign() -> Optional[str]:
 
 def _touch(campaign: str, customer: str, channel: str = "Email") -> None:
 	try:
-		frappe.get_doc({"doctype": "Maison Campaign Touch", "campaign": campaign, "customer": customer, "channel": channel, "sent_at": now_datetime(), "source": "Manual"}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Campaign Touch", "campaign": campaign, "customer": customer, "channel": channel, "sent_at": now_datetime(), "source": "Manual"}).insert(ignore_permissions=True)
 	except Exception:
 		pass
 
@@ -739,15 +739,15 @@ def send_monthly_promotions(today: Any = None, force: int = 0) -> dict[str, Any]
 	if today.day != 1 and not cint(force):
 		return {"skipped": "not the 1st"}
 	month = today.replace(day=1)
-	name = frappe.db.get_value("Maison Promotion Calendar", {"month": month, "status": ("in", ("Planned", "Active"))}, "name")
+	name = frappe.db.get_value("AWANZ Promotion Calendar", {"month": month, "status": ("in", ("Planned", "Active"))}, "name")
 	if not name:
 		return {"skipped": "no calendar row", "month": str(month)}
-	cal = frappe.get_doc("Maison Promotion Calendar", name)
+	cal = frappe.get_doc("AWANZ Promotion Calendar", name)
 	campaign = cal.campaign
-	if not campaign and frappe.db.exists("DocType", "Maison Campaign"):
+	if not campaign and frappe.db.exists("DocType", "AWANZ Campaign"):
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Campaign",
+				"doctype": "AWANZ Campaign",
 				"title": cal.headline or cal.title,
 				"campaign_code": f"PROMO-{month.strftime('%Y%m')}",
 				"channel": "Email",
@@ -786,7 +786,7 @@ def new_arrivals(days: Optional[int] = None) -> list[dict[str, Any]]:
 	items = frappe.get_all("Item", filters={"is_sales_item": 1, "disabled": 0, "creation": (">=", since)}, fields=["name", "item_name", "item_group", "maison_brand", "maison_flavor", "image", "maison_age_restricted"], order_by="creation desc", limit=60)
 	if not items:
 		return []
-	stores = {b.warehouse: b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, fields=["name", "boutique_name", "warehouse", "is_warehouse", "boutique_type"]) if not cint(b.get("is_warehouse")) and b.get("boutique_type") != "Warehouse"}
+	stores = {b.warehouse: b for b in frappe.get_all("AWANZ Store", filters={"enabled": 1}, fields=["name", "boutique_name", "warehouse", "is_warehouse", "boutique_type"]) if not cint(b.get("is_warehouse")) and b.get("boutique_type") != "Warehouse"}
 	bins = frappe.get_all("Bin", filters={"item_code": ("in", [i.name for i in items]), "warehouse": ("in", list(stores)), "actual_qty": (">", 0)}, fields=["item_code", "warehouse", "actual_qty"])
 	avail: dict[str, list[dict[str, Any]]] = {}
 	for b in bins:
@@ -801,14 +801,14 @@ def new_arrivals_campaign(today: Any = None) -> dict[str, Any]:
 	"""Weekly job: "New arrivals" segment campaign from recently created items."""
 	today = getdate(today or nowdate())
 	items = new_arrivals()
-	if not items or not frappe.db.exists("DocType", "Maison Campaign"):
+	if not items or not frappe.db.exists("DocType", "AWANZ Campaign"):
 		return {"skipped": "no new items", "date": str(today)}
 	code = f"NEW-{today.strftime('%Y%m%d')}"
-	if frappe.db.exists("Maison Campaign", {"campaign_code": code}):
+	if frappe.db.exists("AWANZ Campaign", {"campaign_code": code}):
 		return {"skipped": "already sent", "campaign_code": code}
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Campaign",
+			"doctype": "AWANZ Campaign",
 			"title": f"New arrivals — week of {today.strftime('%b %d')}",
 			"campaign_code": code,
 			"channel": "Email",
@@ -840,8 +840,8 @@ def program() -> dict[str, Any]:
 	lp = default_program()
 	tiers_ = reward_tiers(program=lp["name"] if lp else None)
 	events = []
-	if frappe.db.exists("DocType", "Maison Campaign"):
-		events = frappe.get_all("Maison Campaign", filters={"channel": ("in", ("Event", "Private viewing")), "status": ("in", ("Scheduled", "Sent")), "send_date": (">=", add_days(nowdate(), -1))}, fields=["title", "send_date", "content_link"], order_by="send_date asc", limit=5)
+	if frappe.db.exists("DocType", "AWANZ Campaign"):
+		events = frappe.get_all("AWANZ Campaign", filters={"channel": ("in", ("Event", "Private viewing")), "status": ("in", ("Scheduled", "Sent")), "send_date": (">=", add_days(nowdate(), -1))}, fields=["title", "send_date", "content_link"], order_by="send_date asc", limit=5)
 	giveaways_ = [{"title": g.title, "prize": g.prize_description, "end_date": str(g.end_date), "rule": g.entry_rule, "amount_per_entry": flt(g.amount_per_entry)} for g in open_giveaways(None)]
 	return {
 		"brand": brand,
@@ -867,9 +867,9 @@ def _signup_is_staff() -> bool:
 	"""True for a signed-in member of staff (they may knowingly link an existing client)."""
 	if frappe.session.user in ("Guest", None):
 		return False
-	from maison_pos.scoping import ALL_MAISON_ROLES
+	from maison_pos.scoping import ALL_AWANZ_ROLES
 
-	return bool(set(ALL_MAISON_ROLES + ("System Manager",)) & set(frappe.get_roles()))
+	return bool(set(ALL_AWANZ_ROLES + ("System Manager",)) & set(frappe.get_roles()))
 
 
 def _enrol(customer: str, birthday: Optional[str], consent_email: Any, consent_sms: Any, boutique: Optional[str]) -> None:
@@ -877,19 +877,19 @@ def _enrol(customer: str, birthday: Optional[str], consent_email: Any, consent_s
 	lp = default_program()
 	if lp and not frappe.db.get_value("Customer", customer, "loyalty_program"):
 		frappe.db.set_value("Customer", customer, "loyalty_program", lp["name"], update_modified=False)
-	if not frappe.db.exists("DocType", "Maison Client Profile"):
+	if not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return
-	if not frappe.db.exists("Maison Client Profile", customer):
-		frappe.get_doc({"doctype": "Maison Client Profile", "customer": customer}).insert(ignore_permissions=True)
+	if not frappe.db.exists("AWANZ Client Profile", customer):
+		frappe.get_doc({"doctype": "AWANZ Client Profile", "customer": customer}).insert(ignore_permissions=True)
 	values: dict[str, Any] = {"do_not_email": 0 if cint(consent_email) else 1, "do_not_sms": 0 if cint(consent_sms) else 1}
 	if birthday:
 		try:
 			values["birthday"] = getdate(birthday)
 		except Exception:
 			pass
-	if boutique and frappe.db.exists("Maison Boutique", boutique):
+	if boutique and frappe.db.exists("AWANZ Store", boutique):
 		values["preferred_boutique"] = boutique
-	frappe.db.set_value("Maison Client Profile", customer, values, update_modified=False)
+	frappe.db.set_value("AWANZ Client Profile", customer, values, update_modified=False)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

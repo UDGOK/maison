@@ -28,7 +28,7 @@ export interface Boutique {
   region?: string
 }
 
-/** v0.4 A — `Maison Boutique Reader` row. */
+/** v0.4 A — `AWANZ Store Reader` row. */
 export type ReaderDeviceType = 'verifone_v660p' | 'stripe_s710' | 'bbpos_wisepos_e' | 'simulated'
 export interface BoutiqueReader {
   name?: string
@@ -91,7 +91,7 @@ export interface Item {
   disabled?: 0 | 1
 }
 
-/** Maison POS Settings (global) merged with the boutique overrides — v0.2 `bootstrap.settings`. */
+/** AWANZ POS Settings (global) merged with the boutique overrides — v0.2 `bootstrap.settings`. */
 export interface PosSettings {
   show_product_images: boolean
   scan_enabled: boolean
@@ -114,7 +114,7 @@ export interface PosSettings {
   consent_text: string
   consent_text_version: string
   recognition_offline_cache: boolean
-  /** v0.4 E — returns policy (merged from Maison POS Settings). */
+  /** v0.4 E — returns policy (merged from AWANZ POS Settings). */
   return_window_days: number
   exchange_window_days: number
   /** refunds / exchange credits above this need a manager PIN (0 = always) */
@@ -166,12 +166,12 @@ export function normalizeSettings(raw?: Partial<Record<keyof PosSettings, unknow
 
 /** Default consent text (EN). The backend ships its own; this is the offline / mock fallback. */
 export const DEFAULT_CONSENT_TEXT =
-  'I agree that Maison may create and store a mathematical template of my facial geometry from a camera image, ' +
-  'and use it only to recognise me in Maison boutiques so that my client profile and loyalty benefits can be ' +
-  'offered to me at the point of sale. No photograph of my face is kept. Maison will not sell, lease or share this ' +
+  'I agree that AWANZ may create and store a mathematical template of my facial geometry from a camera image, ' +
+  'and use it only to recognise me in AWANZ boutiques so that my client profile and loyalty benefits can be ' +
+  'offered to me at the point of sale. No photograph of my face is kept. AWANZ will not sell, lease or share this ' +
   'template, will protect it with reasonable security, and will permanently destroy it when I ask, when I have not ' +
   'visited for 36 months, or when it is no longer needed — whichever comes first. I can withdraw this consent at any ' +
-  'time by asking any Maison associate, and withdrawing never affects my purchases or loyalty balance.'
+  'time by asking any AWANZ associate, and withdrawing never affects my purchases or loyalty balance.'
 
 export const RECOGNITION_MODEL = 'face-api/faceRecognitionNet@1'
 export const RECOGNITION_DIMS = 128
@@ -231,7 +231,7 @@ export interface Bootstrap {
    * every serial number (Code-128 label = serial no). Serial codes are also present in `serials`.
    */
   barcodes: Record<string, string>
-  /** v0.2 — merged Maison POS Settings (boutique overrides global). */
+  /** v0.2 — merged AWANZ POS Settings (boutique overrides global). */
   settings: PosSettings
   version: string
   // --- v0.6 N/Q — brand tokens + fixed reward tiers (see src/api/v06.ts) ---
@@ -241,7 +241,7 @@ export interface Bootstrap {
 }
 
 // --- v0.6 N/Q — brand tokens, vertical product attributes, reward tiers ---
-/** `catalog.bootstrap.brand` — everything the user sees is driven by these (never hard-coded "Maison"). */
+/** `catalog.bootstrap.brand` — everything the user sees is driven by these (never hard-coded "AWANZ"). */
 export interface Brand {
   brand_name: string
   product_name: string
@@ -263,7 +263,7 @@ export interface Brand {
   developer_website?: string
 }
 
-/** `Maison Reward Tier` row — fixed redemption tiers ($5 off at 100 points, …). */
+/** `AWANZ Reward Tier` row — fixed redemption tiers ($5 off at 100 points, …). */
 export interface RewardTier {
   name: string
   title: string
@@ -292,7 +292,7 @@ export interface Customer {
   client_number?: string
   /** v0.2 — reserved; never populated by the POS. */
   maison_face_id?: string
-  /** v0.3 — biometric consent flag (kept in sync with the Active Maison Biometric Consent). */
+  /** v0.3 — biometric consent flag (kept in sync with the Active AWANZ Biometric Consent). */
   maison_face_consent?: 0 | 1
   /** v0.3 — datetime of the active consent (`maison_face_consent_at`; `_on` is the v0.2 alias). */
   maison_face_consent_at?: string
@@ -429,7 +429,7 @@ export interface POSInvoice {
   payments: POSPayment[]
   loyalty_points_redeemed?: number
   notes?: string
-  /** v0.4 I — Maison Coupon code applied to the basket (validated server-side) */
+  /** v0.4 I — AWANZ Coupon code applied to the basket (validated server-side) */
   coupon_code?: string
   /** v0.4 I — promotions applied automatically (for the Promotion performance report) */
   promotions?: { name: string; title: string; discount: number }[]
@@ -446,7 +446,7 @@ export interface POSInvoice {
 export interface AgeCheckPayload {
   verified: 0 | 1
   method: 'Scan' | 'Manual'
-  /** `Maison Age Check` name when the check ran online */
+  /** `AWANZ Age Check` name when the check ran online */
   check?: string
   checked_at?: string
   dob_year_ok?: 0 | 1
@@ -569,11 +569,11 @@ export class ApiError extends Error {
   }
 }
 
-export interface MaisonApi {
+export interface AwanzApi {
   catalog: {
     bootstrap(boutique: string): Promise<Bootstrap>
     delta(boutique: string, since: string): Promise<Delta>
-    /** v0.2 — multipart upload (Maison Manager+); attaches a File to the Item and sets Item.image. */
+    /** v0.2 — multipart upload (AWANZ Manager+); attaches a File to the Item and sets Item.image. */
     upload_item_image(item_code: string, file: Blob, filename?: string): Promise<UploadItemImageResult>
   }
   customers: {
@@ -613,7 +613,7 @@ export interface MaisonApi {
     enroll(req: EnrollRequest): Promise<EnrollResult>
     decline(args: { boutique: string; device_id: string; customer?: string; phone?: string; email?: string; name?: string }): Promise<{ customer: string; client_number?: string; customer_name?: string; created?: boolean }>
     templates(boutique: string, since?: string): Promise<TemplatesResult>
-    /** Maison Manager+: purges templates, revokes consent, logs. */
+    /** AWANZ Manager+: purges templates, revokes consent, logs. */
     revoke(customer: string, reason: string): Promise<{ ok: boolean }>
     log_event(args: { customer?: string; outcome: RecognitionOutcome; score?: number; sales_invoice?: string; boutique?: string; device_id?: string }): Promise<{ ok: boolean }>
   }

@@ -26,7 +26,7 @@ def on_invoice_submit(doc, method: str | None = None) -> None:
 		frappe.publish_realtime(
 			"maison_web_order",
 			{"name": so, "boutique": doc.get("maison_boutique"), "status": "Collected", "sales_invoice": doc.name, "grand_total": flt(doc.grand_total)},
-			room="maison_dashboard",
+			room="awanz_dashboard",
 		)
 	except Exception:  # noqa: BLE001
 		pass

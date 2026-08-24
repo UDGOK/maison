@@ -3,7 +3,7 @@
  * v0.6 O — POS "Receive" screen: inbound warehouse shipments + vendor POs shipped direct to the store;
  * open one → scan (wedge / camera) or tap to count → discrepancies highlighted → Confirm receipt posts
  * the Stock Entry (In Transit → store) or the Purchase Receipt. Short / over / damaged raise a
- * Maison Receiving Discrepancy for the warehouse admin. Also: replenishment requests of the store
+ * AWANZ Receiving Discrepancy for the warehouse admin. Also: replenishment requests of the store
  * (status, rejection reason) and a manual "Request from warehouse".
  */
 import { computed, onMounted, ref } from 'vue'

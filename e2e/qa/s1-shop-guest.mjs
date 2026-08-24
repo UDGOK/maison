@@ -15,7 +15,7 @@ const AGE = restricted.find((i) => i.item_code === 'DSP-001') || restricted[0]
 log(`fixtures: BUY=${BUY.item_code} ${BUY.item_name} ${BUY.route} · AGE=${AGE.item_code} ${AGE.item_name} ${AGE.route}`)
 record('guest catalogue API returns items + groups', cat.items.length > 100 && cat.item_groups.length > 3, `${cat.items.length} items, ${cat.item_groups.length} groups, ${buy.length} buyable, ${restricted.length} in-store-only`)
 
-const set = await admin.doc('Maison POS Settings')
+const set = await admin.doc('AWANZ POS Settings')
 record('webshop_age_restricted_sales is OFF (precondition)', !Number(set.webshop_age_restricted_sales), `webshop_age_restricted_sales=${set.webshop_age_restricted_sales} minimum_age=${set.minimum_age}`)
 
 const { context, page } = await L.ctxFor(browser, null, 'guest')
@@ -51,7 +51,7 @@ const modeLabels = await page.$$eval('.mw-card .mode', (m) => [...new Set(m.map(
 const modeCards = await page.locator('.mw-card').count()
 record('collection filters by mode=Buy (only purchasable)', modeCards > 0 && !modeLabels.some((m) => /In store|Enquire/i.test(m)), `${modeCards} cards, modes=${modeLabels.join(' | ')}`)
 await go(page, '/all-products')
-record('/all-products serves the Maison listing', (await page.locator('.mw-grid .mw-card').count()) > 10, `${await page.locator('.mw-grid .mw-card').count()} cards`)
+record('/all-products serves the AWANZ listing', (await page.locator('.mw-grid .mw-card').count()) > 10, `${await page.locator('.mw-grid .mw-card').count()} cards`)
 
 // ---- product page: buyable
 await go(page, BUY.route)

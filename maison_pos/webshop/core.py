@@ -81,9 +81,9 @@ def boutiques(enabled_only: bool = True) -> list[dict[str, Any]]:
 	filters: dict[str, Any] = {"enabled": 1} if enabled_only else {}
 	fields = ["name", "boutique_name", "city", "address_line", "phone", "email", "warehouse", "company"]
 	# --- v0.6 N — the HOU-WH warehouse row is not a store: never a collection point ---
-	meta = frappe.get_meta("Maison Boutique")
+	meta = frappe.get_meta("AWANZ Store")
 	extra = [f for f in ("is_warehouse", "boutique_type", "region", "hours", "timezone", "state", "zip") if meta.has_field(f)]
-	rows = frappe.get_all("Maison Boutique", filters=filters, fields=fields + extra, order_by="boutique_name asc")
+	rows = frappe.get_all("AWANZ Store", filters=filters, fields=fields + extra, order_by="boutique_name asc")
 	out = []
 	for r in rows:
 		if cint(r.get("is_warehouse")) or r.get("boutique_type") == "Warehouse":

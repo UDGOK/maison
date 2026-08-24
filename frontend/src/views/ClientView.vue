@@ -114,7 +114,7 @@ let timer: number | undefined
 async function search() {
   error.value = ''
   try {
-    if (window.__maisonOffline) throw new Error('offline')
+    if (window.__awanzOffline) throw new Error('offline')
     results.value = await api.customers.search(q.value, 30)
     source.value = 'server'
     await db.customers.bulkPut(JSON.parse(JSON.stringify(results.value)))

@@ -210,8 +210,8 @@ class TestPosDefectsV08(FrappeTestCase):
 		# (rolled back with the test) so this exercises the same gate the smoke-shop catalogue hits
 		item = FUZZ_ITEMS[0]
 		frappe.db.set_value("Item", item, "maison_age_restricted", 1)
-		frappe.db.set_single_value("Maison POS Settings", "age_verification_required", 1)
-		frappe.clear_cache(doctype="Maison POS Settings")
+		frappe.db.set_single_value("AWANZ POS Settings", "age_verification_required", 1)
+		frappe.clear_cache(doctype="AWANZ POS Settings")
 
 		lines = [{"item_code": item, "qty": 1, "rate": 24.99}]
 		due = device_totals(lines)["grand_total"]
@@ -231,7 +231,7 @@ class TestPosDefectsV08(FrappeTestCase):
 		# stored naive, in the site's zone, and the audit row was created on submit
 		self.assertEqual(str(si.maison_age_checked_at)[:10], "2026-08-23")
 		self.assertNotIn("Z", str(si.maison_age_checked_at))
-		self.assertTrue(frappe.db.exists("Maison Age Check", {"sales_invoice": si.name}))
+		self.assertTrue(frappe.db.exists("AWANZ Age Check", {"sales_invoice": si.name}))
 
 	def test_d2_checked_at_normalisation(self):
 		"""Every shape a till might send lands as a naive datetime; garbage falls back to now."""

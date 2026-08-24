@@ -1,5 +1,5 @@
 import sys, json
-sys.path.insert(0, "/home/claude/maison/e2e/qa")
+sys.path.insert(0, "/home/claude/awanz/e2e/qa")
 from harness import sess, summ, PERSONAS, BASE
 adm=sess("admin"); g=sess("guest"); asc=sess("associate"); mgr=sess("manager")
 
@@ -46,17 +46,17 @@ if reqname:
     ap=mgr.post("maison_pos.api.shipping.approve", request=reqname)
     print(f"  manager self-approve {reqname}:", ap.status_code, "->", ("BLOCKED" if ap.status_code==403 else "ALLOWED!"), ap.text[:80])
 
-print("\n=== A4: associate tampers a Maison Age Check (set result Verified) ===")
-ac = adm.get("frappe.client.get_list", doctype="Maison Age Check",
+print("\n=== A4: associate tampers an AWANZ Age Check (set result Verified) ===")
+ac = adm.get("frappe.client.get_list", doctype="AWANZ Age Check",
              filters=json.dumps([["boutique","=","OK-MINGO"]]), fields=json.dumps(["name","result"]),
              order_by="creation desc", limit_page_length=1)
 acr=ac.json().get("message",[])
 if acr:
     acn=acr[0]["name"]; orig=acr[0]["result"]
-    rt=asc.post("frappe.client.set_value", doctype="Maison Age Check", name=acn, fieldname="result", value="Verified")
-    now=adm.get("frappe.client.get_value", doctype="Maison Age Check", filters=json.dumps({"name":acn}), fieldname="result").json().get("message",{}).get("result")
+    rt=asc.post("frappe.client.set_value", doctype="AWANZ Age Check", name=acn, fieldname="result", value="Verified")
+    now=adm.get("frappe.client.get_value", doctype="AWANZ Age Check", filters=json.dumps({"name":acn}), fieldname="result").json().get("message",{}).get("result")
     print(f"  associate set_value age check {acn}: http={rt.status_code} result {orig}->{now}  TAMPERED={now=='Verified' and orig!='Verified'}")
-    if now!=orig: adm.post("frappe.client.set_value", doctype="Maison Age Check", name=acn, fieldname="result", value=orig); print("  reverted")
+    if now!=orig: adm.post("frappe.client.set_value", doctype="AWANZ Age Check", name=acn, fieldname="result", value=orig); print("  reverted")
 else:
     print("  no age check rows in OK-MINGO")
 

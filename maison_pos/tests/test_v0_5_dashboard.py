@@ -123,7 +123,7 @@ class TestTrendsAndLive(FrappeTestCase):
 		out = trends.compute_trends(commit=False)
 		self.assertGreater(out["rows"], 0)
 		today = getdate(nowdate())
-		row = frappe.get_all("Maison Product Trend", filters={"boutique": "ALL", "period": "28d"}, fields=["item_code", "units", "net", "store_count"], order_by="net desc", limit=1)[0]
+		row = frappe.get_all("AWANZ Product Trend", filters={"boutique": "ALL", "period": "28d"}, fields=["item_code", "units", "net", "store_count"], order_by="net desc", limit=1)[0]
 		expected = frappe.db.sql(
 			"""select sum(sii.qty), sum(sii.amount), count(distinct si.maison_boutique) from `tabSales Invoice Item` sii
 			join `tabSales Invoice` si on si.name = sii.parent
@@ -133,7 +133,7 @@ class TestTrendsAndLive(FrappeTestCase):
 		self.assertAlmostEqual(flt(row.units), flt(expected[0]), places=3)
 		self.assertAlmostEqual(flt(row.net), flt(expected[1]), places=2)
 		# ranks are dense per (boutique, period)
-		ranks = sorted(frappe.get_all("Maison Product Trend", filters={"boutique": "ALL", "period": "28d"}, pluck="rank"))
+		ranks = sorted(frappe.get_all("AWANZ Product Trend", filters={"boutique": "ALL", "period": "28d"}, pluck="rank"))
 		self.assertEqual(ranks, list(range(1, len(ranks) + 1)))
 
 	def test_product_trends_and_top_products_read_precomputed_rows(self):

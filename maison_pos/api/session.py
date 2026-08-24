@@ -17,7 +17,7 @@ def me() -> dict[str, Any]:
 	if user == "Guest":
 		frappe.throw(frappe._("Authentication required"), frappe.AuthenticationError)
 	assoc = get_associate(user)
-	# The till sells; the warehouse does not. `HOU-WH` is a Maison Boutique so shipments and
+	# The till sells; the warehouse does not. `HOU-WH` is an AWANZ Store so shipments and
 	# receiving can address it, but offering it in the POS store picker lets someone ring a sale
 	# out of the warehouse — and leaves a warehouse-only user (the shipping admin) staring at a
 	# store list they can never unlock. The warehouse desk lives at /warehouse instead.
@@ -25,11 +25,11 @@ def me() -> dict[str, Any]:
 	return {
 		"user": user,
 		"full_name": frappe.db.get_value("User", user, "full_name"),
-		"roles": [r for r in frappe.get_roles(user) if r.startswith("Maison ") or r == "System Manager"],
+		"roles": [r for r in frappe.get_roles(user) if r.startswith("AWANZ ") or r == "System Manager"],
 		"unrestricted": is_unrestricted(user),
 		"associate": assoc,
 		"boutiques": frappe.get_all(
-			"Maison Boutique",
+			"AWANZ Store",
 			filters={"name": ("in", boutiques)} if boutiques else {"name": "__none__"},
 			fields=["name", "boutique_name", "city", "warehouse", "pos_profile", "stripe_location_id", "printer_ip", "printer_model"],
 			order_by="name",
@@ -45,7 +45,7 @@ def associates(boutique: str) -> list[dict[str, Any]]:
 
 	boutique = assert_boutique_access(boutique)
 	return frappe.get_all(
-		"Maison Associate",
+		"AWANZ Associate",
 		filters={"boutique": boutique, "enabled": 1},
 		fields=["name", "user", "full_name", "role"],
 		order_by="full_name",

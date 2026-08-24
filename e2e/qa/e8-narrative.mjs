@@ -1,11 +1,11 @@
 import { launch, check, save, shot, BASE } from './lib-dash.mjs'
 const { browser, page, console_ } = await launch()
-await page.goto(`${BASE}/maison-dashboard?view=insights`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=insights`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('.insights .grid > .a', { timeout: 45000 })
 await page.waitForTimeout(3000)
 const narr = await page.locator('.insights .grid > .a').innerText()
 check('weekly narrative (template mode) renders on the Insights tab', /week/i.test(narr) && narr.length > 200, narr.replace(/\n/g, ' | ').slice(0, 600))
-check('narrative names CloudChaserz stores (not Maison)', /CloudChaserz/.test(narr) && !/Maison/.test(narr), (narr.match(/Maison[^,.]*/g) || ['none']).join(', '))
+check('narrative names CloudChaserz stores (not AWANZ)', /CloudChaserz/.test(narr) && !/AWANZ/.test(narr), (narr.match(/AWANZ[^,.]*/g) || ['none']).join(', '))
 await shot(page, '18-insights-narrative-1920.png')
 check('no console errors', console_.filter(c=>!/favicon/.test(c)).length === 0, console_.slice(0,4).join(' | '))
 save('results-e8.json')

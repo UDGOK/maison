@@ -18,7 +18,7 @@ page.on('pageerror', (e) => console.log('pageerror', e.message))
 await page.goto(`${BASE}/unlock`)
 await page.evaluate(async () => {
   localStorage.clear()
-  localStorage.setItem('maisonE2E', '1')
+  localStorage.setItem('awanzE2E', '1')
   const dbs = (await indexedDB.databases?.()) || [{ name: 'maison_pos' }]
   await Promise.all(dbs.map((d) => new Promise((r) => { const req = indexedDB.deleteDatabase(d.name); req.onsuccess = req.onerror = req.onblocked = () => r() })))
 })
@@ -40,7 +40,7 @@ let lastLine = ''
 while (Date.now() - t0 < 40000) {
   await page.waitForTimeout(1000)
   const s = await page.evaluate(() => {
-    const st = window.__maisonRecognitionTest?.state()
+    const st = window.__awanzRecognitionTest?.state()
     const panel = document.querySelector('[data-testid=recognition-test-panel]')
     const kv = [...(panel?.querySelectorAll('.test-status .kv') || [])].map((e) => e.textContent.replace(/\s+/g, ' ').trim())
     const log = [...(panel?.querySelectorAll('.test-log .small') || [])].map((e) => e.textContent.trim())

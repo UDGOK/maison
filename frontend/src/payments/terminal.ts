@@ -31,7 +31,7 @@ export interface ReaderPrintResult {
 
 export interface TerminalDriver {
   readonly kind: 'stripe' | 'simulated'
-  /** v0.4 A — which paired reader this driver connects to (Maison Boutique Reader row) */
+  /** v0.4 A — which paired reader this driver connects to (AWANZ Store Reader row) */
   readonly readerId?: string
   charge(opts: {
     boutique: string
@@ -74,7 +74,7 @@ export class SimulatedReader implements TerminalDriver {
       preview = undefined
     }
     this.lastPrint = preview || null
-    if (typeof window !== 'undefined') (window as unknown as { __maisonLastReaderPrint?: string }).__maisonLastReaderPrint = preview
+    if (typeof window !== 'undefined') (window as unknown as { __awanzLastReaderPrint?: string }).__awanzLastReaderPrint = preview
     return { ok: true, reader: this.label, preview }
   }
 
@@ -208,7 +208,7 @@ export class StripeReader implements TerminalDriver {
 export interface CreateTerminalOptions {
   publishableKey?: string
   locationId?: string
-  /** v0.4 A — reader picked in Settings (Maison Boutique Reader): its Stripe id, type and printer flag */
+  /** v0.4 A — reader picked in Settings (AWANZ Store Reader): its Stripe id, type and printer flag */
   reader?: { stripe_reader_id?: string; device_type?: string; has_printer?: boolean | 0 | 1; label?: string } | null
 }
 

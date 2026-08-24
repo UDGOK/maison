@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Products tab — two sub-tabs exactly as asked: "Trending in stores" and "Top products by store"
- * (+ item-group × boutique matrix). Everything reads the precomputed Maison Product Trend table.
+ * (+ item-group × boutique matrix). Everything reads the precomputed AWANZ Product Trend table.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import TrendingTable from './TrendingTable.vue'
@@ -91,7 +91,7 @@ const heatCells = computed(() => top.value?.matrix ?? [])
         </div>
       </template>
       <!-- v0.6 R: say what the stamp is (it is not "now") and put it on the site clock -->
-        <span class="label meta" :title="computedAt ? `Trend table last precomputed ${computedAt}` : 'The Maison Product Trend table has not been built yet'">{{ stamp }}<template v-if="loadMs !== null"> · loaded in {{ loadMs }} ms</template></span>
+        <span class="label meta" :title="computedAt ? `Trend table last precomputed ${computedAt}` : 'The AWANZ Product Trend table has not been built yet'">{{ stamp }}<template v-if="loadMs !== null"> · loaded in {{ loadMs }} ms</template></span>
     </header>
     <div v-if="error" class="label err">{{ error }}</div>
     <div class="body">

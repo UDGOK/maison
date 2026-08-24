@@ -89,7 +89,7 @@ class TestReceiptToken(FrappeTestCase):
 		svg = receipt_qr_svg(si)
 		self.assertTrue(svg.startswith("data:image/svg+xml;base64,"))
 		self.assertIn("<svg", base64.b64decode(svg.split(",", 1)[1]).decode())
-		html = frappe.get_print("Sales Invoice", si.name, print_format="Maison Receipt", no_letterhead=1)
+		html = frappe.get_print("Sales Invoice", si.name, print_format="AWANZ Receipt", no_letterhead=1)
 		self.assertIn("data:image/svg+xml;base64,", html)
 		self.assertIn("Scan for your receipt", html)
 		# draft invoice has no token -> no QR
@@ -98,7 +98,7 @@ class TestReceiptToken(FrappeTestCase):
 
 	def test_receipt_qr_respects_setting(self):
 		si = self._submit()
-		settings = frappe.get_doc("Maison POS Settings")
+		settings = frappe.get_doc("AWANZ POS Settings")
 		settings.receipt_qr_enabled = 0
 		settings.save()
 		try:
@@ -208,12 +208,12 @@ class TestBarcodes(FrappeTestCase):
 		self.assertIn("show_product_images", data["boutique"])
 
 	def test_boutique_overrides_show_images(self):
-		frappe.db.set_value("Maison Boutique", "MIA-DD", "show_product_images", 1)
+		frappe.db.set_value("AWANZ Store", "MIA-DD", "show_product_images", 1)
 		try:
 			self.assertEqual(catalog.bootstrap("MIA-DD")["settings"]["show_product_images"], 1)
 			self.assertEqual(catalog.bootstrap("NYC-5AV")["settings"]["show_product_images"], 0)
 		finally:
-			frappe.db.set_value("Maison Boutique", "MIA-DD", "show_product_images", 0)
+			frappe.db.set_value("AWANZ Store", "MIA-DD", "show_product_images", 0)
 
 	def test_delta_has_barcodes(self):
 		data = catalog.delta("NYC-5AV", "2000-01-01T00:00:00")

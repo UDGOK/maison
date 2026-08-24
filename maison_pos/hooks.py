@@ -1,12 +1,12 @@
-"""Frappe hooks for the Maison POS app."""
+"""Frappe hooks for the AWANZ POS app."""
 
 from . import __version__ as app_version  # noqa: F401
 
 app_name = "maison_pos"
-app_title = "Maison POS"
-app_publisher = "Maison"
+app_title = "AWANZ POS"
+app_publisher = "AWANZ"
 app_description = "Offline-first luxury retail point of sale on ERPNext v15"
-app_email = "dev@maison.example"
+app_email = "dev@awanz.example"
 app_license = "MIT"
 # v0.4: hrms (Employee Checkin, Additional Salary / Payroll) and crm (Frappe CRM: CRM Task, Contact)
 # are installed alongside; the glue feature-detects both and degrades gracefully when absent.
@@ -39,17 +39,29 @@ add_to_apps_screen = [
 # and Regional get the Command dashboard, the warehouse admin the shipping desk,
 # and store staff the till — so a demo login never dead-ends on /app.
 role_home_page = {
-	"Maison Head Office": "maison-dashboard",
-	"Maison Regional": "maison-dashboard",
-	"Maison Warehouse Admin": "warehouse",
-	"Maison Manager": "pos",
-	"Maison Associate": "pos",
+	"AWANZ Head Office": "awanz-dashboard",
+	"AWANZ Regional": "awanz-dashboard",
+	"AWANZ Warehouse Admin": "warehouse",
+	"AWANZ Manager": "pos",
+	"AWANZ Associate": "pos",
 }
 # --- end v0.6 role home pages ---
 
+# --- v0.9 Maison -> AWANZ: keep the old dashboard URL alive ---
+# The Command wall moved from /maison-dashboard to /awanz-dashboard. Bookmarks, the
+# launcher of an un-migrated tab, `role_home_page` rows written before the rename and
+# any link a head-office user mailed around still point at the old path, so it 301s to
+# the new one instead of 404ing. Frappe checks `website_redirects` before it resolves a
+# page, so this costs nothing on every other request.
+website_redirects = [
+	{"source": "/maison-dashboard", "target": "/awanz-dashboard"},
+	{"source": r"/maison-dashboard/(.*)", "target": r"/awanz-dashboard/\1"},
+]
+# --- end v0.9 ---
+
 website_route_rules = [
 	{"from_route": "/pos/<path:app_path>", "to_route": "pos"},
-	{"from_route": "/maison-dashboard/<path:app_path>", "to_route": "maison-dashboard"},
+	{"from_route": "/awanz-dashboard/<path:app_path>", "to_route": "awanz-dashboard"},
 	# public receipt page (token from the QR printed on the receipt)
 	{"from_route": "/r/<token>", "to_route": "r"},
 	# --- v0.5 K (salon): client-facing screen, same PWA bundle, own layout ---
@@ -70,11 +82,11 @@ website_route_rules = [
 ]
 
 # --- v0.4 G (webshop): gold skin for every website page (login, /me, /orders, webshop item groups) ---
-web_include_css = ["/assets/maison_pos/css/maison-web.css"]
+web_include_css = ["/assets/maison_pos/css/awanz-web.css"]
 
 # --- v0.7 white-label ---
 # Nothing in the product surface says "Frappe" or "ERPNext"; every string comes from
-# `Maison POS Settings` at render time. See `maison_pos/setup/whitelabel.py` and
+# `AWANZ POS Settings` at render time. See `maison_pos/setup/whitelabel.py` and
 # `docs/white-label.md` (which records what must legally stay: licences and source-level
 # attribution, none of which is UI chrome).
 #
@@ -84,7 +96,7 @@ update_website_context = ["maison_pos.setup.whitelabel.website_context"]
 # 2. Desk (`/app`): brand tokens in `frappe.boot`, and the About dialog (hard-coded to
 #    "Frappe Framework" in the framework bundle) replaced by the tenant's.
 extend_bootinfo = "maison_pos.setup.whitelabel.extend_bootinfo"
-app_include_js = ["/assets/maison_pos/js/maison-desk.js"]
+app_include_js = ["/assets/maison_pos/js/awanz-desk.js"]
 # 3. The two framework strings that sit outside every Jinja block in `frappe/templates/base.html`
 #    (`<!-- Built on Frappe … -->`, `<meta name="generator" content="frappe">`) plus the
 #    framework response headers — replaced on the response, the only place they can be reached
@@ -93,12 +105,12 @@ after_request = ["maison_pos.setup.whitelabel.scrub_response"]
 # 4. Outgoing mail: `X-Frappe-Site` is set on every message by frappe/email/email_body.py.
 make_email_body_message = "maison_pos.setup.whitelabel.scrub_email_headers"
 # --- end v0.7 white-label ---
-# Website Item keeps webshop's data model; only the template + context are Maison's
+# Website Item keeps webshop's data model; only the template + context are AWANZ's
 override_doctype_class = {
-	"Website Item": "maison_pos.webshop.website_item.MaisonWebsiteItem",
+	"Website Item": "maison_pos.webshop.website_item.AwanzWebsiteItem",
 	# chains on webshop's override: the advance Payment Entry is created with elevated rights
 	# (portal shoppers have no accounting permissions) and the shopper lands on /shop/order
-	"Payment Request": "maison_pos.webshop.payment_request.MaisonPaymentRequest",
+	"Payment Request": "maison_pos.webshop.payment_request.AwanzPaymentRequest",
 }
 # --- end v0.4 G ---
 
@@ -115,12 +127,12 @@ before_tests = "maison_pos.setup.demo.before_tests"
 # Fixtures (exported with `bench --site X export-fixtures`)
 # ---------------------------------------------------------------------------
 fixtures = [
-	{"dt": "Role", "filters": [["name", "like", "Maison %"]]},
+	{"dt": "Role", "filters": [["name", "like", "AWANZ %"]]},
 	{"dt": "Custom Field", "filters": [["name", "like", "%-maison_%"]]},
 	{"dt": "Workflow State", "filters": [["name", "in", ["Draft", "Pending Approval", "Approved", "Rejected"]]]},
 	{"dt": "Workflow Action Master", "filters": [["name", "in", ["Submit for Approval", "Approve", "Reject"]]]},
-	{"dt": "Workflow", "filters": [["name", "=", "Maison Price Approval"]]},
-	{"dt": "Print Format", "filters": [["name", "in", ["Maison Receipt", "Maison Return Receipt"]]]},
+	{"dt": "Workflow", "filters": [["name", "=", "AWANZ Price Approval"]]},
+	{"dt": "Print Format", "filters": [["name", "in", ["AWANZ Receipt", "AWANZ Return Receipt"]]]},
 ]
 
 # ---------------------------------------------------------------------------
@@ -177,14 +189,14 @@ scheduler_events = {
 		# --- v0.4 H insights (site time zone) ---
 		# Monday 05:00: affinity cache, client signals, rebalance suggestions
 		"0 5 * * 1": ["maison_pos.insights.jobs.compute_weekly"],
-		# Monday 06:00: weekly narrative (template / Anthropic) e-mailed to Maison Head Office
+		# Monday 06:00: weekly narrative (template / Anthropic) e-mailed to AWANZ Head Office
 		"0 6 * * 1": ["maison_pos.insights.jobs.weekly_narrative"],
 		# --- end v0.4 H ---
-		# --- v0.5 L: Maison Product Trend refreshed every 15 min (dashboard Products tab reads it) ---
+		# --- v0.5 L: AWANZ Product Trend refreshed every 15 min (dashboard Products tab reads it) ---
 		"*/15 * * * *": ["maison_pos.insights.trends.compute_trends"],
 		# --- end v0.5 L ---
 	},
-	# v0.4 D — hourly low-stock scan (Item Reorder levels -> Maison Stock Alert, idempotent)
+	# v0.4 D — hourly low-stock scan (Item Reorder levels -> AWANZ Stock Alert, idempotent)
 	"hourly": [
 		"maison_pos.api.inventory.low_stock_scan",
 		# v0.5 K — salon sessions past 12 h -> Expired
@@ -216,38 +228,38 @@ scheduler_events = {
 # Permissions / scoping helpers
 # ---------------------------------------------------------------------------
 permission_query_conditions = {
-	"Maison Price Change Request": "maison_pos.scoping.price_change_request_query",
-	"Maison Device Heartbeat": "maison_pos.scoping.heartbeat_query",
-	"Maison Sync Log": "maison_pos.scoping.sync_log_query",
-	"Maison Biometric Consent": "maison_pos.scoping.biometric_consent_query",
-	"Maison Recognition Event": "maison_pos.scoping.recognition_event_query",
+	"AWANZ Price Change Request": "maison_pos.scoping.price_change_request_query",
+	"AWANZ Device Heartbeat": "maison_pos.scoping.heartbeat_query",
+	"AWANZ Sync Log": "maison_pos.scoping.sync_log_query",
+	"AWANZ Biometric Consent": "maison_pos.scoping.biometric_consent_query",
+	"AWANZ Recognition Event": "maison_pos.scoping.recognition_event_query",
 	# v0.4 D — inventory alerts / cycle counts scoped to the manager's boutique
-	"Maison Stock Alert": "maison_pos.scoping.stock_alert_query",
-	"Maison Cycle Count": "maison_pos.scoping.cycle_count_query",
+	"AWANZ Stock Alert": "maison_pos.scoping.stock_alert_query",
+	"AWANZ Cycle Count": "maison_pos.scoping.cycle_count_query",
 	# v0.4 B/C/I — boutique-scoped lists for managers / associates
-	"Maison Client Interaction": "maison_pos.scoping.client_interaction_query",
-	"Maison Commission Entry": "maison_pos.scoping.commission_entry_query",
-	"Maison Shift": "maison_pos.scoping.shift_query",
-	"Maison Feedback": "maison_pos.scoping.feedback_query",
-	"Maison Coupon Redemption": "maison_pos.scoping.coupon_redemption_query",
+	"AWANZ Client Interaction": "maison_pos.scoping.client_interaction_query",
+	"AWANZ Commission Entry": "maison_pos.scoping.commission_entry_query",
+	"AWANZ Shift": "maison_pos.scoping.shift_query",
+	"AWANZ Feedback": "maison_pos.scoping.feedback_query",
+	"AWANZ Coupon Redemption": "maison_pos.scoping.coupon_redemption_query",
 	# v0.4 H — boutique-scoped insight rows for managers / associates
-	"Maison Client Signal": "maison_pos.scoping.client_signal_query",
-	"Maison Client Recommendation": "maison_pos.scoping.client_recommendation_query",
+	"AWANZ Client Signal": "maison_pos.scoping.client_signal_query",
+	"AWANZ Client Recommendation": "maison_pos.scoping.client_recommendation_query",
 	# --- v0.5 M — attributed sales scoped to the manager's boutique ---
-	"Maison Campaign Attribution": "maison_pos.scoping.campaign_attribution_query",
+	"AWANZ Campaign Attribution": "maison_pos.scoping.campaign_attribution_query",
 	# --- end v0.5 M ---
 	# --- v0.5 K — a Salon (Guest) may read the one session whose token it holds, never list them ---
-	"Maison Salon Session": "maison_pos.scoping.salon_session_query",
+	"AWANZ Salon Session": "maison_pos.scoping.salon_session_query",
 	# --- end v0.5 K ---
 	# --- v0.6 N/Q — age checks + giveaway entries scoped to the manager's store ---
-	"Maison Age Check": "maison_pos.scoping.age_check_query",
-	"Maison Giveaway Entry": "maison_pos.scoping.giveaway_entry_query",
+	"AWANZ Age Check": "maison_pos.scoping.age_check_query",
+	"AWANZ Giveaway Entry": "maison_pos.scoping.giveaway_entry_query",
 	# --- end v0.6 N/Q ---
 	# --- v0.6 O/P — supply chain docs: managers see their store, warehouse admins everything;
 	# ERPNext stock documents in the desk are narrowed to the manager's own warehouses ---
-	"Maison Replenishment Request": "maison_pos.scoping.replenishment_request_query",
-	"Maison Shipment": "maison_pos.scoping.shipment_query",
-	"Maison Receiving Discrepancy": "maison_pos.scoping.receiving_discrepancy_query",
+	"AWANZ Replenishment Request": "maison_pos.scoping.replenishment_request_query",
+	"AWANZ Shipment": "maison_pos.scoping.shipment_query",
+	"AWANZ Receiving Discrepancy": "maison_pos.scoping.receiving_discrepancy_query",
 	"Stock Entry": "maison_pos.scoping.stock_entry_query",
 	"Material Request": "maison_pos.scoping.material_request_query",
 	"Purchase Receipt": "maison_pos.scoping.purchase_receipt_query",
@@ -262,10 +274,10 @@ permission_query_conditions = {
 	"Delivery Note": "maison_pos.scoping.delivery_note_query",
 	# --- end v0.6 D3 ---
 	# --- v0.7 S2/S5 — every associate of every store (PIN hashes included) used to be listable
-	# by any Maison role through `frappe.client.get_list`. A store user now sees their own shop
+	# by any AWANZ role through `frappe.client.get_list`. A store user now sees their own shop
 	# floor and nothing else; `session.associates` / `catalog.bootstrap` are unaffected because
 	# they select safe fields explicitly through `frappe.get_all`.
-	"Maison Associate": "maison_pos.scoping.associate_query",
+	"AWANZ Associate": "maison_pos.scoping.associate_query",
 	# --- v0.7 S6 — the chain-wide client book is no longer bulk-readable from a shop floor
 	# (single-client service lookups keep working through `customers.search` / `customers.lookup`).
 	"Customer": "maison_pos.scoping.customer_query",
@@ -273,13 +285,13 @@ permission_query_conditions = {
 }
 
 has_permission = {
-	"Maison Price Change Request": "maison_pos.scoping.price_change_request_has_permission",
+	"AWANZ Price Change Request": "maison_pos.scoping.price_change_request_has_permission",
 	# v0.5 K
-	"Maison Salon Session": "maison_pos.scoping.salon_session_has_permission",
+	"AWANZ Salon Session": "maison_pos.scoping.salon_session_has_permission",
 	# --- v0.6 O/P ---
-	"Maison Replenishment Request": "maison_pos.scoping.replenishment_request_has_permission",
-	"Maison Shipment": "maison_pos.scoping.shipment_has_permission",
-	"Maison Receiving Discrepancy": "maison_pos.scoping.receiving_discrepancy_has_permission",
+	"AWANZ Replenishment Request": "maison_pos.scoping.replenishment_request_has_permission",
+	"AWANZ Shipment": "maison_pos.scoping.shipment_has_permission",
+	"AWANZ Receiving Discrepancy": "maison_pos.scoping.receiving_discrepancy_has_permission",
 	"Stock Entry": "maison_pos.scoping.stock_entry_has_permission",
 	"Material Request": "maison_pos.scoping.material_request_has_permission",
 	"Purchase Receipt": "maison_pos.scoping.purchase_receipt_has_permission",
@@ -293,7 +305,7 @@ has_permission = {
 	# --- v0.7 S1/S2/S5 — reads scoped to the caller's own store; writes additionally refused
 	# when they would change `user` / `boutique` / `role`, so the escalation fails with a 403
 	# instead of silently doing nothing.
-	"Maison Associate": "maison_pos.scoping.associate_has_permission",
+	"AWANZ Associate": "maison_pos.scoping.associate_has_permission",
 	# --- end v0.7 ---
 }
 

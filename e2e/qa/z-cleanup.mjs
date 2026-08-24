@@ -15,9 +15,9 @@ const del = async (dt, name) => {
 }
 
 // 1. salon sessions
-const sessions = await admin.list('Maison Salon Session', { boutique: L.STORE, status: 'Paired' }, ['name'], 30)
+const sessions = await admin.list('AWANZ Salon Session', { boutique: L.STORE, status: 'Paired' }, ['name'], 30)
 for (const s of sessions) {
-  try { await admin.post('frappe.client.set_value', { doctype: 'Maison Salon Session', name: s.name, fieldname: 'status', value: 'Unpaired' }); out.disabled.push(`Salon session ${s.name.slice(0, 10)}… → Unpaired`) }
+  try { await admin.post('frappe.client.set_value', { doctype: 'AWANZ Salon Session', name: s.name, fieldname: 'status', value: 'Unpaired' }); out.disabled.push(`Salon session ${s.name.slice(0, 10)}… → Unpaired`) }
   catch (e) { out.failed.push({ doc: `session ${s.name}`, err: String(e).slice(0, 120) }) }
 }
 record('cleanup · Salon sessions unpaired', true, `${sessions.length} paired sessions at ${L.STORE}`)
@@ -47,29 +47,29 @@ const soLeft = await admin.list('Sales Order', { maison_web_order: 1, customer: 
 record('cleanup · web orders cancelled', soLeft.length === 0, `still submitted: ${soLeft.map((s) => s.name).join(', ') || 'none'}`)
 
 // 4. giveaway + entries created for the test giveaway
-const gv = await admin.list('Maison Giveaway', { title: ['like', 'QA4 %'] }, ['name', 'title'], 5)
+const gv = await admin.list('AWANZ Giveaway', { title: ['like', 'QA4 %'] }, ['name', 'title'], 5)
 for (const g of gv) {
-  for (const e of await admin.list('Maison Giveaway Entry', { giveaway: g.name }, ['name'], 50)) await del('Maison Giveaway Entry', e.name)
-  await del('Maison Giveaway', g.name)
+  for (const e of await admin.list('AWANZ Giveaway Entry', { giveaway: g.name }, ['name'], 50)) await del('AWANZ Giveaway Entry', e.name)
+  await del('AWANZ Giveaway', g.name)
 }
-record('cleanup · test giveaway removed', (await admin.list('Maison Giveaway', { title: ['like', 'QA4 %'] }, ['name'], 5)).length === 0, gv.map((g) => g.name).join(', ') || 'none')
+record('cleanup · test giveaway removed', (await admin.list('AWANZ Giveaway', { title: ['like', 'QA4 %'] }, ['name'], 5)).length === 0, gv.map((g) => g.name).join(', ') || 'none')
 
 // 5. coupons — mine disabled (redemptions link to them); the birthday coupon issued to a seeded
 //    customer by my job run is deleted so tomorrow's scheduled run issues it normally
-for (const c of await admin.list('Maison Coupon', { code: ['like', 'QA4%'] }, ['name'], 20)) {
-  try { await admin.post('frappe.client.set_value', { doctype: 'Maison Coupon', name: c.name, fieldname: 'enabled', value: 0 }); out.disabled.push(`Coupon ${c.name}`) } catch (e) { out.failed.push({ doc: `coupon ${c.name}`, err: String(e).slice(0, 120) }) }
+for (const c of await admin.list('AWANZ Coupon', { code: ['like', 'QA4%'] }, ['name'], 20)) {
+  try { await admin.post('frappe.client.set_value', { doctype: 'AWANZ Coupon', name: c.name, fieldname: 'enabled', value: 0 }); out.disabled.push(`Coupon ${c.name}`) } catch (e) { out.failed.push({ doc: `coupon ${c.name}`, err: String(e).slice(0, 120) }) }
 }
-for (const c of await admin.list('Maison Coupon', { code: ['like', 'BDAY%'] }, ['name', 'customer'], 20)) {
-  if (String(c.customer || '').startsWith('QA4')) { try { await admin.post('frappe.client.set_value', { doctype: 'Maison Coupon', name: c.name, fieldname: 'enabled', value: 0 }); out.disabled.push(`Coupon ${c.name}`) } catch {} }
-  else await del('Maison Coupon', c.name)
+for (const c of await admin.list('AWANZ Coupon', { code: ['like', 'BDAY%'] }, ['name', 'customer'], 20)) {
+  if (String(c.customer || '').startsWith('QA4')) { try { await admin.post('frappe.client.set_value', { doctype: 'AWANZ Coupon', name: c.name, fieldname: 'enabled', value: 0 }); out.disabled.push(`Coupon ${c.name}`) } catch {} }
+  else await del('AWANZ Coupon', c.name)
 }
-record('cleanup · coupons disabled / birthday coupons removed', true, JSON.stringify(await admin.list('Maison Coupon', {}, ['name', 'enabled', 'customer'], 20)))
+record('cleanup · coupons disabled / birthday coupons removed', true, JSON.stringify(await admin.list('AWANZ Coupon', {}, ['name', 'enabled', 'customer'], 20)))
 
 // 6. restore the test member's name and birthday, then disable the test customers
 const member = 'QA4 Member QA4A'
 if ((await admin.list('Customer', { name: member }, ['name'])).length) {
   await admin.post('frappe.client.set_value', { doctype: 'Customer', name: member, fieldname: 'customer_name', value: 'QA4 Member QA4A' }).catch(() => {})
-  await admin.post('frappe.client.set_value', { doctype: 'Maison Client Profile', name: member, fieldname: 'birthday', value: '1990-04-11' }).catch(() => {})
+  await admin.post('frappe.client.set_value', { doctype: 'AWANZ Client Profile', name: member, fieldname: 'birthday', value: '1990-04-11' }).catch(() => {})
 }
 const customers = await admin.list('Customer', { customer_name: ['like', 'QA4%'] }, ['name', 'customer_name'], 30)
 const customers2 = await admin.list('Customer', { name: ['like', 'QA4%'] }, ['name', 'customer_name'], 30)
@@ -88,10 +88,10 @@ for (const u of await admin.list('User', { name: ['like', 'qa4.%'] }, ['name'], 
 record('cleanup · test shopper accounts disabled', true, (await admin.list('User', { name: ['like', 'qa4.%'] }, ['name', 'enabled'], 10)).map((u) => `${u.name}:${u.enabled}`).join(' | '))
 
 // 8. final state
-const glob = await admin.value('Maison POS Settings', 'Maison POS Settings', ['face_recognition_enabled', 'webshop_age_restricted_sales', 'reward_allow_stacking', 'birthday_coupon_enabled'])
-const store = await admin.value('Maison Boutique', L.STORE, ['face_recognition_enabled'])
+const glob = await admin.value('AWANZ POS Settings', 'AWANZ POS Settings', ['face_recognition_enabled', 'webshop_age_restricted_sales', 'reward_allow_stacking', 'birthday_coupon_enabled'])
+const store = await admin.value('AWANZ Store', L.STORE, ['face_recognition_enabled'])
 const consented = await admin.list('Customer', { maison_face_consent: 1 }, ['name'], 10)
-const paired = await admin.list('Maison Salon Session', { status: 'Paired' }, ['name', 'boutique'], 20)
+const paired = await admin.list('AWANZ Salon Session', { status: 'Paired' }, ['name', 'boutique'], 20)
 record('cleanup · settings untouched (recognition off, age gate on, stacking off)',
   !Number(glob.face_recognition_enabled) && !Number(glob.webshop_age_restricted_sales) && !Number(glob.reward_allow_stacking) && (store.face_recognition_enabled || 'Inherit') === 'Inherit' && consented.length === 0,
   `${JSON.stringify(glob)} · ${L.STORE}=${store.face_recognition_enabled || 'Inherit'} · consented=${consented.length} · paired sessions left (any store)=${JSON.stringify(paired)}`)

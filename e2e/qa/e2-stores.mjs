@@ -1,6 +1,6 @@
 import { launch, check, save, shot, money, BASE } from './lib-dash.mjs'
 const { browser, page, console_ } = await launch()
-await page.goto(`${BASE}/maison-dashboard`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="live-cards"] .bcard', { timeout: 45000 })
 await page.waitForTimeout(1500)
 
@@ -17,14 +17,14 @@ await page.waitForTimeout(500)
 check('drill-in closes', (await page.locator('.drill').count()) === 0, `buttons: ${drillBtns.join(' / ')}`)
 
 // UX: clicking the active Stores tab while inside a store page should return to the list
-await page.goto(`${BASE}/maison-dashboard?view=boutiques&boutique=HOU-MTR`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=boutiques&boutique=HOU-MTR`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('.page', { timeout: 30000 })
 await page.click('.views .view-tab[data-view="boutiques"]')
 await page.waitForTimeout(600)
 const stillOnPage = await page.locator('.page').count()
 check('clicking the STORES tab from a store page returns to the store list', stillOnPage === 0,
   stillOnPage ? `still on the store drill-in page; url=${page.url()} (App.vue setView keeps `+'`boutique`'+` when v === "boutiques")` : 'returned to list')
-await page.goto(`${BASE}/maison-dashboard?view=boutiques`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=boutiques`, { waitUntil: 'domcontentloaded' })
 
 // ---- Stores tab ----
 const t0 = Date.now()
@@ -88,7 +88,7 @@ const t1 = D.top_items[0]
 check('top item on the page matches boutique_detail', t1 ? pg.includes(t1.item_name) : true, t1 ? `${t1.item_name} net=${t1.net} units=${t1.units}` : 'no items')
 
 // ---- store with zero sales today ----
-await page.goto(`${BASE}/maison-dashboard?view=boutiques&boutique=OK-ETUL`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=boutiques&boutique=OK-ETUL`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('.page', { timeout: 30000 })
 await page.waitForTimeout(1500)
 const zero = await page.locator('.page').innerText()

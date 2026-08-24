@@ -1,13 +1,13 @@
-# Maison web shop — Frappe Webshop + Monolith Gold (v0.4 G)
+# AWANZ web shop — Frappe Webshop + Monolith Gold (v0.4 G)
 
 The online boutique runs on the official **Frappe Webshop** app (`webshop`, native to ERPNext v15)
-with **Frappe Payments** (`payments`) for online card payment. Maison adds the glue that makes it a
+with **Frappe Payments** (`payments`) for online card payment. AWANZ adds the glue that makes it a
 *click & collect* shop for a jewellery chain: web modes per piece, availability per boutique,
 orders routed to a boutique's POS queue, loyalty sign-in, and a Monolith Gold theme so the site
 looks like the POS.
 
 ```
-shopper ──► /shop (Maison storefront, gold theme)
+shopper ──► /shop (AWANZ storefront, gold theme)
               │  add to bag  ── webshop Quotation (cart)
               │  checkout    ── choose boutique + pay online / at counter
               ▼
@@ -40,7 +40,7 @@ Versions verified on the reference bench (2026-08-22): Frappe `15.118.0`, ERPNex
 **Frappe Cloud**: add `payments` and `webshop` (branch `version-15`) to the release group *before*
 `maison_pos`, deploy, then install the apps on the site in that order. Keep `maison_pos` last in the
 app list: it overrides webshop's `Website Item` page template and chains on its `Payment Request`
-class; with Frappe's "last app wins" rule for `override_doctype_class` the Maison override must be the
+class; with Frappe's "last app wins" rule for `override_doctype_class` the AWANZ override must be the
 one that is loaded. (On the dev bench webshop was installed after maison_pos, so `simulate_payment`
 elevates on its own and the chain is only needed for real gateways.)
 
@@ -57,30 +57,30 @@ Put the keys in `site_config.json`:
 ```
 
 and run the seed (or `maison_pos.setup.demo_v04_webshop.ensure_payment_gateway`). It creates the
-**Stripe Settings** "Maison" document, the Payment Gateway `Stripe-Maison` and a **Payment Gateway
+**Stripe Settings** "AWANZ" document, the Payment Gateway `Stripe-AWANZ` and a **Payment Gateway
 Account** (default, currency USD, account "Card Clearing"); `Webshop Settings.payment_gateway_account`
 points to it. Checkout then redirects to the `payments` app's Stripe Checkout page; its callback
 (`Payment Request.on_payment_authorized`) creates the advance Payment Entry against the Sales Order
 and sends the shopper back to `/shop/order?name=…`.
 
-Without keys the seed creates the **"Maison Simulated"** gateway: the checkout goes to `/shop/pay`,
+Without keys the seed creates the **"AWANZ Simulated"** gateway: the checkout goes to `/shop/pay`,
 a test-card page that marks the Payment Request paid through the same `on_payment_authorized`
 path. Nothing else differs, so the POS collection flow is identical in both modes.
 
-## What is native, what is Maison
+## What is native, what is AWANZ
 
-| Area | Native (webshop / ERPNext / payments) | Maison (`maison_pos/webshop`, `api/webshop.py`, `www/shop`, `templates/webshop`) |
+| Area | Native (webshop / ERPNext / payments) | AWANZ (`maison_pos/webshop`, `api/webshop.py`, `www/shop`, `templates/webshop`) |
 | --- | --- | --- |
 | Catalogue | `Website Item` (publish, route, image, description), `Item Group.show_in_website`, `Webshop Settings` (price list, company, checkout on/off, stock display) | `Item.maison_web_mode` (Buy / Enquire / Reserve-with-deposit) + `maison_deposit_percent`; rule: a serialized piece with ≤ 1 unit in the chain is always *Enquire*; availability per boutique from `Bin` per boutique warehouse ("Available at: Miami, New York") |
 | Product page | data model, price (`get_product_info_for_website`), slideshow, reviews/wishlist (off) | template `templates/webshop/item.html` through `override_doctype_class["Website Item"]`; Enquire sheet, Reserve sheet, availability box, related pieces |
-| Cart | `Quotation` (order type Shopping Cart) via `webshop.shopping_cart.cart.update_cart`, cart count cookie | `/cart` and `/all-products` are re-routed (`website_route_rules`) to the Maison pages; `api.webshop.update_cart` (clean removal of the last line); `Quotation.maison_boutique` |
-| Checkout | `_make_sales_order` from the cart, `Payment Request`, Payment Gateway Account | `api.webshop.place_order(boutique, fulfilment, pay_now)`: no shipping address, stock check in the chosen boutique for serialized pieces, boutique tax template, `order_type = Sales` (a *Shopping Cart* order would be auto-invoiced by ERPNext on payment — Maison invoices at collection), Sales Order fields `maison_web_order / maison_boutique / maison_web_status / maison_deposit_amount / maison_prepaid_amount` |
+| Cart | `Quotation` (order type Shopping Cart) via `webshop.shopping_cart.cart.update_cart`, cart count cookie | `/cart` and `/all-products` are re-routed (`website_route_rules`) to the AWANZ pages; `api.webshop.update_cart` (clean removal of the last line); `Quotation.maison_boutique` |
+| Checkout | `_make_sales_order` from the cart, `Payment Request`, Payment Gateway Account | `api.webshop.place_order(boutique, fulfilment, pay_now)`: no shipping address, stock check in the chosen boutique for serialized pieces, boutique tax template, `order_type = Sales` (a *Shopping Cart* order would be auto-invoiced by ERPNext on payment — AWANZ invoices at collection), Sales Order fields `maison_web_order / maison_boutique / maison_web_status / maison_deposit_amount / maison_prepaid_amount` |
 | Reserve | — | `api.webshop.reserve(item_code, boutique)`: Sales Order at full price + Payment Request for the deposit (default 10 %) |
-| Enquire | ERPNext `Lead` (best effort) | doctype **Maison Web Enquiry** (boutique, piece, client, message, response) in the POS queue |
-| Payment | Stripe Checkout page, `Payment Request.set_as_paid` → Payment Entry | `MaisonPaymentRequest` (elevated rights for the Payment Entry, redirect to the Maison order page, `maison_prepaid_amount` refresh); simulated gateway page |
+| Enquire | ERPNext `Lead` (best effort) | doctype **AWANZ Web Enquiry** (boutique, piece, client, message, response) in the POS queue |
+| Payment | Stripe Checkout page, `Payment Request.set_as_paid` → Payment Entry | `AwanzPaymentRequest` (elevated rights for the Payment Entry, redirect to the AWANZ order page, `maison_prepaid_amount` refresh); simulated gateway page |
 | Account | `/login`, `/me`, `/orders` (skinned by the global CSS) | `/shop/account` loyalty sign-in by **client number + e-mail** (both must match), tier, points, value, next tier, recent purchases; `/shop/orders`, `/shop/order` with a collection timeline |
 | POS | — | "Web orders" screen (`frontend/src/views/WebOrdersView.vue`): queue + enquiries, pick / ready / cancel, **Collect** loads the order into the cart (serials picked from the boutique stock, web prices kept) and goes to Pay with only the balance; `sales.submit_batch` accepts `sales_order` → Sales Invoice lines linked to the order, advances allocated (`Sales Invoice.maison_sales_order`), order marked *Collected* |
-| Theme | Website Theme / Standard Navbar & Footer | `templates/webshop/base.html` (header, footer, fonts), `public/css/maison-web.css` (`web_include_css`: global gold skin + storefront classes), `public/js/maison-web.js` |
+| Theme | Website Theme / Standard Navbar & Footer | `templates/webshop/base.html` (header, footer, fonts), `public/css/awanz-web.css` (`web_include_css`: global gold skin + storefront classes), `public/js/awanz-web.js` |
 
 Custom fields live in `maison_pos/webshop/setup.py` (not in the shared fixtures file) and are
 created on `after_install` / `after_migrate`, together with:
@@ -90,7 +90,7 @@ created on `after_install` / `after_migrate`, together with:
   *Paid online* on the receipt;
 * role permissions the stock apps lack on ERPNext ≥ 15.7x: `Customer` (portal shoppers) read on
   Item / Item Price / Website Item / Price List / Sales Taxes and Charges Template and *select* on
-  Account (otherwise `update_cart` raises PermissionError); Maison roles read on Payment Entry
+  Account (otherwise `update_cart` raises PermissionError); AWANZ roles read on Payment Entry
   (advance reconciliation on collection).
 
 ## Web modes
@@ -99,7 +99,7 @@ created on `after_install` / `after_migrate`, together with:
 | --- | --- | --- |
 | Buy | *Add to bag* → bag → boutique + payment choice | Sales Order in the boutique queue, paid online or at the counter |
 | Reserve-with-deposit | *Reserve · $ X deposit* → choose a boutique holding the piece | Sales Order (full price) + Payment Request for `maison_deposit_percent` (10 %); balance at collection |
-| Enquire | *Enquire about this piece* (name, e-mail/phone, boutique, message) | Maison Web Enquiry (+ Lead) in the queue; advisor calls back |
+| Enquire | *Enquire about this piece* (name, e-mail/phone, boutique, message) | AWANZ Web Enquiry (+ Lead) in the queue; advisor calls back |
 
 `core.effective_web_mode()` also forces *Enquire* for non-stock items and for serialized pieces with
 at most one unit across the boutiques (one-of-a-kind high jewellery is never sold blind). The demo
@@ -112,17 +112,17 @@ to Buy.
 | --- | --- |
 | `/shop` | home (hero, collections, featured, three ways to acquire, boutiques, loyalty band) |
 | `/shop/collection?item_group=…&mode=…&q=…` (also `/all-products`) | listing with filters |
-| `/<item-group>/<item-route>` | product page (webshop `Website Item` route, Maison template) |
+| `/<item-group>/<item-route>` | product page (webshop `Website Item` route, AWANZ template) |
 | `/cart` (also `/shop/cart`) | bag (sign-in required, as in webshop) |
 | `/shop/checkout` | boutique picker (stock status per boutique) + pay online / at the counter |
 | `/shop/pay?pr=…` | simulated payment (Stripe mode goes to the `payments` checkout instead) |
 | `/shop/order?name=…`, `/shop/orders` | order status timeline, order list |
-| `/shop/account` | Maison Collectors (loyalty sign-in) |
+| `/shop/account` | AWANZ Collectors (loyalty sign-in) |
 | `/shop/register?redirect-to=…` | create an account (or sign in) — the storefront's sign-in wall (v0.8 QA A1) |
 | `/shop/boutiques` | boutiques |
 
 The seed sets `Website Settings.home_page = shop`, so the site root is the storefront for guests
-(`/pos`, `/app`, `/maison-dashboard` are unaffected).
+(`/pos`, `/app`, `/awanz-dashboard` are unaffected).
 
 ## API (`maison_pos.api.webshop.*`)
 
@@ -135,7 +135,7 @@ Signed-in shopper: `cart()`, `update_cart(item_code, qty)`, `set_boutique(boutiq
 `reserve(item_code, boutique, serial_no, note)` → `{sales_order, deposit, payment_url}`,
 `simulate_payment(payment_request)`, `my_orders()`, `order(name)`.
 
-Boutique staff (Maison roles, boutique-scoped): `web_orders(boutique, status, include_done)` →
+Boutique staff (AWANZ roles, boutique-scoped): `web_orders(boutique, status, include_done)` →
 `{orders, enquiries, counts}`, `web_order(name)` (lines with stock + serials in the boutique, POS-shaped
 customer), `set_web_order_status(name, status, note)` (New → Picking → Ready; Cancelled; *Collected* only
 through the sale), `update_enquiry(name, status, response)`.

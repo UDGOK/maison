@@ -83,13 +83,13 @@ def _walk_ins() -> set[str]:
 def ensure_campaign(spec: dict[str, Any], today) -> str:
 	values = {k: v for k, v in spec.items() if k not in ("days_ago", "featured_items", "buyer_share", "max_touches")}
 	values["send_date"] = add_days(today, -spec["days_ago"])
-	if values.get("coupon") and not frappe.db.exists("Maison Coupon", values["coupon"]):
+	if values.get("coupon") and not frappe.db.exists("AWANZ Coupon", values["coupon"]):
 		values.pop("coupon")
-	if frappe.db.exists("Maison Campaign", spec["campaign_code"]):
-		doc = frappe.get_doc("Maison Campaign", spec["campaign_code"])
+	if frappe.db.exists("AWANZ Campaign", spec["campaign_code"]):
+		doc = frappe.get_doc("AWANZ Campaign", spec["campaign_code"])
 		doc.update(values)
 	else:
-		doc = frappe.get_doc({"doctype": "Maison Campaign", **values})
+		doc = frappe.get_doc({"doctype": "AWANZ Campaign", **values})
 	doc.set("featured_items", [])
 	for code in spec.get("featured_items", []):
 		if frappe.db.exists("Item", code):
@@ -120,9 +120,9 @@ def buyers_in_window(send_date, days: int, boutique: Optional[str] = None, item_
 
 
 def seed_touches(campaign: str, spec: dict[str, Any], today, rng: random.Random) -> dict[str, int]:
-	doc = frappe.get_doc("Maison Campaign", campaign)
+	doc = frappe.get_doc("AWANZ Campaign", campaign)
 	send_dt = get_datetime(f"{doc.send_date} 09:30:00")
-	frappe.db.delete("Maison Campaign Touch", {"campaign": campaign, "source": SEED_SOURCE})
+	frappe.db.delete("AWANZ Campaign Touch", {"campaign": campaign, "source": SEED_SOURCE})
 	# buyers first (these are the sales the attribution will credit), then segment filler
 	buyers = buyers_in_window(doc.send_date, doc.assisted_window_days, boutique=spec.get("segment_boutique"), item_group=spec.get("segment_item_group") if spec.get("channel") != "Email" else None)
 	if not buyers:  # e.g. no history yet: fall back to any buyer in the window
@@ -139,7 +139,7 @@ def seed_touches(campaign: str, spec: dict[str, Any], today, rng: random.Random)
 	created = opened = clicked = 0
 	for idx, customer in enumerate(ordered):
 		touch: dict[str, Any] = {
-			"doctype": "Maison Campaign Touch",
+			"doctype": "AWANZ Campaign Touch",
 			"campaign": campaign,
 			"customer": customer,
 			"channel": doc.channel,
@@ -166,7 +166,7 @@ def seed_touches(campaign: str, spec: dict[str, Any], today, rng: random.Random)
 				clicked += 1
 		frappe.get_doc(touch).insert(ignore_permissions=True)
 		created += 1
-	frappe.db.set_value("Maison Campaign", campaign, "segment_size", len(segment), update_modified=False)
+	frappe.db.set_value("AWANZ Campaign", campaign, "segment_size", len(segment), update_modified=False)
 	return {"touches": created, "buyers": len(buyers), "segment": len(segment), "opened": opened, "clicked": clicked}
 
 

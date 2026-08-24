@@ -65,7 +65,7 @@ async function unlock(page, pin = '1234') {
   await page.evaluate(() => document.fonts.ready)
 }
 const shot = (page, name) => page.screenshot({ path: resolve(OUT, name + '.png'), fullPage: false })
-const mockState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('maison.mock.state') || '{}'))
+const mockState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('awanz.mock.state') || '{}'))
 const dismissNotices = (page) => page.evaluate(() => document.querySelectorAll('.notice .notice-btn:last-child').forEach((b) => b.click()))
 
 async function flow(browser, profileName) {
@@ -118,8 +118,8 @@ async function flow(browser, profileName) {
   check(`${profileName}: card refund simulated`, cn?.refund_method === 'Card' && /^re_sim_/.test(cn?.refund_id || ''), cn?.refund_id)
   // print on the simulated reader (has_printer) → canvas route
   await page.locator('button:has-text("Print return receipt")').click()
-  await page.waitForFunction(() => !!window.__maisonLastReaderPrint, null, { timeout: 8000 }).catch(() => undefined)
-  const preview = await page.evaluate(() => window.__maisonLastReaderPrint || null)
+  await page.waitForFunction(() => !!window.__awanzLastReaderPrint, null, { timeout: 8000 }).catch(() => undefined)
+  const preview = await page.evaluate(() => window.__awanzLastReaderPrint || null)
   check(`${profileName}: V660p canvas print route produced a bitmap`, !!preview && preview.startsWith('data:image/png'), preview ? `${preview.length} chars` : 'none')
   if (preview) writeFileSync(resolve(OUT, tag('04b-reader-print.png')), Buffer.from(preview.split(',')[1], 'base64'))
   await dismissNotices(page)

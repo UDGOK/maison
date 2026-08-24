@@ -1,18 +1,18 @@
 """Demo data seed — ``bench --site maison.localhost execute maison_pos.setup.demo.seed``.
 
-Creates (idempotently) the company "Maison", three boutiques with their
+Creates (idempotently) the company "AWANZ", three boutiques with their
 warehouse / cost center / POS profile / tax template, item groups, ~40 luxury
 items (some serialized) with prices and opening stock, 20 customers, the
-"Maison Collectors" loyalty program, Cash/Card modes of payment, and demo
+"AWANZ Collectors" loyalty program, Cash/Card modes of payment, and demo
 users + associates with PINs.
 
 Demo logins (password ``maison123``):
 
-    hq@maison.example            Maison Head Office
-    regional@maison.example      Maison Regional
-    <code>.manager@maison.example   Maison Manager     PIN 1234
-    <code>.a1@maison.example        Maison Associate   PIN 2580
-    <code>.a2@maison.example        Maison Associate   PIN 1357
+    hq@maison.example            AWANZ Head Office
+    regional@maison.example      AWANZ Regional
+    <code>.manager@maison.example   AWANZ Manager     PIN 1234
+    <code>.a1@maison.example        AWANZ Associate   PIN 2580
+    <code>.a2@maison.example        AWANZ Associate   PIN 1357
 
 .. warning::
 
@@ -20,7 +20,7 @@ Demo logins (password ``maison123``):
    seeded site.** They exist so a demo can be picked up by anyone; they are not credentials.
    Knowing the role is enough to know the PIN, so a seeded site must never hold real client data
    and must never be reachable from the public internet without resetting them —
-   ``maison_pos.maison_pos.doctype.maison_associate.maison_associate.reset_pin`` per associate,
+   ``maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.reset_pin`` per associate,
    or ``bench --site … set-admin-password`` plus a fresh PIN for every row. See
    ``docs/security.md`` ("Demo credentials").
 """
@@ -38,14 +38,14 @@ from frappe.utils import add_days, flt, get_time, getdate, nowdate
 from maison_pos.identifiers import assign_client_number, ean13_for
 from maison_pos.setup.install import after_install
 
-COMPANY = "Maison"
+COMPANY = "AWANZ"
 ABBR = "MSN"
 CURRENCY = "USD"
 
 # Opening stock is always back-dated so that POS sales (posted "now" in the site timezone)
 # can never land before the receipt — even when the site timezone is changed after seeding
 # (see rebase_stock() for repairing a site seeded before this was the case).
-DEMO_STOCK_REMARK = "Maison demo opening stock"
+DEMO_STOCK_REMARK = "AWANZ demo opening stock"
 DEMO_STOCK_DAYS_BACK = 7
 DEMO_STOCK_POSTING_TIME = "09:00:00"
 
@@ -61,7 +61,7 @@ WALK_IN = "Walk-in Client"
 BOUTIQUES: list[dict[str, Any]] = [
 	{
 		"code": "NYC-5AV",
-		"name": "Maison Fifth Avenue",
+		"name": "AWANZ Fifth Avenue",
 		"address_line": "745 Fifth Avenue",
 		"city": "New York, NY 10151",
 		"phone": "+1 212 555 0140",
@@ -72,7 +72,7 @@ BOUTIQUES: list[dict[str, Any]] = [
 	},
 	{
 		"code": "CHI-OAK",
-		"name": "Maison Oak Street",
+		"name": "AWANZ Oak Street",
 		"address_line": "106 East Oak Street",
 		"city": "Chicago, IL 60611",
 		"phone": "+1 312 555 0172",
@@ -83,7 +83,7 @@ BOUTIQUES: list[dict[str, Any]] = [
 	},
 	{
 		"code": "MIA-DD",
-		"name": "Maison Design District",
+		"name": "AWANZ Design District",
 		"address_line": "140 NE 39th Street",
 		"city": "Miami, FL 33137",
 		"phone": "+1 305 555 0199",
@@ -170,7 +170,7 @@ CUSTOMERS: list[tuple[str, str, str]] = [
 	("Marcus Thompson", "+1 305 555 0120", "marcus.thompson@example.com"),
 ]
 
-LOYALTY_PROGRAM = "Maison Collectors"
+LOYALTY_PROGRAM = "AWANZ Collectors"
 LOYALTY_TIERS = [("Collector", 0, 1.0), ("Connoisseur", 50_000, 1.5), ("Patron", 250_000, 2.0)]
 
 
@@ -201,7 +201,7 @@ def ensure_erpnext_setup() -> None:
 	``bench new-site`` + ``install-app erpnext`` leaves the site without the
 	setup-wizard fixtures (Warehouse Types, UOMs, Item Groups, Customer Groups,
 	Territories, Fiscal Year ...). When no Company exists yet we run the ERPNext
-	setup stages with the Maison company details, then flag the wizard complete
+	setup stages with the AWANZ company details, then flag the wizard complete
 	so the desk does not redirect to it.
 	"""
 	if frappe.db.sql("select name from tabCompany limit 1"):
@@ -433,10 +433,10 @@ def ensure_boutique(spec: dict[str, Any], accounts: dict[str, str], walk_in: str
 		doc.insert(ignore_if_duplicate=True)
 		pos_profile = doc.name
 
-	if not _exists("Maison Boutique", code):
+	if not _exists("AWANZ Store", code):
 		_insert(
 			{
-				"doctype": "Maison Boutique",
+				"doctype": "AWANZ Store",
 				"boutique_code": code,
 				"boutique_name": spec["name"],
 				"company": COMPANY,
@@ -720,7 +720,7 @@ def rebase_stock(days_back: int = DEMO_STOCK_DAYS_BACK, posting_time: str = DEMO
 			if _dt.datetime.combine(getdate(se.posting_date), get_time(se.posting_time)) <= target:
 				result["skipped"].append(name)
 				continue
-			savepoint = "maison_rebase"
+			savepoint = "awanz_rebase"
 			frappe.db.savepoint(savepoint)
 			try:
 				# Allow the intermediate negative window between cancel and the back-dated re-receipt.
@@ -794,12 +794,12 @@ def ensure_user(email: str, first: str, last: str, roles: list[str]) -> str:
 
 
 def ensure_associate(email: str, boutique: Optional[str], role: str, pin: str) -> str:
-	if _exists("Maison Associate", email):
-		doc = frappe.get_doc("Maison Associate", email)
+	if _exists("AWANZ Associate", email):
+		doc = frappe.get_doc("AWANZ Associate", email)
 		if not doc.pin_hash:
 			doc.set_pin(pin)
 		return doc.name
-	doc = frappe.get_doc({"doctype": "Maison Associate", "user": email, "boutique": boutique, "role": role, "enabled": 1, "pin": pin})
+	doc = frappe.get_doc({"doctype": "AWANZ Associate", "user": email, "boutique": boutique, "role": role, "enabled": 1, "pin": pin})
 	doc.flags.ignore_permissions = True
 	doc.insert()
 	return doc.name
@@ -811,9 +811,9 @@ def ensure_user_permission(user: str, warehouse: str) -> None:
 
 
 def ensure_users() -> None:
-	ensure_user("hq@maison.example", "Helene", "Quarry", ["Maison Head Office", "Sales Manager", "Accounts Manager", "Stock Manager"])
+	ensure_user("hq@maison.example", "Helene", "Quarry", ["AWANZ Head Office", "Sales Manager", "Accounts Manager", "Stock Manager"])
 	ensure_associate("hq@maison.example", None, "HeadOffice", "0000")
-	ensure_user("regional@maison.example", "Renaud", "Giraud", ["Maison Regional", "Sales Manager"])
+	ensure_user("regional@maison.example", "Renaud", "Giraud", ["AWANZ Regional", "Sales Manager"])
 	ensure_associate("regional@maison.example", None, "Regional", "0000")
 
 	names = {
@@ -828,11 +828,11 @@ def ensure_users() -> None:
 		for kind, first, last in names[code]:
 			if kind == "Mgr":
 				email = f"{prefix}.manager@maison.example"
-				ensure_user(email, first, last, ["Maison Manager", "Sales User", "Stock User"])
+				ensure_user(email, first, last, ["AWANZ Manager", "Sales User", "Stock User"])
 				ensure_associate(email, code, "Manager", "1234")
 			else:
 				email = f"{prefix}.{kind.lower()}@maison.example"
-				ensure_user(email, first, last, ["Maison Associate", "Sales User"])
+				ensure_user(email, first, last, ["AWANZ Associate", "Sales User"])
 				ensure_associate(email, code, "Associate", "2580" if kind == "A1" else "1357")
 			ensure_user_permission(email, warehouse)
 
@@ -914,41 +914,41 @@ def seed_remote() -> dict[str, Any]:
 
 # --- v0.6 N — vertical switch: the CloudChaserz (Smoke Shop) world is the default for new installs ---
 def resolve_vertical(vertical: Optional[str] = None) -> str:
-	"""Explicit argument > ``Maison POS Settings.vertical`` > Smoke Shop."""
+	"""Explicit argument > ``AWANZ POS Settings.vertical`` > Smoke Shop."""
 	if vertical:
 		v = str(vertical).strip().lower()
 		return "Jewellery" if v.startswith("jewel") else "General" if v.startswith("gen") else "Smoke Shop"
 	try:
-		stored = frappe.db.get_single_value("Maison POS Settings", "vertical") if frappe.db.exists("DocType", "Maison POS Settings") else None
+		stored = frappe.db.get_single_value("AWANZ POS Settings", "vertical") if frappe.db.exists("DocType", "AWANZ POS Settings") else None
 	except Exception:
 		stored = None
 	return stored or "Smoke Shop"
 
 
 JEWELLERY_BRAND: dict[str, Any] = {
-	"brand_name": "Maison",
-	"product_name": "Maison POS",
+	"brand_name": "AWANZ",
+	"product_name": "AWANZ POS",
 	"tagline": "Fine jewellery & timepieces",
-	"wordmark_text": "MAISON",
+	"wordmark_text": "AWANZ",
 	"sub_mark": "POS",
-	"legal_name": "Maison Jewelers",
+	"legal_name": "AWANZ Jewelers",
 	"support_email": "concierge@maison.example",
 	"brand_website": "https://maison.example",
 	"vertical": "Jewellery",
-	"rewards_program_name": "Maison Collectors",
+	"rewards_program_name": "AWANZ Collectors",
 }
 
 
 def ensure_jewellery_brand_settings() -> None:
-	"""The jewellery profile keeps its own brand tokens (wordmark MAISON, "Boutique" wording)."""
-	if not frappe.db.exists("DocType", "Maison POS Settings"):
+	"""The jewellery profile keeps its own brand tokens (wordmark AWANZ, "Boutique" wording)."""
+	if not frappe.db.exists("DocType", "AWANZ POS Settings"):
 		return
 	for key, value in JEWELLERY_BRAND.items():
 		try:
-			frappe.db.set_single_value("Maison POS Settings", key, value)
+			frappe.db.set_single_value("AWANZ POS Settings", key, value)
 		except Exception:
 			pass
-	frappe.clear_cache(doctype="Maison POS Settings")
+	frappe.clear_cache(doctype="AWANZ POS Settings")
 	try:
 		from maison_pos.brand import clear_brand_cache
 
@@ -960,7 +960,7 @@ def ensure_jewellery_brand_settings() -> None:
 def seed(commit: bool = True, vertical: Optional[str] = None) -> dict[str, Any]:
 	"""Create all demo data. Safe to run repeatedly.
 
-	``vertical`` (or ``Maison POS Settings.vertical``, default *Smoke Shop*) picks the world:
+	``vertical`` (or ``AWANZ POS Settings.vertical``, default *Smoke Shop*) picks the world:
 	**Smoke Shop** → the CloudChaserz profile (``setup.cloudchaserz.seed``: 11 real stores +
 	HOU-WH warehouse, ~120-item catalogue, rewards program); **Jewellery** → the original three
 	boutiques below (what the regression suites seed).
@@ -976,7 +976,7 @@ def seed(commit: bool = True, vertical: Optional[str] = None) -> dict[str, Any]:
 
 
 def seed_jewellery(commit: bool = True) -> dict[str, Any]:
-	"""The original jewellery demo world (company *Maison*, NYC-5AV / CHI-OAK / MIA-DD)."""
+	"""The original jewellery demo world (company *AWANZ*, NYC-5AV / CHI-OAK / MIA-DD)."""
 	random.seed(42)
 	frappe.flags.mute_emails = True
 	frappe.flags.in_demo_seed = True
@@ -1014,7 +1014,7 @@ def seed_jewellery(commit: bool = True) -> dict[str, Any]:
 
 		summary_v04_crm = seed_v04_crm_hr()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison demo v0.4 crm/hr seed")
+		frappe.log_error(frappe.get_traceback(), "awanz demo v0.4 crm/hr seed")
 		summary_v04_crm = {"error": "see Error Log"}
 	# --- end v0.4 B/C/I ---
 
@@ -1024,7 +1024,7 @@ def seed_jewellery(commit: bool = True) -> dict[str, Any]:
 
 		summary_v05_salon = seed_salon_v05()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison demo v0.5 salon seed")
+		frappe.log_error(frappe.get_traceback(), "awanz demo v0.5 salon seed")
 		summary_v05_salon = {"error": "see Error Log"}
 	# --- end v0.5 K ---
 
@@ -1034,7 +1034,7 @@ def seed_jewellery(commit: bool = True) -> dict[str, Any]:
 
 		summary_v05_campaigns = seed_v05_campaigns()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison demo v0.5 campaigns seed")
+		frappe.log_error(frappe.get_traceback(), "awanz demo v0.5 campaigns seed")
 		summary_v05_campaigns = {"error": "see Error Log"}
 	# --- end v0.5 M ---
 
@@ -1047,7 +1047,7 @@ def seed_jewellery(commit: bool = True) -> dict[str, Any]:
 		"items": frappe.db.count("Item", {"item_code": ("in", [i[0] for i in ITEMS])}),
 		"serials": frappe.db.count("Serial No", {"item_code": ("in", [i[0] for i in ITEMS])}),
 		"customers": frappe.db.count("Customer", {"customer_name": ("in", [c[0] for c in CUSTOMERS])}),
-		"associates": frappe.db.count("Maison Associate"),
+		"associates": frappe.db.count("AWANZ Associate"),
 		"loyalty_program": LOYALTY_PROGRAM,
 		"password": DEMO_PASSWORD,
 		"v04_crm_hr": summary_v04_crm,

@@ -2,17 +2,17 @@
 
 | Endpoint | Who | Returns |
 |---|---|---|
-| ``recommend_for_client(customer, n=3, boutique?)`` | any Maison role | "Suggested for this client" tiles (cached weekly table, live fallback); never an owned item |
-| ``recommend_for_basket(items, n=3, boutique?, customer?)`` | any Maison role | "Pairs well with" for the basket lines |
-| ``client_signals(boutique?, limit=50, status="Open")`` | any Maison role (scoped) | "Clients to contact this week" |
-| ``mark_signal(signal, status, note?)`` | any Maison role (scoped) | Contacted / Dismissed / Open |
+| ``recommend_for_client(customer, n=3, boutique?)`` | any AWANZ role | "Suggested for this client" tiles (cached weekly table, live fallback); never an owned item |
+| ``recommend_for_basket(items, n=3, boutique?, customer?)`` | any AWANZ role | "Pairs well with" for the basket lines |
+| ``client_signals(boutique?, limit=50, status="Open")`` | any AWANZ role (scoped) | "Clients to contact this week" |
+| ``mark_signal(signal, status, note?)`` | any AWANZ role (scoped) | Contacted / Dismissed / Open |
 | ``product_performance(period=90, boutique?)`` | Manager+ | items × boutiques, heatmap, top / slow movers, rebalance list |
 | ``rebalance_suggestions(status="Open")`` | Manager+ | stored suggestions |
 | ``create_transfer(suggestion)`` | Manager of either boutique / HQ | submits a Stock Entry (Material Transfer) |
 | ``dismiss_suggestion(suggestion)`` | Manager+ | |
-| ``narrative(period_end?, generate=0)`` | Manager+ (generate: HQ) | latest weekly ``Maison Insight Report`` |
+| ``narrative(period_end?, generate=0)`` | Manager+ (generate: HQ) | latest weekly ``AWANZ Insight Report`` |
 | ``compute(narrative=0)`` | HQ / System Manager | runs the weekly job now |
-| ``summary()`` | any Maison role | counts for dashboard tiles + last run |
+| ``summary()`` | any AWANZ role | counts for dashboard tiles + last run |
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from frappe import _
 from frappe.utils import cint, flt, getdate
 
 from maison_pos.insights import affinity, client_signals, jobs, narrative as narrative_mod, product_performance as perf
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_allowed_boutiques, get_user_boutique, is_manager_or_above, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_allowed_boutiques, get_user_boutique, is_manager_or_above, is_unrestricted
 
 
 def _list(value: Any) -> list:
@@ -51,7 +51,7 @@ def _scoped_boutique(boutique: Optional[str]) -> Optional[str]:
 # ---------------------------------------------------------------------------
 @frappe.whitelist()
 def recommend_for_client(customer: str, n: int = 3, boutique: Optional[str] = None) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	n = min(max(cint(n) or 3, 1), 10)
 	if not customer or not frappe.db.exists("Customer", customer):
 		frappe.throw(_("Customer {0} does not exist").format(customer), frappe.DoesNotExistError)
@@ -68,7 +68,7 @@ def recommend_for_client(customer: str, n: int = 3, boutique: Optional[str] = No
 
 @frappe.whitelist()
 def recommend_for_basket(items: Any, n: int = 3, boutique: Optional[str] = None, customer: Optional[str] = None) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	n = min(max(cint(n) or 3, 1), 10)
 	codes = [str(c) for c in _list(items) if c]
 	if not codes:
@@ -93,7 +93,7 @@ SIGNAL_FIELDS = [
 
 @frappe.whitelist()
 def client_signals(boutique: Optional[str] = None, limit: int = 50, status: str = "Open") -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = _scoped_boutique(boutique)
 	filters: dict[str, Any] = {}
 	if status and status != "All":
@@ -102,7 +102,7 @@ def client_signals(boutique: Optional[str] = None, limit: int = 50, status: str 
 		filters["boutique"] = boutique
 	elif not is_unrestricted():
 		filters["boutique"] = ("in", get_allowed_boutiques() or ["__none__"])
-	rows = frappe.get_all("Maison Client Signal", filters=filters, fields=SIGNAL_FIELDS, order_by="priority desc, lifetime_spend desc", limit=min(max(cint(limit) or 50, 1), 500))
+	rows = frappe.get_all("AWANZ Client Signal", filters=filters, fields=SIGNAL_FIELDS, order_by="priority desc, lifetime_spend desc", limit=min(max(cint(limit) or 50, 1), 500))
 	phones = {c.name: c for c in frappe.get_all("Customer", filters={"name": ("in", [r.customer for r in rows])}, fields=["name", "mobile_no", "email_id", "maison_client_number"])} if rows else {}
 	for r in rows:
 		c = phones.get(r.customer)
@@ -117,10 +117,10 @@ def client_signals(boutique: Optional[str] = None, limit: int = 50, status: str 
 
 @frappe.whitelist()
 def mark_signal(signal: str, status: str, note: Optional[str] = None) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if status not in ("Open", "Contacted", "Dismissed"):
 		frappe.throw(_("status must be Open, Contacted or Dismissed"), frappe.ValidationError)
-	doc = frappe.get_doc("Maison Client Signal", signal)
+	doc = frappe.get_doc("AWANZ Client Signal", signal)
 	if doc.boutique:
 		assert_boutique_access(doc.boutique)
 	doc.status = status
@@ -137,10 +137,10 @@ def mark_signal(signal: str, status: str, note: Optional[str] = None) -> dict[st
 # --- v0.5 M — "Assign call" on a client signal (VIP lapsing churn list) ---
 @frappe.whitelist()
 def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional[str] = None, note: Optional[str] = None) -> dict[str, Any]:
-	"""One-tap "Assign call": creates a *Call* follow-up (``Maison Client Interaction`` + CRM Task)
+	"""One-tap "Assign call": creates a *Call* follow-up (``AWANZ Client Interaction`` + CRM Task)
 	for the signal's preferred associate (or *associate*) and records the owner on the signal.
 
-	Permissions: any Maison role; scoped users (Manager / Associate) only for signals of their own
+	Permissions: any AWANZ role; scoped users (Manager / Associate) only for signals of their own
 	boutique and may only assign to associates of that boutique. Associates may only assign to
 	themselves. Re-assigning cancels the previous open call follow-up.
 	Returns ``{signal, associate, associate_name, task (interaction), crm_task, due_date}``.
@@ -148,8 +148,8 @@ def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional
 	from maison_pos.api import crm as crm_api
 	from maison_pos.scoping import get_associate, is_manager_or_above
 
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
-	doc = frappe.get_doc("Maison Client Signal", signal)
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
+	doc = frappe.get_doc("AWANZ Client Signal", signal)
 	if doc.boutique:
 		assert_boutique_access(doc.boutique)
 	elif not is_unrestricted():
@@ -162,7 +162,7 @@ def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional
 		target = signal_owner(None, doc.boutique, "VIP lapsing")
 	if not target:
 		frappe.throw(_("No associate to assign the call to — set a preferred associate on the client profile"), frappe.ValidationError)
-	assoc = frappe.db.get_value("Maison Associate", target, ["name", "boutique", "full_name", "enabled"], as_dict=True)
+	assoc = frappe.db.get_value("AWANZ Associate", target, ["name", "boutique", "full_name", "enabled"], as_dict=True)
 	if not assoc or not assoc.enabled:
 		frappe.throw(_("Associate {0} does not exist or is disabled").format(target), frappe.DoesNotExistError)
 	if not is_unrestricted():
@@ -172,8 +172,8 @@ def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional
 			frappe.throw(_("You may only assign calls to associates of your boutique"), frappe.PermissionError)
 	due = getdate(due_date) if due_date else frappe.utils.add_days(frappe.utils.nowdate(), 2)
 	# cancel a previous open call follow-up when re-assigning
-	if doc.call_task and frappe.db.exists("Maison Client Interaction", doc.call_task):
-		prev = frappe.get_doc("Maison Client Interaction", doc.call_task)
+	if doc.call_task and frappe.db.exists("AWANZ Client Interaction", doc.call_task):
+		prev = frappe.get_doc("AWANZ Client Interaction", doc.call_task)
 		if prev.status == "Open" and prev.associate != assoc.name:
 			prev.status = "Cancelled"
 			prev.flags.ignore_permissions = True
@@ -181,7 +181,7 @@ def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional
 			crm_api._crm_task_upsert(prev)
 	interaction = frappe.get_doc(
 		{
-			"doctype": "Maison Client Interaction",
+			"doctype": "AWANZ Client Interaction",
 			"customer": doc.customer,
 			"customer_name": doc.customer_name,
 			"type": "Call",
@@ -197,7 +197,7 @@ def assign_call(signal: str, associate: Optional[str] = None, due_date: Optional
 	interaction.insert()
 	crm_task = crm_api._crm_task_upsert(interaction)
 	if crm_task:
-		frappe.db.set_value("Maison Client Interaction", interaction.name, "crm_task", crm_task, update_modified=False)
+		frappe.db.set_value("AWANZ Client Interaction", interaction.name, "crm_task", crm_task, update_modified=False)
 	doc.assigned_associate = assoc.name
 	doc.assigned_at = frappe.utils.now_datetime()
 	doc.call_task = interaction.name
@@ -256,7 +256,7 @@ def rebalance_suggestions(status: str = "Open", limit: int = 100) -> dict[str, A
 	filters: dict[str, Any] = {}
 	if status and status != "All":
 		filters["status"] = status
-	rows = frappe.get_all("Maison Rebalance Suggestion", filters=filters, fields=REBALANCE_FIELDS, order_by="value desc", limit=min(max(cint(limit) or 100, 1), 500))
+	rows = frappe.get_all("AWANZ Rebalance Suggestion", filters=filters, fields=REBALANCE_FIELDS, order_by="value desc", limit=min(max(cint(limit) or 100, 1), 500))
 	if not is_unrestricted():
 		own = get_user_boutique()
 		rows = [r for r in rows if own in (r.from_boutique, r.to_boutique)]
@@ -283,7 +283,7 @@ def _pick_serials(item_code: str, warehouse: str, qty: int) -> list[str]:
 @frappe.whitelist()
 def create_transfer(suggestion: str, qty: Optional[int] = None) -> dict[str, Any]:
 	"""One-click Material Transfer for an Open suggestion (submitted Stock Entry)."""
-	doc = frappe.get_doc("Maison Rebalance Suggestion", suggestion)
+	doc = frappe.get_doc("AWANZ Rebalance Suggestion", suggestion)
 	if doc.status != "Open":
 		frappe.throw(_("Suggestion {0} is {1}").format(suggestion, doc.status), frappe.ValidationError)
 	if not _may_transfer(doc.from_boutique, doc.to_boutique):
@@ -291,8 +291,8 @@ def create_transfer(suggestion: str, qty: Optional[int] = None) -> dict[str, Any
 	qty = cint(qty) or cint(doc.qty)
 	if qty <= 0 or qty > cint(doc.qty):
 		frappe.throw(_("qty must be between 1 and {0}").format(doc.qty), frappe.ValidationError)
-	src = frappe.get_cached_doc("Maison Boutique", doc.from_boutique)
-	dst = frappe.get_cached_doc("Maison Boutique", doc.to_boutique)
+	src = frappe.get_cached_doc("AWANZ Store", doc.from_boutique)
+	dst = frappe.get_cached_doc("AWANZ Store", doc.to_boutique)
 	on_hand = flt(frappe.db.get_value("Bin", {"item_code": doc.item_code, "warehouse": src.warehouse}, "actual_qty"))
 	if on_hand < qty:
 		frappe.throw(_("Only {0} of {1} on hand at {2}").format(on_hand, doc.item_code, doc.from_boutique), frappe.ValidationError)
@@ -310,7 +310,7 @@ def create_transfer(suggestion: str, qty: Optional[int] = None) -> dict[str, Any
 			"company": src.company,
 			"from_warehouse": src.warehouse,
 			"to_warehouse": dst.warehouse,
-			"remarks": _("Maison rebalance {0}: {1}").format(doc.name, doc.reason or ""),
+			"remarks": _("AWANZ rebalance {0}: {1}").format(doc.name, doc.reason or ""),
 			"items": [row],
 		}
 	)
@@ -318,13 +318,13 @@ def create_transfer(suggestion: str, qty: Optional[int] = None) -> dict[str, Any
 	se.insert()
 	se.submit()
 	doc.db_set({"status": "Transferred", "material_transfer": se.name, "transferred_by": frappe.session.user, "transferred_at": frappe.utils.now_datetime(), "serial_nos": "\n".join(serials) or None, "qty": qty}, update_modified=True)
-	frappe.publish_realtime("maison_rebalance", {"suggestion": doc.name, "stock_entry": se.name, "item_code": doc.item_code, "from": doc.from_boutique, "to": doc.to_boutique, "qty": qty}, room="maison_dashboard", after_commit=True)
+	frappe.publish_realtime("awanz_rebalance", {"suggestion": doc.name, "stock_entry": se.name, "item_code": doc.item_code, "from": doc.from_boutique, "to": doc.to_boutique, "qty": qty}, room="awanz_dashboard", after_commit=True)
 	return {"ok": True, "suggestion": doc.name, "stock_entry": se.name, "qty": qty, "serial_nos": serials}
 
 
 @frappe.whitelist()
 def dismiss_suggestion(suggestion: str, note: Optional[str] = None) -> dict[str, Any]:
-	doc = frappe.get_doc("Maison Rebalance Suggestion", suggestion)
+	doc = frappe.get_doc("AWANZ Rebalance Suggestion", suggestion)
 	if not _may_transfer(doc.from_boutique, doc.to_boutique):
 		frappe.throw(_("Managers of the boutiques involved only"), frappe.PermissionError)
 	if doc.status != "Open":
@@ -345,16 +345,16 @@ def narrative(period_end: Optional[str] = None, generate: int = 0) -> dict[str, 
 	if not is_manager_or_above():
 		frappe.throw(_("Managers only"), frappe.PermissionError)
 	if cint(generate):
-		assert_roles("Maison Head Office", "System Manager")
+		assert_roles("AWANZ Head Office", "System Manager")
 		res = jobs.weekly_narrative(period_end=period_end, send=False)
-		doc = frappe.get_doc("Maison Insight Report", res["report"])
+		doc = frappe.get_doc("AWANZ Insight Report", res["report"])
 		out = {k: doc.get(k) for k in REPORT_FIELDS}
 		out["numbers"] = frappe.parse_json(doc.numbers) if doc.numbers else None
 		return out
 	filters: dict[str, Any] = {"kind": "Weekly"}
 	if period_end:
 		filters["period_end"] = getdate(period_end)
-	rows = frappe.get_all("Maison Insight Report", filters=filters, fields=REPORT_FIELDS + ["numbers"], order_by="period_end desc", limit=1)
+	rows = frappe.get_all("AWANZ Insight Report", filters=filters, fields=REPORT_FIELDS + ["numbers"], order_by="period_end desc", limit=1)
 	if not rows:
 		return {"report": None}
 	r = rows[0]
@@ -365,7 +365,7 @@ def narrative(period_end: Optional[str] = None, generate: int = 0) -> dict[str, 
 @frappe.whitelist()
 def compute(narrative: int = 0, send: int = 0) -> dict[str, Any]:
 	"""Run the weekly insight job on demand (Head Office / System Manager)."""
-	assert_roles("Maison Head Office", "System Manager")
+	assert_roles("AWANZ Head Office", "System Manager")
 	out = jobs.compute_weekly(commit=not frappe.flags.in_test)
 	if cint(narrative):
 		out["narrative"] = jobs.weekly_narrative(send=bool(cint(send)), commit=not frappe.flags.in_test)
@@ -375,17 +375,17 @@ def compute(narrative: int = 0, send: int = 0) -> dict[str, Any]:
 @frappe.whitelist()
 def summary() -> dict[str, Any]:
 	"""Counts for the dashboard tiles."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutiques = get_allowed_boutiques()
 	sig_filters: dict[str, Any] = {"status": "Open"}
 
 	if not is_unrestricted():
 		sig_filters["boutique"] = ("in", boutiques or ["__none__"])
-	latest = frappe.get_all("Maison Insight Report", filters={"kind": "Weekly"}, fields=["name", "title", "period_end", "generator", "generated_at"], order_by="period_end desc", limit=1)
+	latest = frappe.get_all("AWANZ Insight Report", filters={"kind": "Weekly"}, fields=["name", "title", "period_end", "generator", "generated_at"], order_by="period_end desc", limit=1)
 	return {
-		"open_signals": frappe.db.count("Maison Client Signal", sig_filters),
-		"open_rebalances": frappe.db.count("Maison Rebalance Suggestion", {"status": "Open"}),
-		"recommended_clients": cint(frappe.db.sql("select count(distinct customer) from `tabMaison Client Recommendation`")[0][0]),
+		"open_signals": frappe.db.count("AWANZ Client Signal", sig_filters),
+		"open_rebalances": frappe.db.count("AWANZ Rebalance Suggestion", {"status": "Open"}),
+		"recommended_clients": cint(frappe.db.sql("select count(distinct customer) from `tabAWANZ Client Recommendation`")[0][0]),
 		"latest_report": latest[0] if latest else None,
 		"last_run": jobs.last_run(),
 		"llm": bool(narrative_mod.llm_config()),

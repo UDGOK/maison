@@ -1,11 +1,11 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MaisonDB, type ReceiptSnapshot } from '@/db'
+import { AwanzDB, type ReceiptSnapshot } from '@/db'
 import { QueueReplayer, backoffMs } from '@/sync/replay'
-import { ApiError, type MaisonApi, type POSInvoice, type SubmitResult } from '@/api/types'
+import { ApiError, type AwanzApi, type POSInvoice, type SubmitResult } from '@/api/types'
 
 const receipt: ReceiptSnapshot = {
-  boutique: 'CHI-OAK', boutique_name: 'Maison Oak Street', address_line: '', city: '', phone: '', associate_name: 'A',
+  boutique: 'CHI-OAK', boutique_name: 'AWANZ Oak Street', address_line: '', city: '', phone: '', associate_name: 'A',
   lines: [], net_total: 100, discount: 0, total_taxes: 10.25, tax_rate: 10.25, loyalty_amount: 0, loyalty_points_redeemed: 0,
   grand_total: 110.25, payments: [{ mode_of_payment: 'Cash', amount: 110.25 }], points_earned: 0, currency: 'USD'
 }
@@ -17,8 +17,8 @@ function inv(uuid: string): POSInvoice {
   }
 }
 
-function fakeApi(submit: (invoices: POSInvoice[]) => Promise<{ results: SubmitResult[] }>): MaisonApi {
-  return { sales: { submit_batch: submit } } as unknown as MaisonApi
+function fakeApi(submit: (invoices: POSInvoice[]) => Promise<{ results: SubmitResult[] }>): AwanzApi {
+  return { sales: { submit_batch: submit } } as unknown as AwanzApi
 }
 
 let dbi = 0
@@ -35,9 +35,9 @@ describe('backoff', () => {
 })
 
 describe('QueueReplayer', () => {
-  let db: MaisonDB
+  let db: AwanzDB
   beforeEach(() => {
-    db = new MaisonDB(`test_${dbi++}`)
+    db = new AwanzDB(`test_${dbi++}`)
     now = 1_000_000
   })
 

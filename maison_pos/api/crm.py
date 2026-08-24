@@ -2,8 +2,8 @@
 
 Frappe CRM is optional glue: when the ``crm`` app is installed, follow-ups are mirrored as
 ``CRM Task`` rows and every profile is linked to a standard ``Contact`` (the doctype Frappe CRM
-uses for people). Without it the same data lives on ``Maison Client Profile`` /
-``Maison Client Interaction`` and nothing degrades (feature detection: :func:`crm_installed`).
+uses for people). Without it the same data lives on ``AWANZ Client Profile`` /
+``AWANZ Client Interaction`` and nothing degrades (feature detection: :func:`crm_installed`).
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_roles, get_associate, get_user_boutique, is_manager_or_above, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_roles, get_associate, get_user_boutique, is_manager_or_above, is_unrestricted
 
 PROFILE_FIELDS = (
 	"ring_size",
@@ -71,7 +71,7 @@ def ensure_contact(customer: str) -> Optional[str]:
 		contact.insert()
 		return contact.name
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"maison ensure_contact {customer}")
+		frappe.log_error(frappe.get_traceback(), f"awanz ensure_contact {customer}")
 		return None
 
 
@@ -102,7 +102,7 @@ def _crm_task_upsert(interaction) -> Optional[str]:
 		task.insert()
 		return task.name
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison crm task")
+		frappe.log_error(frappe.get_traceback(), "awanz crm task")
 		return None
 
 
@@ -115,11 +115,11 @@ def _assert_customer(customer: str) -> None:
 
 
 def get_or_create_profile(customer: str):
-	"""``Maison Client Profile`` for *customer*, created on first access."""
+	"""``AWANZ Client Profile`` for *customer*, created on first access."""
 	_assert_customer(customer)
-	if frappe.db.exists("Maison Client Profile", customer):
-		return frappe.get_doc("Maison Client Profile", customer)
-	doc = frappe.get_doc({"doctype": "Maison Client Profile", "customer": customer})
+	if frappe.db.exists("AWANZ Client Profile", customer):
+		return frappe.get_doc("AWANZ Client Profile", customer)
+	doc = frappe.get_doc({"doctype": "AWANZ Client Profile", "customer": customer})
 	doc.flags.ignore_permissions = True
 	doc.insert()
 	return doc
@@ -201,7 +201,7 @@ def profile_payload(customer: str, include_history: bool = True) -> dict[str, An
 	for k in ("do_not_email", "do_not_sms", "do_not_phone"):
 		profile[k] = cint(profile[k])
 	if doc.preferred_associate:
-		profile["preferred_associate_name"] = frappe.db.get_value("Maison Associate", doc.preferred_associate, "full_name")
+		profile["preferred_associate_name"] = frappe.db.get_value("AWANZ Associate", doc.preferred_associate, "full_name")
 	loyalty = tier_progress(customer)
 	if loyalty.get("tier"):
 		summary["tier"] = loyalty["tier"]
@@ -222,14 +222,14 @@ def profile_payload(customer: str, include_history: bool = True) -> dict[str, An
 @frappe.whitelist()
 def profile(customer: str) -> dict[str, Any]:
 	"""Full clienteling view for the POS Client screen."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	return profile_payload(customer)
 
 
 @frappe.whitelist()
 def update_profile(customer: str, values: Any) -> dict[str, Any]:
-	"""Update profile fields. ``vip_tier_override`` needs Maison Manager+. Returns the profile."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	"""Update profile fields. ``vip_tier_override`` needs AWANZ Manager+. Returns the profile."""
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	data = json.loads(values) if isinstance(values, str) else dict(values or {})
 	doc = get_or_create_profile(customer)
 	unknown = set(data) - set(PROFILE_FIELDS) - set(MANAGER_ONLY_FIELDS)
@@ -242,9 +242,9 @@ def update_profile(customer: str, values: Any) -> dict[str, Any]:
 			v = cint(v)
 		elif k in ("birthday", "anniversary"):
 			v = getdate(v) if v else None
-		elif k == "preferred_associate" and v and not frappe.db.exists("Maison Associate", v):
+		elif k == "preferred_associate" and v and not frappe.db.exists("AWANZ Associate", v):
 			frappe.throw(_("Associate {0} not found").format(v), frappe.DoesNotExistError)
-		elif k == "preferred_boutique" and v and not frappe.db.exists("Maison Boutique", v):
+		elif k == "preferred_boutique" and v and not frappe.db.exists("AWANZ Store", v):
 			frappe.throw(_("Boutique {0} not found").format(v), frappe.DoesNotExistError)
 		doc.set(k, v)
 	doc.flags.ignore_permissions = True
@@ -257,7 +257,7 @@ def update_profile(customer: str, values: Any) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 @frappe.whitelist()
 def wishlist_add(customer: str, item_code: str, notes: Optional[str] = None) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if not frappe.db.exists("Item", item_code):
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
 	doc = get_or_create_profile(customer)
@@ -274,7 +274,7 @@ def wishlist_add(customer: str, item_code: str, notes: Optional[str] = None) -> 
 
 @frappe.whitelist()
 def wishlist_remove(customer: str, item_code: Optional[str] = None, row: Optional[str] = None) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	doc = get_or_create_profile(customer)
 	keep = [w for w in doc.wishlist if not ((row and w.name == row) or (item_code and w.item_code == item_code and not row))]
 	if len(keep) == len(doc.wishlist):
@@ -289,10 +289,10 @@ def fulfil_wishlist_on_sale(doc, method: Optional[str] = None) -> None:
 	"""Sales Invoice on_submit: tick wishlist rows for the items the client just bought."""
 	if not doc.get("is_pos") or doc.get("is_return") or not doc.customer:
 		return
-	if not frappe.db.exists("Maison Client Profile", doc.customer):
+	if not frappe.db.exists("AWANZ Client Profile", doc.customer):
 		return
 	bought = {r.item_code for r in doc.items}
-	profile_doc = frappe.get_doc("Maison Client Profile", doc.customer)
+	profile_doc = frappe.get_doc("AWANZ Client Profile", doc.customer)
 	changed = False
 	for w in profile_doc.wishlist:
 		if w.item_code in bought and not cint(w.fulfilled):
@@ -314,38 +314,38 @@ def _notify(users: list[str], subject: str, doctype: str, name: str, email_conte
 			).insert(ignore_permissions=True)
 			sent += 1
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison notify")
+			frappe.log_error(frappe.get_traceback(), "awanz notify")
 	return sent
 
 
 def boutique_manager_users(boutique: Optional[str]) -> list[str]:
 	if not boutique:
 		return []
-	return frappe.get_all("Maison Associate", filters={"boutique": boutique, "role": "Manager", "enabled": 1}, pluck="user")
+	return frappe.get_all("AWANZ Associate", filters={"boutique": boutique, "role": "Manager", "enabled": 1}, pluck="user")
 
 
 def wishlist_matches_for(item_code: str, warehouse: Optional[str] = None, serial_no: Optional[str] = None) -> list[dict[str, Any]]:
 	"""Alert every client wishing for *item_code* (cooldown 30 days). Returns the alerts created."""
 	rows = frappe.get_all(
-		"Maison Wishlist Item",
-		filters={"item_code": item_code, "fulfilled": 0, "parenttype": "Maison Client Profile"},
+		"AWANZ Wishlist Item",
+		filters={"item_code": item_code, "fulfilled": 0, "parenttype": "AWANZ Client Profile"},
 		fields=["name", "parent", "alerted_on"],
 	)
 	if not rows:
 		return []
-	boutique = frappe.db.get_value("Maison Boutique", {"warehouse": warehouse}, "name") if warehouse else None
+	boutique = frappe.db.get_value("AWANZ Store", {"warehouse": warehouse}, "name") if warehouse else None
 	item_name = frappe.db.get_value("Item", item_code, "item_name") or item_code
 	created = []
 	for w in rows:
 		if w.alerted_on and getdate(w.alerted_on) > add_days(getdate(), -WISHLIST_ALERT_COOLDOWN_DAYS):
 			continue
-		prof = frappe.db.get_value("Maison Client Profile", w.parent, ["preferred_associate", "preferred_boutique", "customer_name"], as_dict=True)
+		prof = frappe.db.get_value("AWANZ Client Profile", w.parent, ["preferred_associate", "preferred_boutique", "customer_name"], as_dict=True)
 		target_boutique = boutique or prof.preferred_boutique
 		users = [prof.preferred_associate] if prof.preferred_associate else boutique_manager_users(target_boutique)
 		note = _("{0} wished for {1}{2}: now available{3}").format(prof.customer_name or w.parent, item_name, f" ({serial_no})" if serial_no else "", f" at {target_boutique}" if target_boutique else "")
 		inter = frappe.get_doc(
 			{
-				"doctype": "Maison Client Interaction",
+				"doctype": "AWANZ Client Interaction",
 				"customer": w.parent,
 				"type": "Wishlist match",
 				"note": note,
@@ -358,17 +358,17 @@ def wishlist_matches_for(item_code: str, warehouse: Optional[str] = None, serial
 		)
 		inter.flags.ignore_permissions = True
 		inter.insert()
-		_notify(users, note, "Maison Client Profile", w.parent)
-		frappe.db.set_value("Maison Wishlist Item", w.name, "alerted_on", now_datetime(), update_modified=False)
+		_notify(users, note, "AWANZ Client Profile", w.parent)
+		frappe.db.set_value("AWANZ Wishlist Item", w.name, "alerted_on", now_datetime(), update_modified=False)
 		created.append({"customer": w.parent, "interaction": inter.name, "users": users})
 	if created:
-		frappe.publish_realtime("maison_wishlist_match", {"item_code": item_code, "matches": len(created), "boutique": boutique}, room="maison_dashboard")
+		frappe.publish_realtime("maison_wishlist_match", {"item_code": item_code, "matches": len(created), "boutique": boutique}, room="awanz_dashboard")
 	return created
 
 
 def on_stock_entry_submit(doc, method: Optional[str] = None) -> None:
 	"""Stock Entry on_submit: items received into a boutique warehouse → wishlist alerts."""
-	if not frappe.db.exists("DocType", "Maison Client Profile"):
+	if not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return
 	seen: set[tuple[str, str]] = set()
 	for row in doc.items:
@@ -382,20 +382,20 @@ def on_stock_entry_submit(doc, method: Optional[str] = None) -> None:
 			serial = (row.get("serial_no") or "").split("\n")[0].strip() or None
 			wishlist_matches_for(row.item_code, row.t_warehouse, serial)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison wishlist alert")
+			frappe.log_error(frappe.get_traceback(), "awanz wishlist alert")
 
 
 @frappe.whitelist()
 def wishlist_matches(boutique: Optional[str] = None, limit: int = 20) -> dict[str, Any]:
 	"""Dashboard tile: open 'Wishlist match' follow-ups (last 30 days)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	filters: dict[str, Any] = {"type": "Wishlist match", "status": "Open", "ts": (">=", add_days(nowdate(), -30))}
 	if boutique or not is_unrestricted():
 		from maison_pos.scoping import assert_boutique_access
 
 		filters["boutique"] = assert_boutique_access(boutique or get_user_boutique())
-	rows = frappe.get_all("Maison Client Interaction", filters=filters, fields=["name", "customer", "customer_name", "note", "boutique", "associate", "ts"], order_by="ts desc", limit=cint(limit) or 20)
-	return {"count": frappe.db.count("Maison Client Interaction", filters), "matches": rows}
+	rows = frappe.get_all("AWANZ Client Interaction", filters=filters, fields=["name", "customer", "customer_name", "note", "boutique", "associate", "ts"], order_by="ts desc", limit=cint(limit) or 20)
+	return {"count": frappe.db.count("AWANZ Client Interaction", filters), "matches": rows}
 
 
 # ---------------------------------------------------------------------------
@@ -429,7 +429,7 @@ def tasks(customer: Optional[str] = None, boutique: Optional[str] = None, associ
 	Without *customer*: the caller's boutique (managers) or own assignments (associates).
 	"""
 	if not _internal:
-		assert_roles(*ALL_MAISON_ROLES, "System Manager")
+		assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	filters: dict[str, Any] = {"follow_up_date": ("is", "set")}
 	if not cint(include_done):
 		filters["status"] = "Open"
@@ -444,7 +444,7 @@ def tasks(customer: Optional[str] = None, boutique: Optional[str] = None, associ
 			filters["associate"] = associate
 		elif not is_manager_or_above():
 			filters["associate"] = (get_associate() or {}).get("name") or "__none__"
-	rows = frappe.get_all("Maison Client Interaction", filters=filters, fields=INTERACTION_LIST_FIELDS, order_by="status asc, follow_up_date asc", limit=min(cint(limit) or 50, 200))
+	rows = frappe.get_all("AWANZ Client Interaction", filters=filters, fields=INTERACTION_LIST_FIELDS, order_by="status asc, follow_up_date asc", limit=min(cint(limit) or 50, 200))
 	return [_interaction_row(r) for r in rows]
 
 
@@ -452,22 +452,22 @@ def tasks(customer: Optional[str] = None, boutique: Optional[str] = None, associ
 def interactions(customer: str, limit: int = 20, _internal: bool = False) -> list[dict[str, Any]]:
 	"""Timeline of logged interactions for a client (newest first) — also mirrors Frappe Comments on the Customer."""
 	if not _internal:
-		assert_roles(*ALL_MAISON_ROLES, "System Manager")
-	rows = frappe.get_all("Maison Client Interaction", filters={"customer": customer}, fields=INTERACTION_LIST_FIELDS, order_by="ts desc", limit=min(cint(limit) or 20, 200))
+		assert_roles(*ALL_AWANZ_ROLES, "System Manager")
+	rows = frappe.get_all("AWANZ Client Interaction", filters={"customer": customer}, fields=INTERACTION_LIST_FIELDS, order_by="ts desc", limit=min(cint(limit) or 20, 200))
 	return [_interaction_row(r) for r in rows]
 
 
 @frappe.whitelist()
 def log_interaction(customer: str, type: str, note: Optional[str] = None, follow_up_date: Optional[str] = None, boutique: Optional[str] = None, associate: Optional[str] = None, sales_invoice: Optional[str] = None) -> dict[str, Any]:  # noqa: A002
 	"""Log a note / call / visit; with ``follow_up_date`` it becomes an open follow-up (and a CRM Task)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	_assert_customer(customer)
 	if type not in INTERACTION_TYPES:
 		frappe.throw(_("Unknown interaction type {0}").format(type), frappe.ValidationError)
 	me = get_associate()
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Client Interaction",
+			"doctype": "AWANZ Client Interaction",
 			"customer": customer,
 			"type": type,
 			"note": note,
@@ -486,7 +486,7 @@ def log_interaction(customer: str, type: str, note: Optional[str] = None, follow
 	if follow_up_date:
 		task = _crm_task_upsert(doc)
 		if task:
-			frappe.db.set_value("Maison Client Interaction", doc.name, "crm_task", task, update_modified=False)
+			frappe.db.set_value("AWANZ Client Interaction", doc.name, "crm_task", task, update_modified=False)
 			doc.crm_task = task
 	# keep the desk timeline in sync (Frappe Comment on the Customer)
 	try:
@@ -496,16 +496,16 @@ def log_interaction(customer: str, type: str, note: Optional[str] = None, follow
 	except Exception:
 		pass
 	get_or_create_profile(customer)
-	return _interaction_row(frappe.db.get_value("Maison Client Interaction", doc.name, INTERACTION_LIST_FIELDS, as_dict=True))
+	return _interaction_row(frappe.db.get_value("AWANZ Client Interaction", doc.name, INTERACTION_LIST_FIELDS, as_dict=True))
 
 
 @frappe.whitelist()
 def complete_task(name: str, status: str = "Done") -> dict[str, Any]:
 	"""Mark a follow-up Done / Cancelled (mirrors to the CRM Task)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if status not in ("Done", "Cancelled", "Open"):
 		frappe.throw(_("Invalid status"), frappe.ValidationError)
-	doc = frappe.get_doc("Maison Client Interaction", name)
+	doc = frappe.get_doc("AWANZ Client Interaction", name)
 	if not is_unrestricted() and doc.boutique and doc.boutique != get_user_boutique():
 		frappe.throw(_("Not your boutique"), frappe.PermissionError)
 	doc.status = status
@@ -514,13 +514,13 @@ def complete_task(name: str, status: str = "Done") -> dict[str, Any]:
 	doc.flags.ignore_permissions = True
 	doc.save()
 	_crm_task_upsert(doc)
-	return _interaction_row(frappe.db.get_value("Maison Client Interaction", doc.name, INTERACTION_LIST_FIELDS, as_dict=True))
+	return _interaction_row(frappe.db.get_value("AWANZ Client Interaction", doc.name, INTERACTION_LIST_FIELDS, as_dict=True))
 
 
 @frappe.whitelist()
 def upcoming_dates(boutique: Optional[str] = None, days: int = 30) -> list[dict[str, Any]]:
 	"""Clients with a birthday / anniversary within *days* (clienteling reminders)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	today = getdate()
 	horizon = cint(days) or 30
 	filters: dict[str, Any] = {}
@@ -528,7 +528,7 @@ def upcoming_dates(boutique: Optional[str] = None, days: int = 30) -> list[dict[
 		from maison_pos.scoping import assert_boutique_access
 
 		filters["preferred_boutique"] = assert_boutique_access(boutique or get_user_boutique())
-	rows = frappe.get_all("Maison Client Profile", filters=filters, fields=["customer", "customer_name", "birthday", "anniversary", "preferred_associate", "preferred_boutique"])
+	rows = frappe.get_all("AWANZ Client Profile", filters=filters, fields=["customer", "customer_name", "birthday", "anniversary", "preferred_associate", "preferred_boutique"])
 	out = []
 	for r in rows:
 		for kind in ("birthday", "anniversary"):

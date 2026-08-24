@@ -1,4 +1,4 @@
-# Maison POS — Build Specification (v0.1)
+# AWANZ POS — Build Specification (v0.1)
 
 Custom Frappe app `maison_pos` for a luxury jewelry chain (40→100+ boutiques) on **Frappe Framework v15 + ERPNext v15**, with an **offline-first Vue 3 PWA** point of sale, **Stripe Terminal** card payments, thermal receipt printing, and a live head-office dashboard.
 
@@ -7,7 +7,7 @@ Repo layout (single repo = the Frappe app):
 ```
 maison_pos/                     # python package (Frappe app)
   hooks.py, modules.txt, patches.txt
-  maison_pos/                   # module "Maison POS"
+  maison_pos/                   # module "AWANZ POS"
     doctype/<doctype>/...       # custom doctypes (JSON + .py)
     workflow/, print_format/    # fixtures exported via hooks.fixtures
   api/                          # whitelisted REST endpoints (see API CONTRACT)
@@ -25,15 +25,15 @@ README.md, SPEC.md, CHANGELOG.md
 
 ## Store model (ERPNext-native; no parallel "store" concept)
 - One Company (multi-company supported later). Each boutique = **Warehouse** + **Cost Center** + **POS Profile**.
-- Custom doctype **Maison Boutique** (name = store code e.g. `CHI-OAK`) links: `warehouse`, `cost_center`, `pos_profile`, `company`, `address_line`, `city`, `phone`, `email`, `tax_template`, `stripe_location_id`, `printer_ip`, `printer_model`, `enabled`. This is the single place the receipt pulls address/phone from.
-- User ↔ boutique: custom doctype **Maison Associate** (`user`, `boutique`, `role` in [Associate, Manager, Regional, HeadOffice], `pin` hashed 4–6 digits for fast POS unlock). User Permission on Warehouse enforces data scoping for Manager/Associate.
-- Roles (fixtures): `Maison Associate`, `Maison Manager`, `Maison Regional`, `Maison Head Office`.
+- Custom doctype **AWANZ Store** (name = store code e.g. `CHI-OAK`) links: `warehouse`, `cost_center`, `pos_profile`, `company`, `address_line`, `city`, `phone`, `email`, `tax_template`, `stripe_location_id`, `printer_ip`, `printer_model`, `enabled`. This is the single place the receipt pulls address/phone from.
+- User ↔ boutique: custom doctype **AWANZ Associate** (`user`, `boutique`, `role` in [Associate, Manager, Regional, HeadOffice], `pin` hashed 4–6 digits for fast POS unlock). User Permission on Warehouse enforces data scoping for Manager/Associate.
+- Roles (fixtures): `AWANZ Associate`, `AWANZ Manager`, `AWANZ Regional`, `AWANZ Head Office`.
 
 ## Catalog, stock, pricing
 - Items are standard ERPNext Items. Custom Fields on Item (fixtures): `maison_metal`, `maison_carat`, `maison_stones`, `maison_certificate_no`, `maison_appraisal_value`, `maison_department` (Link to Item Group is the category; department is a Select), `maison_taxable` (Check, default 1), `maison_image_url`.
 - Serialized items (watches, one-offs) use ERPNext Serial No; accessories use qty.
-- Global price list `Standard Selling`. Store override = **Pricing Rule** with `warehouse` = the boutique's warehouse, created only via doctype **Maison Price Change Request** (`item_code`, `boutique`, `current_rate`, `proposed_rate`, `reason`, `requested_by`, `valid_from`, `valid_upto`, workflow_state). Workflow **Maison Price Approval**: Draft → Pending Approval (Manager submits) → Approved (Head Office/Regional) | Rejected. On Approved, `on_update_after_submit`/workflow action creates/updates the Pricing Rule.
-- Same pattern for **Maison Item Change Request** (proposed field changes as JSON) — can be phase 2; scaffold doctype only.
+- Global price list `Standard Selling`. Store override = **Pricing Rule** with `warehouse` = the boutique's warehouse, created only via doctype **AWANZ Price Change Request** (`item_code`, `boutique`, `current_rate`, `proposed_rate`, `reason`, `requested_by`, `valid_from`, `valid_upto`, workflow_state). Workflow **AWANZ Price Approval**: Draft → Pending Approval (Manager submits) → Approved (Head Office/Regional) | Rejected. On Approved, `on_update_after_submit`/workflow action creates/updates the Pricing Rule.
+- Same pattern for **AWANZ Item Change Request** (proposed field changes as JSON) — can be phase 2; scaffold doctype only.
 
 ## Sales
 - A POS sale = ERPNext **Sales Invoice** with `is_pos=1`, `pos_profile`, `set_warehouse`, `update_stock=1`, payments child table (Mode of Payment `Cash` / `Card`), `customer`, `maison_boutique` (custom field), `maison_offline_uuid` (custom field, unique, idempotency key), `maison_associate`, `maison_terminal_ref` (Stripe PaymentIntent id), `maison_device_id`.
@@ -61,7 +61,7 @@ POSInvoice (client → server):
 ```
 {offline_uuid, boutique, associate, device_id, customer?, posting_datetime, items:[{item_code, qty, rate, serial_no?, discount_amount?}], payments:[{mode_of_payment:"Cash"|"Card", amount, stripe_payment_intent?}], loyalty_points_redeemed?, notes?}
 ```
-Realtime: on Sales Invoice submit with `is_pos`, publish `frappe.publish_realtime("maison_sale", {...summary}, room="maison_dashboard")`. Heartbeats publish `maison_heartbeat`.
+Realtime: on Sales Invoice submit with `is_pos`, publish `frappe.publish_realtime("awanz_sale", {...summary}, room="awanz_dashboard")`. Heartbeats publish `awanz_heartbeat`.
 
 ## Frontend (frontend/) — Vue 3 + TypeScript + Vite + Pinia + vite-plugin-pwa + Dexie (IndexedDB)
 Design system **"Monolith"**: ground `#0A1410`, surface `#0F1C16`, line `#1E3128`, text `#E9ECE6`, muted `#9FB3A6`, dim `#6F8579`, accent platinum `#E9ECE6` (buttons), semantic good `#7FA98A` warn `#D3A55B` crit `#C4736A`. Display face **Unbounded** (800/900, uppercase, tight tracking) for wordmark, section titles, prices and big numerals; **Jost** (300/400/500) for body, labels (11px, letter-spacing .25em uppercase), and data. Tabular numerals everywhere. Square corners, 1px lines, no shadows except device chrome. Landscape iPad 4:3 and 16:10 touch targets ≥ 48px. Dark only.
@@ -70,10 +70,10 @@ Offline: service worker precaches shell; Dexie stores catalog/prices/serials/cus
 Build output → `../maison_pos/public/pos/` with `base: "/assets/maison_pos/pos/"`; `www/pos.html` loads it and PWA scope is `/pos`.
 
 ## Dashboard (head office)
-Frappe Page or separate Vue app at `/maison-dashboard`: KPI strip (net, invoices, card %, avg ticket), hourly bars, boutique table with status pills (Online / Offline · n queued / Price approval pending), pending approvals list, live feed of sales via socket.io. Same Monolith system.
+Frappe Page or separate Vue app at `/awanz-dashboard`: KPI strip (net, invoices, card %, avg ticket), hourly bars, boutique table with status pills (Online / Offline · n queued / Price approval pending), pending approvals list, live feed of sales via socket.io. Same Monolith system.
 
 ## Receipt (80 mm)
-Jinja print format `Maison Receipt`: wordmark (Unbounded-style caps rendered as text), boutique line + address/phone from Maison Boutique, invoice no, datetime, associate, client + tier, lines (item, serial, certificate), subtotal, tax, loyalty, total, payment line with card brand/last4/approval, points earned, signature line if total ≥ 10,000, footer. Also generate an ePOS-Print XML builder in the frontend for direct LAN printing.
+Jinja print format `AWANZ Receipt`: wordmark (Unbounded-style caps rendered as text), boutique line + address/phone from AWANZ Store, invoice no, datetime, associate, client + tier, lines (item, serial, certificate), subtotal, tax, loyalty, total, payment line with card brand/last4/approval, points earned, signature line if total ≥ 10,000, footer. Also generate an ePOS-Print XML builder in the frontend for direct LAN printing.
 
 ## Dev environment
 `docker/docker-compose.yml` based on frappe_docker (mariadb 10.6, redis, frappe/erpnext v15 image) + script `docker/setup.sh` that creates site `maison.localhost`, installs erpnext + maison_pos, seeds demo data (`maison_pos.setup.demo.seed()` → company, 3 boutiques, 40 items, 20 customers, loyalty program, roles, users). `bench --site maison.localhost execute maison_pos.setup.demo.seed`.

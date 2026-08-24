@@ -1,6 +1,6 @@
 import { apiFor, closeBrowser, record, saveResults, log, STORE, STORE2, MGR, MGR2, TAG } from './lib-wh.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin'), m = await apiFor(MGR), m2 = await apiFor(MGR2)
 const SWH = `${STORE} - CCZ`
 const created = []
@@ -44,8 +44,8 @@ record('a serial that was not scanned is reported as missing', missSerial ? varc
   `missing=${JSON.stringify(varc.missing.slice(0, 3))} (expected ${missSerial})`)
 record('a scanned serial that does not belong here is reported as unexpected',
   varc.unexpected.some(x => x.serial_no === 'QA2-NOT-A-REAL-SERIAL' && x.status === 'not_found'), JSON.stringify(varc.unexpected.slice(0, 3)))
-record('the count is stored as a Maison Cycle Count in Draft', true,
-  JSON.stringify(await a.value('Maison Cycle Count', varc.cycle_count, ['status', 'boutique', 'warehouse', 'expected_serials', 'scanned_serials', 'device_id', 'stock_reconciliation'])))
+record('the count is stored as an AWANZ Cycle Count in Draft', true,
+  JSON.stringify(await a.value('AWANZ Cycle Count', varc.cycle_count, ['status', 'boutique', 'warehouse', 'expected_serials', 'scanned_serials', 'device_id', 'stock_reconciliation'])))
 
 // ---- the draft Stock Reconciliation
 const sr = varc.stock_reconciliation
@@ -61,14 +61,14 @@ if (sr) {
   record('the reconciliation is attributed to the counting user, not to a system account', srDoc.owner === MGR.usr, `owner=${srDoc.owner}`)
   const bin = Number((await a.list('Bin', { item_code: i1, warehouse: SWH }, ['actual_qty']))[0]?.actual_qty || 0)
   record('the draft posts NO stock until it is submitted', bin === e1, `${i1} on hand still ${bin} (counted ${counts[i1]}, expected ${e1})`)
-  const cc = await a.value('Maison Cycle Count', varc.cycle_count, ['stock_reconciliation'])
+  const cc = await a.value('AWANZ Cycle Count', varc.cycle_count, ['stock_reconciliation'])
   record('the cycle count links its reconciliation for the desk review', cc.stock_reconciliation === sr, JSON.stringify(cc))
 }
 // scoping
 const cross = await m2.tryPost('maison_pos.api.inventory.submit_cycle_count', { boutique: STORE, qty: JSON.stringify({ [i1]: 1 }) })
 record('another store\'s manager cannot submit a count against my store', !cross.ok, `${cross.status} ${String(cross.exc).slice(0, 150)}`)
 
-writeFileSync('/home/claude/maison/e2e/qa/state.json', JSON.stringify({ ...S, cycleCounts: created }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/state.json', JSON.stringify({ ...S, cycleCounts: created }, null, 1))
 log('CREATED ' + JSON.stringify(created))
 await m.dispose(); await m2.dispose()
 saveResults('results-w8.json')

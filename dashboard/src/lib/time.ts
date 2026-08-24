@@ -5,8 +5,8 @@
  * the reconcile stamp were `new Date()` in the *browser's* zone, so a laptop one zone over showed
  * a different "now" than the till and the warehouse wall — three clocks, one chain.
  *
- * The zone is baked into the page by `maison_pos/www/maison-dashboard.html`
- * (`window.maison_site = {"time_zone": "America/Chicago"}`); with no zone on the page (dev / mock)
+ * The zone is baked into the page by `maison_pos/www/awanz-dashboard.html`
+ * (`window.awanz_site = {"time_zone": "America/Chicago"}`); with no zone on the page (dev / mock)
  * this falls back to the browser's own zone, which is the old behaviour.
  *
  * Frappe also returns *naive* datetimes in the site zone ("2026-08-23 09:36:00"); those are parsed
@@ -17,7 +17,7 @@ const NAIVE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/
 
 declare global {
   interface Window {
-    maison_site?: { time_zone?: string }
+    awanz_site?: { time_zone?: string }
   }
 }
 
@@ -39,11 +39,11 @@ function usable(tz: string | null | undefined): tz is string {
   }
 }
 
-let zone: string | null = usable(typeof window !== 'undefined' ? window.maison_site?.time_zone : null) ? (window.maison_site!.time_zone as string) : null
+let zone: string | null = usable(typeof window !== 'undefined' ? window.awanz_site?.time_zone : null) ? (window.awanz_site!.time_zone as string) : null
 
-/** Re-read `window.maison_site` (tests set it, then call this) or set the zone directly. */
+/** Re-read `window.awanz_site` (tests set it, then call this) or set the zone directly. */
 export function setSiteTimeZone(tz?: string | null): string {
-  const next = tz === undefined ? (typeof window !== 'undefined' ? window.maison_site?.time_zone : null) : tz
+  const next = tz === undefined ? (typeof window !== 'undefined' ? window.awanz_site?.time_zone : null) : tz
   zone = usable(next) ? next : null
   return siteTimeZone()
 }

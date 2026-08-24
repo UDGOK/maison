@@ -88,7 +88,7 @@ await wait(1200)
 // Offline scenario: flip the mock offline, sell, and show the queued state
 await page.getByRole('button', { name: 'Done' }).click()
 await page.waitForURL('**/sell')
-await page.evaluate(() => { window.__maisonOffline = true })
+await page.evaluate(() => { window.__awanzOffline = true })
 await wait(5500) // replay tick notices the flag
 await page.locator('.tile', { hasText: 'Akoya Pearl Studs' }).click()
 await page.locator('.pay .btn', { hasText: 'Cash' }).click()
@@ -101,7 +101,7 @@ await page.getByRole('button', { name: 'Done' }).click()
 await page.waitForURL('**/sell')
 await wait(300)
 await shot('13-sell-offline')
-await page.evaluate(() => { window.__maisonOffline = false })
+await page.evaluate(() => { window.__awanzOffline = false })
 await wait(16000) // probe heartbeat -> replay
 await shot('14-sell-recovered')
 

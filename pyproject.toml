@@ -1,9 +1,9 @@
 [project]
 name = "maison_pos"
 authors = [
-    { name = "Maison", email = "dev@maison.example" }
+    { name = "AWANZ", email = "dev@awanz.example" }
 ]
-description = "Maison POS — offline-first luxury retail point of sale for Frappe / ERPNext v15"
+description = "AWANZ POS — offline-first luxury retail point of sale for Frappe / ERPNext v15"
 requires-python = ">=3.10"
 readme = "maison_pos/README_BACKEND.md"
 dynamic = ["version"]

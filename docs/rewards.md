@@ -53,7 +53,7 @@ and every balance reads zero; the seed uses 3650 days (ten years) as the closest
 
 ### Fixed tiers
 
-The three redemption levels are `Maison Reward Tier` rows under the programme, not free-form point
+The three redemption levels are `AWANZ Reward Tier` rows under the programme, not free-form point
 spending. `catalog.bootstrap` returns them as `reward_tiers`, and the POS Redeem sheet shows
 **only the tiers the client can afford**, plus how far away the next one is.
 
@@ -75,10 +75,10 @@ Returns reverse the points, and the balance never goes below zero.
 
 | Perk | How it works |
 |---|---|
-| **Birthday discount** | `issue_birthday_coupons` (daily) issues a `Maison Coupon` to every member whose birthday is `birthday_coupon_lead_days` away (default 7), valid `birthday_coupon_valid_days` (default 30). Percent or fixed amount — `birthday_coupon_type` / `birthday_coupon_value` (default 15%). Logged as a campaign touch. |
-| **Monthly sale promotions** | `Maison Promotion Calendar` — one row per month with its Pricing Rules and featured items. `send_monthly_promotion` runs on the 1st and sends the month's calendar as a campaign. |
+| **Birthday discount** | `issue_birthday_coupons` (daily) issues a `AWANZ Coupon` to every member whose birthday is `birthday_coupon_lead_days` away (default 7), valid `birthday_coupon_valid_days` (default 30). Percent or fixed amount — `birthday_coupon_type` / `birthday_coupon_value` (default 15%). Logged as a campaign touch. |
+| **Monthly sale promotions** | `AWANZ Promotion Calendar` — one row per month with its Pricing Rules and featured items. `send_monthly_promotion` runs on the 1st and sends the month's calendar as a campaign. |
 | **Latest product arrivals** | `new_arrivals_campaign` (weekly) builds a segment from Items / Website Items created in the last `new_arrivals_days` (default 14), per store availability. |
-| **Product giveaways** | `Maison Giveaway` (+ `Maison Giveaway Entry`): prize item, entry rule (1 entry per $X spent — `giveaway_entries_per_amount`, default 25 — or per visit), start/end. Entries accrue on the sale; the receipt and the Salon show "N entries". `rewards.draw(giveaway, seed)` picks a winner **randomly from a recorded seed** so the draw can be audited and reproduced, and notifies them. |
+| **Product giveaways** | `AWANZ Giveaway` (+ `AWANZ Giveaway Entry`): prize item, entry rule (1 entry per $X spent — `giveaway_entries_per_amount`, default 25 — or per visit), start/end. Entries accrue on the sale; the receipt and the Salon show "N entries". `rewards.draw(giveaway, seed)` picks a winner **randomly from a recorded seed** so the draw can be audited and reproduced, and notifies them. |
 | **Exclusive event invites** | campaign channel *Events*, with an RSVP link on the public receipt and the Salon ("Invite me"). |
 
 ---
@@ -93,7 +93,7 @@ maison_pos.api.rewards.signup(name, phone, email, birthday, consent, boutique)
 ```
 
 which creates the Customer with a `MC######` client number, attaches the loyalty programme,
-creates the `Maison Client Profile` (birthday, preferred store) and records the marketing consents
+creates the `AWANZ Client Profile` (birthday, preferred store) and records the marketing consents
 (`do_not_email` / `do_not_sms` are set from `consent_email` / `consent_sms`). Look the member up
 afterwards by client number or phone at the POS.
 
@@ -119,7 +119,7 @@ block for the 80 mm printer, the V660p canvas receipt, the public `/r/<token>` p
 
 ## 5. Settings
 
-All on **Maison POS Settings**:
+All on **AWANZ POS Settings**:
 
 | Setting | Default | What |
 |---|---|---|
@@ -147,7 +147,7 @@ and ERPNext excludes future entries from the balance).
 **A redemption is refused.** Either the client cannot afford the tier, or `conversion_factor` does
 not match the tier table (see §1), or the bill is smaller than the reward.
 
-**A giveaway draw is challenged.** `Maison Giveaway` stores the seed used for the draw; re-running
+**A giveaway draw is challenged.** `AWANZ Giveaway` stores the seed used for the draw; re-running
 with the same seed reproduces the same winner from the same entry list. Do not re-draw with a new
 seed without recording why.
 

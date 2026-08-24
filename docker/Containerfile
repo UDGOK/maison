@@ -2,7 +2,7 @@
 # Based on frappe_docker's images/layered/Containerfile (v15 line).
 #
 # Build from the repo root (the Frappe app lives there):
-#   docker build -f docker/Containerfile -t maison/erpnext:v15 .
+#   docker build -f docker/Containerfile -t awanz/erpnext:v15 .
 #
 # Uses the official frappe/build layer for the heavy lifting (bench, node, wkhtmltopdf)
 # and installs apps from a local copy of the repo (no git clone of the private app needed).

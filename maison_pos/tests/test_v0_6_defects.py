@@ -66,7 +66,7 @@ class TestD3ReturnStoreStamp(FrappeTestCase):
 	def test_credit_note_carries_store_and_warehouse(self):
 		si = _sell(NYC)
 		cn = frappe.get_doc("Sales Invoice", _return(si.name))
-		warehouse = frappe.db.get_value("Maison Boutique", NYC, "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", NYC, "warehouse")
 		self.assertEqual(cn.is_return, 1)
 		self.assertEqual(cn.maison_boutique, NYC, "the credit note lost its store")
 		self.assertEqual(cn.set_warehouse, warehouse, "the credit note has no warehouse — the User Permission would miss it")
@@ -75,7 +75,7 @@ class TestD3ReturnStoreStamp(FrappeTestCase):
 		si = _sell(NYC)
 		cn = frappe.get_doc("Sales Invoice", sales_api.void(si.name, "test void")["credit_note"])
 		self.assertEqual(cn.maison_boutique, NYC)
-		self.assertEqual(cn.set_warehouse, frappe.db.get_value("Maison Boutique", NYC, "warehouse"))
+		self.assertEqual(cn.set_warehouse, frappe.db.get_value("AWANZ Store", NYC, "warehouse"))
 
 	def test_query_condition_narrows_sales_invoice_to_the_managers_store(self):
 		other = _sell(CHI)
@@ -110,7 +110,7 @@ class TestD3ReturnStoreStamp(FrappeTestCase):
 		backfill_return_store_stamp.execute()
 		row = frappe.db.get_value("Sales Invoice", cn, ["maison_boutique", "set_warehouse"], as_dict=True)
 		self.assertEqual(row.maison_boutique, NYC)
-		self.assertEqual(row.set_warehouse, frappe.db.get_value("Maison Boutique", NYC, "warehouse"))
+		self.assertEqual(row.set_warehouse, frappe.db.get_value("AWANZ Store", NYC, "warehouse"))
 
 
 class TestD4WarehouseIsNotAStore(FrappeTestCase):
@@ -124,17 +124,17 @@ class TestD4WarehouseIsNotAStore(FrappeTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
 		frappe.db.savepoint("v06_d4")
-		if not frappe.db.exists("Maison Boutique", self.WH):
+		if not frappe.db.exists("AWANZ Store", self.WH):
 			doc = frappe.get_doc(
 				{
-					"doctype": "Maison Boutique",
+					"doctype": "AWANZ Store",
 					"boutique_code": self.WH,
 					"boutique_name": "Test Warehouse",
 					"enabled": 1,
 					"company": demo.COMPANY,
-					"warehouse": frappe.db.get_value("Maison Boutique", NYC, "warehouse"),
-					"cost_center": frappe.db.get_value("Maison Boutique", NYC, "cost_center"),
-					"pos_profile": frappe.db.get_value("Maison Boutique", NYC, "pos_profile"),
+					"warehouse": frappe.db.get_value("AWANZ Store", NYC, "warehouse"),
+					"cost_center": frappe.db.get_value("AWANZ Store", NYC, "cost_center"),
+					"pos_profile": frappe.db.get_value("AWANZ Store", NYC, "pos_profile"),
 					"city": "Houston",
 				}
 			)
@@ -212,7 +212,7 @@ class TestD5WalkInIsNotAMember(FrappeTestCase):
 
 	def test_the_walk_in_cannot_redeem(self):
 		frappe.db.set_value("Customer", self.walk_in, "loyalty_program", self.program, update_modified=False)
-		tier = frappe.db.get_value("Maison Reward Tier", {"enabled": 1}, "name")
+		tier = frappe.db.get_value("AWANZ Reward Tier", {"enabled": 1}, "name")
 		if not tier:
 			self.skipTest("no reward tiers on this site")
 		si = frappe.get_doc({"doctype": "Sales Invoice", "customer": self.walk_in, "is_pos": 1})
@@ -312,7 +312,7 @@ class TestSiteTimezoneRepair(FrappeTestCase):
 class TestWarehouseNotATill(FrappeTestCase):
 	"""v0.6 R — the POS store picker must never offer a warehouse row.
 
-	`HOU-WH` is a Maison Boutique so shipments and receiving can address it. Offering it in
+	`HOU-WH` is an AWANZ Store so shipments and receiving can address it. Offering it in
 	`session.me()` let someone ring a sale out of the warehouse, and left the warehouse-only
 	admin looking at a store list they could never unlock.
 	"""

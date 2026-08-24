@@ -1,6 +1,6 @@
-"""v0.6 N — brand tokens read from ``Maison POS Settings``.
+"""v0.6 N — brand tokens read from ``AWANZ POS Settings``.
 
-Internal names stay ``Maison *``; every user-facing string (wordmark, product name, receipt
+Internal names stay ``AWANZ *``; every user-facing string (wordmark, product name, receipt
 header, Salon welcome, e-mails, the shop header) reads the brand from here. Cached per request.
 """
 
@@ -19,14 +19,14 @@ REWARDS_KEYS = tuple(REWARDS_DEFAULTS)
 
 
 def _stored() -> dict[str, Any]:
-	key = "maison_brand_settings"
+	key = "awanz_brand_settings"
 	cached = getattr(frappe.local, key, None)
 	if cached is not None:
 		return cached
 	stored: dict[str, Any] = {}
-	if frappe.db.exists("DocType", "Maison POS Settings"):
+	if frappe.db.exists("DocType", "AWANZ POS Settings"):
 		try:
-			stored = frappe.db.get_singles_dict("Maison POS Settings", cast=True) or {}
+			stored = frappe.db.get_singles_dict("AWANZ POS Settings", cast=True) or {}
 		except Exception:
 			stored = {}
 	setattr(frappe.local, key, stored)
@@ -34,8 +34,8 @@ def _stored() -> dict[str, Any]:
 
 
 def clear_brand_cache() -> None:
-	if hasattr(frappe.local, "maison_brand_settings"):
-		delattr(frappe.local, "maison_brand_settings")
+	if hasattr(frappe.local, "awanz_brand_settings"):
+		delattr(frappe.local, "awanz_brand_settings")
 
 
 def _value(stored: dict[str, Any], key: str, default: Any) -> Any:
@@ -105,7 +105,8 @@ def welcome_line(boutique_name: Optional[str] = None) -> str:
 
 
 def item_attribute_fields(vert: Optional[str] = None) -> list[str]:
-	"""Which ``maison_*`` product attributes the POS / shop show for a vertical."""
+	"""Which ``maison_*`` custom fields (internal fieldnames, kept — see docs/white-label.md)
+	the POS / shop show as product attributes for a vertical."""
 	v = vert or vertical()
 	if v == "Smoke Shop":
 		return ["maison_brand", "maison_flavor", "maison_nicotine_mg", "maison_volume_ml", "maison_puffs", "maison_age_restricted", "maison_msrp"]

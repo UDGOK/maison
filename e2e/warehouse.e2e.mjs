@@ -7,11 +7,11 @@
  * The full replenishment loop, driven through the real screens:
  *
  *  1. store manager opens the POS `Receive` screen and taps "Request from warehouse" on a
- *     low-stock line  → `Maison Replenishment Request` (draft Material Request, Material Transfer)
+ *     low-stock line  → `AWANZ Replenishment Request` (draft Material Request, Material Transfer)
  *  2. warehouse admin opens `/warehouse`, reviews the request and approves it (edited qty)
- *     → `Maison Shipment` in *Pending*
+ *     → `AWANZ Shipment` in *Pending*
  *  3. the `/warehouse-wall` board shows the new card and the auto-print hook fires
- *     (`window.__maisonLastWallPrint`, kind `packing_list` — see frontend/src/warehouse/print.ts)
+ *     (`window.__awanzLastWallPrint`, kind `packing_list` — see frontend/src/warehouse/print.ts)
  *  4. rates are listed cheapest-first, the cheapest is pre-selected
  *  5. the (simulated) label is bought → tracking number + label URL on the shipment
  *  6. the shipment is shipped → Material Transfer store → `<code> In Transit`
@@ -19,7 +19,7 @@
  *  8. stock balances actually moved: HQ ↓, In Transit back to 0, store ↑
  *
  * BASE defaults to the CloudChaserz site, which carries a real `HOU-WH` warehouse boutique and a
- * `Maison Warehouse Admin` user; override BASE/STORE/WH_USER to run it elsewhere.
+ * `AWANZ Warehouse Admin` user; override BASE/STORE/WH_USER to run it elsewhere.
  */
 import { chromium } from './node_modules/playwright/index.mjs'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -93,10 +93,10 @@ async function client(user) {
 const admin = await client(ADMIN)
 
 // ---------------------------------------------------------------- setup: a store, an item, HQ stock
-const boutique = (await admin.list('Maison Boutique', { name: STORE }, ['name', 'company', 'warehouse', 'transit_warehouse']))[0]
+const boutique = (await admin.list('AWANZ Store', { name: STORE }, ['name', 'company', 'warehouse', 'transit_warehouse']))[0]
 if (!boutique) throw new Error(`store ${STORE} not found on ${BASE}`)
 const settings = await admin.get('maison_pos.api.shipping.me').catch(() => ({}))
-const HQ = settings?.main_warehouse || (await admin.list('Maison Boutique', { is_warehouse: 1 }, ['warehouse']))[0]?.warehouse
+const HQ = settings?.main_warehouse || (await admin.list('AWANZ Store', { is_warehouse: 1 }, ['warehouse']))[0]?.warehouse
 if (!HQ) throw new Error('no main warehouse configured')
 
 // a stocked, non-serialized item that the store carries
@@ -134,7 +134,7 @@ wireConsole(mgr, 'receive')
 
 async function unlockPos(page, user) {
   await page.goto('/pos/unlock')
-  await page.evaluate(() => { localStorage.setItem('maisonE2E', '1') })
+  await page.evaluate(() => { localStorage.setItem('awanzE2E', '1') })
   await page.goto('/pos')
   await page.waitForSelector('.unlock select.input', { timeout: 20000 })
   await page.selectOption('.unlock select.input >> nth=0', STORE)
@@ -208,7 +208,7 @@ wireConsole(desk, 'warehouse')
 
 await desk.goto('/warehouse', { waitUntil: 'domcontentloaded' })
 await desk.waitForSelector('[data-testid=warehouse-desk]', { timeout: 30000 })
-record('/warehouse desk opens for the Maison Warehouse Admin', true, await desk.locator('[data-testid=warehouse-desk]').first().isVisible())
+record('/warehouse desk opens for the AWANZ Warehouse Admin', true, await desk.locator('[data-testid=warehouse-desk]').first().isVisible())
 await shot(desk, 'warehouse-desk')
 
 // ---- the wall must already be open when the approval lands: the card arrives over socket.io and
@@ -219,7 +219,7 @@ await wallCtx.request.post('/api/method/login', { data: { usr: WH_USER.usr, pwd:
 const wall = await wallCtx.newPage()
 wireConsole(wall, 'wall')
 // dry-run printing: no printer in CI, but the hook and the document URL are still recorded
-await wall.addInitScript(() => { window.__maisonWallPrintDry = true })
+await wall.addInitScript(() => { window.__awanzWallPrintDry = true })
 await wall.goto('/warehouse-wall', { waitUntil: 'domcontentloaded' })
 await wall.waitForSelector('[data-testid=warehouse-wall]', { timeout: 30000 })
 record('/warehouse-wall opens and connects for the wall screen', true,
@@ -239,7 +239,7 @@ try {
 const shipments = await admin.get('maison_pos.api.shipping.shipments', { status: 'all', boutique: STORE, with_lines: 1, limit: 500 })
 const mine = (shipments.shipments || []).find((s) => s.request === requestName || s.replenishment_request === requestName)
 shipmentName = mine?.name || null
-record('approval creates a Maison Shipment for the store', !!shipmentName,
+record('approval creates an AWANZ Shipment for the store', !!shipmentName,
   `${shipmentName} status=${mine?.status} lines=${JSON.stringify((mine?.lines || []).map((l) => [l.item_code, l.qty]))}`)
 if (!shipmentName) throw new Error('no shipment created — cannot continue')
 const approvedQty = Number((mine.lines || []).find((l) => l.item_code === ITEM)?.qty || 0)
@@ -258,9 +258,9 @@ const cardText = cardOk ? (await wall.locator(cardSel).innerText()).replace(/\s+
 record('the approved shipment appears as a card on the 1920×1080 wall over realtime', cardOk, cardText.slice(0, 200))
 record('the wall card carries the store code and the unit count', /(?:OK|HOU)-[A-Z]+/.test(cardText) && /\d+\s*UNITS/i.test(cardText), cardText.slice(0, 160))
 
-const printJob = await wall.waitForFunction(() => window.__maisonLastWallPrint || null, null, { timeout: 20000 })
+const printJob = await wall.waitForFunction(() => window.__awanzLastWallPrint || null, null, { timeout: 20000 })
   .then((h) => h.jsonValue()).catch(() => null)
-record('auto-print of the packing list fired on the wall (window.__maisonLastWallPrint)',
+record('auto-print of the packing list fired on the wall (window.__awanzLastWallPrint)',
   !!printJob && printJob.kind === 'packing_list' && String(printJob.shipment) === String(shipmentName),
   JSON.stringify(printJob))
 await shot(wall, 'warehouse-wall')

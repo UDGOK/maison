@@ -69,7 +69,7 @@
   "name": "start",
   "route": "/start",
   "status": 200,
-  "title": "Maison POS by CloudChaserz",
+  "title": "AWANZ POS by CloudChaserz",
   "textHits": 0,
   "htmlHitsAllowed": 123,
   "htmlHitsBlocking": 0,
@@ -96,13 +96,13 @@
  {
   "name": "desk-about",
   "route": "/app (About dialog)",
-  "title": "Maison POS by CloudChaserz",
+  "title": "AWANZ POS by CloudChaserz",
   "ok": true,
   "blocking": []
  },
  {
   "name": "headers",
-  "server": "Werkzeug/3.1.6 Python/3.11.15, Maison POS by CloudChaserz",
+  "server": "Werkzeug/3.1.6 Python/3.11.15, AWANZ POS by CloudChaserz",
   "ok": true,
   "blocking": []
  }

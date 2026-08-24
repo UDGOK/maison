@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import { reportCsvUrl, reportUrl } from '../api'
 import type { ReportLink } from '../types'
 
-/** v0.4 F — links to the Maison Script Reports (desk) + CSV export, grouped. */
+/** v0.4 F — links to the AWANZ Script Reports (desk) + CSV export, grouped. */
 const props = defineProps<{ reports: ReportLink[] }>()
 const groups = computed(() => {
   const m = new Map<string, ReportLink[]>()
@@ -29,7 +29,7 @@ const filters = { from_date: iso(monthStart), to_date: iso(new Date()) }
         <span class="display gname">{{ group }}</span>
         <ul class="list">
           <li v-for="r in list" :key="r.name" class="item" :title="r.description">
-            <a class="name" :href="reportUrl(r.name, filters)" target="_blank" rel="noopener">{{ r.name.replace(/^Maison /, '') }}</a>
+            <a class="name" :href="reportUrl(r.name, filters)" target="_blank" rel="noopener">{{ r.name.replace(/^AWANZ /, '') }}</a>
             <a class="label csv" :href="reportCsvUrl(r.name, filters)" title="Download CSV">CSV</a>
           </li>
         </ul>

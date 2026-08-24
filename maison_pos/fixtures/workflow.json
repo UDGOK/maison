@@ -1,9 +1,9 @@
 [
  {
   "doctype": "Workflow",
-  "name": "Maison Price Approval",
-  "workflow_name": "Maison Price Approval",
-  "document_type": "Maison Price Change Request",
+  "name": "AWANZ Price Approval",
+  "workflow_name": "AWANZ Price Approval",
+  "document_type": "AWANZ Price Change Request",
   "is_active": 1,
   "override_status": 0,
   "send_email_alert": 1,
@@ -17,7 +17,7 @@
    {
     "state": "Draft",
     "doc_status": "0",
-    "allow_edit": "Maison Manager",
+    "allow_edit": "AWANZ Manager",
     "update_field": null,
     "update_value": null,
     "is_optional_state": 0,
@@ -26,7 +26,7 @@
    {
     "state": "Pending Approval",
     "doc_status": "1",
-    "allow_edit": "Maison Head Office",
+    "allow_edit": "AWANZ Head Office",
     "update_field": null,
     "update_value": null,
     "is_optional_state": 0,
@@ -35,7 +35,7 @@
    {
     "state": "Approved",
     "doc_status": "1",
-    "allow_edit": "Maison Head Office",
+    "allow_edit": "AWANZ Head Office",
     "update_field": null,
     "update_value": null,
     "is_optional_state": 0,
@@ -44,7 +44,7 @@
    {
     "state": "Rejected",
     "doc_status": "1",
-    "allow_edit": "Maison Head Office",
+    "allow_edit": "AWANZ Head Office",
     "update_field": null,
     "update_value": null,
     "is_optional_state": 0,
@@ -56,7 +56,7 @@
     "state": "Draft",
     "action": "Submit for Approval",
     "next_state": "Pending Approval",
-    "allowed": "Maison Manager",
+    "allowed": "AWANZ Manager",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 1
@@ -65,7 +65,7 @@
     "state": "Draft",
     "action": "Submit for Approval",
     "next_state": "Pending Approval",
-    "allowed": "Maison Head Office",
+    "allowed": "AWANZ Head Office",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 2
@@ -74,7 +74,7 @@
     "state": "Draft",
     "action": "Submit for Approval",
     "next_state": "Pending Approval",
-    "allowed": "Maison Regional",
+    "allowed": "AWANZ Regional",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 3
@@ -83,7 +83,7 @@
     "state": "Pending Approval",
     "action": "Approve",
     "next_state": "Approved",
-    "allowed": "Maison Head Office",
+    "allowed": "AWANZ Head Office",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 4
@@ -92,7 +92,7 @@
     "state": "Pending Approval",
     "action": "Approve",
     "next_state": "Approved",
-    "allowed": "Maison Regional",
+    "allowed": "AWANZ Regional",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 5
@@ -101,7 +101,7 @@
     "state": "Pending Approval",
     "action": "Reject",
     "next_state": "Rejected",
-    "allowed": "Maison Head Office",
+    "allowed": "AWANZ Head Office",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 6
@@ -110,7 +110,7 @@
     "state": "Pending Approval",
     "action": "Reject",
     "next_state": "Rejected",
-    "allowed": "Maison Regional",
+    "allowed": "AWANZ Regional",
     "allow_self_approval": 1,
     "condition": "",
     "idx": 7

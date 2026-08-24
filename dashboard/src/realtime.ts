@@ -4,7 +4,7 @@
  * connects directly to Frappe's socket.io server.
  *
  * Frappe's socket.io server only delivers to rooms it manages (site, user,
- * doctype, doc, task); the backend publishes `maison_sale` / `maison_heartbeat`
+ * doctype, doc, task); the backend publishes `awanz_sale` / `awanz_heartbeat`
  * to the `doctype:Sales Invoice` room, so the client must `doctype_subscribe`
  * to it (requires read permission on Sales Invoice).
  */
@@ -43,8 +43,8 @@ export function connectRealtime(h: RealtimeHandlers): Unsubscribe {
       fr.doctype_subscribe?.(DOCTYPE)
       h.onConnection?.(true)
     }
-    fr.on('maison_sale', sale)
-    fr.on('maison_heartbeat', hb)
+    fr.on('awanz_sale', sale)
+    fr.on('awanz_heartbeat', hb)
     if (fr.socket) {
       fr.socket.on('connect', subscribe)
       fr.socket.on('disconnect', () => h.onConnection?.(false))
@@ -53,8 +53,8 @@ export function connectRealtime(h: RealtimeHandlers): Unsubscribe {
       h.onConnection?.(false)
     }
     return () => {
-      fr.off?.('maison_sale', sale)
-      fr.off?.('maison_heartbeat', hb)
+      fr.off?.('awanz_sale', sale)
+      fr.off?.('awanz_heartbeat', hb)
       fr.socket?.off?.('connect', subscribe)
     }
   }
@@ -74,8 +74,8 @@ export function connectRealtime(h: RealtimeHandlers): Unsubscribe {
       s.emit('doctype_subscribe', DOCTYPE)
     })
     s.on('disconnect', () => h.onConnection?.(false))
-    s.on('maison_sale', (d: SaleEvent) => h.onSale(d))
-    s.on('maison_heartbeat', (d: HeartbeatEvent) => h.onHeartbeat(d))
+    s.on('awanz_sale', (d: SaleEvent) => h.onSale(d))
+    s.on('awanz_heartbeat', (d: HeartbeatEvent) => h.onHeartbeat(d))
   })
   return () => {
     closed = true

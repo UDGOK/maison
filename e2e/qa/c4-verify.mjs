@@ -14,11 +14,11 @@ const transit = await a.list('Bin', { warehouse: `${STORE} In Transit - CCZ`, ac
 record('nothing is left stranded in the store\'s In Transit warehouse', transit.length === 0, JSON.stringify(transit))
 const dmg = await a.list('Bin', { warehouse: `${STORE} Damaged - CCZ`, actual_qty: ['!=', 0] }, ['item_code', 'actual_qty'], 50)
 record('nothing is left in the store\'s Damaged warehouse', dmg.length === 0, JSON.stringify(dmg))
-const openSh = await a.list('Maison Shipment', { boutique: STORE, status: ['in', ['Pending', 'Picking', 'Packed', 'Shipped']] }, ['name', 'status'], 50)
+const openSh = await a.list('AWANZ Shipment', { boutique: STORE, status: ['in', ['Pending', 'Picking', 'Packed', 'Shipped']] }, ['name', 'status'], 50)
 record('no open shipment is left for the store', openSh.length === 0, JSON.stringify(openSh))
-const openReq = await a.list('Maison Replenishment Request', { boutique: STORE, status: 'Pending Approval' }, ['name'], 50)
+const openReq = await a.list('AWANZ Replenishment Request', { boutique: STORE, status: 'Pending Approval' }, ['name'], 50)
 record('no request is left pending approval for the store', openReq.length === 0, JSON.stringify(openReq))
-const openD = await a.list('Maison Receiving Discrepancy', { status: 'Open' }, ['name', 'boutique'], 50)
+const openD = await a.list('AWANZ Receiving Discrepancy', { status: 'Open' }, ['name', 'boutique'], 50)
 record('no discrepancy is left open', openD.length === 0, JSON.stringify(openD))
 const openMR = await a.list('Material Request', { set_warehouse: `${STORE} - CCZ`, docstatus: 1, status: ['not in', ['Transferred', 'Stopped', 'Cancelled']] }, ['name', 'status'], 50)
 record('no Material Request of mine is left hanging half-open', openMR.length === 0, JSON.stringify(openMR))
@@ -26,7 +26,7 @@ record('no Material Request of mine is left hanging half-open', openMR.length ==
 const before = (await a.list('Scheduled Job Log', { scheduled_job_type: 'inventory.low_stock_scan' }, ['name'], 1, 'creation desc'))[0]?.name
 await a.post('frappe.core.doctype.scheduled_job_type.scheduled_job_type.execute_event', { doc: JSON.stringify({ name: 'inventory.low_stock_scan' }) })
 for (let i = 0; i < 30; i++) { await sleep(1500); const n = (await a.list('Scheduled Job Log', { scheduled_job_type: 'inventory.low_stock_scan' }, ['name'], 1, 'creation desc'))[0]; if (n && n.name !== before) break }
-const alerts = await a.list('Maison Stock Alert', { status: ['in', ['Open', 'Acknowledged']] }, ['name', 'boutique', 'item_code'], 50)
+const alerts = await a.list('AWANZ Stock Alert', { status: ['in', ['Open', 'Acknowledged']] }, ['name', 'boutique', 'item_code'], 50)
 record('no low-stock alert left open at my store after the final scan', !alerts.some(x => x.boutique === STORE),
   `site-wide open alerts: ${alerts.length} ${JSON.stringify(alerts.map(x => [x.boutique, x.item_code]))}`)
 const wall = await w.get('maison_pos.api.shipping.wall')

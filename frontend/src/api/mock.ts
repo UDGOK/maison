@@ -1,7 +1,7 @@
 /**
  * In-memory mock of the Frappe backend. Enabled with `VITE_MOCK=1`.
  * - Simulates latency (120–400 ms).
- * - `window.__maisonOffline = true` makes every call fail with a NETWORK ApiError,
+ * - `window.__awanzOffline = true` makes every call fail with a NETWORK ApiError,
  *   exactly like a fetch() that cannot reach the bench.
  * - Tracks sold serials so duplicate/conflict errors behave like the real server.
  */
@@ -21,7 +21,7 @@ import {
   DEFAULT_CONSENT_TEXT,
   RECOGNITION_MODEL,
   type LiveSummary,
-  type MaisonApi,
+  type AwanzApi,
   type POSInvoice,
   type PublicReceipt,
   type Recommendation,
@@ -110,10 +110,10 @@ interface MockCreditNote {
   receipt_token: string
   payments: { mode_of_payment: string; amount: number }[]
 }
-/** v0.4 E — mock returns policy (Maison POS Settings). */
+/** v0.4 E — mock returns policy (AWANZ POS Settings). */
 export const RETURNS_POLICY = { return_window_days: 30, exchange_window_days: 60, returns_manager_threshold: 2500 }
 
-/** Mock `Maison POS Settings` recognition block; `match_threshold` is the maximum euclidean distance between RAW descriptors (face-api rule: < 0.6). */
+/** Mock `AWANZ POS Settings` recognition block; `match_threshold` is the maximum euclidean distance between RAW descriptors (face-api rule: < 0.6). */
 export const RECOGNITION_SETTINGS = {
   face_recognition_enabled: true,
   recognition_model: RECOGNITION_MODEL,
@@ -123,7 +123,7 @@ export const RECOGNITION_SETTINGS = {
   consent_text_version: '2026-08-1',
   recognition_offline_cache: true
 }
-/** Per-boutique override (Maison Boutique `face_recognition_enabled`: Inherit/On/Off). */
+/** Per-boutique override (AWANZ Store `face_recognition_enabled`: Inherit/On/Off). */
 export const BOUTIQUE_RECOGNITION: Record<string, 'Inherit' | 'On' | 'Off'> = { 'CHI-OAK': 'On', 'NYC-MAD': 'Inherit', 'LA-RODEO': 'Off' }
 
 const state = {
@@ -153,7 +153,7 @@ const state = {
 }
 
 // --- persistence: keep the "server" alive across page reloads in dev (localStorage) ---
-const LS_KEY = 'maison.mock.state'
+const LS_KEY = 'awanz.mock.state'
 function load() {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_KEY) : null
@@ -222,7 +222,7 @@ function delay(min = 120, max = 400) {
 
 async function guard() {
   await delay()
-  if (typeof window !== 'undefined' && window.__maisonOffline) {
+  if (typeof window !== 'undefined' && window.__awanzOffline) {
     throw new ApiError('Failed to fetch', 'NETWORK', 0)
   }
 }
@@ -231,7 +231,7 @@ function itemsWithImages() {
   return ITEMS.map((it) => (state.images[it.item_code] ? { ...it, image: state.images[it.item_code] } : it))
 }
 
-/** Boutique overrides global (`Maison POS Settings` merged with `Maison Boutique`). */
+/** Boutique overrides global (`AWANZ POS Settings` merged with `AWANZ Store`). */
 function settingsFor(boutique: string) {
   return {
     show_product_images: BOUTIQUE_SHOW_IMAGES[boutique] ?? SETTINGS_GLOBAL.show_product_images_default,
@@ -279,7 +279,7 @@ function bootstrapFor(boutique: string): Bootstrap {
   }
 }
 
-export const mockApi: MaisonApi = {
+export const mockApi: AwanzApi = {
   catalog: {
     async bootstrap(boutique) {
       await guard()

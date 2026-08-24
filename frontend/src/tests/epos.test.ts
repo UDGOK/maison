@@ -4,7 +4,7 @@ import type { ReceiptSnapshot } from '@/db'
 
 const snap: ReceiptSnapshot = {
   boutique: 'CHI-OAK',
-  boutique_name: 'Maison Oak Street',
+  boutique_name: 'AWANZ Oak Street',
   address_line: '118 East Oak Street',
   city: 'Chicago, IL 60611',
   phone: '+1 312 555 0118',
@@ -70,8 +70,8 @@ describe('buildReceiptXml', () => {
   const xml = buildReceiptXml(snap, { invoice_name: 'SINV-CHI-OAK-00001', offline_uuid: 'abc-123', posting_datetime: '2026-08-22T14:30:00Z', openDrawer: false })
 
   it('contains every SPEC receipt section', () => {
-    expect(xml).toContain('MAISON')
-    expect(xml).toContain('MAISON OAK STREET')
+    expect(xml).toContain('AWANZ')
+    expect(xml).toContain('AWANZ OAK STREET')
     expect(xml).toContain('118 East Oak Street')
     expect(xml).toContain('+1 312 555 0118')
     expect(xml).toContain('SINV-CHI-OAK-00001')

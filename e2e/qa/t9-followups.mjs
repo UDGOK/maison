@@ -90,7 +90,7 @@ try {
   await sleep(12000)
   const pillExp = (await page.locator('.receipt-view .pill').first().textContent()).trim()
   const rvTxt = (await page.locator('.receipt-view .left').innerText()).replace(/\s+/g, ' ')
-  const expLog = (await admin.list('Maison Sync Log', { offline_uuid: uuidExp }, ['status', 'error'], 2))[0]
+  const expLog = (await admin.list('AWANZ Sync Log', { offline_uuid: uuidExp }, ['status', 'error'], 2))[0]
   const expInv = await admin.list('Sales Invoice', { maison_offline_uuid: uuidExp }, ['name'], 2)
   record('8.3 a sale rung up after the server session expired is kept, not lost',
     expInv.length === 0 && !/Synced/i.test(pillExp),

@@ -1,4 +1,4 @@
-"""Maison insights (SPEC v0.4 §H): affinity / next-best-offer, client signals, product
+"""AWANZ insights (SPEC v0.4 §H): affinity / next-best-offer, client signals, product
 performance + rebalancing, and the weekly narrative.
 
 Pure-python analytics (the bench env has no numpy / pandas). Each module exposes math helpers

@@ -17,7 +17,7 @@ Receive screen                /warehouse desk + /warehouse-wall         Receive 
   "Request from warehouse" →  Approve / edit qty / Reject           →
   (or one tap on a
    low-stock alert)           ↓ on approve
-                              Maison Shipment (Pending)
+                              AWANZ Shipment (Pending)
                               → Pick   (pick list, bins)
                               → Packed (parcels, weight)
                               → Buy label (rate shopping)
@@ -29,11 +29,11 @@ Documents created along the way:
 
 | Step | Document |
 |---|---|
-| Manager requests | `Maison Replenishment Request` + draft **Material Request** (type *Material Transfer*, `HOU-WH` → store) |
-| Warehouse approves | `Maison Shipment` (+ `Maison Shipment Line`), Pick List |
+| Manager requests | `AWANZ Replenishment Request` + draft **Material Request** (type *Material Transfer*, `HOU-WH` → store) |
+| Warehouse approves | `AWANZ Shipment` (+ `AWANZ Shipment Line`), Pick List |
 | Ship | **Stock Entry** — Material Transfer `HOU-WH` → `<code> In Transit` |
 | Store confirms receipt | **Stock Entry** — Material Transfer `<code> In Transit` → `<code>` (and → `<code> Damaged` for damaged units) |
-| Short / over / damaged | `Maison Receiving Discrepancy` (one per line) for the warehouse admin |
+| Short / over / damaged | `AWANZ Receiving Discrepancy` (one per line) for the warehouse admin |
 
 The in-transit leg means stock is never "nowhere": it leaves HQ when the parcel leaves and only
 lands in the store when someone actually counts it. Partial receipts are supported — call
@@ -55,7 +55,7 @@ times as needed; the shipment stays *Shipped* until the final confirmation.
 
 Everything is store-scoped server-side: a store manager only ever sees their own store's requests,
 shipments and stock entries (`maison_pos/scoping.py` + `permission_query_conditions`), and only a
-**Maison Warehouse Admin** may approve, pick, buy a label or ship. `e2e/cloudchaserz.e2e.mjs`
+**AWANZ Warehouse Admin** may approve, pick, buy a label or ship. `e2e/cloudchaserz.e2e.mjs`
 asserts the 403s over plain HTTP.
 
 ---
@@ -99,10 +99,10 @@ so switching provider is a settings change, not a code change.
    A `shippo_test_…` token runs in **test mode**: rates are real, labels are watermarked test PDFs
    and nothing is charged. Swap for a `shippo_live_…` token to buy real postage. Optional
    `shippo_api_url` points at a mock server for CI.
-3. Set `shipping_provider` to `Shippo` in **Maison POS Settings**.
+3. Set `shipping_provider` to `Shippo` in **AWANZ POS Settings**.
 4. Fill the ship-from block in the same settings (`ship_from_name`, `ship_from_street1`,
    `ship_from_city`, `ship_from_state`, `ship_from_zip`, `ship_from_phone`, `ship_from_email`).
-   The ship-to address comes from each `Maison Boutique`.
+   The ship-to address comes from each `AWANZ Store`.
 
 Rates are cached on the shipment (`rate_options`) when they are fetched, so the warehouse sees the
 same list it was quoted. **Cheapest is auto-selected**; the wall's rate sheet has a *fastest*
@@ -124,7 +124,7 @@ Two documents print, and they want two different printers:
 
 | Document | Format | Printer |
 |---|---|---|
-| **Packing list** | `Maison Packing List` print format — store ship-to, lines with barcodes, carton count, weight, a QR of the shipment | ordinary A4 / Letter laser |
+| **Packing list** | `AWANZ Packing List` print format — store ship-to, lines with barcodes, carton count, weight, a QR of the shipment | ordinary A4 / Letter laser |
 | **Carrier label** | the PDF the carrier returns (`label_url`) | 4×6 thermal label printer (Zebra / Rollo / DYMO) |
 
 ### Automatic printing from the wall
@@ -135,8 +135,8 @@ The wall page (`/warehouse-wall`) prints without anyone touching a dialog:
 * when a label is bought (**Ready to ship**) it prints the label.
 
 Both go through `frontend/src/warehouse/print.ts`, which loads the document into a hidden iframe
-and calls `contentWindow.print()`. Every job is recorded on `window.__maisonLastWallPrint` (and a
-`maison-wall-print` event fires) — that is what `e2e/warehouse.e2e.mjs` asserts, so the behaviour is
+and calls `contentWindow.print()`. Every job is recorded on `window.__awanzLastWallPrint` (and a
+`awanz-wall-print` event fires) — that is what `e2e/warehouse.e2e.mjs` asserts, so the behaviour is
 covered without a physical printer. Toggle either job off with `auto_print_packing_list` /
 `auto_print_label` in settings.
 
@@ -202,10 +202,10 @@ to stay Approved with its MR submitted and nobody told. Approve it again to rais
 shipment, or reject it with a reason.
 
 **The store reports a short.** Their Receive screen records the counted quantity; the difference
-raises a `Maison Receiving Discrepancy` visible on the warehouse desk. Resolve it with a reason
+raises a `AWANZ Receiving Discrepancy` visible on the warehouse desk. Resolve it with a reason
 (`resolve_discrepancy`) — that is the audit trail, so resolve it honestly rather than deleting it.
 
 **Nothing prints.** Confirm Chrome is running with `--kiosk-printing` (not just `--kiosk`), that a
 default printer is set for that user, and that `auto_print_packing_list` is on. In the browser
-console, `window.__maisonLastWallPrint` shows whether the job was dispatched at all — if it is
+console, `window.__awanzLastWallPrint` shows whether the job was dispatched at all — if it is
 populated, the app did its part and the problem is the OS print queue.

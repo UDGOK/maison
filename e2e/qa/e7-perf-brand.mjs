@@ -9,7 +9,7 @@ for (const vp of [{ width: 1920, height: 1080, tag: '1920x1080' }, { width: 1440
   const brandHits = []
   for (const v of VIEWS) {
     const t0 = Date.now()
-    await page.goto(`${BASE}/maison-dashboard?view=${v}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(`${BASE}/awanz-dashboard?view=${v}`, { waitUntil: 'domcontentloaded' })
     await page.waitForSelector(SEL[v], { timeout: 60000 })
     const ms = Date.now() - t0
     await page.waitForTimeout(1800)
@@ -37,7 +37,7 @@ for (const vp of [{ width: 1920, height: 1080, tag: '1920x1080' }, { width: 1440
 
 // ---- API response times ----
 const { browser, page } = await launch()
-await page.goto(`${BASE}/maison-dashboard`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="live-cards"] .bcard', { timeout: 45000 })
 const timeIt = async (label, url, n = 5) => {
   const ts = []

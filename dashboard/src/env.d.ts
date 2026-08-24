@@ -10,8 +10,8 @@ interface FrappeSocket {
   off?: (event: string, cb?: (...args: unknown[]) => void) => void
 }
 interface Window {
-  /** v0.6 N/D1 — brand tokens injected by maison_pos/www/maison-dashboard.html */
-  maison_brand?: Record<string, unknown>
+  /** v0.6 N/D1 — brand tokens injected by maison_pos/www/awanz-dashboard.html */
+  awanz_brand?: Record<string, unknown>
   dev_server?: number | boolean
   socketio_port?: number
   frappe?: {

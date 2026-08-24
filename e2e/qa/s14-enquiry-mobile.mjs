@@ -23,7 +23,7 @@ await shot(page, 'shop-enquire-sheet')
 await page.click('#mw-enquire-form button[type=submit]')
 await page.waitForSelector('#mw-enquire-done', { state: 'visible', timeout: 20000 }).catch(() => {})
 await sleep(1500)
-const enq = (await admin.list('Maison Web Enquiry', { email: `qa4.enquiry.${TAG.toLowerCase()}@example.com` }, ['name', 'boutique', 'item_code', 'status', 'customer_name'], 5))[0]
+const enq = (await admin.list('AWANZ Web Enquiry', { email: `qa4.enquiry.${TAG.toLowerCase()}@example.com` }, ['name', 'boutique', 'item_code', 'status', 'customer_name'], 5))[0]
 if (enq) created.enquiries.push(enq.name)
 record('A · an enquiry on an age-restricted product reaches the chosen store', !!enq && enq.boutique === L.STORE && enq.status === 'New', JSON.stringify(enq))
 const q = await assoc.get('maison_pos.api.webshop.web_orders', { boutique: L.STORE })
@@ -33,7 +33,7 @@ const oq = await other.raw('maison_pos.api.webshop.web_orders', { boutique: 'OK-
 record('A · the enquiry does not leak into another store\'s queue', !((oq.body?.message?.enquiries) || []).some((e) => e.name === enq?.name), `OK-OWA enquiries=${((oq.body?.message?.enquiries) || []).length}`)
 if (enq) {
   await assoc.post('maison_pos.api.webshop.update_enquiry', { name: enq.name, status: 'Contacted', response: `QA4 ${TAG} test response` })
-  record('A · an associate can answer the enquiry', (await admin.value('Maison Web Enquiry', enq.name, ['status', 'response'])).status === 'Contacted', JSON.stringify(await admin.value('Maison Web Enquiry', enq.name, ['status', 'response'])))
+  record('A · an associate can answer the enquiry', (await admin.value('AWANZ Web Enquiry', enq.name, ['status', 'response'])).status === 'Contacted', JSON.stringify(await admin.value('AWANZ Web Enquiry', enq.name, ['status', 'response'])))
 }
 await context.close()
 

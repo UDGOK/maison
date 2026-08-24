@@ -8,9 +8,9 @@ Frappe *Email Campaign*, from a CSV export round-trip, or by hand (event guest l
 
 | Doctype | Purpose |
 | --- | --- |
-| `Maison Campaign` (name = `campaign_code`, the UTM code) | title, channel (Email / SMS / Event / Private viewing), status, send_date, content_link, coupon (→ `Maison Coupon`), cost; **segment**: `segment_tier`, `segment_boutique`, `segment_signal_type`, `segment_item`, `segment_item_group`, `segment_months` (AND-ed; blank = everyone); **featured pieces** child table (`Maison Campaign Item`) → item-level attribution; **rule**: `direct_window_days` (14), `assisted_window_days` (30); provider ids `klaviyo_campaign_id`, `brevo_campaign_id`, `email_campaign`; nightly counters `sends / opens / clicks / attributed_direct / attributed_assisted / buyers / last_attributed_at`. |
-| `Maison Campaign Touch` | one row per (campaign, customer): channel, `sent_at`, `opened_at`, `clicked_at`, source (Frappe Email Campaign / Klaviyo / Brevo / Manual / Seed), `external_id`, email. Upserted — a click back-fills open + send. |
-| `Maison Campaign Attribution` | one row per (invoice, campaign) written by the nightly job: `type` Direct / Assisted, `amount`, `invoice_total`, `item_level`, `item_codes`, `touch`, `touch_at`, `days_to_sale`, `posting_date`, `boutique`, `associate`, `customer`. Boutique-scoped for managers (`permission_query_conditions`). |
+| `AWANZ Campaign` (name = `campaign_code`, the UTM code) | title, channel (Email / SMS / Event / Private viewing), status, send_date, content_link, coupon (→ `AWANZ Coupon`), cost; **segment**: `segment_tier`, `segment_boutique`, `segment_signal_type`, `segment_item`, `segment_item_group`, `segment_months` (AND-ed; blank = everyone); **featured pieces** child table (`AWANZ Campaign Item`) → item-level attribution; **rule**: `direct_window_days` (14), `assisted_window_days` (30); provider ids `klaviyo_campaign_id`, `brevo_campaign_id`, `email_campaign`; nightly counters `sends / opens / clicks / attributed_direct / attributed_assisted / buyers / last_attributed_at`. |
+| `AWANZ Campaign Touch` | one row per (campaign, customer): channel, `sent_at`, `opened_at`, `clicked_at`, source (Frappe Email Campaign / Klaviyo / Brevo / Manual / Seed), `external_id`, email. Upserted — a click back-fills open + send. |
+| `AWANZ Campaign Attribution` | one row per (invoice, campaign) written by the nightly job: `type` Direct / Assisted, `amount`, `invoice_total`, `item_level`, `item_codes`, `touch`, `touch_at`, `days_to_sale`, `posting_date`, `boutique`, `associate`, `customer`. Boutique-scoped for managers (`permission_query_conditions`). |
 
 ## Attribution rule (`maison_pos/campaigns/attribution.py`)
 
@@ -69,7 +69,7 @@ roi         = (attributed_direct − cost) / cost   (null when no cost)
 
 Dashboard "Campaign performance" card (Clients / Insights tab): call `performance()` (optionally
 `from_date`/`to_date` = the tab's period) and render `campaigns[]` with `totals`; drill-down with
-`attributed_sales(campaign)`. Desk report: **Maison Campaign Performance** (Script Report, same
+`attributed_sales(campaign)`. Desk report: **AWANZ Campaign Performance** (Script Report, same
 numbers, bar chart direct vs assisted, filters sales from/to, boutique, channel, campaign).
 
 ## Segment builder (`maison_pos/campaigns/segments.py`)
@@ -77,7 +77,7 @@ numbers, bar chart direct vs assisted, filters sales from/to, boutique, channel,
 `build_segment(campaign)` AND-s: tier (effective loyalty tier from spend within the program window,
 profile `vip_tier_override` wins), boutique (profile `preferred_boutique` **or** boutique of the last
 POS sale), item affinity (bought `segment_item` / from `segment_item_group` in the last
-`segment_months`, default 24), signal type (open `Maison Client Signal`). Always excludes walk-in
+`segment_months`, default 24), signal type (open `AWANZ Client Signal`). Always excludes walk-in
 customers, disabled customers, clients without an e-mail (Email) / mobile (SMS), and clients who
 opted out of the channel (`do_not_email` / `do_not_sms` / `do_not_phone` for Event & Private viewing).
 
@@ -119,11 +119,11 @@ Manager+ (managers: own boutique). One row per associate, sorted by net sales:
 
 Every **VIP lapsing** signal now has an owner: `preferred_associate`, else the boutique manager
 (`insights.client_signals.signal_owner`). `assign_call` creates a *Call* follow-up
-(`Maison Client Interaction`, due in 2 days by default) mirrored to a **CRM Task** assigned to the
+(`AWANZ Client Interaction`, due in 2 days by default) mirrored to a **CRM Task** assigned to the
 associate, and stamps `assigned_associate / assigned_at / call_task / crm_task` on the signal
 (returned by `insights.client_signals`). Returns
 `{ok, signal, customer, associate, associate_name, task, crm_task, due_date}`. Permissions: any
-Maison role; scoped users only for their boutique's signals and its associates; associates only to
+AWANZ role; scoped users only for their boutique's signals and its associates; associates only to
 themselves; re-assigning cancels the previous open call.
 
 ## Seed

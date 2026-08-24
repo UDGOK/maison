@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** v0.5 K — private feedback 1–5 (+ optional note) → Maison Feedback, HQ only. */
+/** v0.5 K — private feedback 1–5 (+ optional note) → AWANZ Feedback, HQ only. */
 import { ref } from 'vue'
 import { useSalonStore } from '../store'
 

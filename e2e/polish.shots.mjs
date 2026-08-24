@@ -47,7 +47,7 @@ async function ctxFor(user, viewport, extra = {}) {
 
 async function unlockPos(page, user, store) {
   await page.goto('/pos/unlock')
-  await page.evaluate(() => localStorage.setItem('maisonE2E', '1'))
+  await page.evaluate(() => localStorage.setItem('awanzE2E', '1'))
   await page.goto('/pos')
   await page.waitForSelector('.unlock select.input', { timeout: 30000 })
   await page.selectOption('.unlock select.input >> nth=0', store)
@@ -293,7 +293,7 @@ for (const vp of [
 ]) {
   const ctx = await ctxFor(ADMIN, vp)
   const p = await ctx.newPage()
-  await p.goto('/maison-dashboard')
+  await p.goto('/awanz-dashboard')
   await p.waitForSelector('.kpis', { timeout: 40000 })
   await p.waitForTimeout(2500)
   await shot(p, DASH_SHOTS, `01-live-${vp.width}`)
@@ -346,7 +346,7 @@ for (const vp of [
     }
     await route.fulfill({ response: res, json: body })
   })
-  await p.goto('/maison-dashboard')
+  await p.goto('/awanz-dashboard')
   await p.waitForSelector('.kpis', { timeout: 40000 })
   await p.waitForTimeout(2500)
   await shot(p, DASH_SHOTS, '03-live-returns-day-1920')

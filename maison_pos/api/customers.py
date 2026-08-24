@@ -13,7 +13,7 @@ from frappe.utils import cint, flt
 
 from maison_pos.identifiers import CUSTOMER_QR_PREFIX, coerce_client_number, digits_only, normalize_client_number
 from maison_pos.scoping import assert_roles, get_user_boutique, is_unrestricted, is_store_scoped
-from maison_pos.scoping import ALL_MAISON_ROLES
+from maison_pos.scoping import ALL_AWANZ_ROLES
 
 CUSTOMER_FIELDS = [
 	"name",
@@ -68,7 +68,7 @@ def _loyalty(customer: str, company: Optional[str] = None) -> tuple[float, Optio
 		factor = flt(d.get("conversion_factor"))
 		return points, d.get("tier_name"), flt(points * factor, 2)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison loyalty lookup")
+		frappe.log_error(frappe.get_traceback(), "awanz loyalty lookup")
 		return 0.0, None, 0.0
 
 
@@ -97,10 +97,10 @@ def _last_visits(customers: list[str]) -> dict[str, dict[str, Any]]:
 
 def _template_counts(customers: list[str]) -> dict[str, int]:
 	"""customer -> number of stored face templates (v0.3 Client screen status line)."""
-	if not customers or not frappe.db.exists("DocType", "Maison Face Template"):
+	if not customers or not frappe.db.exists("DocType", "AWANZ Face Template"):
 		return {}
 	rows = frappe.get_all(
-		"Maison Face Template",
+		"AWANZ Face Template",
 		filters={"parent": ("in", customers), "parenttype": "Customer"},
 		fields=["parent", "count(name) as n"],
 		group_by="parent",
@@ -174,15 +174,15 @@ def store_customer_criterion(boutique: str):
 	"""Query-builder form of :func:`maison_pos.scoping.customer_query` — *this store's* clients."""
 	C = DocType("Customer")
 	SI = DocType("Sales Invoice")
-	A = DocType("Maison Associate")
+	A = DocType("AWANZ Associate")
 	criterion = C.name.isin(frappe.qb.from_(SI).select(SI.customer).where(SI.maison_boutique == boutique)) | C.owner.isin(
 		frappe.qb.from_(A).select(A.user).where(A.boutique == boutique)
 	)
 	if frappe.get_meta("Sales Order").has_field("maison_boutique"):
 		SO = DocType("Sales Order")
 		criterion = criterion | C.name.isin(frappe.qb.from_(SO).select(SO.customer).where(SO.maison_boutique == boutique))
-	if frappe.db.exists("DocType", "Maison Client Profile"):
-		P = DocType("Maison Client Profile")
+	if frappe.db.exists("DocType", "AWANZ Client Profile"):
+		P = DocType("AWANZ Client Profile")
 		criterion = criterion | C.name.isin(frappe.qb.from_(P).select(P.name).where(P.preferred_boutique == boutique))
 	return criterion
 
@@ -223,7 +223,7 @@ def search(q: str = "", limit: int = 20) -> list[dict[str, Any]]:
 	:data:`SCOPED_SEARCH_LIMIT` rows, and every cross-store hit is written to the security log.
 	With no query at all they see their own store's clients, not the chain's most recent.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	scoped = is_store_scoped()
 	limit = min(max(cint(limit) or 20, 1), SCOPED_SEARCH_LIMIT if scoped else 100)
 	q = (q or "").strip()
@@ -270,7 +270,7 @@ def lookup(code: str) -> Optional[dict[str, Any]]:
 	``MC:MC123456``), a full phone number (formatting ignored) or an email. Returns the same
 	row shape as ``search`` or ``None`` when nothing matches exactly.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	code = (code or "").strip()
 	if not code:
 		return None
@@ -308,7 +308,7 @@ def lookup(code: str) -> Optional[dict[str, Any]]:
 @frappe.whitelist()
 def get(customer: str) -> dict[str, Any]:
 	"""Single customer with loyalty + last visit."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	row = frappe.db.get_value("Customer", customer, CUSTOMER_FIELDS, as_dict=True)
 	if not row:
 		frappe.throw(_("Customer {0} not found").format(customer), frappe.DoesNotExistError)
@@ -323,7 +323,7 @@ def upsert(customer: Any) -> dict[str, str]:
 
 	Without ``name`` we match an existing customer by mobile or email to avoid duplicates.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	data = json.loads(customer) if isinstance(customer, str) else dict(customer or {})
 	if not data:
 		frappe.throw(_("customer payload is required"), frappe.ValidationError)
@@ -380,7 +380,7 @@ def _default_customer_group() -> Optional[str]:
 @frappe.whitelist()
 def history(customer: str, limit: int = 20) -> list[dict[str, Any]]:
 	"""Submitted POS invoices for *customer*, newest first. Scoped users see only their boutique."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	limit = min(max(cint(limit) or 20, 1), 100)
 	filters: dict[str, Any] = {"customer": customer, "docstatus": 1, "is_pos": 1}
 	if not is_unrestricted():

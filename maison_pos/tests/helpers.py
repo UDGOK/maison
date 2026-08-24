@@ -9,7 +9,7 @@ import frappe
 
 from maison_pos.setup import demo
 
-SEEDED_FLAG = "_maison_demo_seeded"
+SEEDED_FLAG = "_awanz_demo_seeded"
 
 
 def ensure_demo_data() -> None:
@@ -28,7 +28,7 @@ def ensure_stock(item_code: str, boutique: str, qty: float = 25) -> float:
 	stock item cannot assume the demo opening stock is still there (see INTEGRATION_NOTES v0.4 #13).
 	The receipt is posted inside the caller's test transaction and rolled back with it.
 	"""
-	warehouse = frappe.db.get_value("Maison Boutique", boutique, ["warehouse", "company"], as_dict=True)
+	warehouse = frappe.db.get_value("AWANZ Store", boutique, ["warehouse", "company"], as_dict=True)
 	if not warehouse:
 		return 0.0
 	have = frappe.utils.flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse.warehouse}, "actual_qty"))
@@ -54,7 +54,7 @@ def ensure_stock(item_code: str, boutique: str, qty: float = 25) -> float:
 
 
 def first_serial(item_code: str, boutique: str) -> str | None:
-	warehouse = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+	warehouse = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 	return frappe.db.get_value("Serial No", {"item_code": item_code, "warehouse": warehouse, "status": "Active"}, "name", order_by="name")
 
 
@@ -73,7 +73,7 @@ def pos_invoice(
 	payload = {
 		"offline_uuid": str(uuid.uuid4()),
 		"boutique": boutique,
-		"associate": frappe.db.get_value("Maison Associate", {"boutique": boutique, "role": "Associate"}, "name"),
+		"associate": frappe.db.get_value("AWANZ Associate", {"boutique": boutique, "role": "Associate"}, "name"),
 		"device_id": "TEST-IPAD-1",
 		"customer": customer,
 		"posting_datetime": frappe.utils.now_datetime().isoformat(),

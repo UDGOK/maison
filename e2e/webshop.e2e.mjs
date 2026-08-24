@@ -1,4 +1,4 @@
-// Maison v0.4 G — web shop (Frappe Webshop + Monolith Gold theme) end-to-end run against the REAL bench.
+// AWANZ v0.4 G — web shop (Frappe Webshop + Monolith Gold theme) end-to-end run against the REAL bench.
 //
 // Run:  PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/webshop.e2e.mjs
 // Env:  BASE, ADMIN_PWD, CLIENT_USER/CLIENT_PWD (demo shopper), MANAGER_USER/MANAGER_PWD (Oak Street manager)
@@ -106,7 +106,7 @@ const browser = await chromium.launch({ headless: true })
 try {
   const bin = (await admin.list('Bin', { item_code: BUY_ITEM, warehouse: `${BOUTIQUE} - MSN` }, ['actual_qty']))[0]
   if ((bin?.actual_qty || 0) < 4) {
-    const company = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+    const company = (await admin.list('AWANZ Store', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
     await admin.post('frappe.client.insert', { doc: { doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: company.company, docstatus: 1, items: [{ item_code: BUY_ITEM, qty: 10, t_warehouse: company.warehouse, basic_rate: 800, allow_zero_valuation_rate: 1 }] } })
     log(`  restocked ${BUY_ITEM} @ ${BOUTIQUE}: ${bin?.actual_qty || 0} → +10`)
   }
@@ -136,7 +136,7 @@ try {
   record('collection lists timepieces with Reserve mode', cards >= 6 && modes.some((m) => /reserve/i.test(m)), `${cards} cards · ${[...new Set(modes)].join(' | ')}`)
   await shot(page, 'collection-timepieces', true)
   await go(page, '/all-products')
-  record('/all-products is served by the Maison listing', (await page.locator('.mw-grid .mw-card').count()) > 10)
+  record('/all-products is served by the AWANZ listing', (await page.locator('.mw-grid .mw-card').count()) > 10)
 
   // one-off → Enquire
   await go(page, routes[ENQUIRE_ITEM])
@@ -152,8 +152,8 @@ try {
   await shot(page, 'item-enquire-sheet')
   await page.click('#mw-enquire-form button[type=submit]')
   await page.waitForSelector('#mw-enquire-done', { state: 'visible', timeout: 15000 })
-  const enq = (await admin.list('Maison Web Enquiry', { email: `guest.${RUN.toLowerCase()}@example.com` }, ['name', 'boutique', 'item_code', 'status']))[0]
-  record('guest enquiry creates Maison Web Enquiry for the boutique', enq && enq.boutique === BOUTIQUE && enq.item_code === ENQUIRE_ITEM && enq.status === 'New', JSON.stringify(enq))
+  const enq = (await admin.list('AWANZ Web Enquiry', { email: `guest.${RUN.toLowerCase()}@example.com` }, ['name', 'boutique', 'item_code', 'status']))[0]
+  record('guest enquiry creates AWANZ Web Enquiry for the boutique', enq && enq.boutique === BOUTIQUE && enq.item_code === ENQUIRE_ITEM && enq.status === 'New', JSON.stringify(enq))
 
   // timepiece → Reserve
   await go(page, routes[RESERVE_ITEM])
@@ -208,7 +208,7 @@ let reserveBoutique = BOUTIQUE
   await page.waitForSelector('#mw-view-bag', { state: 'visible', timeout: 15000 })
   record('add to bag (signed in)', (await page.locator('#mw-cart-count').textContent()).trim() === '1')
   await go(page, '/cart')
-  record('/cart shows the Maison bag with the line', (await page.locator('.mw-line').count()) === 1 && /Choose a boutique/.test(await page.locator('.mw-summary').textContent()))
+  record('/cart shows the AWANZ bag with the line', (await page.locator('.mw-line').count()) === 1 && /Choose a boutique/.test(await page.locator('.mw-summary').textContent()))
   await shot(page, 'cart')
   await page.click('.mw-line [data-d="1"]')
   const stepped = await page.waitForFunction(() => document.querySelector('.mw-line .qty span')?.textContent.trim() === '2', null, { timeout: 20000 }).then(() => true).catch(() => false)
@@ -261,7 +261,7 @@ let reserveBoutique = BOUTIQUE
 // 3. POS: Web orders queue for Oak Street → pick → ready → collect → Sales Invoice
 async function unlock(page, user) {
   await page.goto('/pos/unlock')
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('maisonE2E', '1') })
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('awanzE2E', '1') })
   await page.goto('/pos')
   await page.waitForSelector('.unlock select.input', { timeout: 20000 })
   await page.selectOption('.unlock select.input >> nth=0', BOUTIQUE)

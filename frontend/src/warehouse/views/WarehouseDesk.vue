@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
 
     <div v-if="wh.meError || (wh.me && !wh.allowed)" class="gate" data-testid="desk-gate">
       <div class="display" style="font-size: 22px">Warehouse admin role required</div>
-      <div class="muted">{{ wh.meError || `${wh.me?.user} is not a Maison Warehouse Admin` }}</div>
+      <div class="muted">{{ wh.meError || `${wh.me?.user} is not an AWANZ Warehouse Admin` }}</div>
       <a class="btn" href="/login?redirect-to=/warehouse">Sign in as another user</a>
     </div>
 

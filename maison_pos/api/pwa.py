@@ -33,7 +33,7 @@ def service_worker() -> Response:
 	"""Return the built ``sw.js`` with ``Service-Worker-Allowed: /pos/``."""
 	path = _built_sw_path()
 	if not os.path.exists(path):
-		body = "// Maison POS service worker not built (cd frontend && npm run build)\n"
+		body = "// AWANZ POS service worker not built (cd frontend && npm run build)\n"
 		resp = Response(body, status=404, content_type="application/javascript; charset=utf-8")
 		resp.headers["Cache-Control"] = "no-cache"
 		return resp
@@ -57,7 +57,7 @@ def service_worker() -> Response:
 # --- v0.7 white-label — the installed-app identity comes from the brand, not the build ---
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def manifest() -> Response:
-	"""``manifest.webmanifest`` built from ``Maison POS Settings``.
+	"""``manifest.webmanifest`` built from ``AWANZ POS Settings``.
 
 	The Vite build writes a static manifest with the app's own name in it, which would install
 	on a customer's home screen under the wrong brand. This endpoint serves the same manifest
@@ -69,7 +69,7 @@ def manifest() -> Response:
 	from maison_pos.brand import get_brand
 
 	brand = get_brand()
-	product = str(brand.get("product_name") or brand.get("brand_name") or "Maison POS")
+	product = str(brand.get("product_name") or brand.get("brand_name") or "AWANZ POS")
 	short = str(brand.get("brand_name") or product)
 	tagline = str(brand.get("tagline") or "")
 	store_noun = str(brand.get("store_noun") or "Store").lower()

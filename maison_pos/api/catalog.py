@@ -14,7 +14,7 @@ from frappe.query_builder.functions import Sum
 from frappe.utils import flt, get_datetime, get_system_timezone, get_url, now_datetime
 
 from maison_pos.brand import get_brand  # v0.6 N
-from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
+from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_pos_settings
 from maison_pos.scoping import assert_boutique_access, is_manager_or_above
 from maison_pos.utils import parse_datetime
 
@@ -74,10 +74,10 @@ def _departments(company: Optional[str] = None) -> list[str]:
 
 def _foreign_items(company: Optional[str]) -> set[str]:
 	"""v0.6 N — items that belong to *another* company only (``Item Default`` rows), so two demo
-	worlds (CloudChaserz / Maison jewellery) can share one site without mixing catalogues."""
+	worlds (CloudChaserz / AWANZ jewellery) can share one site without mixing catalogues."""
 	if not company:
 		return set()
-	key = f"maison_foreign_items::{company}"
+	key = f"awanz_foreign_items::{company}"
 	cached = getattr(frappe.local, key, None)
 	if cached is not None:
 		return cached
@@ -92,7 +92,7 @@ def _foreign_items(company: Optional[str]) -> set[str]:
 # helpers
 # ---------------------------------------------------------------------------
 def _boutique_dict(boutique: str) -> dict[str, Any]:
-	doc = frappe.get_cached_doc("Maison Boutique", boutique)
+	doc = frappe.get_cached_doc("AWANZ Store", boutique)
 	return {
 		"name": doc.name,
 		"boutique_code": doc.boutique_code,
@@ -122,7 +122,7 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 		"zip": doc.get("zip"),
 		# --- end v0.6 N ---
 		"currency": frappe.get_cached_value("Company", doc.company, "default_currency"),
-		# v0.4 A — reader registry (Maison Boutique Reader) for the Settings reader picker / print route
+		# v0.4 A — reader registry (AWANZ Store Reader) for the Settings reader picker / print route
 		"readers": [
 			{
 				"name": r.name,
@@ -140,7 +140,7 @@ def _boutique_dict(boutique: str) -> dict[str, Any]:
 
 
 def _parse_hours(raw: Any) -> Optional[dict[str, str]]:
-	"""v0.6 N — ``Maison Boutique.hours`` JSON → dict (None when unset / invalid)."""
+	"""v0.6 N — ``AWANZ Store.hours`` JSON → dict (None when unset / invalid)."""
 	if not raw:
 		return None
 	if isinstance(raw, dict):
@@ -351,7 +351,7 @@ def _associates(boutique: str) -> list[dict[str, Any]]:
 	``maison_associate.verify_pin`` and caches a device-local digest for offline unlock.
 	"""
 	rows = frappe.get_all(
-		"Maison Associate",
+		"AWANZ Associate",
 		filters={"boutique": boutique, "enabled": 1},
 		fields=["name", "user", "full_name", "boutique", "role"],
 		order_by="full_name",
@@ -397,8 +397,8 @@ def bootstrap(boutique: str) -> dict[str, Any]:
 
 
 def _reward_tiers(company: str) -> list[dict[str, Any]]:
-	"""v0.6 Q — ``Maison Reward Tier`` rows of the company's program (cheapest first)."""
-	if not frappe.db.exists("DocType", "Maison Reward Tier"):
+	"""v0.6 Q — ``AWANZ Reward Tier`` rows of the company's program (cheapest first)."""
+	if not frappe.db.exists("DocType", "AWANZ Reward Tier"):
 		return []
 	from maison_pos.api.rewards import reward_tiers
 
@@ -468,11 +468,11 @@ IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 def upload_item_image(item_code: str, file: Any = None) -> dict[str, Any]:
 	"""Attach an image to *item_code* and set ``Item.image``. Multipart field ``file``.
 
-	Maison Manager / Head Office / System Manager only. Returns
+	AWANZ Manager / Head Office / System Manager only. Returns
 	``{"item_code", "image", "file_url", "file_name"}`` where ``image`` is absolute.
 	"""
 	if not is_manager_or_above():
-		frappe.throw(_("Only Maison Managers may change product images"), frappe.PermissionError)
+		frappe.throw(_("Only AWANZ Managers may change product images"), frappe.PermissionError)
 	item_code = (item_code or "").strip()
 	if not item_code or not frappe.db.exists("Item", item_code):
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)

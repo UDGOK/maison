@@ -25,7 +25,7 @@ describe('storeShortName', () => {
   it('keeps names that do not start with the brand, and never returns empty', () => {
     expect(storeShortName('Montrose', 'CloudChaserz')).toBe('Montrose')
     expect(storeShortName('CloudChaserz', 'CloudChaserz')).toBe('CloudChaserz')
-    expect(storeShortName('Maison Chicago Oak Street', 'Maison')).toBe('Chicago Oak Street')
+    expect(storeShortName('AWANZ Chicago Oak Street', 'AWANZ')).toBe('Chicago Oak Street')
     expect(storeShortName('', 'CloudChaserz')).toBe('')
   })
   it('is case-insensitive about the prefix', () => {

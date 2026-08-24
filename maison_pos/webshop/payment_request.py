@@ -3,7 +3,7 @@
 Chains on webshop's own override (which calls ``set_as_paid`` and redirects to ``/orders``).
 Creating the Payment Entry needs accounting permissions the shopper does not have, so the
 document action runs as Administrator; afterwards the Sales Order's ``maison_prepaid_amount``
-is refreshed and the shopper is sent to the Maison order page.
+is refreshed and the shopper is sent to the AWANZ order page.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ except Exception:  # noqa: BLE001
 from maison_pos.webshop import core
 
 
-class MaisonPaymentRequest(_Base):
+class AwanzPaymentRequest(_Base):
 	def on_payment_authorized(self, status=None):
 		if status not in ("Authorized", "Completed"):
 			return super().on_payment_authorized(status)

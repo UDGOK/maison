@@ -1,7 +1,7 @@
 /**
  * v0.4 B/C/I — clienteling (crm.*), employee/shift (hr.*), promotions & coupons (promotions.*)
  * and feedback (feedback.*). Kept in its own module (typed client + in-memory mock) so the
- * core `MaisonApi` contract stays untouched; `v04` picks the implementation from `VITE_MOCK`.
+ * core `AwanzApi` contract stays untouched; `v04` picks the implementation from `VITE_MOCK`.
  */
 import { ApiError, type Customer } from './types'
 import { CUSTOMERS, ITEMS, LOYALTY, PRICES } from './seed'
@@ -389,7 +389,7 @@ const mock = {
   seq: 1
 }
 
-const LS = 'maison.mock.v04'
+const LS = 'awanz.mock.v04'
 function load() {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LS) : null
@@ -437,7 +437,7 @@ function delay() {
 }
 async function guard() {
   await delay()
-  if (typeof window !== 'undefined' && window.__maisonOffline) throw new ApiError('Failed to fetch', 'NETWORK', 0)
+  if (typeof window !== 'undefined' && window.__awanzOffline) throw new ApiError('Failed to fetch', 'NETWORK', 0)
 }
 function customerOr404(customer: string): Customer {
   const c = CUSTOMERS.find((x) => x.name === customer)

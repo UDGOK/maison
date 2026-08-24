@@ -1,5 +1,5 @@
 /**
- * v0.5 K — Maison Salon: masking (mirrors maison_pos.api.salon), the screen reducer, pairing-code TTL
+ * v0.5 K — AWANZ Salon: masking (mirrors maison_pos.api.salon), the screen reducer, pairing-code TTL
  * helpers, the publish debouncer and the mock API contract (pair → identify → publish → feedback).
  */
 import { describe, expect, it, beforeEach, vi } from 'vitest'

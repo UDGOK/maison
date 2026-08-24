@@ -1,4 +1,4 @@
-"""Client patterns → ``Maison Client Signal`` rows ("Clients to contact this week").
+"""Client patterns → ``AWANZ Client Signal`` rows ("Clients to contact this week").
 
 Per client (from submitted, non-return POS invoices):
 
@@ -8,7 +8,7 @@ Per client (from submitted, non-return POS invoices):
 * churn_risk        0–1 from recency vs cadence — see :func:`churn_score`
 * spend_trend       spend in the last 90 days vs the 90 days before (−1 … +1)
 * preferred department / metal (by spend)
-* birthday / anniversary within 30 days — read from ``Maison Client Profile`` (v0.4 B) when that
+* birthday / anniversary within 30 days — read from ``AWANZ Client Profile`` (v0.4 B) when that
   doctype exists; silently skipped otherwise.
 
 Each client gets at most one signal (the most urgent type) with a priority 0–100 so the list is
@@ -89,12 +89,12 @@ def days_until(occasion: Optional[_dt.date], today: _dt.date) -> Optional[int]:
 def signal_owner(preferred_associate: Optional[str], boutique: Optional[str], signal_type: str) -> Optional[str]:
 	"""Owner of a signal: the preferred associate when it exists; for *VIP lapsing* fall back to the
 	boutique's manager (then any enabled associate of the boutique) so the churn list always has a name."""
-	if preferred_associate and frappe.db.exists("Maison Associate", {"name": preferred_associate, "enabled": 1}):
+	if preferred_associate and frappe.db.exists("AWANZ Associate", {"name": preferred_associate, "enabled": 1}):
 		return preferred_associate
 	if signal_type != "VIP lapsing" or not boutique:
 		return None
 	for role in ("Manager", "Associate"):
-		owner = frappe.db.get_value("Maison Associate", {"boutique": boutique, "role": role, "enabled": 1}, "name", order_by="name")
+		owner = frappe.db.get_value("AWANZ Associate", {"boutique": boutique, "role": role, "enabled": 1}, "name", order_by="name")
 		if owner:
 			return owner
 	return None
@@ -148,10 +148,10 @@ def classify(stats: dict[str, Any], today: _dt.date) -> Optional[dict[str, Any]]
 # loaders
 # ---------------------------------------------------------------------------
 def _profile_occasions(customers: list[str]) -> dict[str, dict[str, Any]]:
-	"""birthday / anniversary / preferred associate from Maison Client Profile (v0.4 B), if installed."""
-	if not customers or not frappe.db.exists("DocType", "Maison Client Profile"):
+	"""birthday / anniversary / preferred associate from AWANZ Client Profile (v0.4 B), if installed."""
+	if not customers or not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return {}
-	meta = frappe.get_meta("Maison Client Profile")
+	meta = frappe.get_meta("AWANZ Client Profile")
 	fields = ["customer"] + [
 		f
 		for f in ("birthday", "anniversary", "preferred_associate", "preferred_boutique", "do_not_phone", "do_not_email", "do_not_sms", "do_not_contact_phone", "do_not_contact_email")
@@ -160,7 +160,7 @@ def _profile_occasions(customers: list[str]) -> dict[str, dict[str, Any]]:
 	if not meta.has_field("customer"):
 		return {}
 	try:
-		rows = frappe.get_all("Maison Client Profile", filters={"customer": ("in", customers)}, fields=fields)
+		rows = frappe.get_all("AWANZ Client Profile", filters={"customer": ("in", customers)}, fields=fields)
 	except Exception:
 		return {}
 	return {r.customer: r for r in rows}
@@ -276,16 +276,16 @@ def compute_client_signals(today: Optional[_dt.date] = None) -> dict[str, Any]:
 	# recommendations computed earlier in the same job give the "next best offer" per client:
 	# the best-ranked *piece* (a service such as an appraisal is a weak reason to call)
 	recs: dict[str, Any] = {}
-	for r in frappe.get_all("Maison Client Recommendation", fields=["customer", "item_code", "item_name", "item_group", "rank"], order_by="customer, `rank` asc"):
+	for r in frappe.get_all("AWANZ Client Recommendation", fields=["customer", "item_code", "item_name", "item_group", "rank"], order_by="customer, `rank` asc"):
 		cur = recs.get(r.customer)
 		if cur is None or (cur.item_group == "Services" and r.item_group != "Services"):
 			recs[r.customer] = r
 	handled = {
 		r.customer: r.status
-		for r in frappe.get_all("Maison Client Signal", filters={"week": week, "status": ("in", ("Contacted", "Dismissed"))}, fields=["customer", "status"])
+		for r in frappe.get_all("AWANZ Client Signal", filters={"week": week, "status": ("in", ("Contacted", "Dismissed"))}, fields=["customer", "status"])
 	}
-	frappe.db.delete("Maison Client Signal", {"status": "Open"})
-	frappe.db.delete("Maison Client Signal", {"week": ("!=", week), "status": ("in", ("Contacted", "Dismissed"))})
+	frappe.db.delete("AWANZ Client Signal", {"status": "Open"})
+	frappe.db.delete("AWANZ Client Signal", {"week": ("!=", week), "status": ("in", ("Contacted", "Dismissed"))})
 	computed_at = frappe.utils.now_datetime()
 	created = 0
 	by_type: dict[str, int] = defaultdict(int)
@@ -298,7 +298,7 @@ def compute_client_signals(today: Optional[_dt.date] = None) -> dict[str, Any]:
 		rec = recs.get(customer)
 		frappe.get_doc(
 			{
-				"doctype": "Maison Client Signal",
+				"doctype": "AWANZ Client Signal",
 				"customer": customer,
 				"customer_name": s["customer_name"],
 				"boutique": s.get("preferred_boutique"),

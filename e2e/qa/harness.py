@@ -9,10 +9,10 @@ BASE = "https://cloudchaserz.frappe.cloud"
 PWD = "cloud123"
 
 PERSONAS = {
-    "associate":   "ok.mingo.a1@cloudchaserz.example",   # Maison Associate @ OK-MINGO
-    "assoc_etul":  "ok.etul.a1@cloudchaserz.example",     # Maison Associate @ OK-ETUL
-    "manager":     "ok.mingo.manager@cloudchaserz.example",  # Maison Manager @ OK-MINGO (store A)
-    "manager_b":   "ok.etul.manager@cloudchaserz.example",   # Maison Manager @ OK-ETUL (store B)
+    "associate":   "ok.mingo.a1@cloudchaserz.example",   # AWANZ Associate @ OK-MINGO
+    "assoc_etul":  "ok.etul.a1@cloudchaserz.example",     # AWANZ Associate @ OK-ETUL
+    "manager":     "ok.mingo.manager@cloudchaserz.example",  # AWANZ Manager @ OK-MINGO (store A)
+    "manager_b":   "ok.etul.manager@cloudchaserz.example",   # AWANZ Manager @ OK-ETUL (store B)
     "warehouse":   "warehouse@cloudchaserz.example",      # Warehouse Admin @ HOU-WH
     "hq":          "hq@cloudchaserz.example",             # Head Office
 }

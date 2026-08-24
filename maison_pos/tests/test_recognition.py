@@ -12,7 +12,7 @@ from frappe.utils import add_months, now_datetime
 
 from maison_pos import biometrics, tasks
 from maison_pos.api import dashboard, recognition
-from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
+from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_pos_settings
 from maison_pos.tests.helpers import ensure_demo_data, pos_invoice
 
 NYC_ASSOCIATE = "nyc.5av.a1@maison.example"
@@ -57,18 +57,18 @@ class RecognitionTestCase(FrappeTestCase):
 		# start from an empty gallery: e2e runs / desk enrolments leave consented clients with templates
 		# behind, and the candidate / purge counts below assume only this class's enrolments exist
 		# (everything happens inside the class transaction FrappeTestCase rolls back)
-		frappe.db.delete("Maison Face Template")
-		frappe.db.sql("update `tabMaison Biometric Consent` set status = 'Revoked' where status = 'Active'")
+		frappe.db.delete("AWANZ Face Template")
+		frappe.db.sql("update `tabAWANZ Biometric Consent` set status = 'Revoked' where status = 'Active'")
 		frappe.db.sql("update `tabCustomer` set maison_face_consent = 0 where maison_face_consent = 1")
-		frappe.db.set_single_value("Maison POS Settings", "face_recognition_enabled", 1)
-		frappe.db.set_single_value("Maison POS Settings", "recognition_offline_cache", 1)
-		frappe.db.set_single_value("Maison POS Settings", "match_threshold", biometrics.DEFAULT_DISTANCE_THRESHOLD)
-		frappe.clear_cache(doctype="Maison POS Settings")
+		frappe.db.set_single_value("AWANZ POS Settings", "face_recognition_enabled", 1)
+		frappe.db.set_single_value("AWANZ POS Settings", "recognition_offline_cache", 1)
+		frappe.db.set_single_value("AWANZ POS Settings", "match_threshold", biometrics.DEFAULT_DISTANCE_THRESHOLD)
+		frappe.clear_cache(doctype="AWANZ POS Settings")
 
 	def setUp(self):
 		frappe.set_user("Administrator")
 		recognition.invalidate_template_cache()
-		self._sp = f"maison_rec_{id(self)}"
+		self._sp = f"awanz_rec_{id(self)}"
 		frappe.db.savepoint(self._sp)
 
 	def tearDown(self):
@@ -137,7 +137,7 @@ class TestMatchMath(RecognitionTestCase):
 		self.assertEqual(res["matches"], [])
 		self.assertEqual(res["candidates"], 3)
 		self.assertAlmostEqual(res["best_distance"], dist, places=5)
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", res["event"], "outcome"), "NoMatch")
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", res["event"], "outcome"), "NoMatch")
 
 	def test_settings_expose_distance_threshold(self):
 		s = get_pos_settings("NYC-5AV")
@@ -151,16 +151,16 @@ class TestMatchMath(RecognitionTestCase):
 		self.assertEqual(s["recognition_offline_cache"], 1)
 
 	def test_boutique_override(self):
-		frappe.db.set_value("Maison Boutique", "CHI-OAK", "face_recognition_enabled", "Off")
+		frappe.db.set_value("AWANZ Store", "CHI-OAK", "face_recognition_enabled", "Off")
 		self.assertEqual(get_pos_settings("CHI-OAK")["face_recognition_enabled"], 0)
 		self.assertEqual(get_pos_settings("NYC-5AV")["face_recognition_enabled"], 1)
 		with self.assertRaises(frappe.ValidationError):
 			recognition.match(vec(1), MODEL, "CHI-OAK")
-		frappe.db.set_single_value("Maison POS Settings", "face_recognition_enabled", 0)
-		frappe.db.set_value("Maison Boutique", "CHI-OAK", "face_recognition_enabled", "On")
+		frappe.db.set_single_value("AWANZ POS Settings", "face_recognition_enabled", 0)
+		frappe.db.set_value("AWANZ Store", "CHI-OAK", "face_recognition_enabled", "On")
 		self.assertEqual(get_pos_settings("CHI-OAK")["face_recognition_enabled"], 1)
 		self.assertEqual(get_pos_settings("NYC-5AV")["face_recognition_enabled"], 0)
-		frappe.db.set_single_value("Maison POS Settings", "face_recognition_enabled", 1)
+		frappe.db.set_single_value("AWANZ POS Settings", "face_recognition_enabled", 1)
 
 	def test_match_and_threshold(self):
 		enrolled = self.enrol(11, phone=self._phone(11), name="Ada Lovelace")
@@ -183,31 +183,31 @@ class TestMatchMath(RecognitionTestCase):
 		self.assertAlmostEqual(res["best_score"], m["score"], places=6)
 		self.assertIn("tier", m)
 		self.assertIn("loyalty_points", m)
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", res["event"], "outcome"), "Matched")
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", res["event"], "outcome"), "Matched")
 
 		# unrelated face -> no match, best_distance above threshold, NoMatch logged
 		res = recognition.match(vec(500), MODEL, "NYC-5AV")
 		self.assertEqual(res["matches"], [])
 		self.assertGreater(res["best_distance"], res["threshold_distance"])
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", res["event"], "outcome"), "NoMatch")
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", res["event"], "outcome"), "NoMatch")
 
 		# a stricter threshold (distance 0.05) rejects the jittered face
-		frappe.db.set_single_value("Maison POS Settings", "match_threshold", 0.05)
+		frappe.db.set_single_value("AWANZ POS Settings", "match_threshold", 0.05)
 		try:
 			res = recognition.match(jitter(vec(11), 0.02, 7), MODEL, "NYC-5AV")
 			self.assertEqual(res["threshold_distance"], 0.05)
 			self.assertEqual(res["matches"], [])
 			self.assertLess(res["best_distance"], 0.6)
 		finally:
-			frappe.db.set_single_value("Maison POS Settings", "match_threshold", 0.6)
+			frappe.db.set_single_value("AWANZ POS Settings", "match_threshold", 0.6)
 
 		# an invalid stored threshold falls back to the default 0.6
-		frappe.db.set_single_value("Maison POS Settings", "match_threshold", 0)
+		frappe.db.set_single_value("AWANZ POS Settings", "match_threshold", 0)
 		try:
 			self.assertEqual(get_pos_settings("NYC-5AV")["match_threshold"], 0.6)
 			self.assertEqual(recognition.match(vec(11), MODEL, "NYC-5AV")["threshold_distance"], 0.6)
 		finally:
-			frappe.db.set_single_value("Maison POS Settings", "match_threshold", 0.6)
+			frappe.db.set_single_value("AWANZ POS Settings", "match_threshold", 0.6)
 
 		# a different model never matches
 		res = recognition.match(vec(11), "other-model@9", "NYC-5AV")
@@ -252,19 +252,19 @@ class TestEnrol(RecognitionTestCase):
 		self.assertEqual(t.consent, out["consent"])
 		self.assertEqual(t.boutique, "NYC-5AV")
 		self.assertEqual(len(json.loads(t.embedding)), 128)
-		c = frappe.get_doc("Maison Biometric Consent", out["consent"])
+		c = frappe.get_doc("AWANZ Biometric Consent", out["consent"])
 		self.assertEqual(c.status, "Active")
 		self.assertEqual(c.method, "Hold-to-agree")
 		self.assertEqual(c.customer, out["customer"])
 		self.assertIn("face template", c.consent_text)
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", out["event"], "outcome"), "Enrolled")
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", out["event"], "outcome"), "Enrolled")
 
 		# same phone (different formatting) enrols again -> links, supersedes consent, replaces templates
 		again = self.enrol(31, phone=phone.replace(" ", "-"), n=2)
 		self.assertFalse(again["created"])
 		self.assertEqual(again["customer"], out["customer"])
-		self.assertEqual(frappe.db.get_value("Maison Biometric Consent", out["consent"], "status"), "Superseded")
-		self.assertEqual(frappe.db.count("Maison Face Template", {"parent": out["customer"]}), 2)
+		self.assertEqual(frappe.db.get_value("AWANZ Biometric Consent", out["consent"], "status"), "Superseded")
+		self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": out["customer"]}), 2)
 
 	def test_enrol_links_existing_customer_by_email(self):
 		customer = frappe.db.get_value("Customer", {"customer_name": "Mei-Lin Chen"}, ["name", "email_id"], as_dict=True)
@@ -296,23 +296,23 @@ class TestEnrol(RecognitionTestCase):
 	def test_enrol_with_signature_and_offline_uuid(self):
 		png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 		out = self.enrol(61, phone=self._phone(61), name="Sig Client", consent={"method": "Signature", "text_version": "2026-08-1", "signature_data_url": png}, offline_uuid="enrol-uuid-61")
-		c = frappe.get_doc("Maison Biometric Consent", out["consent"])
+		c = frappe.get_doc("AWANZ Biometric Consent", out["consent"])
 		self.assertEqual(c.method, "Signature")
 		self.assertTrue(c.signature and c.signature.startswith("/private/files/"))
 		self.assertEqual(c.offline_uuid, "enrol-uuid-61")
 		replay = self.enrol(61, phone=self._phone(61), name="Sig Client", consent={"method": "Signature", "text_version": "2026-08-1", "signature_data_url": png}, offline_uuid="enrol-uuid-61")
 		self.assertTrue(replay["duplicate"])
 		self.assertEqual(replay["consent"], out["consent"])
-		self.assertEqual(frappe.db.count("Maison Biometric Consent", {"customer": out["customer"]}), 1)
+		self.assertEqual(frappe.db.count("AWANZ Biometric Consent", {"customer": out["customer"]}), 1)
 
 	def test_decline_creates_customer_without_biometrics(self):
 		out = recognition.decline("NYC-5AV", DEVICE, phone=self._phone(71), name="Declined Client")
 		self.assertTrue(out["created"])
 		self.assertEqual(out["customer_name"], "Declined Client")
 		self.assertEqual(out["face_consent"], 0)
-		self.assertEqual(frappe.db.count("Maison Face Template", {"parent": out["customer"]}), 0)
-		self.assertEqual(frappe.db.count("Maison Biometric Consent", {"customer": out["customer"]}), 0)
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", out["event"], "outcome"), "Declined")
+		self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": out["customer"]}), 0)
+		self.assertEqual(frappe.db.count("AWANZ Biometric Consent", {"customer": out["customer"]}), 0)
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", out["event"], "outcome"), "Declined")
 		# decline on an existing client just logs
 		again = recognition.decline("NYC-5AV", DEVICE, phone=self._phone(71))
 		self.assertFalse(again["created"])
@@ -344,13 +344,13 @@ class TestEnrol(RecognitionTestCase):
 		self.assertEqual(delta["templates"], [])
 		self.assertEqual(delta["deleted"], [a["customer"]])
 
-		frappe.db.set_single_value("Maison POS Settings", "recognition_offline_cache", 0)
+		frappe.db.set_single_value("AWANZ POS Settings", "recognition_offline_cache", 0)
 		try:
 			off = recognition.templates("NYC-5AV")
 			self.assertEqual(off["enabled"], 0)
 			self.assertEqual(off["templates"], [])
 		finally:
-			frappe.db.set_single_value("Maison POS Settings", "recognition_offline_cache", 1)
+			frappe.db.set_single_value("AWANZ POS Settings", "recognition_offline_cache", 1)
 
 	def test_customer_search_exposes_biometric_status(self):
 		"""The POS Client screen reads maison_face_consent / maison_face_consent_at / face_templates from customers.search."""
@@ -375,7 +375,7 @@ class TestEnrol(RecognitionTestCase):
 		self.assertEqual(s["templates"], 3)
 		self.assertEqual(s["consent"]["name"], a["consent"])
 		ev = recognition.log_event("Undone", customer=a["customer"], score=0.93, boutique="NYC-5AV", device_id=DEVICE)
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", ev["event"], ["outcome", "score"]), ("Undone", 0.93))
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", ev["event"], ["outcome", "score"]), ("Undone", 0.93))
 		with self.assertRaises(frappe.ValidationError):
 			recognition.log_event("Enrolled", customer=a["customer"], boutique="NYC-5AV")
 
@@ -396,8 +396,8 @@ class TestRevokeAndPurge(RecognitionTestCase):
 		self.assertTrue(out["ok"])
 		self.assertEqual(out["purged_templates"], 3)
 		self.assertEqual(out["revoked_consents"], [a["consent"]])
-		self.assertEqual(frappe.db.count("Maison Face Template", {"parent": a["customer"]}), 0)
-		c = frappe.get_doc("Maison Biometric Consent", a["consent"])
+		self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": a["customer"]}), 0)
+		c = frappe.get_doc("AWANZ Biometric Consent", a["consent"])
 		self.assertEqual(c.status, "Revoked")
 		self.assertIsNotNone(c.revoked_at)
 		self.assertEqual(c.revoked_by, "Administrator")
@@ -406,22 +406,22 @@ class TestRevokeAndPurge(RecognitionTestCase):
 		self.assertEqual(cust.maison_face_consent, 0)
 		self.assertIsNone(cust.maison_face_consent_at)
 		self.assertIsNone(cust.maison_face_consent_on)
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", out["event"], "outcome"), "Revoked")
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", out["event"], "outcome"), "Revoked")
 		# revoked client never matches
 		res = recognition.match(vec(101), MODEL, "NYC-5AV")
 		self.assertEqual(res["matches"], [])
 		# customer can be enrolled again afterwards (new consent)
 		again = self.enrol(101, customer=a["customer"])
 		self.assertNotEqual(again["consent"], a["consent"])
-		self.assertEqual(frappe.db.get_value("Maison Biometric Consent", a["consent"], "status"), "Revoked")
+		self.assertEqual(frappe.db.get_value("AWANZ Biometric Consent", a["consent"], "status"), "Revoked")
 
 	def test_unticking_consent_on_customer_purges(self):
 		a = self.enrol(111, phone=self._phone(111), name="Desk Untick")
 		cust = frappe.get_doc("Customer", a["customer"])
 		cust.maison_face_consent = 0
 		cust.save()
-		self.assertEqual(frappe.db.count("Maison Face Template", {"parent": a["customer"]}), 0)
-		self.assertEqual(frappe.db.get_value("Maison Biometric Consent", a["consent"], "status"), "Revoked")
+		self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": a["customer"]}), 0)
+		self.assertEqual(frappe.db.get_value("AWANZ Biometric Consent", a["consent"], "status"), "Revoked")
 		self.assertEqual(recognition.match(vec(111), MODEL, "NYC-5AV")["matches"], [])
 
 	def test_retention_purge(self):
@@ -444,19 +444,19 @@ class TestRevokeAndPurge(RecognitionTestCase):
 		today = frappe.db.get_value("Sales Invoice", stale_invoice, "posting_date")
 		frappe.db.set_value("Sales Invoice", stale_invoice, "posting_date", old.date(), update_modified=False)
 		self.addCleanup(frappe.db.set_value, "Sales Invoice", stale_invoice, "posting_date", today, update_modified=False)
-		frappe.db.set_value("Maison Biometric Consent", never["consent"], "captured_at", old)
-		frappe.db.set_value("Maison Biometric Consent", stale["consent"], "captured_at", old)
+		frappe.db.set_value("AWANZ Biometric Consent", never["consent"], "captured_at", old)
+		frappe.db.set_value("AWANZ Biometric Consent", stale["consent"], "captured_at", old)
 
 		out = tasks.purge_expired_biometrics()
 		self.assertEqual(out["checked"], 3)
 		self.assertEqual(sorted(out["purged"]), sorted([stale["customer"], never["customer"]]))
 		for e in (stale, never):
-			self.assertEqual(frappe.db.count("Maison Face Template", {"parent": e["customer"]}), 0)
-			self.assertEqual(frappe.db.get_value("Maison Biometric Consent", e["consent"], "status"), "Revoked")
+			self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": e["customer"]}), 0)
+			self.assertEqual(frappe.db.get_value("AWANZ Biometric Consent", e["consent"], "status"), "Revoked")
 			self.assertEqual(frappe.db.get_value("Customer", e["customer"], "maison_face_consent"), 0)
-			self.assertTrue(frappe.db.exists("Maison Recognition Event", {"customer": e["customer"], "outcome": "Purged"}))
-		self.assertEqual(frappe.db.count("Maison Face Template", {"parent": fresh["customer"]}), 3)
-		self.assertEqual(frappe.db.get_value("Maison Biometric Consent", fresh["consent"], "status"), "Active")
+			self.assertTrue(frappe.db.exists("AWANZ Recognition Event", {"customer": e["customer"], "outcome": "Purged"}))
+		self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": fresh["customer"]}), 3)
+		self.assertEqual(frappe.db.get_value("AWANZ Biometric Consent", fresh["consent"], "status"), "Active")
 		# idempotent
 		self.assertEqual(tasks.purge_expired_biometrics()["purged"], [])
 		# shorter retention catches the fresh one only when its last visit is older than the window
@@ -470,14 +470,14 @@ class TestPermissions(RecognitionTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			recognition.revoke(a["customer"], "nope")
 		frappe.set_user("Administrator")
-		self.assertEqual(frappe.db.count("Maison Face Template", {"parent": a["customer"]}), 3)
+		self.assertEqual(frappe.db.count("AWANZ Face Template", {"parent": a["customer"]}), 3)
 
 	def test_manager_can_revoke(self):
 		a = self.enrol(132, phone=self._phone(132), name="Perm Client 2")
 		frappe.set_user(NYC_MANAGER)
 		out = recognition.revoke(a["customer"], "manager")
 		self.assertTrue(out["ok"])
-		self.assertEqual(frappe.db.get_value("Maison Recognition Event", out["event"], "boutique"), "NYC-5AV")
+		self.assertEqual(frappe.db.get_value("AWANZ Recognition Event", out["event"], "boutique"), "NYC-5AV")
 
 	def test_associate_can_enrol_match_decline_own_boutique_only(self):
 		frappe.set_user(NYC_ASSOCIATE)

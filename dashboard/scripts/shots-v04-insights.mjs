@@ -34,7 +34,7 @@ const login = await page.request.post(`${BASE}/api/method/login`, { data: ADMIN 
 if (!login.ok()) throw new Error(`login failed: ${login.status()}`)
 
 // ---- dashboard: insights view -------------------------------------------------------------
-await page.goto(`${BASE}/maison-dashboard?view=insights`, { waitUntil: 'networkidle' })
+await page.goto(`${BASE}/awanz-dashboard?view=insights`, { waitUntil: 'networkidle' })
 await page.waitForSelector('text=Weekly narrative', { timeout: 30000 })
 await page.waitForSelector('text=Revenue · item group × boutique', { timeout: 30000 })
 await page.waitForSelector('text=Clients to contact this week', { timeout: 30000 })

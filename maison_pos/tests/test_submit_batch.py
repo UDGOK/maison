@@ -30,10 +30,10 @@ class TestSubmitBatch(FrappeTestCase):
 		self.assertEqual(si.update_stock, 1)
 		self.assertEqual(si.maison_offline_uuid, payload["offline_uuid"])
 		self.assertEqual(si.maison_boutique, "NYC-5AV")
-		self.assertEqual(si.set_warehouse, frappe.db.get_value("Maison Boutique", "NYC-5AV", "warehouse"))
+		self.assertEqual(si.set_warehouse, frappe.db.get_value("AWANZ Store", "NYC-5AV", "warehouse"))
 		self.assertTrue(si.payments and si.payments[0].mode_of_payment == "Card")
 		self.assertGreater(si.total_taxes_and_charges, 0)
-		log = frappe.db.get_value("Maison Sync Log", payload["offline_uuid"], ["status", "invoice"], as_dict=True)
+		log = frappe.db.get_value("AWANZ Sync Log", payload["offline_uuid"], ["status", "invoice"], as_dict=True)
 		self.assertEqual(log.status, "Success")
 		self.assertEqual(log.invoice, si.name)
 
@@ -64,7 +64,7 @@ class TestSubmitBatch(FrappeTestCase):
 		self.assertEqual(results[1]["status"], "ok", results[1])
 		self.assertTrue(frappe.db.exists("Sales Invoice", results[1]["invoice_name"]))
 		self.assertFalse(frappe.db.exists("Sales Invoice", {"maison_offline_uuid": conflict["offline_uuid"]}))
-		log = frappe.db.get_value("Maison Sync Log", conflict["offline_uuid"], ["status", "error_code"], as_dict=True)
+		log = frappe.db.get_value("AWANZ Sync Log", conflict["offline_uuid"], ["status", "error_code"], as_dict=True)
 		self.assertEqual(log.status, "Error")
 		self.assertEqual(log.error_code, sales.ERR_SERIAL_UNAVAILABLE)
 

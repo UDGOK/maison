@@ -2,12 +2,12 @@
  "base": "http://cc.localhost:8001",
  "store_a": "HOU-MTR",
  "store_b": "OK-SAP",
- "customer": "CC Rewards E2E 1787542635089",
+ "customer": "CC Rewards E2E 1787579848046",
  "results": [
   {
    "step": "bootstrap.brand is the CloudChaserz tenant (Smoke Shop vertical)",
    "ok": true,
-   "detail": "{\"brand_name\":\"CloudChaserz\",\"product_name\":\"Maison POS by CloudChaserz\",\"vertical\":\"Smoke Shop\",\"wordmark\":\"CLOUDCHASERZ\",\"store_noun\":\"Store\",\"tagline\":\"Elevate Your Smoking Experience\"}"
+   "detail": "{\"brand_name\":\"CloudChaserz\",\"product_name\":\"AWANZ POS by CloudChaserz\",\"vertical\":\"Smoke Shop\",\"wordmark\":\"CLOUDCHASERZ\",\"store_noun\":\"Store\",\"tagline\":\"Elevate Your Smoking Experience\"}"
   },
   {
    "step": "the 11 real stores plus the HOU-WH warehouse are seeded",
@@ -17,7 +17,7 @@
   {
    "step": "/rewards carries the exact programme copy and the three fixed tiers",
    "ok": true,
-   "detail": "tiers ok; \"Maison\" occurrences outside asset paths: 3"
+   "detail": "tiers ok; \"AWANZ\" occurrences outside asset paths: 3"
   },
   {
    "step": "the catalogue marks 21+ items",
@@ -27,7 +27,7 @@
   {
    "step": "age.verify_scan refuses an under-21 licence",
    "ok": true,
-   "detail": "{\"ok\":false,\"outcome\":\"Underage\",\"age\":18,\"message\":\"Under 21 — sale of age-restricted items refused\"}"
+   "detail": "{\"ok\":false,\"outcome\":\"Underage\",\"age\":19,\"message\":\"Under 21 — sale of age-restricted items refused\"}"
   },
   {
    "step": "age.verify_scan refuses an expired licence",
@@ -35,14 +35,14 @@
    "detail": "{\"ok\":false,\"outcome\":\"Expired\",\"message\":\"ID expired — ask for a valid ID\"}"
   },
   {
-   "step": "age.verify_scan passes a valid 21+ licence and logs a Maison Age Check",
+   "step": "age.verify_scan passes a valid 21+ licence and logs an AWANZ Age Check",
    "ok": true,
-   "detail": "{\"ok\":true,\"outcome\":\"Verified\",\"age\":33,\"method\":\"Scan\",\"check\":\"mpt38tld84\"}"
+   "detail": "{\"ok\":true,\"outcome\":\"Verified\",\"age\":34,\"method\":\"Scan\",\"check\":\"28r0vjtngm\"}"
   },
   {
    "step": "the age check stores no PII beyond the masked initials",
    "ok": true,
-   "detail": "{\"name\":\"mpt38tld84\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"initials\":\"AR\",\"boutique\":\"HOU-MTR\"}"
+   "detail": "{\"name\":\"28r0vjtngm\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"initials\":\"AR\",\"boutique\":\"HOU-MTR\"}"
   },
   {
    "step": "unlock 1366x1024: scrollWidth <= clientWidth and nothing clips (D2)",
@@ -60,9 +60,9 @@
    "detail": "scrollWidth-clientWidth=0; \"CLOUDCHASERZ\" ends at 242, panel at 374, viewport 390"
   },
   {
-   "step": "the POS top bar is branded CloudChaserz (wordmark first, \"Maison POS\" only as the sub-mark)",
+   "step": "the POS top bar is branded CloudChaserz (wordmark first, \"AWANZ\" only as the sub-mark)",
    "ok": true,
-   "detail": "CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK"
+   "detail": "CLOUDCHASERZ AWANZ HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK"
   },
   {
    "step": "ringing a 21+ item raises the age gate before it reaches the basket",
@@ -92,7 +92,7 @@
   {
    "step": "the Salon display is branded CloudChaserz",
    "ok": true,
-   "detail": "CLOUDCHASERZ CLOUDCHASERZ NOT PAIRED 03:37 CLIENT DISPLAY PAIR WITH THE POINT OF SALE Enter the six-digit code shown under Settings · Client display on the asso"
+   "detail": "CLOUDCHASERZ CLOUDCHASERZ NOT PAIRED 13:57 CLIENT DISPLAY PAIR WITH THE POINT OF SALE Enter the six-digit code shown under Settings · Client display on the asso"
   },
   {
    "step": "the programme exposes the three fixed tiers ($5/100, $10/200, $15/300)",
@@ -102,12 +102,12 @@
   {
    "step": "the /rewards sign-up creates a member with a client number and the CloudChaserz programme",
    "ok": true,
-   "detail": "CC Rewards E2E 1787542635089 MC170641 CloudChaserz Rewards"
+   "detail": "CC Rewards E2E 1787579848046 MC800472 CloudChaserz Rewards"
   },
   {
    "step": "$1 spent = 1 point earned on the net amount, not the taxed total",
    "ok": true,
-   "detail": "spent $159.92 net ($173.11 with tax) → 159 points (invoice ACC-SINV-2026-01049)"
+   "detail": "spent $159.92 net ($173.11 with tax) → 159 points (invoice ACC-SINV-2026-01058)"
   },
   {
    "step": "only the tiers the client can afford are offered",
@@ -117,7 +117,7 @@
   {
    "step": "redeeming the $5 / 100-point tier takes $5 off at the counter",
    "ok": true,
-   "detail": "ACC-SINV-2026-01050 loyalty_amount=5 tier=RT-100-00001 total=64.92"
+   "detail": "ACC-SINV-2026-01059 loyalty_amount=5 tier=RT-100-00001 total=64.92"
   },
   {
    "step": "100 points are deducted from the balance on redemption",
@@ -127,12 +127,12 @@
   {
    "step": "returning the sale reverses the points and releases the redeemed reward (never negative)",
    "ok": true,
-   "detail": " credit note ACC-SINV-2026-01051; points 113 → 154"
+   "detail": " credit note ACC-SINV-2026-01060; points 113 → 154"
   },
   {
    "step": "the public /rewards page renders the tiers and the perks (no unresolved template tokens)",
    "ok": true,
-   "detail": "CLOUDCHASERZ MAISON POS ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & PAPERS STORES REWARDS SIGN IN BAG 0 "
+   "detail": "CLOUDCHASERZ AWANZ ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & PAPERS STORES REWARDS SIGN IN BAG 0 CLOUD"
   },
   {
    "step": "store manager A (HOU-MTR) is refused OK-SAP data over HTTP on every endpoint",

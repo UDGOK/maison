@@ -26,12 +26,12 @@ OTHER = "CHI-OAK"
 
 
 def _manager(boutique: str) -> str:
-	return frappe.db.get_value("Maison Associate", {"boutique": boutique, "role": "Manager", "enabled": 1}, "user")
+	return frappe.db.get_value("AWANZ Associate", {"boutique": boutique, "role": "Manager", "enabled": 1}, "user")
 
 
 def _company(boutique: str = STORE) -> str:
 	"""Company of the demo store under test — a bench may carry a second brand's company too."""
-	return frappe.db.get_value("Maison Boutique", boutique, "company")
+	return frappe.db.get_value("AWANZ Store", boutique, "company")
 
 
 def _source_warehouse(exclude: str | None = None, boutique: str = STORE) -> str:
@@ -51,8 +51,8 @@ def ensure_warehouse_admin(email: str = WH_ADMIN) -> str:
 		u.flags.ignore_password_policy = True
 		u.insert()
 	u = frappe.get_doc("User", email)
-	if "Maison Warehouse Admin" not in {r.role for r in u.roles}:
-		u.append("roles", {"role": "Maison Warehouse Admin"})
+	if "AWANZ Warehouse Admin" not in {r.role for r in u.roles}:
+		u.append("roles", {"role": "AWANZ Warehouse Admin"})
 		u.flags.ignore_permissions = True
 		u.save()
 	return email
@@ -77,7 +77,7 @@ class TestWarehouse(FrappeTestCase):
 
 	def setUp(self):
 		frappe.set_user("Administrator")
-		self.sp = f"maison_wh_{frappe.generate_hash(length=6)}"
+		self.sp = f"awanz_wh_{frappe.generate_hash(length=6)}"
 		frappe.db.savepoint(self.sp)
 
 	def tearDown(self):
@@ -92,7 +92,7 @@ class TestWarehouse(FrappeTestCase):
 		return out["request"]
 
 	def _approved_shipment(self, qty: float = 4, approve_qty: float | None = None, item: str = ITEM):
-		stock_main_warehouse(item, 20, _source_warehouse(exclude=frappe.db.get_value("Maison Boutique", STORE, "warehouse")))
+		stock_main_warehouse(item, 20, _source_warehouse(exclude=frappe.db.get_value("AWANZ Store", STORE, "warehouse")))
 		req = self._request(qty=qty, item=item)
 		frappe.set_user(WH_ADMIN)
 		lines = [{"item_code": item, "approved_qty": approve_qty}] if approve_qty is not None else None
@@ -137,14 +137,14 @@ class TestWarehouse(FrappeTestCase):
 		self.assertEqual(inventory.replenishment_requests(STORE)["requests"][0]["rejection_reason"], "Not stocked at HQ")
 
 	def test_low_stock_one_tap_request_marks_priority_and_links_the_alert(self):
-		wh = frappe.db.get_value("Maison Boutique", STORE, "warehouse")
-		alert = frappe.get_doc({"doctype": "Maison Stock Alert", "item_code": ITEM, "warehouse": wh, "boutique": STORE, "status": "Open", "qty": 1, "reorder_level": 3, "reorder_qty": 5}).insert(ignore_permissions=True)
+		wh = frappe.db.get_value("AWANZ Store", STORE, "warehouse")
+		alert = frappe.get_doc({"doctype": "AWANZ Stock Alert", "item_code": ITEM, "warehouse": wh, "boutique": STORE, "status": "Open", "qty": 1, "reorder_level": 3, "reorder_qty": 5}).insert(ignore_permissions=True)
 		frappe.set_user(_manager(STORE))
 		out = inventory.replenish(item=ITEM, alert=alert.name)
 		self.assertEqual(out["request"]["priority"], "Low stock")
 		self.assertEqual(out["request"]["lines"][0]["qty"], 5.0)
 		self.assertEqual(out["request"]["lines"][0]["stock_alert"], alert.name)
-		self.assertEqual(frappe.db.get_value("Maison Stock Alert", alert.name, "status"), "Acknowledged")
+		self.assertEqual(frappe.db.get_value("AWANZ Stock Alert", alert.name, "status"), "Acknowledged")
 
 	# ------------------------------------------------------------------ lifecycle + stock
 	def test_shipment_lifecycle_posts_in_transit_then_store_receipt(self):
@@ -180,14 +180,14 @@ class TestWarehouse(FrappeTestCase):
 		self.assertEqual((se2.from_warehouse, se2.to_warehouse, flt(se2.items[0].qty)), (transit, dest, 4.0))
 		self.assertEqual(_bin(ITEM, transit), before[1])
 		self.assertEqual(_bin(ITEM, dest), before[2] + 4)
-		self.assertTrue(frappe.db.get_value("Maison Shipment", sh["name"], "received_by"), _manager(STORE))
+		self.assertTrue(frappe.db.get_value("AWANZ Shipment", sh["name"], "received_by"), _manager(STORE))
 
 	def test_partial_short_and_damaged_receipt_raises_discrepancies(self):
 		sh = self._approved_shipment(qty=6)
 		frappe.set_user(WH_ADMIN)
 		shipping.ship(sh["name"])
 		transit, dest = sh["transit_warehouse"], sh["to_warehouse"]
-		damaged_wh = frappe.db.get_value("Maison Boutique", STORE, "damaged_warehouse")
+		damaged_wh = frappe.db.get_value("AWANZ Store", STORE, "damaged_warehouse")
 		t0, d0, dm0 = _bin(ITEM, transit), _bin(ITEM, dest), _bin(ITEM, damaged_wh) if damaged_wh else 0
 		frappe.set_user(_manager(STORE))
 		# first carton: 2 good, not final
@@ -204,11 +204,11 @@ class TestWarehouse(FrappeTestCase):
 		if damaged_wh:
 			self.assertEqual(_bin(ITEM, damaged_wh), dm0 + 1)
 		self.assertEqual(_bin(ITEM, transit), t0 - 4)  # 2 short units still sit in transit
-		kinds = sorted(frappe.db.get_value("Maison Receiving Discrepancy", n, "type") for n in fin["discrepancies"])
+		kinds = sorted(frappe.db.get_value("AWANZ Receiving Discrepancy", n, "type") for n in fin["discrepancies"])
 		self.assertEqual(kinds, ["Damaged", "Short"])
 		# warehouse admin resolves the short by writing off the transit stock
 		frappe.set_user(WH_ADMIN)
-		short = next(n for n in fin["discrepancies"] if frappe.db.get_value("Maison Receiving Discrepancy", n, "type") == "Short")
+		short = next(n for n in fin["discrepancies"] if frappe.db.get_value("AWANZ Receiving Discrepancy", n, "type") == "Short")
 		res = shipping.resolve_discrepancy(short, "Write off", notes="lost in transit")
 		self.assertEqual(res["status"], "Resolved")
 		self.assertTrue(res["stock_entry"])
@@ -226,7 +226,7 @@ class TestWarehouse(FrappeTestCase):
 		self.assertEqual(fin["lines"][0]["over_qty"], 1.0)
 		self.assertEqual(_bin(ITEM, dest), d0 + 2)
 		self.assertEqual(_bin(ITEM, transit), t0 - 2)
-		self.assertEqual(frappe.db.get_value("Maison Receiving Discrepancy", fin["discrepancies"][0], "type"), "Over")
+		self.assertEqual(frappe.db.get_value("AWANZ Receiving Discrepancy", fin["discrepancies"][0], "type"), "Over")
 
 	def test_cannot_ship_twice_or_cancel_after_shipping(self):
 		sh = self._approved_shipment(qty=1)
@@ -251,7 +251,7 @@ class TestWarehouse(FrappeTestCase):
 		self.assertTrue(t["events"])
 		out = shipping.refresh_tracking()
 		self.assertGreaterEqual(out["checked"], 1)
-		self.assertEqual(frappe.db.get_value("Maison Shipment", sh["name"], "tracking_status"), t["status"])
+		self.assertEqual(frappe.db.get_value("AWANZ Shipment", sh["name"], "tracking_status"), t["status"])
 
 	def test_supply_summary_and_dashboard_block(self):
 		sh = self._approved_shipment(qty=1)
@@ -277,8 +277,8 @@ class TestWarehouse(FrappeTestCase):
 			inventory.receive_shipment(sh["name"])
 		with self.assertRaises(frappe.PermissionError):
 			shipping.wall()
-		self.assertFalse(frappe.has_permission("Maison Shipment", "read", frappe.get_doc("Maison Shipment", sh["name"])))
-		self.assertNotIn(sh["name"], frappe.get_list("Maison Shipment", pluck="name"))
+		self.assertFalse(frappe.has_permission("AWANZ Shipment", "read", frappe.get_doc("AWANZ Shipment", sh["name"])))
+		self.assertNotIn(sh["name"], frappe.get_list("AWANZ Shipment", pluck="name"))
 		# `shipments()` must not leak the other store's consignment. Assert on *what* comes back
 		# rather than on a global count: the suite runs on a shared site that already carries
 		# shipments of this manager's own store from earlier runs (see INTEGRATION_NOTES v0.4 #13).
@@ -286,14 +286,14 @@ class TestWarehouse(FrappeTestCase):
 		self.assertNotIn(sh["name"], [s["name"] for s in visible])
 		self.assertEqual({s["boutique"] for s in visible} - {OTHER}, set())
 		# nor the in-transit Stock Entries of the other store in the desk
-		ship_se = frappe.get_doc("Stock Entry", frappe.db.get_value("Maison Shipment", sh["name"], "stock_entry_ship"))
+		ship_se = frappe.get_doc("Stock Entry", frappe.db.get_value("AWANZ Shipment", sh["name"], "stock_entry_ship"))
 		self.assertFalse(frappe.has_permission("Stock Entry", "read", ship_se))
 		self.assertNotIn(ship_se.name, frappe.get_list("Stock Entry", pluck="name"))
 		self.assertNotIn(sh["material_request"], frappe.get_list("Material Request", pluck="name"))
 		# own store sees its own shipment and, once received, the In Transit → store leg
 		frappe.set_user(_manager(STORE))
 		self.assertEqual(shipping.shipment(sh["name"])["name"], sh["name"])
-		self.assertIn(sh["name"], frappe.get_list("Maison Shipment", pluck="name"))
+		self.assertIn(sh["name"], frappe.get_list("AWANZ Shipment", pluck="name"))
 		recv = inventory.receive_shipment(sh["name"])
 		recv_se = frappe.get_doc("Stock Entry", recv["stock_entry_receive"])
 		self.assertTrue(frappe.has_permission("Stock Entry", "read", recv_se))
@@ -321,10 +321,10 @@ class TestWarehouse(FrappeTestCase):
 		self.assertIn("columns", shipping.wall())
 
 	def test_selling_at_the_warehouse_boutique_is_refused(self):
-		if not frappe.get_meta("Maison Boutique").has_field("is_warehouse"):
+		if not frappe.get_meta("AWANZ Store").has_field("is_warehouse"):
 			self.skipTest("is_warehouse field not present on this seed")
-		frappe.db.set_value("Maison Boutique", OTHER, "is_warehouse", 1)
-		frappe.clear_document_cache("Maison Boutique", OTHER)
+		frappe.db.set_value("AWANZ Store", OTHER, "is_warehouse", 1)
+		frappe.clear_document_cache("AWANZ Store", OTHER)
 		frappe.set_user(_manager(OTHER))
 		res = sales.submit_batch([pos_invoice(boutique=OTHER)])["results"][0]
 		self.assertEqual((res["status"], res["error_code"]), ("error", sales.ERR_PERMISSION))
@@ -459,7 +459,7 @@ class TestWarehouse(FrappeTestCase):
 	def test_packing_list_renders_with_barcodes_and_qr(self):
 		sh = self._approved_shipment(qty=2)
 		frappe.set_user("Administrator")
-		html = frappe.get_print("Maison Shipment", sh["name"], "Maison Packing List", no_letterhead=1)
+		html = frappe.get_print("AWANZ Shipment", sh["name"], "AWANZ Packing List", no_letterhead=1)
 		self.assertIn(sh["name"], html)
 		self.assertIn("MSH:" + sh["name"], html)
 		self.assertIn("data:image/svg+xml;base64", html)

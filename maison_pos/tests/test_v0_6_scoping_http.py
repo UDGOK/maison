@@ -72,8 +72,8 @@ class TestScopingHTTP(FrappeTestCase):
 		from maison_pos.api import shipping
 		from maison_pos.shipping import ensure_transit_warehouse, get_main_warehouse
 
-		wh_b = frappe.db.get_value("Maison Boutique", STORE_B, "warehouse")
-		src = get_main_warehouse(exclude=wh_b, company=frappe.db.get_value("Maison Boutique", STORE_B, "company"))
+		wh_b = frappe.db.get_value("AWANZ Store", STORE_B, "warehouse")
+		src = get_main_warehouse(exclude=wh_b, company=frappe.db.get_value("AWANZ Store", STORE_B, "company"))
 		company = frappe.db.get_value("Warehouse", src, "company")
 		se = frappe.get_doc({"doctype": "Stock Entry", "stock_entry_type": "Material Receipt", "purpose": "Material Receipt", "company": company, "to_warehouse": src, "posting_date": nowdate(), "posting_time": nowtime(), "set_posting_time": 1, "items": [{"item_code": ITEM, "qty": 3, "t_warehouse": src, "basic_rate": 10}]})
 		se.flags.ignore_permissions = True
@@ -83,7 +83,7 @@ class TestScopingHTTP(FrappeTestCase):
 		# a pending request + a shipped consignment, both for store B
 		req = shipping.create_request(STORE_B, [{"item_code": ITEM, "qty": 1}], reason="http scoping test")
 		cls.request_b = req.name
-		sh = frappe.get_doc({"doctype": "Maison Shipment", "boutique": STORE_B, "from_warehouse": src, "transit_warehouse": ensure_transit_warehouse(STORE_B), "to_warehouse": wh_b, "status": "Pending", "lines": [{"item_code": ITEM, "qty": 2}]})
+		sh = frappe.get_doc({"doctype": "AWANZ Shipment", "boutique": STORE_B, "from_warehouse": src, "transit_warehouse": ensure_transit_warehouse(STORE_B), "to_warehouse": wh_b, "status": "Pending", "lines": [{"item_code": ITEM, "qty": 2}]})
 		sh.flags.ignore_permissions = True
 		sh.insert()
 		cls.shipment_b = sh.name
@@ -120,10 +120,10 @@ class TestScopingHTTP(FrappeTestCase):
 			reason="Change of mind",
 		)["credit_note"]
 		frappe.db.set_value("Sales Invoice", cls.legacy_credit_note_b, "set_warehouse", None, update_modified=False)
-		cls.store_b_warehouse = frappe.db.get_value("Maison Boutique", STORE_B, "warehouse")
+		cls.store_b_warehouse = frappe.db.get_value("AWANZ Store", STORE_B, "warehouse")
 		frappe.db.commit()
-		cls.manager_a = frappe.db.get_value("Maison Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "user")
-		cls.manager_b = frappe.db.get_value("Maison Associate", {"boutique": STORE_B, "role": "Manager", "enabled": 1}, "user")
+		cls.manager_a = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "user")
+		cls.manager_b = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_B, "role": "Manager", "enabled": 1}, "user")
 
 	@classmethod
 	def tearDownClass(cls):
@@ -141,7 +141,7 @@ class TestScopingHTTP(FrappeTestCase):
 			frappe.db.rollback()
 			frappe.log_error(frappe.get_traceback(), "v0.6 scoping http invoice cleanup")
 		try:
-			sh = frappe.get_doc("Maison Shipment", cls.shipment_b)
+			sh = frappe.get_doc("AWANZ Shipment", cls.shipment_b)
 			for se_name in (sh.stock_entry_receive, sh.stock_entry_damaged, sh.stock_entry_ship):
 				if se_name and frappe.db.exists("Stock Entry", se_name):
 					se = frappe.get_doc("Stock Entry", se_name)
@@ -149,9 +149,9 @@ class TestScopingHTTP(FrappeTestCase):
 						se.flags.ignore_permissions = True
 						se.cancel()
 					se.delete(ignore_permissions=True)
-			frappe.db.delete("Maison Receiving Discrepancy", {"shipment": cls.shipment_b})
+			frappe.db.delete("AWANZ Receiving Discrepancy", {"shipment": cls.shipment_b})
 			sh.delete(ignore_permissions=True)
-			req = frappe.get_doc("Maison Replenishment Request", cls.request_b)
+			req = frappe.get_doc("AWANZ Replenishment Request", cls.request_b)
 			mr = req.material_request
 			req.delete(ignore_permissions=True)
 			if mr and frappe.db.exists("Material Request", mr):
@@ -180,15 +180,15 @@ class TestScopingHTTP(FrappeTestCase):
 		r = a.get("maison_pos.api.shipping.request_detail", request=self.request_b)
 		self.assertEqual(r.status_code, 403, r.text[:200])
 		# frappe.client.get_doc honours has_permission; get_list the query conditions
-		r = a.get("frappe.client.get", doctype="Maison Shipment", name=self.shipment_b)
+		r = a.get("frappe.client.get", doctype="AWANZ Shipment", name=self.shipment_b)
 		self.assertEqual(r.status_code, 403, r.text[:200])
-		r = a.get("frappe.client.get_list", doctype="Maison Shipment", fields='["name"]', limit_page_length=500)
+		r = a.get("frappe.client.get_list", doctype="AWANZ Shipment", fields='["name"]', limit_page_length=500)
 		self.assertEqual(r.status_code, 200)
 		self.assertNotIn(self.shipment_b, [x["name"] for x in r.json()["message"]])
-		r = a.get("frappe.client.get_list", doctype="Maison Replenishment Request", fields='["name"]', limit_page_length=500)
+		r = a.get("frappe.client.get_list", doctype="AWANZ Replenishment Request", fields='["name"]', limit_page_length=500)
 		self.assertNotIn(self.request_b, [x["name"] for x in r.json()["message"]])
 		# the in-transit Stock Entry of store B is invisible in the desk list as well
-		se = frappe.db.get_value("Maison Shipment", self.shipment_b, "stock_entry_ship")
+		se = frappe.db.get_value("AWANZ Shipment", self.shipment_b, "stock_entry_ship")
 		r = a.get("frappe.client.get_list", doctype="Stock Entry", fields='["name"]', limit_page_length=1000)
 		self.assertNotIn(se, [x["name"] for x in r.json()["message"]])
 		r = a.get("frappe.client.get", doctype="Stock Entry", name=se)
@@ -205,7 +205,7 @@ class TestScopingHTTP(FrappeTestCase):
 		r = b.get("maison_pos.api.shipping.shipment", shipment=self.shipment_b)
 		self.assertEqual(r.status_code, 200, r.text[:200])
 		self.assertEqual(r.json()["message"]["boutique"], STORE_B)
-		r = b.get("frappe.client.get_list", doctype="Maison Shipment", fields='["name"]', limit_page_length=500)
+		r = b.get("frappe.client.get_list", doctype="AWANZ Shipment", fields='["name"]', limit_page_length=500)
 		self.assertIn(self.shipment_b, [x["name"] for x in r.json()["message"]])
 		r = b.get("maison_pos.api.inventory.inbound")
 		self.assertIn(self.shipment_b, [s["name"] for s in r.json()["message"]["shipments"]])
@@ -220,13 +220,13 @@ class TestScopingHTTP(FrappeTestCase):
 		# even the store's own manager cannot approve their own request
 		b = self.client(self.manager_b)
 		self.assertEqual(b.post("maison_pos.api.shipping.approve", request=self.request_b).status_code, 403)
-		self.assertEqual(frappe.db.get_value("Maison Replenishment Request", self.request_b, "status"), "Pending Approval")
+		self.assertEqual(frappe.db.get_value("AWANZ Replenishment Request", self.request_b, "status"), "Pending Approval")
 
 	def test_manager_a_cannot_receive_store_b_shipment(self):
 		a = self.client(self.manager_a)
 		r = a.post("maison_pos.api.inventory.receive_shipment", shipment=self.shipment_b, lines=[{"item_code": ITEM, "received_qty": 2}])
 		self.assertEqual(r.status_code, 403, r.text[:200])
-		self.assertEqual(frappe.db.get_value("Maison Shipment", self.shipment_b, "status"), "Shipped")
+		self.assertEqual(frappe.db.get_value("AWANZ Shipment", self.shipment_b, "status"), "Shipped")
 		r = a.post("maison_pos.api.inventory.replenish", boutique=STORE_B, lines=[{"item_code": ITEM, "qty": 1}])
 		self.assertEqual(r.status_code, 403)
 
@@ -340,18 +340,18 @@ class TestScopingHTTP(FrappeTestCase):
 	def test_every_store_scoped_doctype_is_narrowed_over_rest(self):
 		"""The full audit list: no scoped doctype leaks another store's rows to a store manager."""
 		a = self.client(self.manager_a)
-		own = frappe.db.get_value("Maison Boutique", STORE_A, "warehouse")
-		other = frappe.db.get_value("Maison Boutique", STORE_B, "warehouse")
+		own = frappe.db.get_value("AWANZ Store", STORE_A, "warehouse")
+		other = frappe.db.get_value("AWANZ Store", STORE_B, "warehouse")
 		# doctypes stamped with a `boutique` / `maison_boutique` field
 		for doctype, field in (
 			("Sales Invoice", "maison_boutique"),
 			("Sales Order", "maison_boutique"),
-			("Maison Shipment", "boutique"),
-			("Maison Replenishment Request", "boutique"),
-			("Maison Stock Alert", "boutique"),
-			("Maison Cycle Count", "boutique"),
-			("Maison Feedback", "boutique"),
-			("Maison Age Check", "boutique"),
+			("AWANZ Shipment", "boutique"),
+			("AWANZ Replenishment Request", "boutique"),
+			("AWANZ Stock Alert", "boutique"),
+			("AWANZ Cycle Count", "boutique"),
+			("AWANZ Feedback", "boutique"),
+			("AWANZ Age Check", "boutique"),
 		):
 			r = a.get("frappe.client.get_list", doctype=doctype, fields=f'["name", "{field}"]', limit_page_length=2000)
 			self.assertEqual(r.status_code, 200, f"{doctype}: {r.status_code} {r.text[:200]}")

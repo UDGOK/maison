@@ -62,7 +62,7 @@ try {
   const full = inv ? await admin.value('Sales Invoice', inv.name, ['maison_age_verified', 'maison_age_method', 'maison_age_dob_year_ok', 'maison_age_check', 'maison_age_checked_by', 'maison_age_checked_at']) : {}
   record('5.7 the age check is stored on the invoice', Number(full.maison_age_verified) === 1 && full.maison_age_method === 'Manual' && !!full.maison_age_check,
     `${inv?.name}: ${JSON.stringify(full)}`)
-  const linked = full.maison_age_check ? await admin.value('Maison Age Check', full.maison_age_check, ['sales_invoice', 'outcome', 'method', 'age_years', 'dob_year', 'initials', 'issuer', 'associate']) : {}
+  const linked = full.maison_age_check ? await admin.value('AWANZ Age Check', full.maison_age_check, ['sales_invoice', 'outcome', 'method', 'age_years', 'dob_year', 'initials', 'issuer', 'associate']) : {}
   record('5.7b the audit row is linked back to the invoice and stores only masked fields',
     linked.sales_invoice === inv?.name && linked.outcome === 'Verified', JSON.stringify(linked))
   await shot(page, 'age-sale-receipt')

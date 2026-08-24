@@ -6,7 +6,7 @@
 * :func:`recent_sales` / :func:`ticker`   latest chain-wide sales (feed / ticker initial fill)
 * :func:`boutique_feed` / :func:`boutique_detail`   store-level drill-in
 * :func:`boutiques_table`  sortable Boutiques tab (today / WTD / MTD, vs LW, conversion, stock …)
-* :func:`product_trends` / :func:`top_products`   read the precomputed ``Maison Product Trend`` table
+* :func:`product_trends` / :func:`top_products`   read the precomputed ``AWANZ Product Trend`` table
 * :func:`clients_overview`  churn-risk list, follow-up rates, upcoming dates, recognition stats
 
 Every endpoint is boutique-scoped through :mod:`maison_pos.scoping` — scoped users (Manager /
@@ -25,17 +25,17 @@ from frappe.query_builder.functions import Count, Sum
 from frappe.utils import add_days, add_to_date, cint, flt, get_datetime, getdate, now_datetime, nowdate
 
 from maison_pos.api.recognition import recognition_counts
-from maison_pos.maison_pos.doctype.maison_device_heartbeat.maison_device_heartbeat import upsert_heartbeat
+from maison_pos.awanz_pos.doctype.awanz_device_heartbeat.awanz_device_heartbeat import upsert_heartbeat
 # v0.6 D4 — every board on this page lists *shops*: `get_retail_boutiques` is
 # `get_allowed_boutiques` minus the head-office warehouse row (`HOU-WH` used to show up as a
 # twelfth store on Live and on Top-by-store, permanently at $0 / OFFLINE).
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_retail_boutiques, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_retail_boutiques, is_unrestricted
 from maison_pos.tasks import STALE_AFTER_SECONDS
 from maison_pos.utils import iso_with_tz, publish_heartbeat
 
 LIVE_CACHE_SECONDS = 5
-LIVE_CACHE_PREFIX = "maison_live_summary"
-TRENDS_CACHE_PREFIX = "maison_product_trends"
+LIVE_CACHE_PREFIX = "awanz_live_summary"
+TRENDS_CACHE_PREFIX = "awanz_product_trends"
 TRENDS_CACHE_SECONDS = 60
 
 # US state → region for the "Region" filter; boutiques outside the map show their state / country code.
@@ -63,9 +63,9 @@ def _boutique_meta(boutiques: list[str]) -> dict[str, dict[str, Any]]:
 	if not boutiques:
 		return {}
 	fields = ["name", "boutique_name", "city", "enabled", "warehouse"]
-	if frappe.get_meta("Maison Boutique").has_field("region"):
+	if frappe.get_meta("AWANZ Store").has_field("region"):
 		fields.append("region")
-	return {b.name: b for b in frappe.get_all("Maison Boutique", filters={"name": ("in", boutiques)}, fields=fields)}
+	return {b.name: b for b in frappe.get_all("AWANZ Store", filters={"name": ("in", boutiques)}, fields=fields)}
 
 
 def _time_to_seconds(t: Any) -> int:
@@ -94,7 +94,7 @@ def _scope_key() -> str:
 @frappe.whitelist()
 def live_summary(date: Optional[str] = None, nocache: int = 0) -> dict[str, Any]:
 	"""Today's chain picture. Cached for 5 s per (user scope, date); a submitted sale clears the cache."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	day = getdate(date or nowdate())
 	key = f"{LIVE_CACHE_PREFIX}:{_scope_key()}:{day}"
 	if not cint(nocache):
@@ -159,7 +159,7 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 	)
 	top_items = _top_items_for([r.name for r in last_rows])
 
-	HB = DocType("Maison Device Heartbeat")
+	HB = DocType("AWANZ Device Heartbeat")
 	hb_rows = (
 		frappe.qb.from_(HB)
 		.select(HB.boutique, HB.device_id, HB.status, HB.last_seen, HB.queued, HB.app_version)
@@ -168,7 +168,7 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 	pending_by_boutique = {
 		r.boutique: r.n
 		for r in frappe.get_all(
-			"Maison Price Change Request",
+			"AWANZ Price Change Request",
 			filters={"workflow_state": "Pending Approval", "docstatus": 1, "boutique": ("in", boutiques or ["__none__"])},
 			fields=["boutique", "count(name) as n"],
 			group_by="boutique",
@@ -343,12 +343,12 @@ def _top_items_for(invoices: list[str]) -> dict[str, str]:
 
 
 def _open_feedback_counts(boutiques: list[str], max_rating: int = 2) -> dict[str, int]:
-	"""Open ``Maison Feedback`` with rating ≤ *max_rating* per boutique (feature-detected)."""
-	if not boutiques or not frappe.db.exists("DocType", "Maison Feedback"):
+	"""Open ``AWANZ Feedback`` with rating ≤ *max_rating* per boutique (feature-detected)."""
+	if not boutiques or not frappe.db.exists("DocType", "AWANZ Feedback"):
 		return {}
 	try:
 		rows = frappe.get_all(
-			"Maison Feedback",
+			"AWANZ Feedback",
 			filters={"boutique": ("in", boutiques), "rating": ("<=", max_rating), "status": ("in", ("New", "Reviewed"))},
 			fields=["boutique", "count(name) as n"],
 			group_by="boutique",
@@ -362,7 +362,7 @@ def _pending_list(boutiques: list[str]) -> list[dict[str, Any]]:
 	if not boutiques:
 		return []
 	return frappe.get_all(
-		"Maison Price Change Request",
+		"AWANZ Price Change Request",
 		filters={"workflow_state": "Pending Approval", "docstatus": 1, "boutique": ("in", boutiques)},
 		fields=["name", "boutique", "item_code", "item_name", "current_rate", "proposed_rate", "requested_by", "modified"],
 		order_by="modified asc",
@@ -375,7 +375,7 @@ def _pending_list(boutiques: list[str]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 @frappe.whitelist()
 def heartbeat(boutique: str, device_id: str, queued: int = 0, app_version: Optional[str] = None) -> dict[str, Any]:
-	"""POS devices call this every 60 s. Upserts the heartbeat row and publishes ``maison_heartbeat``."""
+	"""POS devices call this every 60 s. Upserts the heartbeat row and publishes ``awanz_heartbeat``."""
 	boutique = assert_boutique_access(boutique)
 	device_id = (device_id or "").strip()
 	if not device_id:
@@ -422,7 +422,7 @@ def _sales_rows(boutiques: list[str], limit: int, with_items: bool = True, date:
 @frappe.whitelist()
 def recent_sales(limit: int = 20, boutique: Optional[str] = None) -> list[dict[str, Any]]:
 	"""Latest submitted POS invoices (chain-wide or one boutique) — initial fill before socket events."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutiques = [assert_boutique_access(boutique)] if boutique else get_retail_boutiques()
 	return _sales_rows(boutiques, cint(limit) or 20)
 
@@ -430,7 +430,7 @@ def recent_sales(limit: int = 20, boutique: Optional[str] = None) -> list[dict[s
 @frappe.whitelist()
 def ticker(limit: int = 10) -> list[dict[str, Any]]:
 	"""Compact chain-wide ticker rows: boutique, amount, top item, tier, ts (no PII)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	rows = _sales_rows(get_retail_boutiques(), min(cint(limit) or 10, 50))
 	from maison_pos.utils import customer_tier
 
@@ -452,7 +452,7 @@ def ticker(limit: int = 10) -> list[dict[str, Any]]:
 @frappe.whitelist()
 def boutique_feed(boutique: str, limit: int = 30) -> dict[str, Any]:
 	"""Item-level feed + hourly bars for one boutique (today)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	day = getdate(nowdate())
 	sales = _sales_rows([boutique], cint(limit) or 30, date=day)
@@ -519,10 +519,10 @@ def _stock_value(meta: dict[str, dict[str, Any]]) -> dict[str, float]:
 
 
 def _on_shift(boutiques: list[str]) -> dict[str, int]:
-	if not boutiques or not frappe.db.exists("DocType", "Maison Shift"):
+	if not boutiques or not frappe.db.exists("DocType", "AWANZ Shift"):
 		return {}
 	try:
-		rows = frappe.get_all("Maison Shift", filters={"boutique": ("in", boutiques), "status": ("in", ("On shift", "On break"))}, fields=["boutique", "count(name) as n"], group_by="boutique")
+		rows = frappe.get_all("AWANZ Shift", filters={"boutique": ("in", boutiques), "status": ("in", ("On shift", "On break"))}, fields=["boutique", "count(name) as n"], group_by="boutique")
 		return {r.boutique: cint(r.n) for r in rows}
 	except Exception:
 		return {}
@@ -531,7 +531,7 @@ def _on_shift(boutiques: list[str]) -> dict[str, int]:
 @frappe.whitelist()
 def boutiques_table(date: Optional[str] = None) -> dict[str, Any]:
 	"""Rows for the sortable Boutiques table (today / WTD / MTD, vs LW, conversion, returns %, stock …)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	day = getdate(date or nowdate())
 	live = live_summary(str(day))
 	boutiques = [b["boutique"] for b in live["by_boutique"]]
@@ -574,7 +574,7 @@ def boutiques_table(date: Optional[str] = None) -> dict[str, Any]:
 @frappe.whitelist()
 def boutique_detail(boutique: str, days: int = 28) -> dict[str, Any]:
 	"""Drill-in page: hourly (today), top items (period), associates, recent sales, alerts, feedback."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	day = getdate(nowdate())
 	days = max(1, min(cint(days) or 28, 365))
@@ -595,7 +595,7 @@ def boutique_detail(boutique: str, days: int = 28) -> dict[str, Any]:
 		select si.maison_associate as associate, a.full_name as associate_name,
 			sum(case when si.is_return = 0 then 1 else 0 end) as tickets, sum(si.grand_total) as net,
 			sum(case when si.is_return = 0 and si.customer is not null and si.customer <> '' and si.customer not in %(walkins)s then 1 else 0 end) as with_customer
-		from `tabSales Invoice` si left join `tabMaison Associate` a on a.name = si.maison_associate
+		from `tabSales Invoice` si left join `tabAWANZ Associate` a on a.name = si.maison_associate
 		where si.docstatus = 1 and si.is_pos = 1 and si.maison_boutique = %(b)s and si.posting_date between %(f)s and %(t)s
 			and si.maison_associate is not null and si.maison_associate <> ''
 		group by si.maison_associate, a.full_name order by net desc
@@ -607,16 +607,16 @@ def boutique_detail(boutique: str, days: int = 28) -> dict[str, Any]:
 		a["avg_ticket"] = flt(a.net) / cint(a.tickets) if cint(a.tickets) else 0.0
 		a["conversion"] = round(cint(a.with_customer) / cint(a.tickets), 3) if cint(a.tickets) else 0.0
 	alerts = frappe.get_all(
-		"Maison Stock Alert",
+		"AWANZ Stock Alert",
 		filters={"boutique": boutique, "status": ("in", ("Open", "Acknowledged"))},
 		fields=["name", "item_code", "item_name", "qty", "reorder_level", "status"],
 		order_by="qty asc",
 		limit=10,
 	)
 	feedback: list[dict[str, Any]] = []
-	if frappe.db.exists("DocType", "Maison Feedback"):
+	if frappe.db.exists("DocType", "AWANZ Feedback"):
 		try:
-			feedback = frappe.get_all("Maison Feedback", filters={"boutique": boutique}, fields=["name", "rating", "comment", "status", "creation"], order_by="creation desc", limit=8)
+			feedback = frappe.get_all("AWANZ Feedback", filters={"boutique": boutique}, fields=["name", "rating", "comment", "status", "creation"], order_by="creation desc", limit=8)
 			for f in feedback:
 				f["creation"] = iso_with_tz(f["creation"])
 		except Exception:
@@ -659,7 +659,7 @@ def _period_arg(period: Any) -> str:
 
 
 def _trend_rows(filters: dict[str, Any], order_by: str, limit: int) -> list[dict[str, Any]]:
-	rows = frappe.get_all("Maison Product Trend", filters=filters, fields=TREND_FIELDS, order_by=order_by, limit=limit)
+	rows = frappe.get_all("AWANZ Product Trend", filters=filters, fields=TREND_FIELDS, order_by=order_by, limit=limit)
 	for r in rows:
 		for k in ("period_from", "period_to", "computed_at"):
 			if r.get(k) is not None:
@@ -691,7 +691,7 @@ def product_trends(scope: str = "chain", boutique: Optional[str] = None, group: 
 
 	*scope* ``chain`` → the ``ALL`` rows; ``boutique`` → rows of *boutique*. *group* filters by item group.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	from maison_pos.insights import trends
 
 	period = _period_arg(period)
@@ -723,7 +723,7 @@ def product_trends(scope: str = "chain", boutique: Optional[str] = None, group: 
 		badges: dict[str, int] = {}
 		for r in rows:
 			badges[r["badge"] or "Steady"] = badges.get(r["badge"] or "Steady", 0) + 1
-		groups = sorted({r["item_group"] for r in frappe.get_all("Maison Product Trend", filters={"boutique": boutique, "period": period}, fields=["item_group"], distinct=True) if r.item_group})
+		groups = sorted({r["item_group"] for r in frappe.get_all("AWANZ Product Trend", filters={"boutique": boutique, "period": period}, fields=["item_group"], distinct=True) if r.item_group})
 		return {
 			"scope": scope,
 			"boutique": boutique,
@@ -743,7 +743,7 @@ def product_trends(scope: str = "chain", boutique: Optional[str] = None, group: 
 @frappe.whitelist()
 def top_products(boutique: Optional[str] = "all", by: str = "net", period: Any = "7d", n: int = 10) -> dict[str, Any]:
 	"""Per-boutique top *n* by net or units with share of boutique sales, plus the item-group × boutique matrix."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	from maison_pos.insights import trends
 
 	period = _period_arg(period)
@@ -763,7 +763,7 @@ def top_products(boutique: Optional[str] = "all", by: str = "net", period: Any =
 			per.setdefault(r["boutique"], []).append(r)
 		# matrix item_group × boutique (net + units) from the same table
 		matrix_rows = frappe.get_all(
-			"Maison Product Trend",
+			"AWANZ Product Trend",
 			filters={"boutique": ("in", boutiques or ["__none__"]), "period": period},
 			fields=["item_group", "boutique", "sum(net) as revenue", "sum(units) as units", "sum(on_hand) as on_hand"],
 			group_by="item_group, boutique",
@@ -783,7 +783,7 @@ def top_products(boutique: Optional[str] = "all", by: str = "net", period: Any =
 			for m in matrix_rows
 			if m.item_group
 		]
-		totals = {b: sum(flt(r["net"]) for r in frappe.get_all("Maison Product Trend", filters={"boutique": b, "period": period}, fields=["net"])) for b in boutiques}
+		totals = {b: sum(flt(r["net"]) for r in frappe.get_all("AWANZ Product Trend", filters={"boutique": b, "period": period}, fields=["net"])) for b in boutiques}
 		return {"period": period, "by": by, "n": n, "boutiques": boutiques, "top": per, "matrix": matrix, "groups": groups, "boutique_net": totals, "last_run": trends.last_run()}
 
 	return _cached(key, build)
@@ -792,7 +792,7 @@ def top_products(boutique: Optional[str] = "all", by: str = "net", period: Any =
 @frappe.whitelist()
 def compute_trends() -> dict[str, Any]:
 	"""On-demand recompute (Head Office / Regional / System Manager)."""
-	assert_roles("Maison Head Office", "Maison Regional", "System Manager")
+	assert_roles("AWANZ Head Office", "AWANZ Regional", "System Manager")
 	from maison_pos.insights.trends import compute_trends as _compute
 
 	return _compute(commit=not frappe.flags.in_test)
@@ -805,7 +805,7 @@ def compute_trends() -> dict[str, Any]:
 def clients_overview(boutique: Optional[str] = None, tiers: Any = None, limit: int = 40) -> dict[str, Any]:
 	"""Churn-risk list for top tiers, follow-up rates per associate (30 d), upcoming dates, recognition,
 	campaign performance (when ``campaigns.performance`` exists). Everything feature-detected."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique or not is_unrestricted():
 		boutique = assert_boutique_access(boutique)
 	boutiques = [boutique] if boutique else get_retail_boutiques()
@@ -814,17 +814,17 @@ def clients_overview(boutique: Optional[str] = None, tiers: Any = None, limit: i
 	tier_filter = [t for t in (tiers if isinstance(tiers, list) else (frappe.parse_json(tiers) if isinstance(tiers, str) and tiers.startswith("[") else (tiers or "").split(","))) if t]
 	limit = min(max(cint(limit) or 40, 1), 200)
 
-	# churn risk: Maison Client Signal rows, top tiers first
+	# churn risk: AWANZ Client Signal rows, top tiers first
 	churn: list[dict[str, Any]] = []
 	upcoming: list[dict[str, Any]] = []
-	if frappe.db.exists("DocType", "Maison Client Signal"):
+	if frappe.db.exists("DocType", "AWANZ Client Signal"):
 		filters: dict[str, Any] = {"status": "Open"}
 		if boutique:
 			filters["boutique"] = boutique
 		elif not is_unrestricted():
 			filters["boutique"] = ("in", boutiques or ["__none__"])
 		fields = ["name", "customer", "customer_name", "boutique", "preferred_associate", "signal_type", "priority", "reason", "churn_risk", "cadence_days", "expected_next_visit", "last_visit", "days_since_last_visit", "visits", "lifetime_spend", "spend_trend"]
-		rows = frappe.get_all("Maison Client Signal", filters=filters, fields=fields, order_by="churn_risk desc, lifetime_spend desc", limit=500)
+		rows = frappe.get_all("AWANZ Client Signal", filters=filters, fields=fields, order_by="churn_risk desc, lifetime_spend desc", limit=500)
 		tiers_by_customer = _tiers_for([r.customer for r in rows])
 		for r in rows:
 			r["tier"] = tiers_by_customer.get(r.customer)
@@ -836,16 +836,16 @@ def clients_overview(boutique: Optional[str] = None, tiers: Any = None, limit: i
 		churn = [r for r in rows if r.signal_type in ("VIP lapsing", "Overdue visit", "Spend drop") or flt(r.churn_risk) >= 0.5][:limit]
 		upcoming = [r for r in rows if r.signal_type in ("Birthday", "Anniversary", "Due this week")][:limit]
 
-	# follow-up rates per associate: CRM tasks (Maison Client Interaction) completed / assigned, 30 d
+	# follow-up rates per associate: CRM tasks (AWANZ Client Interaction) completed / assigned, 30 d
 	follow_ups: list[dict[str, Any]] = []
-	if frappe.db.exists("DocType", "Maison Client Interaction"):
+	if frappe.db.exists("DocType", "AWANZ Client Interaction"):
 		try:
 			fu = frappe.db.sql(
 				"""
 				select i.associate, a.full_name as associate_name, a.boutique,
 					count(i.name) as assigned,
 					sum(case when i.status = 'Done' then 1 else 0 end) as completed
-				from `tabMaison Client Interaction` i left join `tabMaison Associate` a on a.name = i.associate
+				from `tabAWANZ Client Interaction` i left join `tabAWANZ Associate` a on a.name = i.associate
 				where i.creation >= %(f)s and i.associate is not null and i.associate <> '' and (a.boutique in %(b)s or a.boutique is null)
 				group by i.associate, a.full_name, a.boutique order by completed desc
 				""",
@@ -946,7 +946,7 @@ def _low_stock_block(boutiques: list[str]) -> dict[str, Any]:
 
 	counts = open_alert_counts(boutiques)
 	top = frappe.get_all(
-		"Maison Stock Alert",
+		"AWANZ Stock Alert",
 		filters={"status": ("in", ("Open", "Acknowledged")), "boutique": ("in", boutiques or ["__none__"])},
 		fields=["name", "item_code", "item_name", "boutique", "qty", "reorder_level", "status"],
 		order_by="qty asc, first_seen asc",

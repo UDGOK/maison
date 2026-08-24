@@ -1,4 +1,4 @@
-"""Reports API (v0.4 section F): run the Maison Script Reports as JSON, export CSV, period comparison.
+"""Reports API (v0.4 section F): run the AWANZ Script Reports as JSON, export CSV, period comparison.
 
 The dashboard's Reports section links to the desk (``/app/query-report/<name>``) and uses
 ``run`` / ``period_comparison`` for the gold-styled widgets; ``export`` streams the same rows
@@ -17,31 +17,31 @@ from frappe import _
 from frappe.utils import cint, flt, nowdate
 
 from maison_pos.reports import normalize_filters, period_bounds, period_totals
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_roles, get_retail_boutiques, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_roles, get_retail_boutiques, is_unrestricted
 
 REPORTS: list[dict[str, str]] = [
-	{"name": "Maison Sales Tax Summary", "group": "Tax", "description": "Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings."},
-	{"name": "Maison Daily Sales", "group": "Sales", "description": "Per boutique per day: gross, discounts, returns, net, tax, cash, card, tickets, avg ticket, items/ticket."},
-	{"name": "Maison Sales by Item", "group": "Sales", "description": "By item, item group or department (group_by filter); returns netted."},
-	{"name": "Maison Sales by Associate", "group": "Sales", "description": "Tickets, net sales, avg ticket, clients attached per associate."},
-	{"name": "Maison Hourly Sales Heatmap", "group": "Sales", "description": "Weekday × hour net sales per boutique."},
-	{"name": "Maison Client Purchases", "group": "Clients", "description": "RFM per client: recency, frequency, monetary, tier, lifetime."},
-	{"name": "Maison Serial Ledger", "group": "Inventory", "description": "Every serial: received → sold / returned / transferred, current location."},
-	{"name": "Maison Returns", "group": "Returns", "description": "Credit notes by reason / boutique / associate, or line detail."},
+	{"name": "AWANZ Sales Tax Summary", "group": "Tax", "description": "Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings."},
+	{"name": "AWANZ Daily Sales", "group": "Sales", "description": "Per boutique per day: gross, discounts, returns, net, tax, cash, card, tickets, avg ticket, items/ticket."},
+	{"name": "AWANZ Sales by Item", "group": "Sales", "description": "By item, item group or department (group_by filter); returns netted."},
+	{"name": "AWANZ Sales by Associate", "group": "Sales", "description": "Tickets, net sales, avg ticket, clients attached per associate."},
+	{"name": "AWANZ Hourly Sales Heatmap", "group": "Sales", "description": "Weekday × hour net sales per boutique."},
+	{"name": "AWANZ Client Purchases", "group": "Clients", "description": "RFM per client: recency, frequency, monetary, tier, lifetime."},
+	{"name": "AWANZ Serial Ledger", "group": "Inventory", "description": "Every serial: received → sold / returned / transferred, current location."},
+	{"name": "AWANZ Returns", "group": "Returns", "description": "Credit notes by reason / boutique / associate, or line detail."},
 	# --- v0.8 QA D-6 — three reports existed but were unreachable from the dashboard ---
 	# They were missing from this list, so the Reports tab never linked them and
-	# `reports.export?report=Maison Commission Statement` answered 404 (`_check` gates on
+	# `reports.export?report=AWANZ Commission Statement` answered 404 (`_check` gates on
 	# `REPORT_NAMES`) — no CSV of commissions, promotions or campaigns for head office.
-	{"name": "Maison Commission Statement", "group": "Employees", "description": "Commission per associate: entries, rate, base amount and commission, reversals netted. CSV for payroll."},
-	{"name": "Maison Promotion Performance", "group": "Marketing", "description": "Pricing rules and coupons: redemptions, discount given, revenue and discount rate."},
-	{"name": "Maison Campaign Performance", "group": "Marketing", "description": "Campaigns: sends, opens, clicks, direct and assisted attributed revenue."},
+	{"name": "AWANZ Commission Statement", "group": "Employees", "description": "Commission per associate: entries, rate, base amount and commission, reversals netted. CSV for payroll."},
+	{"name": "AWANZ Promotion Performance", "group": "Marketing", "description": "Pricing rules and coupons: redemptions, discount given, revenue and discount rate."},
+	{"name": "AWANZ Campaign Performance", "group": "Marketing", "description": "Campaigns: sends, opens, clicks, direct and assisted attributed revenue."},
 	# --- end v0.8 QA D-6 ---
 ]
 REPORT_NAMES = {r["name"] for r in REPORTS}
 
 
 def _check(report: str) -> str:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if report not in REPORT_NAMES:
 		frappe.throw(_("Unknown report {0}").format(report), frappe.DoesNotExistError)
 	if not frappe.db.exists("Report", report):
@@ -62,8 +62,8 @@ def _run(report: str, filters: dict[str, Any]) -> dict[str, Any]:
 
 @frappe.whitelist()
 def list_reports() -> dict[str, Any]:
-	"""Catalogue of Maison reports with desk links (for the dashboard Reports section)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	"""Catalogue of AWANZ reports with desk links (for the dashboard Reports section)."""
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	return {
 		"reports": [
 			{**r, "installed": bool(frappe.db.exists("Report", r["name"])), "url": f"/app/query-report/{r['name'].replace(' ', '%20')}", "csv": f"/api/method/maison_pos.api.reports.export?report={r['name'].replace(' ', '%20')}"}
@@ -74,7 +74,7 @@ def list_reports() -> dict[str, Any]:
 
 @frappe.whitelist()
 def run(report: str, filters: Any = None) -> dict[str, Any]:
-	"""Execute a Maison report → ``{columns, rows, chart, filters}``. Scoped users are limited to their boutique."""
+	"""Execute an AWANZ report → ``{columns, rows, chart, filters}``. Scoped users are limited to their boutique."""
 	report = _check(report)
 	if isinstance(filters, str):
 		filters = json.loads(filters or "{}")
@@ -114,7 +114,7 @@ def period_comparison(boutique: Optional[str] = None, company: Optional[str] = N
 	Each block: ``{label, current: {net, gross, tax, tickets, returns, avg_ticket}, previous: {...},
 	delta: {net, tickets, avg_ticket} (absolute), pct: {...} (percent, null when previous is 0)}``.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique or not is_unrestricted():
 		from maison_pos.scoping import assert_boutique_access
 

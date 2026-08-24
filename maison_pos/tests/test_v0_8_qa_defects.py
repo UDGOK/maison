@@ -68,7 +68,7 @@ class QABase(FrappeTestCase):
 
 	def setUp(self):
 		frappe.set_user("Administrator")
-		self.sp = f"maison_qa_{frappe.generate_hash(length=6)}"
+		self.sp = f"awanz_qa_{frappe.generate_hash(length=6)}"
 		frappe.db.savepoint(self.sp)
 
 	def tearDown(self):
@@ -263,7 +263,7 @@ class TestReturnAfterPointsRedeemedV08(QABase):
 		# (points are earned on what is actually paid), so almost nothing is left to claw back
 		self._sell(round(earned * self.conversion, 2), redeem=self._balance())
 		self.assertLess(self._balance(), earned)
-		frappe.set_user(frappe.db.get_value("Maison Associate", {"boutique": NYC, "role": "Associate", "enabled": 1}, "user"))
+		frappe.set_user(frappe.db.get_value("AWANZ Associate", {"boutique": NYC, "role": "Associate", "enabled": 1}, "user"))
 		with self.assertRaises(returns.ManagerRequiredError) as caught:
 			returns.return_items(first.name, [{"item_code": ITEM, "qty": 1, "reason": "Change of mind"}], refund_method="cash")
 		self.assertIn("already spent", str(caught.exception))
@@ -304,14 +304,14 @@ class TestSalonQAV08(QABase):
 		self.assertEqual(salon._resolve_code(number[2:]), customer)  # the keypad can only type digits
 
 	def test_c2_the_cloudchaserz_seed_has_a_salon_playlist_step(self):
-		if not frappe.db.exists("DocType", "Maison Salon Playlist"):
+		if not frappe.db.exists("DocType", "AWANZ Salon Playlist"):
 			self.skipTest("salon not installed")
 		from maison_pos.setup.cloudchaserz import salon as cc_salon
 
 		out = cc_salon.seed_salon()
 		self.assertTrue(out.get("playlists"), out)
-		self.assertTrue(frappe.db.exists("Maison Salon Playlist", cc_salon.GLOBAL_PLAYLIST["title"]))
-		doc = frappe.get_doc("Maison Salon Playlist", cc_salon.GLOBAL_PLAYLIST["title"])
+		self.assertTrue(frappe.db.exists("AWANZ Salon Playlist", cc_salon.GLOBAL_PLAYLIST["title"]))
+		doc = frappe.get_doc("AWANZ Salon Playlist", cc_salon.GLOBAL_PLAYLIST["title"])
 		self.assertTrue(doc.enabled)
 		self.assertTrue(doc.welcome_line)
 
@@ -326,10 +326,10 @@ class TestWarehouseQAV08(QABase):
 		ensure_warehouse_admin()
 
 	def _alert(self, item: str = ITEM, qty: float = 1) -> str:
-		warehouse = frappe.db.get_value("Maison Boutique", STORE, "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", STORE, "warehouse")
 		return frappe.get_doc(
 			{
-				"doctype": "Maison Stock Alert",
+				"doctype": "AWANZ Stock Alert",
 				"item_code": item,
 				"warehouse": warehouse,
 				"boutique": STORE,
@@ -352,13 +352,13 @@ class TestWarehouseQAV08(QABase):
 		"""The alert's link to the draft Material Request used to make the whole call roll back."""
 		raised = self._request_from_alert()
 		req, alert = raised["request"], raised["alert"]
-		self.assertEqual(frappe.db.get_value("Maison Stock Alert", alert, "material_request"), req["material_request"])
+		self.assertEqual(frappe.db.get_value("AWANZ Stock Alert", alert, "material_request"), req["material_request"])
 		frappe.set_user(WH_ADMIN)
 		out = shipping.reject(req["name"], "Not stocked at HQ")
 		frappe.set_user("Administrator")
 		self.assertEqual(out["request"]["status"], "Rejected")
 		self.assertFalse(frappe.db.exists("Material Request", req["material_request"]))
-		self.assertIsNone(frappe.db.get_value("Maison Stock Alert", alert, "material_request"))
+		self.assertIsNone(frappe.db.get_value("AWANZ Stock Alert", alert, "material_request"))
 
 	def test_wd2_the_server_reports_the_age_of_a_request(self):
 		"""The desk used to age a request from a zone-less string parsed in the browser's zone."""
@@ -395,7 +395,7 @@ class TestWarehouseQAV08(QABase):
 		self.assertGreater(out["sent"], 0)
 
 	def test_wd4_a_second_label_purchase_is_refused_unless_it_is_explicit(self):
-		stock_main_warehouse(ITEM, 20, _source_warehouse(exclude=frappe.db.get_value("Maison Boutique", STORE, "warehouse")))
+		stock_main_warehouse(ITEM, 20, _source_warehouse(exclude=frappe.db.get_value("AWANZ Store", STORE, "warehouse")))
 		frappe.set_user(_manager(STORE))
 		req = inventory.replenish(STORE, lines=[{"item_code": ITEM, "qty": 2}])["request"]
 		frappe.set_user(WH_ADMIN)
@@ -407,16 +407,16 @@ class TestWarehouseQAV08(QABase):
 		with self.assertRaises(frappe.ValidationError) as caught:
 			shipping.buy(sh["name"], quote["rates"][-1]["provider_rate_id"])
 		self.assertIn("already has", str(caught.exception))
-		self.assertEqual(frappe.db.get_value("Maison Shipment", sh["name"], "tracking_no"), first["tracking_no"])
+		self.assertEqual(frappe.db.get_value("AWANZ Shipment", sh["name"], "tracking_no"), first["tracking_no"])
 		# an explicit replacement is allowed and records what it voided
 		again = shipping.buy(sh["name"], quote["rates"][-1]["provider_rate_id"], replace=1)
 		frappe.set_user("Administrator")
 		self.assertNotEqual(again["tracking_no"], first["tracking_no"])
 		self.assertEqual(again["voided_label"]["tracking_no"], first["tracking_no"])
-		self.assertIn(first["tracking_no"], frappe.db.get_value("Maison Shipment", sh["name"], "notes") or "")
+		self.assertIn(first["tracking_no"], frappe.db.get_value("AWANZ Shipment", sh["name"], "notes") or "")
 
 	def test_wd5_the_cycle_count_draft_belongs_to_the_counter(self):
-		warehouse = frappe.db.get_value("Maison Boutique", STORE, "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", STORE, "warehouse")
 		ensure_stock(ITEM, STORE, 5)
 		on_hand = flt(frappe.db.get_value("Bin", {"item_code": ITEM, "warehouse": warehouse}, "actual_qty"))
 		manager = _manager(STORE)
@@ -441,21 +441,21 @@ class TestWarehouseQAV08(QABase):
 		self.assertIsNotNone(row.get("first_seen"))
 		self.assertIsNotNone(row.get("last_seen"))
 		# and the plain framework call still does not — this is why the query builder is used
-		dropped = frappe.get_all("Maison Stock Alert", filters={"name": name}, fields=["name", "first_seen"])
+		dropped = frappe.get_all("AWANZ Stock Alert", filters={"name": name}, fields=["name", "first_seen"])
 		self.assertNotIn("first_seen", dropped[0])
 
 	def test_wn1_cancelling_a_shipment_puts_its_request_back_on_the_wall(self):
-		stock_main_warehouse(ITEM, 20, _source_warehouse(exclude=frappe.db.get_value("Maison Boutique", STORE, "warehouse")))
+		stock_main_warehouse(ITEM, 20, _source_warehouse(exclude=frappe.db.get_value("AWANZ Store", STORE, "warehouse")))
 		frappe.set_user(_manager(STORE))
 		req = inventory.replenish(STORE, lines=[{"item_code": ITEM, "qty": 2}])["request"]
 		frappe.set_user(WH_ADMIN)
 		sh = shipping.approve(req["name"])["shipment"]
-		self.assertEqual(frappe.db.get_value("Maison Replenishment Request", req["name"], "status"), "Approved")
+		self.assertEqual(frappe.db.get_value("AWANZ Replenishment Request", req["name"], "status"), "Approved")
 		out = shipping.mark(sh["name"], "Cancelled", reason="Damaged in the aisle")
 		frappe.set_user("Administrator")
 		self.assertEqual(out["status"], "Cancelled")
 		self.assertEqual(out["request_reopened"], req["name"])
-		row = frappe.db.get_value("Maison Replenishment Request", req["name"], ["status", "shipment", "material_request"], as_dict=True)
+		row = frappe.db.get_value("AWANZ Replenishment Request", req["name"], ["status", "shipment", "material_request"], as_dict=True)
 		self.assertEqual(row.status, "Pending Approval")
 		self.assertIsNone(row.shipment)
 		if req["material_request"] and frappe.db.exists("Material Request", req["material_request"]):
@@ -464,7 +464,7 @@ class TestWarehouseQAV08(QABase):
 		self.assertTrue(any("cancelled" in (n or "").lower() for n in notes), notes)
 
 	def test_wn2_every_leg_of_a_multi_leg_receipt_is_linked(self):
-		stock_main_warehouse(ITEM, 20, _source_warehouse(exclude=frappe.db.get_value("Maison Boutique", STORE, "warehouse")))
+		stock_main_warehouse(ITEM, 20, _source_warehouse(exclude=frappe.db.get_value("AWANZ Store", STORE, "warehouse")))
 		frappe.set_user(_manager(STORE))
 		req = inventory.replenish(STORE, lines=[{"item_code": ITEM, "qty": 4}])["request"]
 		frappe.set_user(WH_ADMIN)
@@ -479,7 +479,7 @@ class TestWarehouseQAV08(QABase):
 		self.assertIn(partial["stock_entry_receive"], final["receipt_entries"])
 		self.assertIn(final["stock_entry_receive"], final["receipt_entries"])
 		# the Link field still holds the first leg, as every existing caller expects
-		self.assertEqual(frappe.db.get_value("Maison Shipment", sh["name"], "stock_entry_receive"), partial["stock_entry_receive"])
+		self.assertEqual(frappe.db.get_value("AWANZ Shipment", sh["name"], "stock_entry_receive"), partial["stock_entry_receive"])
 
 	def test_wn4_a_label_bought_seconds_ago_is_not_already_in_transit(self):
 		"""The simulated tracker ran on UTC while `shipped_at` is site-local, so it ran ahead."""
@@ -500,7 +500,7 @@ class TestDashboardQAV08(QABase):
 	def test_d2_avg_ticket_vs_boutique_compares_like_with_like(self):
 		"""The associate's average was gross, the store's was net of returns: every ratio +5 %."""
 		ensure_stock(ITEM, NYC, 20)
-		associate = frappe.db.get_value("Maison Associate", {"boutique": NYC, "role": "Associate", "enabled": 1}, "name")
+		associate = frappe.db.get_value("AWANZ Associate", {"boutique": NYC, "role": "Associate", "enabled": 1}, "name")
 		sold = sales.submit_batch([pos_invoice(boutique=NYC, items=[{"item_code": ITEM, "qty": 1, "rate": 100}], payments=[{"mode_of_payment": "Cash", "amount": 108.88}], associate=associate)])["results"][0]
 		self.assertEqual(sold["status"], "ok", sold)
 		returns.return_items(sold["invoice_name"], [{"item_code": ITEM, "qty": 1, "reason": "Change of mind"}], refund_method="cash")
@@ -520,7 +520,7 @@ class TestDashboardQAV08(QABase):
 		self.assertEqual(row["avg_ticket_basis"], "sale (net of tax, returns excluded)")
 
 	def test_d3_the_heatmap_never_moves_a_sale_into_a_different_hour(self):
-		from maison_pos.maison_pos.report.maison_hourly_sales_heatmap import maison_hourly_sales_heatmap as heatmap
+		from maison_pos.awanz_pos.report.awanz_hourly_sales_heatmap import awanz_hourly_sales_heatmap as heatmap
 
 		ensure_stock(ITEM, NYC, 20)
 		sold = sales.submit_batch([pos_invoice(boutique=NYC, items=[{"item_code": ITEM, "qty": 1, "rate": 50}], payments=[{"mode_of_payment": "Cash", "amount": 54.44}])])["results"][0]
@@ -552,7 +552,7 @@ class TestDashboardQAV08(QABase):
 		mop = "Exchange Credit"
 		from maison_pos.api.returns import ensure_exchange_mode_of_payment
 
-		ensure_exchange_mode_of_payment(frappe.db.get_value("Maison Boutique", NYC, "company"))
+		ensure_exchange_mode_of_payment(frappe.db.get_value("AWANZ Store", NYC, "company"))
 		payload = pos_invoice(boutique=NYC, items=[{"item_code": ITEM, "qty": 1, "rate": 40}], payments=[{"mode_of_payment": mop, "amount": 43.55}])
 		result = sales.submit_batch([payload])["results"][0]
 		self.assertEqual(result["status"], "ok", result)
@@ -572,11 +572,11 @@ class TestDashboardQAV08(QABase):
 
 	def test_d6_every_listed_report_can_be_run_and_exported(self):
 		names = {r["name"] for r in reports_api.REPORTS}
-		for missing in ("Maison Commission Statement", "Maison Promotion Performance", "Maison Campaign Performance"):
+		for missing in ("AWANZ Commission Statement", "AWANZ Promotion Performance", "AWANZ Campaign Performance"):
 			self.assertIn(missing, names)
 		listed = {r["name"] for r in reports_api.list_reports()["reports"]}
 		self.assertEqual(listed, names)
-		for name in ("Maison Commission Statement", "Maison Promotion Performance", "Maison Campaign Performance"):
+		for name in ("AWANZ Commission Statement", "AWANZ Promotion Performance", "AWANZ Campaign Performance"):
 			if not frappe.db.exists("Report", name):
 				continue
 			out = reports_api.run(name, filters={"from_date": nowdate(), "to_date": nowdate()})
@@ -608,7 +608,7 @@ class TestDashboardQAV08(QABase):
 		self.assertAlmostEqual(sum(r["share_pct"] for r in rows), 100.0, places=2)
 
 	def test_d14_the_serial_ledger_is_scoped_and_validates_its_filters(self):
-		from maison_pos.maison_pos.report.maison_serial_ledger import maison_serial_ledger as ledger
+		from maison_pos.awanz_pos.report.awanz_serial_ledger import awanz_serial_ledger as ledger
 
 		with self.assertRaises(frappe.ValidationError):
 			ledger.execute({"from_date": nowdate(), "to_date": add_days(nowdate(), -3)})

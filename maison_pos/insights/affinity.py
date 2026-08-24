@@ -167,16 +167,16 @@ def build_model(lookback_days: int = LOOKBACK_DAYS) -> AffinityModel:
 	return m
 
 
-_CACHE_KEY = "maison_affinity_model"
+_CACHE_KEY = "awanz_affinity_model"
 
 
 def get_model(refresh: bool = False) -> AffinityModel:
 	"""Process-level cache of the model (rebuilt by the weekly job or after an hour)."""
-	cache = getattr(frappe.local, "_maison_affinity", None)
+	cache = getattr(frappe.local, "_awanz_affinity", None)
 	if cache and not refresh:
 		return cache
 	m = build_model()
-	frappe.local._maison_affinity = m
+	frappe.local._awanz_affinity = m
 	return m
 
 
@@ -230,7 +230,7 @@ def popular_items(limit: int = 50, lookback_days: int = LOOKBACK_DAYS) -> list[d
 def _stock_for(codes: Iterable[str], boutique: Optional[str]) -> dict[str, float]:
 	if not boutique:
 		return {}
-	warehouse = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+	warehouse = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 	if not warehouse:
 		return {}
 	rows = frappe.get_all("Bin", filters={"warehouse": warehouse, "item_code": ("in", list(codes))}, fields=["item_code", "actual_qty"])
@@ -323,26 +323,26 @@ def recommend_for_client(customer: str, n: int = 3, boutique: Optional[str] = No
 
 
 def compute_client_recommendations(n: int = 5, lookback_days: int = LOOKBACK_DAYS) -> dict[str, Any]:
-	"""Weekly job: refresh ``Maison Client Recommendation`` for every client with a purchase."""
+	"""Weekly job: refresh ``AWANZ Client Recommendation`` for every client with a purchase."""
 	baskets, owned = load_baskets(lookback_days)
 	model = AffinityModel.from_baskets(baskets)
 	for items in owned.values():
 		if len(items) > 1:
 			model.add_basket(items, CLIENT_BASKET_WEIGHT)
-	frappe.local._maison_affinity = model
+	frappe.local._awanz_affinity = model
 
 	customers = sorted(owned.keys())
 	names = {r.name: r.customer_name for r in frappe.get_all("Customer", filters={"name": ("in", customers)}, fields=["name", "customer_name"])} if customers else {}
 	boutique_of = preferred_boutiques(customers)
 	computed_at = frappe.utils.now_datetime()
 	written = 0
-	frappe.db.delete("Maison Client Recommendation")
+	frappe.db.delete("AWANZ Client Recommendation")
 	for customer in customers:
 		recs = recommend_for_client(customer, n=n, boutique=boutique_of.get(customer), model=model, owned=owned[customer])
 		for i, r in enumerate(recs, start=1):
 			frappe.get_doc(
 				{
-					"doctype": "Maison Client Recommendation",
+					"doctype": "AWANZ Client Recommendation",
 					"customer": customer,
 					"customer_name": names.get(customer),
 					"boutique": boutique_of.get(customer),
@@ -364,7 +364,7 @@ def compute_client_recommendations(n: int = 5, lookback_days: int = LOOKBACK_DAY
 
 def cached_recommendations(customer: str, n: int = 3, boutique: Optional[str] = None, max_age_days: int = 8) -> Optional[list[dict[str, Any]]]:
 	rows = frappe.get_all(
-		"Maison Client Recommendation",
+		"AWANZ Client Recommendation",
 		filters={"customer": customer},
 		fields=["item_code", "score", "lift", "confidence", "because", "reason", "computed_at"],
 		order_by="rank asc",

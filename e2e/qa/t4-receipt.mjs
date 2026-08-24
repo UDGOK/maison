@@ -81,10 +81,10 @@ try {
   await shot(page, 'settings-reader')
   await page.goBack()
   await page.waitForSelector('.receipt-view', { timeout: 20000 })
-  await page.evaluate(() => { window.__maisonLastReaderPrint = undefined })
+  await page.evaluate(() => { window.__awanzLastReaderPrint = undefined })
   await page.click('.receipt-view button:has-text("Print receipt")')
   await page.waitForTimeout(4000)
-  const printedPng = await page.evaluate(() => window.__maisonLastReaderPrint || null)
+  const printedPng = await page.evaluate(() => window.__awanzLastReaderPrint || null)
   const printMsg = (await page.locator('.receipt-view .print-meta').innerText()).replace(/\s+/g, ' ')
   record('4.4 print → reader canvas route (V660p)', !!printedPng && printedPng.startsWith('data:image/png') && /Printed on/i.test(printMsg),
     `route pill="${routePill}"; canvas PNG ${printedPng ? printedPng.length + ' chars' : 'none'}; meta="${printMsg}"`)

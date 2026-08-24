@@ -1,4 +1,4 @@
-// Maison POS v0.4 end-to-end run against the REAL bench: operations & intelligence.
+// AWANZ POS v0.4 end-to-end run against the REAL bench: operations & intelligence.
 //
 // Run:  PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin \
 //       BENCH=/home/claude/frappe-bench node e2e/pos.v04.e2e.mjs
@@ -6,16 +6,16 @@
 //       BENCH (bench dir; when set `inventory.low_stock_scan` runs through `bench execute`, the scheduler job itself)
 //
 // Flow (CHI-OAK):
-//   associate: clock-in on Unlock (Maison Shift + HRMS Employee Checkin) → Settings: pick the V660p reader →
+//   associate: clock-in on Unlock (AWANZ Shift + HRMS Employee Checkin) → Settings: pick the V660p reader →
 //   Sell: serialized watch + coupon WELCOME10 → card → receipt shows the coupon, server invoice carries it →
-//   print = V660p canvas route (simulated reader with has_printer → `terminal.print(canvas)` → window.__maisonLastReaderPrint) →
+//   print = V660p canvas route (simulated reader with has_printer → `terminal.print(canvas)` → window.__awanzLastReaderPrint) →
 //   Shift: low-stock card lists the alert produced by inventory.low_stock_scan →
 //   Client: Clienteling tab shows wishlist + owned pieces; attaching the client shows "Suggested for this client" tiles
 //   manager: Returns: the card sale line → credit note, serial back in stock, Stripe (simulated) refund, return receipt on the reader →
 //   cash accessory sale → exchange for a pricier piece, difference paid cash → credit note + new invoice
 //   web order (placed through the webshop API as the demo shopper) → Web orders: pick → ready → collect → Sales Invoice
-//   guest: /r/<token> feedback (5 + comment) → Maison Feedback visible to HQ (feedback.list / dashboard live_summary)
-//   reports.run Maison Sales Tax Summary → columns + rows (today's sales included)
+//   guest: /r/<token> feedback (5 + comment) → AWANZ Feedback visible to HQ (feedback.list / dashboard live_summary)
+//   reports.run AWANZ Sales Tax Summary → columns + rows (today's sales included)
 import { chromium, request } from 'playwright'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -118,7 +118,7 @@ async function freshDevice(page) {
   await page.evaluate(async () => {
     localStorage.clear()
     sessionStorage.clear()
-    localStorage.setItem('maisonE2E', '1')
+    localStorage.setItem('awanzE2E', '1')
     const dbs = (await indexedDB.databases?.()) || [{ name: 'maison_pos' }]
     await Promise.all(dbs.map((d) => new Promise((r) => { const req = indexedDB.deleteDatabase(d.name); req.onsuccess = req.onerror = req.onblocked = () => r() })))
   })
@@ -215,7 +215,7 @@ const admin = await apiFor(ADMIN)
 async function ensureStock(code, min = 6, qty = 20) {
   const b = (await admin.list('Bin', { item_code: code, warehouse: `${BOUTIQUE} - MSN` }, ['actual_qty']))[0]
   if (Number(b?.actual_qty || 0) >= min) return
-  const bq = (await admin.list('Maison Boutique', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
+  const bq = (await admin.list('AWANZ Store', { name: BOUTIQUE }, ['company', 'warehouse']))[0]
   await admin.post('frappe.client.insert', {
     doc: {
       doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,
@@ -238,12 +238,12 @@ log(`bootstrap: ${Object.keys(itemByCode).length} items, coupon ${COUPON}, run $
 let before = {}
 let reorderRow = null
 try {
-  const coupon = (await admin.list('Maison Coupon', { code: COUPON, enabled: 1 }, ['name', 'discount_type', 'value', 'usage', 'used_count']))[0]
-  record('demo coupon WELCOME10 exists (Maison Coupon)', !!coupon, JSON.stringify(coupon))
+  const coupon = (await admin.list('AWANZ Coupon', { code: COUPON, enabled: 1 }, ['name', 'discount_type', 'value', 'usage', 'used_count']))[0]
+  record('demo coupon WELCOME10 exists (AWANZ Coupon)', !!coupon, JSON.stringify(coupon))
   before.coupon_used = coupon?.used_count ?? 0
   // leave the associate clocked out so the Unlock screen offers "Clock in"
-  for (const s of await admin.list('Maison Shift', { associate: ASSOC.usr, status: ['in', ['On shift', 'On break']] }, ['name'])) {
-    await admin.post('maison_pos.api.hr.clock_out', { associate: ASSOC.usr }).catch(() => admin.setValue('Maison Shift', s.name, 'status', 'Closed'))
+  for (const s of await admin.list('AWANZ Shift', { associate: ASSOC.usr, status: ['in', ['On shift', 'On break']] }, ['name'])) {
+    await admin.post('maison_pos.api.hr.clock_out', { associate: ASSOC.usr }).catch(() => admin.setValue('AWANZ Shift', s.name, 'status', 'Closed'))
   }
   before.checkins = (await admin.list('Employee Checkin', { log_type: 'IN' }, ['name'], 500).catch(() => [])).length
   // low stock: push the reorder level of ALERT_ITEM at CHI-OAK above its stock (restored at the end)
@@ -257,7 +257,7 @@ try {
   const scan = runLowStockScan()
   const alerts = await admin.get('maison_pos.api.inventory.alerts', { boutique: BOUTIQUE })
   const alert = (alerts.alerts || alerts.rows || alerts).find?.((a) => a.item_code === ALERT_ITEM && ['Open', 'Acknowledged'].includes(a.status))
-  record('inventory.low_stock_scan raises a Maison Stock Alert for AC-001 @ CHI-OAK', !!alert, `${scan.via}: ${scan.out || ''} · alert ${alert?.name} qty ${alert?.qty} / level ${alert?.reorder_level}`)
+  record('inventory.low_stock_scan raises an AWANZ Stock Alert for AC-001 @ CHI-OAK', !!alert, `${scan.via}: ${scan.out || ''} · alert ${alert?.name} qty ${alert?.qty} / level ${alert?.reorder_level}`)
   before.feedback = (await admin.get('maison_pos.api.feedback.list', { boutique: BOUTIQUE, limit: 200 })).length
   before.live = await admin.get('maison_pos.api.dashboard.live_summary')
 } catch (e) {
@@ -292,9 +292,9 @@ let couponSerial = null
     await typePin(page, ASSOC.pin)
     await page.waitForSelector('.topbar', { timeout: 20000 })
     await page.waitForSelector('.tile', { timeout: 20000 })
-    const shiftRow = (await admin.list('Maison Shift', { associate: ASSOC.usr, status: ['in', ['On shift', 'On break']] }, ['name', 'boutique', 'clock_in', 'checkin_in', 'status']))[0]
+    const shiftRow = (await admin.list('AWANZ Shift', { associate: ASSOC.usr, status: ['in', ['On shift', 'On break']] }, ['name', 'boutique', 'clock_in', 'checkin_in', 'status']))[0]
     const checkins = (await admin.list('Employee Checkin', { log_type: 'IN' }, ['name', 'employee', 'time'], 500).catch(() => [])).length
-    record('clock-in on Unlock → open Maison Shift for the associate at CHI-OAK', !!shiftRow && shiftRow.boutique === BOUTIQUE, `${status0} → ${JSON.stringify(shiftRow)}`)
+    record('clock-in on Unlock → open AWANZ Shift for the associate at CHI-OAK', !!shiftRow && shiftRow.boutique === BOUTIQUE, `${status0} → ${JSON.stringify(shiftRow)}`)
     record('clock-in → HRMS Employee Checkin (IN) created', checkins > before.checkins || !!shiftRow?.checkin_in, `checkins ${before.checkins} → ${checkins}; shift.checkin_in=${shiftRow?.checkin_in}`)
 
     // reader picker: Counter 1 · V660p (has printer)
@@ -372,15 +372,15 @@ let couponSerial = null
     record('card sale synced; on-screen 80 mm receipt shows the coupon', rs.pill === 'Synced' && receiptTxt.includes(COUPON), `${rs.pill} · uuid ${rs.uuid}`)
     couponSale = await invoiceForUuid(admin, rs.uuid)
     record('server Sales Invoice carries maison_coupon + discount, the client and a terminal ref', !!couponSale && couponSale.maison_coupon === COUPON && couponSale.maison_coupon_discount > 0 && !!couponSale.maison_terminal_ref && couponSale.customer === CLIENT.customer, JSON.stringify(couponSale))
-    const coupon2 = (await admin.list('Maison Coupon', { code: COUPON }, ['used_count']))[0]
-    record('coupon redemption counted (used_count +1, Maison Coupon Redemption row)', coupon2.used_count === before.coupon_used + 1 && (await admin.list('Maison Coupon Redemption', { sales_invoice: couponSale?.name }, ['name'])).length === 1, `used ${before.coupon_used} → ${coupon2.used_count}`)
+    const coupon2 = (await admin.list('AWANZ Coupon', { code: COUPON }, ['used_count']))[0]
+    record('coupon redemption counted (used_count +1, AWANZ Coupon Redemption row)', coupon2.used_count === before.coupon_used + 1 && (await admin.list('AWANZ Coupon Redemption', { sales_invoice: couponSale?.name }, ['name'])).length === 1, `used ${before.coupon_used} → ${coupon2.used_count}`)
     await shot(page, 'receipt-coupon')
 
     // V660p print route: simulated reader with has_printer → terminal.print(canvas)
-    await page.evaluate(() => { window.__maisonLastReaderPrint = undefined })
+    await page.evaluate(() => { window.__awanzLastReaderPrint = undefined })
     await page.click('.receipt-view button:has-text("Print receipt")')
-    await page.waitForFunction(() => typeof window.__maisonLastReaderPrint === 'string', null, { timeout: 15000 }).catch(() => {})
-    const printed = await page.evaluate(() => window.__maisonLastReaderPrint || null)
+    await page.waitForFunction(() => typeof window.__awanzLastReaderPrint === 'string', null, { timeout: 15000 }).catch(() => {})
+    const printed = await page.evaluate(() => window.__awanzLastReaderPrint || null)
     const printedMsg = (await page.locator('.receipt-view').textContent()).replace(/\s+/g, ' ')
     const png = printed ? Buffer.from(printed.split(',')[1], 'base64') : null
     const width = png && png.length > 24 ? png.readUInt32BE(16) : 0
@@ -448,16 +448,16 @@ let cashSale = null
     record('credit note created (is_return, against the sale, submitted, card refund recorded)', !!cn && cn.is_return === 1 && cn.return_against === couponSale.name && cn.docstatus === 1 && /card/i.test(cn.maison_refund_method || '') && !!cn.maison_refund_id, JSON.stringify(cn))
     const sn = await admin.value('Serial No', couponSerial, ['warehouse', 'status'])
     record('returned serial is back in the boutique warehouse (sellable)', sn?.warehouse === WAREHOUSE, JSON.stringify(sn))
-    const comm = await admin.list('Maison Commission Entry', { sales_invoice: creditNote }, ['name', 'commission_amount', 'is_reversal']).catch(() => [])
+    const comm = await admin.list('AWANZ Commission Entry', { sales_invoice: creditNote }, ['name', 'commission_amount', 'is_reversal']).catch(() => [])
     record('commission reversal entry on the credit note', comm.length >= 1 && comm.every((c) => c.is_reversal === 1 && c.commission_amount < 0), JSON.stringify(comm))
-    await page.evaluate(() => { window.__maisonLastReaderPrint = undefined })
+    await page.evaluate(() => { window.__awanzLastReaderPrint = undefined })
     await page.click('button:has-text("Print return receipt")')
-    await page.waitForFunction(() => typeof window.__maisonLastReaderPrint === 'string', null, { timeout: 15000 }).catch(() => {})
-    const rprint = await page.evaluate(() => window.__maisonLastReaderPrint || null)
+    await page.waitForFunction(() => typeof window.__awanzLastReaderPrint === 'string', null, { timeout: 15000 }).catch(() => {})
+    const rprint = await page.evaluate(() => window.__awanzLastReaderPrint || null)
     record('return receipt printed on the reader (canvas route)', !!rprint && rprint.startsWith('data:image/png'), rprint ? `${Math.round(rprint.length / 1024)} KB data URL` : 'no bitmap')
-    const rrRes = creditNote ? await admin.ctx.get('/printview', { params: { doctype: 'Sales Invoice', name: creditNote, format: 'Maison Return Receipt', no_letterhead: 1 } }) : null
+    const rrRes = creditNote ? await admin.ctx.get('/printview', { params: { doctype: 'Sales Invoice', name: creditNote, format: 'AWANZ Return Receipt', no_letterhead: 1 } }) : null
     const rr = rrRes ? await rrRes.text() : ''
-    record('Maison Return Receipt print format renders for the credit note (/printview)', !!rrRes && rrRes.ok() && /return/i.test(rr) && rr.includes(couponSerial) && !/Jinja|Traceback/.test(rr), `${rrRes?.status()} ${rr.length} chars`)
+    record('AWANZ Return Receipt print format renders for the credit note (/printview)', !!rrRes && rrRes.ok() && /return/i.test(rr) && rr.includes(couponSerial) && !/Jinja|Traceback/.test(rr), `${rrRes?.status()} ${rr.length} chars`)
     await shot(page, 'returns-printed')
 
     // --- cash accessory sale → exchange for a pricier piece (difference paid cash) ---
@@ -588,7 +588,7 @@ if (couponSale?.maison_receipt_token) {
     const rows = await admin.get('maison_pos.api.feedback.list', { boutique: BOUTIQUE, limit: 200 })
     const mine = rows.find((r) => (r.comment || '').includes(RUN))
     const summary = await admin.get('maison_pos.api.feedback.summary', { days: 30 })
-    record('feedback stored as Maison Feedback (rating 5, boutique, associate) and visible to HQ via feedback.list', !!mine && mine.rating === 5 && mine.boutique === BOUTIQUE && !!mine.associate, `${thanks} · ${JSON.stringify(mine)}`)
+    record('feedback stored as AWANZ Feedback (rating 5, boutique, associate) and visible to HQ via feedback.list', !!mine && mine.rating === 5 && mine.boutique === BOUTIQUE && !!mine.associate, `${thanks} · ${JSON.stringify(mine)}`)
     record('HQ dashboard tile (feedback.summary) counts the new rating', JSON.stringify(summary).includes(BOUTIQUE) && JSON.stringify(summary).includes(RUN), JSON.stringify(summary).slice(0, 240))
     await page.reload()
     await page.waitForLoadState('networkidle')
@@ -602,23 +602,23 @@ if (couponSale?.maison_receipt_token) {
 }
 
 // ---------------------------------------------------------------------------------
-// 5. Reports: Maison Sales Tax Summary via reports.run (Administrator + boutique-scoped manager)
+// 5. Reports: AWANZ Sales Tax Summary via reports.run (Administrator + boutique-scoped manager)
 try {
   const today = new Date().toISOString().slice(0, 10)
   const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
-  const rep = await admin.get('maison_pos.api.reports.run', { report: 'Maison Sales Tax Summary', filters: JSON.stringify({ from_date: from, to_date: today }) })
+  const rep = await admin.get('maison_pos.api.reports.run', { report: 'AWANZ Sales Tax Summary', filters: JSON.stringify({ from_date: from, to_date: today }) })
   const cols = (rep.columns || []).map((c) => c.fieldname || c.label || c)
   const chi = (rep.rows || []).filter((r) => JSON.stringify(r).includes(BOUTIQUE))
-  record('Maison Sales Tax Summary runs via reports.run (columns + rows, CHI-OAK present)', cols.length >= 5 && (rep.rows || []).length >= 1 && chi.length >= 1, `${cols.length} columns ${rep.rows.length} rows · ${cols.slice(0, 8).join(', ')}`)
+  record('AWANZ Sales Tax Summary runs via reports.run (columns + rows, CHI-OAK present)', cols.length >= 5 && (rep.rows || []).length >= 1 && chi.length >= 1, `${cols.length} columns ${rep.rows.length} rows · ${cols.slice(0, 8).join(', ')}`)
   const mgr = await apiFor(MANAGER)
-  const rep2 = await mgr.get('maison_pos.api.reports.run', { report: 'Maison Sales Tax Summary', filters: JSON.stringify({ from_date: from, to_date: today }) })
+  const rep2 = await mgr.get('maison_pos.api.reports.run', { report: 'AWANZ Sales Tax Summary', filters: JSON.stringify({ from_date: from, to_date: today }) })
   const other = (rep2.rows || []).filter((r) => /NYC-5AV|MIA-DD/.test(JSON.stringify(r)))
   record('boutique manager sees only CHI-OAK rows in the tax summary', (rep2.rows || []).length >= 1 && other.length === 0, `${rep2.rows.length} rows, ${other.length} foreign`)
   const lst = await mgr.get('maison_pos.api.reports.list_reports')
-  record('reports.list_reports lists the 8 Maison reports as installed', (lst.reports || []).length === 8 && lst.reports.every((r) => r.installed), lst.reports.map((r) => r.name.replace('Maison ', '')).join(', '))
+  record('reports.list_reports lists the 11 AWANZ reports as installed', (lst.reports || []).length === 11 && lst.reports.every((r) => r.installed), lst.reports.map((r) => r.name.replace('AWANZ ', '')).join(', '))
   await mgr.dispose()
 } catch (e) {
-  record('Maison Sales Tax Summary runs via reports.run', false, String(e))
+  record('AWANZ Sales Tax Summary runs via reports.run', false, String(e))
 }
 
 // ---------------------------------------------------------------------------------

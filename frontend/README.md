@@ -1,6 +1,6 @@
-# Maison POS — frontend
+# AWANZ POS — frontend
 
-Offline-first Vue 3 PWA for the Maison boutique point of sale. Builds into
+Offline-first Vue 3 PWA for the AWANZ boutique point of sale. Builds into
 `../maison_pos/public/pos/` and is served by Frappe at `/pos` (`maison_pos/www/pos.html`).
 
 Stack: Vue 3 + TypeScript + Vite + Pinia + vue-router + vite-plugin-pwa + Dexie + vitest.
@@ -18,7 +18,7 @@ npm run lint               # eslint
 ```
 
 Mock mode credentials: pick any boutique, then PIN `1234` (manager) or `1111` (associate).
-In mock mode, Settings has a "Simulate offline" switch (sets `window.__maisonOffline = true`),
+In mock mode, Settings has a "Simulate offline" switch (sets `window.__awanzOffline = true`),
 or toggle it from the devtools console. Mock calls take 120–400 ms.
 
 Optional env:
@@ -27,7 +27,7 @@ Optional env:
 | --- | --- |
 | `VITE_MOCK=1` | use `src/api/mock.ts` instead of Frappe |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | load `@stripe/terminal-js`; without it the in-app simulated reader is used |
-| `VITE_E2E=1` | v0.3 — expose `window.__maisonRecognitionTest` (`emit`, `setTemplates`, `samples`, `state`) so e2e can inject embeddings; `localStorage.maisonE2E = '1'` does the same at runtime |
+| `VITE_E2E=1` | v0.3 — expose `window.__awanzRecognitionTest` (`emit`, `setTemplates`, `samples`, `state`) so e2e can inject embeddings; `localStorage.awanzE2E = '1'` does the same at runtime |
 
 ## Layout
 
@@ -88,7 +88,7 @@ endpoint that returns the built `sw.js` with `Service-Worker-Allowed: /pos/` and
 `Cache-Control: no-cache`; no nginx configuration is needed. `sw.js` is built with the workbox
 runtime inlined and absolute `/assets/maison_pos/pos/` precache URLs (`vite.config.ts`), so it
 does not depend on the URL it is served from. Navigations to `/pos` and `/pos/*` are cached
-NetworkFirst (`maison-shell`, single cache key) and fall back to the precached Vite
+NetworkFirst (`awanz-shell`, single cache key) and fall back to the precached Vite
 `index.html`, so reloading any `/pos/*` route offline still renders the shell.
 The legacy nginx rule (`docker/`) `location = /assets/maison_pos/pos/sw.js { add_header
 Service-Worker-Allowed /; }` is harmless but no longer required.
@@ -185,12 +185,12 @@ Everything runs **on the device**; the server only ever sees 128-float embedding
 ## Facial recognition: legal notice
 
 Client recognition is implemented (v0.3) but **off by default for every boutique**; only Head Office can switch it on
-(`Maison POS Settings.face_recognition_enabled` / `Maison Boutique.face_recognition_enabled`). The provider only runs for
+(`AWANZ POS Settings.face_recognition_enabled` / `AWANZ Store.face_recognition_enabled`). The provider only runs for
 customers who gave consent through the in-app `ConsentScreen`, and the following remain legal requirements, not options
 (full policy: `docs/biometrics-policy.md`):
 
 - **Opt-in per client with stored consent.** Recognition may only consider customers whose record carries
-  `maison_face_consent = 1` with an Active `Maison Biometric Consent` (`maison_face_consent_at`). Consent is informed,
+  `maison_face_consent = 1` with an Active `AWANZ Biometric Consent` (`maison_face_consent_at`). Consent is informed,
   written (hold-to-agree or signature, versioned text snapshot), specific to facial geometry, and revocable; revocation
   (`recognition.revoke`) deletes every template. No consent → no match, and no frame is ever retained or uploaded.
 - **Illinois BIPA (740 ILCS 14)**: written release before collecting a face geometry; a public retention-and-destruction
@@ -203,13 +203,13 @@ customers who gave consent through the in-app `ConsentScreen`, and the following
 - **In-store notice**: a visible sign at the entrance and at the point of sale whenever a camera is used for
   recognition, plus a privacy-policy section describing purpose, retention and the consent mechanism.
 - **Data handling**: only embeddings (float32[128]) travel; the POS never stores or uploads images or thumbnails;
-  `Maison Face Template` / `Maison Biometric Consent` access is restricted and every outcome is logged as a
-  `Maison Recognition Event`.
+  `AWANZ Face Template` / `AWANZ Biometric Consent` access is restricted and every outcome is logged as a
+  `AWANZ Recognition Event`.
 - **Liveness-lite is not certified** presentation-attack detection; do not market the feature as such.
 
 Until legal sign-off exists for each jurisdiction, keep the boutique switch off.
 
-## v0.5 K — Maison Salon (client-facing screen)
+## v0.5 K — AWANZ Salon (client-facing screen)
 
 `/salon` runs the same bundle with its own layout for the client-facing iPad (a guest device paired by a 6-digit
 code from Settings → **Client display**). Code lives in `src/salon/` (reducer, masking, pairing helpers, socket +

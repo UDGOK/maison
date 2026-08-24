@@ -4,8 +4,8 @@
   returns the ones the POS can apply (selling, valid today, warehouse = boutique or blank)
   in a compact shape; the POS applies percent / amount rules client-side and shows them as a
   promo line. Tier scoping uses the Pricing Rule ``customer_group`` = tier name
-  (``Maison Collectors`` tiers are mirrored as Customer Groups by the seed).
-* **Coupons** are ``Maison Coupon`` rows. ``validate_coupon`` is used both by the POS preview
+  (``AWANZ Collectors`` tiers are mirrored as Customer Groups by the seed).
+* **Coupons** are ``AWANZ Coupon`` rows. ``validate_coupon`` is used both by the POS preview
   (``check_coupon``) and by ``sales.submit_batch`` (``apply_coupon_to_invoice``): the POS sends
   ``coupon_code`` plus the per-line ``coupon_discount`` it displayed, the server recomputes
   the discount from the same rules and rejects a mismatch with ``COUPON_INVALID``.
@@ -22,14 +22,14 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
-from maison_pos.api.sales import MaisonPOSError  # sales imports this module lazily: no cycle
-from maison_pos.maison_pos.doctype.maison_coupon.maison_coupon import normalize_code
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles
+from maison_pos.api.sales import AwanzPOSError  # sales imports this module lazily: no cycle
+from maison_pos.awanz_pos.doctype.awanz_coupon.awanz_coupon import normalize_code
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles
 
 ERR_COUPON_INVALID = "COUPON_INVALID"
 
 
-class CouponError(MaisonPOSError):
+class CouponError(AwanzPOSError):
 	"""Raised when a coupon cannot be applied; ``reason`` is machine readable (``details.reason`` in submit_batch)."""
 
 	error_code = ERR_COUPON_INVALID
@@ -40,11 +40,11 @@ class CouponError(MaisonPOSError):
 
 
 # ---------------------------------------------------------------------------
-# settings (custom fields on Maison POS Settings, see setup/install_v04_crm.py)
+# settings (custom fields on AWANZ POS Settings, see setup/install_v04_crm.py)
 # ---------------------------------------------------------------------------
 def _setting(key: str, default: Any) -> Any:
 	try:
-		value = frappe.db.get_single_value("Maison POS Settings", key)
+		value = frappe.db.get_single_value("AWANZ POS Settings", key)
 	except Exception:
 		return default
 	return default if value in (None, "") else value
@@ -132,9 +132,9 @@ def _is_tier_group(group: str) -> bool:
 @frappe.whitelist()
 def active(boutique: str, date: Optional[str] = None) -> dict[str, Any]:
 	"""Promotions the POS may apply at *boutique* today + coupon availability flags."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
-	warehouse = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+	warehouse = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 	today = getdate(date or nowdate())
 	rows = frappe.get_all(
 		"Pricing Rule",
@@ -151,7 +151,7 @@ def active(boutique: str, date: Optional[str] = None) -> dict[str, Any]:
 		if r.valid_upto and getdate(r.valid_upto) < today:
 			continue
 		if r.rate_or_discount == "Rate" and not r.promotional_scheme and not (r.title or "").strip():
-			# plain store price overrides (Maison Price Change Request) are already in bootstrap.pricing_rules
+			# plain store price overrides (AWANZ Price Change Request) are already in bootstrap.pricing_rules
 			continue
 		promos.append(_promo_shape(r))
 	return {
@@ -159,7 +159,7 @@ def active(boutique: str, date: Optional[str] = None) -> dict[str, Any]:
 		"date": str(today),
 		"enabled": promotions_enabled(),
 		"promotions": promos,
-		"coupons_available": frappe.db.count("Maison Coupon", {"enabled": 1}) > 0,
+		"coupons_available": frappe.db.count("AWANZ Coupon", {"enabled": 1}) > 0,
 		"version": now_datetime().isoformat(),
 	}
 
@@ -224,7 +224,7 @@ def validate_coupon(code: str, lines: list[dict[str, Any]], boutique: Optional[s
 	if not code:
 		raise CouponError(_("Coupon code is required"), "missing")
 	coupon = frappe.db.get_value(
-		"Maison Coupon",
+		"AWANZ Coupon",
 		code,
 		["name", "code", "title", "enabled", "discount_type", "value", "min_basket", "usage", "max_uses", "used_count", "customer", "boutique", "item_group", "valid_from", "valid_upto"],
 		as_dict=True,
@@ -273,7 +273,7 @@ def _parse_lines(lines: Any) -> list[dict[str, Any]]:
 @frappe.whitelist()
 def check_coupon(code: str, lines: Any, boutique: Optional[str] = None, customer: Optional[str] = None) -> dict[str, Any]:
 	"""POS preview: ``{valid, code, title, discount, per_line, reason?}`` — never raises for a bad code."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique:
 		boutique = assert_boutique_access(boutique)
 	try:
@@ -322,11 +322,11 @@ def on_invoice_submit(doc, method: Optional[str] = None) -> None:
 	"""Record the redemption and bump ``used_count`` (hooks.doc_events, grouped with v0.4)."""
 	if not doc.get("is_pos") or not doc.get("maison_coupon") or doc.get("is_return"):
 		return
-	if frappe.db.exists("Maison Coupon Redemption", {"sales_invoice": doc.name}):
+	if frappe.db.exists("AWANZ Coupon Redemption", {"sales_invoice": doc.name}):
 		return
 	red = frappe.get_doc(
 		{
-			"doctype": "Maison Coupon Redemption",
+			"doctype": "AWANZ Coupon Redemption",
 			"coupon": doc.maison_coupon,
 			"sales_invoice": doc.name,
 			"customer": doc.customer,
@@ -337,25 +337,25 @@ def on_invoice_submit(doc, method: Optional[str] = None) -> None:
 	)
 	red.flags.ignore_permissions = True
 	red.insert()
-	frappe.db.set_value("Maison Coupon", doc.maison_coupon, "used_count", cint(frappe.db.get_value("Maison Coupon", doc.maison_coupon, "used_count")) + 1, update_modified=False)
+	frappe.db.set_value("AWANZ Coupon", doc.maison_coupon, "used_count", cint(frappe.db.get_value("AWANZ Coupon", doc.maison_coupon, "used_count")) + 1, update_modified=False)
 
 
 def on_invoice_cancel(doc, method: Optional[str] = None) -> None:
 	"""Give the use back when the invoice is cancelled."""
 	if not doc.get("is_pos") or not doc.get("maison_coupon"):
 		return
-	name = frappe.db.get_value("Maison Coupon Redemption", {"sales_invoice": doc.name, "reversed": 0}, "name")
+	name = frappe.db.get_value("AWANZ Coupon Redemption", {"sales_invoice": doc.name, "reversed": 0}, "name")
 	if not name:
 		return
-	frappe.db.set_value("Maison Coupon Redemption", name, "reversed", 1, update_modified=False)
-	used = cint(frappe.db.get_value("Maison Coupon", doc.maison_coupon, "used_count"))
-	frappe.db.set_value("Maison Coupon", doc.maison_coupon, "used_count", max(used - 1, 0), update_modified=False)
+	frappe.db.set_value("AWANZ Coupon Redemption", name, "reversed", 1, update_modified=False)
+	used = cint(frappe.db.get_value("AWANZ Coupon", doc.maison_coupon, "used_count"))
+	frappe.db.set_value("AWANZ Coupon", doc.maison_coupon, "used_count", max(used - 1, 0), update_modified=False)
 
 
 @frappe.whitelist()
 def performance(from_date: Optional[str] = None, to_date: Optional[str] = None, boutique: Optional[str] = None) -> dict[str, Any]:
 	"""Promotion / coupon performance for a period (HQ & managers): redemptions, discount given, revenue carried."""
-	assert_roles("Maison Manager", "Maison Regional", "Maison Head Office", "System Manager")
+	assert_roles("AWANZ Manager", "AWANZ Regional", "AWANZ Head Office", "System Manager")
 	to_date = getdate(to_date or nowdate())
 	from_date = getdate(from_date) if from_date else add_days(to_date, -30)
 	if boutique:
@@ -363,10 +363,10 @@ def performance(from_date: Optional[str] = None, to_date: Optional[str] = None, 
 	filters: dict[str, Any] = {"ts": ("between", (f"{from_date} 00:00:00", f"{to_date} 23:59:59")), "reversed": 0}
 	if boutique:
 		filters["boutique"] = boutique
-	reds = frappe.get_all("Maison Coupon Redemption", filters=filters, fields=["coupon", "sales_invoice", "amount", "boutique"])
+	reds = frappe.get_all("AWANZ Coupon Redemption", filters=filters, fields=["coupon", "sales_invoice", "amount", "boutique"])
 	by_coupon: dict[str, dict[str, Any]] = {}
 	for r in reds:
-		c = by_coupon.setdefault(r.coupon, {"coupon": r.coupon, "title": frappe.db.get_value("Maison Coupon", r.coupon, "title"), "redemptions": 0, "discount": 0.0, "revenue": 0.0})
+		c = by_coupon.setdefault(r.coupon, {"coupon": r.coupon, "title": frappe.db.get_value("AWANZ Coupon", r.coupon, "title"), "redemptions": 0, "discount": 0.0, "revenue": 0.0})
 		c["redemptions"] += 1
 		c["discount"] = flt(c["discount"] + flt(r.amount), 2)
 		c["revenue"] = flt(c["revenue"] + flt(frappe.db.get_value("Sales Invoice", r.sales_invoice, "base_net_total")), 2)
@@ -408,7 +408,7 @@ def tier_progress(customer: str, company: Optional[str] = None) -> dict[str, Any
 	except Exception:
 		d = frappe._dict()
 	points = flt(d.get("loyalty_points"))
-	override = frappe.db.get_value("Maison Client Profile", customer, "vip_tier_override") if frappe.db.exists("DocType", "Maison Client Profile") else None
+	override = frappe.db.get_value("AWANZ Client Profile", customer, "vip_tier_override") if frappe.db.exists("DocType", "AWANZ Client Profile") else None
 	# total spent inside the program window (same rule ERPNext uses to pick the tier)
 	window_from = lp.from_date
 	spent = flt(
@@ -461,7 +461,7 @@ def tier_progress(customer: str, company: Optional[str] = None) -> dict[str, Any
 @frappe.whitelist()
 def loyalty(customer: str) -> dict[str, Any]:
 	"""Tier progress for the POS client card."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if not frappe.db.exists("Customer", customer):
 		frappe.throw(_("Customer {0} not found").format(customer), frappe.DoesNotExistError)
 	return tier_progress(customer)
@@ -470,10 +470,10 @@ def loyalty(customer: str) -> dict[str, Any]:
 def birthday_bonus(today: Any = None) -> dict[str, Any]:
 	"""Daily job: credit ``birthday_bonus_points`` to clients whose birthday is today (once a year)."""
 	points = cint(_setting("birthday_bonus_points", 0))
-	if points <= 0 or not frappe.db.exists("DocType", "Maison Client Profile"):
+	if points <= 0 or not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return {"credited": [], "points": 0}
 	today = getdate(today or nowdate())
-	profiles = frappe.get_all("Maison Client Profile", filters={"birthday": ("is", "set")}, fields=["customer", "birthday"])
+	profiles = frappe.get_all("AWANZ Client Profile", filters={"birthday": ("is", "set")}, fields=["customer", "birthday"])
 	credited = []
 	for p in profiles:
 		bd = getdate(p.birthday)
@@ -504,9 +504,9 @@ def birthday_bonus(today: Any = None) -> dict[str, Any]:
 		entry.insert()
 		try:
 			frappe.get_doc(
-				{"doctype": "Maison Client Interaction", "customer": p.customer, "type": "Birthday", "note": f"{remark}: {points} points credited", "ts": now_datetime(), "status": "Done", "done_on": now_datetime()}
+				{"doctype": "AWANZ Client Interaction", "customer": p.customer, "type": "Birthday", "note": f"{remark}: {points} points credited", "ts": now_datetime(), "status": "Done", "done_on": now_datetime()}
 			).insert(ignore_permissions=True)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison birthday interaction")
+			frappe.log_error(frappe.get_traceback(), "awanz birthday interaction")
 		credited.append(p.customer)
 	return {"credited": credited, "points": points, "date": str(today)}

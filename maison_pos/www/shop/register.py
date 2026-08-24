@@ -23,7 +23,7 @@ def _safe_redirect(value: str | None) -> str:
 
 
 def get_context(context):
-	base_context(context, nav="account", title="Create an account — Maison")
+	base_context(context, nav="account", title="Create an account — AWANZ")
 	context.redirect_to = _safe_redirect(frappe.form_dict.get("redirect-to") or frappe.form_dict.get("redirect_to"))
 	context.signed_in = frappe.session.user != "Guest"
 	context.signup_enabled = not frappe.utils.cint(frappe.db.get_single_value("Website Settings", "disable_signup"))

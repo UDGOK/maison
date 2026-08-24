@@ -30,14 +30,14 @@ class TestReturns(FrappeTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		ensure_demo_data()
-		cls.warehouse = frappe.db.get_value("Maison Boutique", NYC, "warehouse")
+		cls.warehouse = frappe.db.get_value("AWANZ Store", NYC, "warehouse")
 
 	def setUp(self):
 		frappe.set_user("Administrator")
 		frappe.db.savepoint("v04_returns")
-		frappe.db.set_single_value("Maison POS Settings", "returns_manager_threshold", 2500)
-		frappe.db.set_single_value("Maison POS Settings", "return_window_days", 30)
-		frappe.clear_cache(doctype="Maison POS Settings")
+		frappe.db.set_single_value("AWANZ POS Settings", "returns_manager_threshold", 2500)
+		frappe.db.set_single_value("AWANZ POS Settings", "return_window_days", 30)
+		frappe.clear_cache(doctype="AWANZ POS Settings")
 
 	def tearDown(self):
 		frappe.db.rollback(save_point="v04_returns")
@@ -75,7 +75,7 @@ class TestReturns(FrappeTestCase):
 		serial = first_serial("TP-006", NYC)
 		si = _sell([{"item_code": "TP-006", "qty": 1, "rate": 9400, "serial_no": serial}], payments=[{"mode_of_payment": "Cash", "amount": _card_total(9400)}])
 		out = returns.return_items(si.name, [{"item_code": "TP-006", "qty": 1, "serial_no": serial, "reason": "Defect", "condition": "Damaged"}], refund_method="cash", reason="Defect")
-		damaged = frappe.db.get_value("Maison Boutique", NYC, "damaged_warehouse")
+		damaged = frappe.db.get_value("AWANZ Store", NYC, "damaged_warehouse")
 		self.assertTrue(damaged and "Damaged" in damaged)
 		cn = frappe.get_doc("Sales Invoice", out["credit_note"])
 		self.assertEqual(cn.items[0].warehouse, damaged)
@@ -133,10 +133,10 @@ class TestReturns(FrappeTestCase):
 
 	# --- manager PIN --------------------------------------------------------
 	def test_manager_pin_required_over_threshold(self):
-		frappe.db.set_single_value("Maison POS Settings", "returns_manager_threshold", 100)
-		frappe.clear_cache(doctype="Maison POS Settings")
+		frappe.db.set_single_value("AWANZ POS Settings", "returns_manager_threshold", 100)
+		frappe.clear_cache(doctype="AWANZ POS Settings")
 		si = _sell([{"item_code": "AC-001", "qty": 1, "rate": 2400}], payments=[{"mode_of_payment": "Cash", "amount": _card_total(2400)}])
-		manager = frappe.db.get_value("Maison Associate", {"user": NYC_MANAGER_USER}, "name")
+		manager = frappe.db.get_value("AWANZ Associate", {"user": NYC_MANAGER_USER}, "name")
 		frappe.set_user(NYC_ASSOCIATE)
 		with self.assertRaises(returns.ManagerRequiredError) as ctx:
 			returns.return_items(si.name, [{"item_code": "AC-001", "qty": 1}], refund_method="cash")
@@ -148,8 +148,8 @@ class TestReturns(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Sales Invoice", out["credit_note"], "maison_manager_approved_by"), manager)
 
 	def test_manager_approves_implicitly(self):
-		frappe.db.set_single_value("Maison POS Settings", "returns_manager_threshold", 100)
-		frappe.clear_cache(doctype="Maison POS Settings")
+		frappe.db.set_single_value("AWANZ POS Settings", "returns_manager_threshold", 100)
+		frappe.clear_cache(doctype="AWANZ POS Settings")
 		si = _sell([{"item_code": "AC-001", "qty": 1, "rate": 2400}], payments=[{"mode_of_payment": "Cash", "amount": _card_total(2400)}])
 		frappe.set_user(NYC_MANAGER_USER)
 		out = returns.return_items(si.name, [{"item_code": "AC-001", "qty": 1}], refund_method="cash")

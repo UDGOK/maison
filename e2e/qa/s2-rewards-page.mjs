@@ -70,7 +70,7 @@ await shot(page, 'rewards-join-ok')
 const cust = (await admin.list('Customer', { customer_name: member.name }, ['name', 'maison_client_number', 'loyalty_program', 'mobile_no', 'email_id']))[0]
 if (cust) created.customers.push(cust.name)
 record('B · member is enrolled in CloudChaserz Rewards + profile written', cust?.loyalty_program === 'CloudChaserz Rewards' && !!cust?.maison_client_number, JSON.stringify(cust))
-const prof = cust ? await admin.value('Maison Client Profile', cust.name, ['birthday', 'preferred_boutique', 'do_not_email', 'do_not_sms']) : null
+const prof = cust ? await admin.value('AWANZ Client Profile', cust.name, ['birthday', 'preferred_boutique', 'do_not_email', 'do_not_sms']) : null
 record('B · birthday, home store and marketing consents stored on the profile', prof?.birthday === member.birthday && prof?.preferred_boutique === L.STORE && Number(prof?.do_not_email) === 0 && Number(prof?.do_not_sms) === 1, JSON.stringify(prof))
 
 // ---- duplicate phone / e-mail

@@ -53,7 +53,7 @@ export const useShiftStore = defineStore('shift', {
     },
     /** Refresh the open shift for an associate (silently keeps the cache when offline). */
     async refresh(associate: string) {
-      if (typeof window !== 'undefined' && window.__maisonOffline) return
+      if (typeof window !== 'undefined' && window.__awanzOffline) return
       try {
         this.apply(associate, await v04.hr.shift_status(associate))
       } catch {

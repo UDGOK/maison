@@ -1,5 +1,5 @@
 /**
- * v0.5 K — POS side of the Maison Salon (client-facing screen).
+ * v0.5 K — POS side of the AWANZ Salon (client-facing screen).
  *
  * Pairs this POS device with a Salon iPad (6-digit code / QR from Settings → "Client display"),
  * mirrors the sale into `salon.publish` calls (debounced 150 ms, coalesced, only when something
@@ -25,7 +25,7 @@ import { router } from '@/router'
 
 export const PUBLISH_DEBOUNCE_MS = 150
 const SETTING_KEY = 'salon_session'
-const VIRTUAL_KEY = 'maison.salon.virtual'
+const VIRTUAL_KEY = 'awanz.salon.virtual'
 
 interface SalonPosState {
   session: SalonSession | null
@@ -275,7 +275,7 @@ export const useSalonPosStore = defineStore('salon', {
           if (!c) return
           cart.setCustomer(c)
           this.identifyRequested = false
-          sync.notify('good', m.created ? `${c.customer_name} joined Maison` : `${c.customer_name} identified on the Salon`, m.how === 'signup' ? 'New client created from the client display' : undefined)
+          sync.notify('good', m.created ? `${c.customer_name} joined AWANZ` : `${c.customer_name} identified on the Salon`, m.how === 'signup' ? 'New client created from the client display' : undefined)
           this.publishNow()
           break
         }

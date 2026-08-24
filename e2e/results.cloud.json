@@ -8,7 +8,7 @@
     {
       "step": "open /pos",
       "ok": true,
-      "detail": "https://maison-demo.frappe.cloud/pos/unlock?next=/sell"
+      "detail": "http://maison.localhost:8000/pos/unlock?next=/sell"
     },
     {
       "step": "unlock with PIN + catalog loaded",
@@ -18,7 +18,7 @@
     {
       "step": "add serialized watch + accessory",
       "ok": true,
-      "detail": "serial TP-007-CHI-001"
+      "detail": "serial TP-008-CHI-E2E1FC92"
     },
     {
       "step": "attach client via search",
@@ -27,13 +27,13 @@
     },
     {
       "step": "CASH sale synced + server invoice verified",
-      "ok": false,
-      "detail": "Rejected undefined total undefined invoice not found; customer undefined is not Mei-Lin Chen"
+      "ok": true,
+      "detail": "Synced ACC-SINV-2026-03052 total 19884.69 "
     },
     {
       "step": "CARD sale (simulated reader) synced + verified",
-      "ok": false,
-      "detail": "Rejected undefined ref undefined invoice not found"
+      "ok": true,
+      "detail": "Synced ACC-SINV-2026-03053 ref pi_sim_fe38e1b6a58d0d72 "
     },
     {
       "step": "offline cash sale queued",
@@ -42,8 +42,8 @@
     },
     {
       "step": "queue drained after reconnect + invoice server-side",
-      "ok": false,
-      "detail": "Rejected undefined topbar \"Online\" invoice not found"
+      "ok": true,
+      "detail": "Synced ACC-SINV-2026-03054 topbar \"Online\" "
     },
     {
       "step": "dashboard opens as Administrator",
@@ -52,35 +52,60 @@
     },
     {
       "step": "Google Fonts: Unbounded loaded (POS)",
-      "ok": true,
-      "detail": "faces [\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:loaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:loaded\"] usedInComputedStyle=true links=[\"https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500;600&display=swap\"]"
+      "ok": false,
+      "detail": "faces [] usedInComputedStyle=true links=[\"https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap\"]"
     },
     {
       "step": "Google Fonts: Unbounded loaded (dashboard)",
-      "ok": true,
-      "detail": "faces [\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:unloaded\",\"800:loaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:unloaded\",\"900:loaded\"] usedInComputedStyle=false"
+      "ok": false,
+      "detail": "faces [] usedInComputedStyle=false"
     },
     {
       "step": "service worker registered (POS)",
-      "ok": false,
-      "detail": "{\"supported\":true,\"regs\":[],\"controller\":null}"
+      "ok": true,
+      "detail": "{\"supported\":true,\"regs\":[{\"scope\":\"http://maison.localhost:8000/pos/\",\"state\":\"activated\",\"script\":\"http://maison.localhost:8000/api/method/maison_pos.api.pwa.service_worker\"}],\"controller\":null}"
     },
     {
       "step": "dashboard updates live within 5s",
-      "ok": false,
-      "detail": " seen=true after 2 ms; server invoices 0→0; ws: [{\"url\":\"wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=TCG3Uk6hIW0S1l57AAAH\"},{\"out\":\"2probe\"},{\"in\":\"3probe\"},{\"out\":\"5\"}]"
+      "ok": true,
+      "detail": "ACC-SINV-2026-03055 seen=true after 2 ms; server invoices 47→48; ws: [{\"url\":\"ws://maison.localhost:9000/socket.io/?EIO=4&transport=websocket&sid=x5pva7ezn6vG8vt-AAAc\"},{\"in\":\"3probe\"},{\"in\":\"42/maison.localhost,[\\\"awanz_heartbeat\\\",{\\\"app_version\\\":null,\\\"boutique\\\":\\\"CHI-OAK\\\",\\\"device_id\\\":\\\"dev-c62b5694\\\",\\\"last_seen\\\":\\\"2026-08-24T10:00:01.963872-04:00\\\",\\\"name\\\":\\\"CHI-OAK-dev-c62b5694\\\",\\\"queued\\\":0,\\\"stat\"},{\"in\":\"2\"}]"
     },
     {
       "step": "dashboard receives realtime (socket.io) events",
       "ok": true,
-      "detail": "ws url wss://maison-demo.frappe.cloud/socket.io/?EIO=4&transport=websocket&sid=TCG3Uk6hIW0S1l57AAAH; 6 frames in, 2 maison/doc frames; sample [{\"in\":\"42/maison-demo.frappe.cloud,[\\\"list_update\\\",{\\\"doctype\\\":\\\"Sales Invoice\\\",\\\"name\\\":\\\"ACC-SINV-2026-00001\\\",\\\"user\\\":\\\"chi.oak.a1@maison.example\\\"}]\"},{\"in\":\"42/maison-demo.frappe.cloud,[\\\"maison_heartbeat\\\",{\\\"app_version\\\":null,\\\"boutique\\\":\\\"CHI-OAK\\\",\\\"device_id\\\":\\\"dev-0049e9ef\\\",\\\"last_seen\\\":\\\"2026-08-22T02:48:53.072138-05:00\\\",\\\"name\\\":\\\"CHI-OAK-dev-0049e9ef\\\",\\\"queued\"}]"
+      "detail": "ws url ws://maison.localhost:9000/socket.io/?EIO=4&transport=websocket&sid=x5pva7ezn6vG8vt-AAAc; 5 frames in, 3 awanz/doc frames; sample [{\"in\":\"42/maison.localhost,[\\\"awanz_heartbeat\\\",{\\\"app_version\\\":null,\\\"boutique\\\":\\\"CHI-OAK\\\",\\\"device_id\\\":\\\"dev-c62b5694\\\",\\\"last_seen\\\":\\\"2026-08-24T10:00:01.963872-04:00\\\",\\\"name\\\":\\\"CHI-OAK-dev-c62b5694\\\",\\\"queued\\\":0,\\\"stat\"},{\"in\":\"42/maison.localhost,[\\\"list_update\\\",{\\\"doctype\\\":\\\"Sales Invoice\\\",\\\"name\\\":\\\"ACC-SINV-2026-03055\\\",\\\"user\\\":\\\"chi.oak.a1@maison.example\\\"}]\"}]"
     }
   ],
   "console": [
     {
       "tag": "pos",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "pos",
       "type": "error",
-      "text": "The path of the provided scope ('/pos') is not under the max scope allowed ('/assets/maison_pos/pos/'). Adjust the scope, move the Service Worker script, or use the Service-Worker-Allowed HTTP header to allow the scope."
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "pos",
+      "type": "requestfailed",
+      "text": "POST http://maison.localhost:8000/api/method/maison_pos.api.insights.recommend_for_basket net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "tag": "dashboard",
+      "type": "requestfailed",
+      "text": "GET https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Jost:wght@300;400;500&display=swap net::ERR_CERT_AUTHORITY_INVALID"
+    },
+    {
+      "tag": "dashboard",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
     }
   ]
 }

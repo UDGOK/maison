@@ -15,11 +15,11 @@ OLD_DEFAULT = 0.55
 
 
 def execute() -> None:
-	if not frappe.db.exists("DocType", "Maison POS Settings"):
+	if not frappe.db.exists("DocType", "AWANZ POS Settings"):
 		return
-	frappe.reload_doc("maison_pos", "doctype", "maison_pos_settings")
-	stored = frappe.db.get_single_value("Maison POS Settings", "match_threshold")
+	frappe.reload_doc("awanz_pos", "doctype", "awanz_pos_settings")
+	stored = frappe.db.get_single_value("AWANZ POS Settings", "match_threshold")
 	if stored in (None, "") or abs(flt(stored) - OLD_DEFAULT) < 1e-6:
-		frappe.db.set_single_value("Maison POS Settings", "match_threshold", DEFAULT_DISTANCE_THRESHOLD)
-	frappe.clear_cache(doctype="Maison POS Settings")
+		frappe.db.set_single_value("AWANZ POS Settings", "match_threshold", DEFAULT_DISTANCE_THRESHOLD)
+	frappe.clear_cache(doctype="AWANZ POS Settings")
 	frappe.db.commit()

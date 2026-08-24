@@ -15,11 +15,11 @@ no_cache = 1
 
 def get_context(context: dict) -> dict:
 	tracking_no = frappe.form_dict.get("tracking_no")
-	name = frappe.db.get_value("Maison Shipment", {"tracking_no": tracking_no}, "name") if tracking_no else None
+	name = frappe.db.get_value("AWANZ Shipment", {"tracking_no": tracking_no}, "name") if tracking_no else None
 	if not name:
 		frappe.throw(_("Unknown tracking number"), frappe.DoesNotExistError)
-	doc = frappe.get_doc("Maison Shipment", name)
-	if not frappe.has_permission("Maison Shipment", "read", doc):
+	doc = frappe.get_doc("AWANZ Shipment", name)
+	if not frappe.has_permission("AWANZ Shipment", "read", doc):
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
 	from maison_pos.api.shipping import code128_svg
 	from maison_pos.shipping import ship_from_address, ship_to_address

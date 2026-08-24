@@ -13,8 +13,8 @@ export const PIN_HASHES: Record<string, string> = {
 export const BOUTIQUES: Boutique[] = [
   {
     name: 'CHI-OAK',
-    boutique_name: 'Maison Oak Street',
-    company: 'Maison Jewelers',
+    boutique_name: 'AWANZ Oak Street',
+    company: 'AWANZ Jewelers',
     warehouse: 'CHI-OAK - MJ',
     cost_center: 'CHI-OAK - MJ',
     pos_profile: 'CHI-OAK POS',
@@ -31,8 +31,8 @@ export const BOUTIQUES: Boutique[] = [
   },
   {
     name: 'NYC-MAD',
-    boutique_name: 'Maison Madison Avenue',
-    company: 'Maison Jewelers',
+    boutique_name: 'AWANZ Madison Avenue',
+    company: 'AWANZ Jewelers',
     warehouse: 'NYC-MAD - MJ',
     cost_center: 'NYC-MAD - MJ',
     pos_profile: 'NYC-MAD POS',
@@ -49,8 +49,8 @@ export const BOUTIQUES: Boutique[] = [
   },
   {
     name: 'LA-RODEO',
-    boutique_name: 'Maison Rodeo Drive',
-    company: 'Maison Jewelers',
+    boutique_name: 'AWANZ Rodeo Drive',
+    company: 'AWANZ Jewelers',
     warehouse: 'LA-RODEO - MJ',
     cost_center: 'LA-RODEO - MJ',
     pos_profile: 'LA-RODEO POS',
@@ -84,7 +84,7 @@ export const ITEM_GROUPS = ['Rings', 'Necklaces', 'Bracelets', 'Earrings', 'Watc
 export const DEPARTMENTS = ['Bridal', 'Fine', 'Timepieces', 'Haute', 'Gifts']
 
 export const LOYALTY: LoyaltyProgram = {
-  name: 'Maison Cercle',
+  name: 'AWANZ Cercle',
   collection_factor: 1, // 1 point per currency unit
   conversion_factor: 0.01, // 1 point = 0.01 USD
   tiers: [
@@ -215,7 +215,7 @@ export const ITEMS: Item[] = RAW.map(([code, name, group, dept, , serial, metal,
   maison_barcode: ean13For(i + 1)
 }))
 
-/** Maison POS Settings (global) — the mock boutique overrides live in `settingsFor`. */
+/** AWANZ POS Settings (global) — the mock boutique overrides live in `settingsFor`. */
 export const SETTINGS_GLOBAL = {
   show_product_images_default: false,
   scan_enabled: true,
@@ -224,7 +224,7 @@ export const SETTINGS_GLOBAL = {
   loyalty_lookup_enabled: true
 }
 
-/** Per-boutique `show_product_images` (Maison Boutique check) — CHI-OAK shows photos by default. */
+/** Per-boutique `show_product_images` (AWANZ Store check) — CHI-OAK shows photos by default. */
 export const BOUTIQUE_SHOW_IMAGES: Record<string, boolean> = { 'CHI-OAK': true, 'NYC-MAD': false, 'LA-RODEO': false }
 
 /** Barcode map for bootstrap: EAN-13 per item + every serial label (Code-128 = serial no). */

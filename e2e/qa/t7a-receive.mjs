@@ -1,6 +1,6 @@
 import { apiFor, closeBrowser, record, saveResults, log, STORE, STORE2, MGR, MGR2, WH, TAG } from './lib-wh.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin'), m = await apiFor(MGR), m2 = await apiFor(MGR2), w = await apiFor(WH)
 const HQ = 'HOU-WH - CCZ', SWH = `${STORE} - CCZ`, TR = `${STORE} In Transit - CCZ`, DMG = `${STORE} Damaged - CCZ`
 const bin = async (i, wh) => Number((await a.list('Bin', { item_code: i, warehouse: wh }, ['actual_qty']))[0]?.actual_qty || 0)
@@ -24,7 +24,7 @@ record('completing the receipt posts the remainder and closes the shipment',
   fin.status === 'Received' && p2.st === p0.st + 11 && p2.tr === p0.tr, `status=${fin.status}; ${STORE} ${p0.st}->${p2.st}, transit ${p2.tr}; SE=${fin.stock_entry_receive}`)
 record('no discrepancy after a complete two-stage receipt', (fin.discrepancies || []).length === 0, JSON.stringify(fin.discrepancies))
 record('OBSERVATION: only the LAST receipt Stock Entry is linked on the shipment', true,
-  `stock_entry_receive=${(await a.value('Maison Shipment', S.S2, ['stock_entry_receive'])).stock_entry_receive} (first leg ${part.stock_entry_receive} is not linked; see api/inventory.py receive_shipment)`, 'observation')
+  `stock_entry_receive=${(await a.value('AWANZ Shipment', S.S2, ['stock_entry_receive'])).stock_entry_receive} (first leg ${part.stock_entry_receive} is not linked; see api/inventory.py receive_shipment)`, 'observation')
 record('HKA-004 is back above its reorder level at the store', p2.st === 14, `${STORE} ${ITEM} = ${p2.st} (level 4)`)
 
 // ================= 7.2 over / short / damaged in one receipt
@@ -53,11 +53,11 @@ record('a DAMAGED line is posted into the store\'s Damaged warehouse, not sellab
   `ROL-006 shipped 3 counted 2 + 1 damaged: store ${d0.c.st}->${d1.c.st}, damaged ${d0.c.dmg}->${d1.c.dmg}; SE=${rec.stock_entry_damaged}`)
 const discs = await w.get('maison_pos.api.shipping.discrepancies', { status: 'Open', boutique: STORE })
 const mineD = discs.discrepancies.filter(d => d.shipment === SD)
-record('one Maison Receiving Discrepancy per problem line, visible to the warehouse admin', mineD.length === 3,
+record('one AWANZ Receiving Discrepancy per problem line, visible to the warehouse admin', mineD.length === 3,
   mineD.map(d => `${d.name} ${d.item_code} ${d.type} short=${d.short_qty} over=${d.over_qty} dmg=${d.damaged_qty}`).join(' | '))
 record('the discrepancy types are Short / Over / Damaged as counted', ['Short', 'Over', 'Damaged'].every(t => mineD.some(d => d.type === t)),
   JSON.stringify(mineD.map(d => [d.item_code, d.type])))
-const nlD = await a.list('Notification Log', { document_type: 'Maison Receiving Discrepancy' }, ['for_user', 'subject'], 5, 'creation desc')
+const nlD = await a.list('Notification Log', { document_type: 'AWANZ Receiving Discrepancy' }, ['for_user', 'subject'], 5, 'creation desc')
 record('the warehouse admin is notified of the discrepancies', nlD.some(n => /discrepanc/i.test(n.subject || '')), JSON.stringify(nlD.slice(0, 2)))
 const mDisc = await m.get('maison_pos.api.shipping.discrepancies', { status: 'all' })
 record('the store sees only its own discrepancies', mDisc.discrepancies.every(d => d.boutique === STORE), `${mDisc.count} rows, boutiques=${[...new Set(mDisc.discrepancies.map(d => d.boutique))].join(',')}`)
@@ -84,7 +84,7 @@ const dmgD = mineD.find(d => d.type === 'Damaged')
 const res3 = await w.post('maison_pos.api.shipping.resolve_discrepancy', { discrepancy: dmgD.name, resolution: 'Re-ship', notes: `${TAG} sending a replacement` })
 record('a Damaged line can be resolved with "Re-ship", raising a new Urgent request for the store',
   res3.status === 'Resolved' && !!res3.reship_request, `${res3.name} -> re-ship request ${res3.reship_request}`)
-const reshipReq = res3.reship_request ? await a.value('Maison Replenishment Request', res3.reship_request, ['status', 'priority', 'boutique']) : null
+const reshipReq = res3.reship_request ? await a.value('AWANZ Replenishment Request', res3.reship_request, ['status', 'priority', 'boutique']) : null
 record('the re-ship request is Urgent and addressed to the same store', reshipReq?.priority === 'Urgent' && reshipReq?.boutique === STORE, JSON.stringify(reshipReq))
 const openLeft = (await w.get('maison_pos.api.shipping.discrepancies', { status: 'Open' })).discrepancies.filter(d => d.shipment === SD)
 record('no discrepancy is left open for the shipment', openLeft.length === 0, `${openLeft.length} open`)
@@ -121,7 +121,7 @@ try {
 record('OBSERVATION: the CloudChaserz demo seed ships no Supplier / Purchase Order', true,
   'before this test the site had 0 Suppliers and 0 Purchase Orders, so "Vendor deliveries (POs)" on Receive and the desk\'s "Vendor POs" tab are always empty on the demo', 'observation')
 
-writeFileSync('/home/claude/maison/e2e/qa/state.json', JSON.stringify({ ...S, SD, RD: r.name, MRD: ap.request.material_request, reship: res3.reship_request, po, pr, supplier }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/state.json', JSON.stringify({ ...S, SD, RD: r.name, MRD: ap.request.material_request, reship: res3.reship_request, po, pr, supplier }, null, 1))
 await Promise.all([m.dispose(), m2.dispose(), w.dispose()])
 saveResults('results-w7a.json')
 await a.dispose(); await closeBrowser()

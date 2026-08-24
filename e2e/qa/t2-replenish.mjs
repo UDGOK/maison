@@ -3,7 +3,7 @@ const a = await apiFor('admin'), m = await apiFor(MGR), m2 = await apiFor(MGR2),
 const SWH = `${STORE} - CCZ`, HQ = 'HOU-WH - CCZ'
 
 // --- side-check for the dropped-field finding
-const shipFields = await a.list('Maison Shipment', {}, ['name','label_at','tracking_updated_at','approved_at'], 2)
+const shipFields = await a.list('AWANZ Shipment', {}, ['name','label_at','tracking_updated_at','approved_at'], 2)
 record('control: other v0.6 datetime fields ARE returned by get_all (isolates the *_seen drop)',
   shipFields[0] && 'label_at' in shipFields[0], JSON.stringify(shipFields[0]))
 
@@ -20,7 +20,7 @@ record('the one-tap quantity defaults to the alert\'s reorder_qty', Number(one.r
 record('a request raised from an alert is prioritised "Low stock"', one.request.priority === 'Low stock', `priority=${one.request.priority}`)
 record('the request carries a draft Material Request (Material Transfer, HQ -> store)', !!one.material_request,
   JSON.stringify(await a.value('Material Request', one.material_request, ['material_request_type', 'set_from_warehouse', 'set_warehouse', 'docstatus', 'status'])))
-const alertAfter = await a.value('Maison Stock Alert', alert.name, ['status', 'material_request'])
+const alertAfter = await a.value('AWANZ Stock Alert', alert.name, ['status', 'material_request'])
 record('the alert is linked to the Material Request and flipped to Acknowledged', alertAfter.material_request === one.material_request && alertAfter.status === 'Acknowledged', JSON.stringify(alertAfter))
 record('on_hand snapshots are captured on the request line', one.request.lines[0].on_hand_store === 2 && one.request.lines[0].on_hand_warehouse > 0,
   `store=${one.request.lines[0].on_hand_store} warehouse=${one.request.lines[0].on_hand_warehouse}`)

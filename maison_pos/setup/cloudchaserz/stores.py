@@ -1,5 +1,5 @@
 """CloudChaserz stores (v0.6 N): Houston Montrose HQ store, the 10 Oklahoma stores and the
-``HOU-WH`` main warehouse (a Warehouse + a ``Maison Boutique`` row of type *Warehouse*).
+``HOU-WH`` main warehouse (a Warehouse + a ``AWANZ Store`` row of type *Warehouse*).
 
 Tax rates are approximate combined state + local sales-tax rates — **verify with the CPA**
 before going live (see docs/cloudchaserz.md; Texas / Oklahoma vapor & tobacco excise taxes are
@@ -111,14 +111,14 @@ def ensure_erpnext_setup() -> None:
 
 
 def ensure_store(spec: dict[str, Any], accounts: dict[str, str], walk_in: str, is_warehouse: bool = False) -> str:
-	"""Warehouse + Cost Center + POS Profile + Maison Boutique for one store (or the warehouse row)."""
+	"""Warehouse + Cost Center + POS Profile + AWANZ Store for one store (or the warehouse row)."""
 	from maison_pos.setup import demo
 
 	code = spec["code"]
 	spec = dict(spec, email=spec.get("email") or f"{code.lower().replace('-', '.')}@cloudchaserz.example")
 	# reuse the jewellery helper (company/abbr come from profile_globals())
 	demo.ensure_boutique(spec, accounts, walk_in)
-	doc = frappe.get_doc("Maison Boutique", code)
+	doc = frappe.get_doc("AWANZ Store", code)
 	values: dict[str, Any] = {
 		"boutique_name": spec["name"],
 		"region": spec.get("region"),
@@ -158,14 +158,14 @@ def ensure_brand_settings() -> None:
 
 	values = dict(BRAND_DEFAULTS)
 	values.update({"head_office_boutique": HQ_STORE, "main_warehouse": warehouse_name(WAREHOUSE_CODE), "show_product_images_default": 1})
-	stored = frappe.db.get_singles_dict("Maison POS Settings")
+	stored = frappe.db.get_singles_dict("AWANZ POS Settings")
 	for key, value in values.items():
 		if stored.get(key) in (None, "") or key in ("head_office_boutique", "main_warehouse", "vertical"):
 			try:
-				frappe.db.set_single_value("Maison POS Settings", key, value)
+				frappe.db.set_single_value("AWANZ POS Settings", key, value)
 			except Exception:
 				pass
-	frappe.clear_cache(doctype="Maison POS Settings")
+	frappe.clear_cache(doctype="AWANZ POS Settings")
 	try:
 		from maison_pos.brand import clear_brand_cache
 

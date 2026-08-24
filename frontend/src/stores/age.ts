@@ -7,7 +7,7 @@
  * and replayed once the check passes. One successful check covers the whole transaction; it is
  * cleared with the basket. Under-age / expired IDs block: the parked adds are dropped.
  *
- * Online the server decides (`age.verify_scan` / `verify_manual`, audit row `Maison Age Check`
+ * Online the server decides (`age.verify_scan` / `verify_manual`, audit row `AWANZ Age Check`
  * with masked fields only); offline the same pure rules run on the device (`scan/aamva.ts`)
  * and the audit row is written when the sale syncs (`age_check.offline = 1`).
  */

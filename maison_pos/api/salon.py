@@ -1,8 +1,8 @@
-"""Maison Salon — client-facing screen (v0.5 section K).
+"""AWANZ Salon — client-facing screen (v0.5 section K).
 
-Two devices share a ``Maison Salon Session``:
+Two devices share a ``AWANZ Salon Session``:
 
-* the **POS** (an authenticated Maison associate) asks for a 6-digit pairing code
+* the **POS** (an authenticated AWANZ associate) asks for a 6-digit pairing code
   (``pairing_code``), then publishes the screen it wants the client to see
   (``publish``: idle / identify / basket / pay / receipt / consent / concierge …) and reads the
   Salon's messages (``pos_poll``);
@@ -34,9 +34,9 @@ from frappe import _
 from frappe.utils import add_to_date, cint, flt, get_datetime, get_system_timezone, now_datetime
 
 from maison_pos.identifiers import digits_only
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_associate
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_associate
 
-DOCTYPE = "Maison Salon Session"
+DOCTYPE = "AWANZ Salon Session"
 PAIR_CODE_TTL_SECONDS = 10 * 60
 SESSION_HOURS = 12
 MAX_INBOX = 50
@@ -192,7 +192,7 @@ def _active_session_for_pos(boutique: str, pos_device_id: str):
 
 
 def _session_public(doc, include_state: bool = True) -> dict[str, Any]:
-	boutique = frappe.db.get_value("Maison Boutique", doc.boutique, ["boutique_name", "city"], as_dict=True) or {}
+	boutique = frappe.db.get_value("AWANZ Store", doc.boutique, ["boutique_name", "city"], as_dict=True) or {}
 	out = {
 		"token": doc.name,
 		"boutique": doc.boutique,
@@ -249,10 +249,10 @@ def _attach_customer(doc, customer: str, how: str, created: bool = False) -> dic
 def pairing_code(boutique: str, pos_device_id: str) -> dict[str, Any]:
 	"""Associate: a fresh 6-digit code (10 min TTL) the Salon enters or scans (``MS:<code>``).
 
-	The code lives on a *Pending* ``Maison Salon Session`` row (not in the cache, which any
+	The code lives on a *Pending* ``AWANZ Salon Session`` row (not in the cache, which any
 	``clear_cache`` would wipe); ``pair`` promotes that row to *Paired*.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	pos_device_id = (pos_device_id or "").strip()
 	if not pos_device_id:
@@ -303,7 +303,7 @@ def pairing_code(boutique: str, pos_device_id: str) -> dict[str, Any]:
 @frappe.whitelist()
 def pos_status(boutique: str, pos_device_id: str, since: int = 0) -> dict[str, Any]:
 	"""Associate: the active session for this POS device (+ inbox messages after ``since``)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	doc = _active_session_for_pos(boutique, pos_device_id)
 	if not doc:
@@ -316,7 +316,7 @@ def pos_status(boutique: str, pos_device_id: str, since: int = 0) -> dict[str, A
 @frappe.whitelist()
 def pos_poll(session: str, since: int = 0) -> dict[str, Any]:
 	"""Associate: Salon → POS messages with ``seq > since`` (2 s fallback polling)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	doc = get_session(session, for_salon=False)
 	assert_boutique_access(doc.boutique)
 	messages = [m for m in _loads(doc.inbox, []) if cint(m.get("seq")) > cint(since)]
@@ -326,7 +326,7 @@ def pos_poll(session: str, since: int = 0) -> dict[str, Any]:
 @frappe.whitelist()
 def publish(session: str, event: str, payload: Any = None) -> dict[str, Any]:
 	"""Associate: set the Salon screen. ``event`` ∈ SCREENS; ``payload`` is sanitised and re-broadcast."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	doc = get_session(session, for_salon=False)
 	assert_boutique_access(doc.boutique)
 	event = (event or "").strip()
@@ -355,7 +355,7 @@ def publish(session: str, event: str, payload: Any = None) -> dict[str, Any]:
 @frappe.whitelist()
 def unpair_pos(session: Optional[str] = None, boutique: Optional[str] = None, pos_device_id: Optional[str] = None) -> dict[str, Any]:
 	"""Associate: end the session (by token, or the active one for this POS device)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	doc = None
 	if session and frappe.db.exists(DOCTYPE, session):
 		doc = frappe.get_doc(DOCTYPE, session)
@@ -434,10 +434,10 @@ def playlist(token: str) -> dict[str, Any]:
 
 
 def salon_settings(boutique: str) -> dict[str, Any]:
-	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
+	from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_pos_settings
 
 	s = get_pos_settings()
-	b = frappe.db.get_value("Maison Boutique", boutique, ["boutique_name", "city", "face_recognition_enabled"], as_dict=True) or {}
+	b = frappe.db.get_value("AWANZ Store", boutique, ["boutique_name", "city", "face_recognition_enabled"], as_dict=True) or {}
 	enabled = s.get("face_recognition_enabled")
 	override = (b.get("face_recognition_enabled") or "Inherit")
 	if override == "On":
@@ -452,9 +452,9 @@ def salon_settings(boutique: str) -> dict[str, Any]:
 		"face_recognition_enabled": cint(enabled),
 		"feedback_enabled": cint(s.get("feedback_enabled", 1) if "feedback_enabled" in s else 1),
 		"receipt_qr_base_url": s.get("receipt_qr_base_url"),
-		"currency": frappe.get_cached_value("Company", frappe.db.get_value("Maison Boutique", boutique, "company"), "default_currency"),
+		"currency": frappe.get_cached_value("Company", frappe.db.get_value("AWANZ Store", boutique, "company"), "default_currency"),
 		# v0.6 R — the client display runs on the boutique's clock, not the paired iPad's
-		"time_zone": frappe.db.get_value("Maison Boutique", boutique, "timezone") or get_system_timezone(),
+		"time_zone": frappe.db.get_value("AWANZ Store", boutique, "timezone") or get_system_timezone(),
 		# --- v0.6 N/Q — brand tokens, welcome line, rewards copy + age gate for the "Please present your ID" state ---
 		"brand": s.get("brand"),
 		"welcome_line": _welcome_line(b.get("boutique_name")),
@@ -484,7 +484,7 @@ def playlist_for(boutique: str) -> list[dict[str, Any]]:
 	"""Enabled playlist pieces: boutique-specific first, then global; image from the override or the Item."""
 	today = frappe.utils.nowdate()
 	rows = frappe.get_all(
-		"Maison Salon Playlist",
+		"AWANZ Salon Playlist",
 		filters={"enabled": 1},
 		fields=["name", "title", "boutique", "welcome_line", "valid_from", "valid_upto"],
 		order_by="boutique desc, modified desc",
@@ -498,8 +498,8 @@ def playlist_for(boutique: str) -> list[dict[str, Any]]:
 	seen: set[str] = set()
 	for pl in rows:
 		items = frappe.get_all(
-			"Maison Salon Playlist Item",
-			filters={"parent": pl.name, "parenttype": "Maison Salon Playlist", "enabled": 1},
+			"AWANZ Salon Playlist Item",
+			filters={"parent": pl.name, "parenttype": "AWANZ Salon Playlist", "enabled": 1},
 			fields=["item_code", "item_name", "caption", "image", "seconds", "idx"],
 			order_by="idx asc",
 		)
@@ -586,7 +586,7 @@ def signup(
 	marketing_email: Any = 0,
 	marketing_sms: Any = 0,
 ) -> dict[str, Any]:
-	"""Guest: "Join Maison" — creates (or links by phone/e-mail) the Customer, stores the marketing
+	"""Guest: "Join AWANZ" — creates (or links by phone/e-mail) the Customer, stores the marketing
 	preferences on the Client Profile and attaches the client to the POS sale."""
 	_rate_limit("signup", 10)
 	doc = get_session(token)
@@ -644,7 +644,7 @@ def _save_profile(customer: str, values: dict[str, Any]) -> None:
 
 def _log_interaction(doc, customer: str, kind: str, note: str) -> Optional[str]:
 	"""Salon → CRM timeline (the Salon is a guest, so this bypasses ``crm.log_interaction``'s role check)."""
-	if not frappe.db.exists("DocType", "Maison Client Interaction"):
+	if not frappe.db.exists("DocType", "AWANZ Client Interaction"):
 		return None
 	associate = None
 	if doc.paired_by:
@@ -652,7 +652,7 @@ def _log_interaction(doc, customer: str, kind: str, note: str) -> Optional[str]:
 		associate = a["name"] if a else None
 	row = frappe.get_doc(
 		{
-			"doctype": "Maison Client Interaction",
+			"doctype": "AWANZ Client Interaction",
 			"customer": customer,
 			"type": kind,
 			"note": note[:2000],
@@ -699,7 +699,7 @@ def consent(token: str, method: str, text_version: Optional[str] = None, signatu
 @frappe.whitelist()
 def pending_consent(session: str) -> dict[str, Any]:
 	"""Associate: the full consent payload (incl. signature) the Salon captured, then cleared."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	doc = get_session(session, for_salon=False)
 	payload = _loads(doc.pending_consent, None)
 	doc.db_set("pending_consent", None, update_modified=False)
@@ -739,7 +739,7 @@ def ask(token: str, question: str, item_code: Optional[str] = None) -> dict[str,
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def feedback(token: str, rating: Any, comment: Optional[str] = None) -> dict[str, Any]:
-	"""Guest: private 1–5 feedback for the sale just mirrored (→ ``Maison Feedback``, HQ only)."""
+	"""Guest: private 1–5 feedback for the sale just mirrored (→ ``AWANZ Feedback``, HQ only)."""
 	_rate_limit("feedback", 10)
 	doc = get_session(token)
 	rating = cint(rating)
@@ -753,16 +753,16 @@ def feedback(token: str, rating: Any, comment: Optional[str] = None) -> dict[str
 	if not invoice:
 		frappe.throw(_("The receipt is still being issued — one moment"), frappe.ValidationError)
 	si = frappe.db.get_value("Sales Invoice", invoice, ["name", "maison_boutique", "maison_associate", "customer", "maison_receipt_token"], as_dict=True)
-	if frappe.db.exists("Maison Feedback", {"sales_invoice": si.name}):
+	if frappe.db.exists("AWANZ Feedback", {"sales_invoice": si.name}):
 		return {"ok": True, "duplicate": True}
 	from maison_pos.api.feedback import _alert_low_rating, alert_threshold
 
 	fb = frappe.get_doc(
 		{
-			"doctype": "Maison Feedback",
+			"doctype": "AWANZ Feedback",
 			"sales_invoice": si.name,
 			"boutique": si.maison_boutique or doc.boutique,
-			"associate": si.maison_associate if frappe.db.exists("Maison Associate", si.maison_associate or "") else None,
+			"associate": si.maison_associate if frappe.db.exists("AWANZ Associate", si.maison_associate or "") else None,
 			"customer": si.customer,
 			"rating": rating,
 			"comment": (comment or "").strip()[:MAX_COMMENT] or None,
@@ -774,7 +774,7 @@ def feedback(token: str, rating: Any, comment: Optional[str] = None) -> dict[str
 	fb.insert()
 	if rating <= alert_threshold():
 		_alert_low_rating(fb)
-	frappe.publish_realtime("maison_feedback", {"boutique": fb.boutique, "rating": rating, "name": fb.name, "source": "salon"}, room="maison_dashboard")
+	frappe.publish_realtime("awanz_feedback", {"boutique": fb.boutique, "rating": rating, "name": fb.name, "source": "salon"}, room="awanz_dashboard")
 	_push_inbox(doc, "feedback", {"rating": rating, "feedback": fb.name})
 	return {"ok": True, "feedback": fb.name}
 
@@ -821,7 +821,7 @@ def email_receipt(token: str, email: Optional[str] = None) -> dict[str, Any]:
 			frappe.sendmail(recipients=[email], subject=_("Your {0} receipt").format(_brand_name()), message=f"<p>Thank you for your visit.</p><p><a href='{url}'>{url}</a></p>", delayed=True)
 			sent = True
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison salon email receipt")
+			frappe.log_error(frappe.get_traceback(), "awanz salon email receipt")
 		finally:
 			frappe.clear_messages()
 	_push_inbox(doc, "email_receipt", {"email_masked": mask_email(email), "sent": sent})
@@ -835,7 +835,7 @@ OCCASIONS = ("Anniversary", "Birthday", "Engagement", "Wedding", "Gift", "Milest
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def preferences(token: str, answers: Any) -> dict[str, Any]:
-	"""Guest (Concierge mode): ring / wrist size, metal, style cards, occasions → Maison Client Profile."""
+	"""Guest (Concierge mode): ring / wrist size, metal, style cards, occasions → AWANZ Client Profile."""
 	_rate_limit("preferences", 20)
 	doc = get_session(token)
 	if not doc.customer:

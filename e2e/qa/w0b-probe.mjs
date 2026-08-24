@@ -18,8 +18,8 @@ for (const r of mine.slice(0,30)) {
   log(`  ${r.parent} lvl=${r.warehouse_reorder_level} qty=${r.warehouse_reorder_qty} onhand=${b[0]?.actual_qty ?? 0}`)
 }
 log('--- alert doctype fields')
-const meta = await a.get('frappe.client.get_list',{doctype:'Maison Stock Alert', limit_page_length:5, fields:JSON.stringify(['name','status'])})
+const meta = await a.get('frappe.client.get_list',{doctype:'AWANZ Stock Alert', limit_page_length:5, fields:JSON.stringify(['name','status'])})
 log(JSON.stringify(meta))
 log('--- ship_to for store')
-log(JSON.stringify(await a.doc('Maison Boutique', STORE)).slice(0,1200))
+log(JSON.stringify(await a.doc('AWANZ Store', STORE)).slice(0,1200))
 await a.dispose(); await closeBrowser()

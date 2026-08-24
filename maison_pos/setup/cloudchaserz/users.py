@@ -2,13 +2,13 @@
 
 Password ``cloud123`` for every demo login:
 
-    hq@cloudchaserz.example              Maison Head Office (+ System-level sales/stock roles)
-    warehouse@cloudchaserz.example       Maison Warehouse Admin (HOU-WH)
-    regional.ok@cloudchaserz.example     Maison Regional (Oklahoma)
-    regional.tx@cloudchaserz.example     Maison Regional (Texas)
-    <code>.manager@cloudchaserz.example  Maison Manager   PIN unique per store (see MANAGER_PINS)
-    <code>.a1@cloudchaserz.example       Maison Associate PIN 2580
-    <code>.a2@cloudchaserz.example       Maison Associate PIN 1357
+    hq@cloudchaserz.example              AWANZ Head Office (+ System-level sales/stock roles)
+    warehouse@cloudchaserz.example       AWANZ Warehouse Admin (HOU-WH)
+    regional.ok@cloudchaserz.example     AWANZ Regional (Oklahoma)
+    regional.tx@cloudchaserz.example     AWANZ Regional (Texas)
+    <code>.manager@cloudchaserz.example  AWANZ Manager   PIN unique per store (see MANAGER_PINS)
+    <code>.a1@cloudchaserz.example       AWANZ Associate PIN 2580
+    <code>.a2@cloudchaserz.example       AWANZ Associate PIN 1357
 """
 
 from __future__ import annotations
@@ -85,33 +85,33 @@ def ensure_customers() -> None:
 
 
 def ensure_profile(customer: str, birthday: Optional[str], home: Optional[str]) -> None:
-	if not frappe.db.exists("DocType", "Maison Client Profile"):
+	if not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return
-	if not frappe.db.exists("Maison Client Profile", customer):
-		frappe.get_doc({"doctype": "Maison Client Profile", "customer": customer}).insert(ignore_permissions=True)
+	if not frappe.db.exists("AWANZ Client Profile", customer):
+		frappe.get_doc({"doctype": "AWANZ Client Profile", "customer": customer}).insert(ignore_permissions=True)
 	values: dict[str, Any] = {}
-	if birthday and not frappe.db.get_value("Maison Client Profile", customer, "birthday"):
+	if birthday and not frappe.db.get_value("AWANZ Client Profile", customer, "birthday"):
 		values["birthday"] = birthday
-	if home and frappe.db.exists("Maison Boutique", home) and not frappe.db.get_value("Maison Client Profile", customer, "preferred_boutique"):
+	if home and frappe.db.exists("AWANZ Store", home) and not frappe.db.get_value("AWANZ Client Profile", customer, "preferred_boutique"):
 		values["preferred_boutique"] = home
 	if values:
-		frappe.db.set_value("Maison Client Profile", customer, values, update_modified=False)
+		frappe.db.set_value("AWANZ Client Profile", customer, values, update_modified=False)
 
 
 def ensure_users() -> None:
 	from maison_pos.setup import demo
 	from maison_pos.setup.cloudchaserz import stores
 
-	demo.ensure_user(f"hq@{DOMAIN}", "Hunter", "Quinn", ["Maison Head Office", "Sales Manager", "Accounts Manager", "Stock Manager"])
+	demo.ensure_user(f"hq@{DOMAIN}", "Hunter", "Quinn", ["AWANZ Head Office", "Sales Manager", "Accounts Manager", "Stock Manager"])
 	demo.ensure_associate(f"hq@{DOMAIN}", None, "HeadOffice", "0000")
-	demo.ensure_user(f"regional.ok@{DOMAIN}", "Rosa", "Kingfisher", ["Maison Regional", "Sales Manager"])
+	demo.ensure_user(f"regional.ok@{DOMAIN}", "Rosa", "Kingfisher", ["AWANZ Regional", "Sales Manager"])
 	demo.ensure_associate(f"regional.ok@{DOMAIN}", None, "Regional", "0000")
-	demo.ensure_user(f"regional.tx@{DOMAIN}", "Ray", "Torres", ["Maison Regional", "Sales Manager"])
+	demo.ensure_user(f"regional.tx@{DOMAIN}", "Ray", "Torres", ["AWANZ Regional", "Sales Manager"])
 	demo.ensure_associate(f"regional.tx@{DOMAIN}", None, "Regional", "0000")
 	# warehouse admin (role owned by section P; created by install_v06 when absent)
-	wh_roles = ["Maison Warehouse Admin", "Stock User", "Stock Manager", "Purchase User"]
+	wh_roles = ["AWANZ Warehouse Admin", "Stock User", "Stock Manager", "Purchase User"]
 	demo.ensure_user(f"warehouse@{DOMAIN}", "Walter", "Hines", [r for r in wh_roles if _exists("Role", r)])
-	if _exists("Maison Boutique", stores.WAREHOUSE_CODE):
+	if _exists("AWANZ Store", stores.WAREHOUSE_CODE):
 		try:
 			demo.ensure_associate(f"warehouse@{DOMAIN}", stores.WAREHOUSE_CODE, "Manager", "0000")
 			demo.ensure_user_permission(f"warehouse@{DOMAIN}", stores.warehouse_name(stores.WAREHOUSE_CODE))
@@ -125,11 +125,11 @@ def ensure_users() -> None:
 		for kind, first, last in STAFF[code]:
 			if kind == "Mgr":
 				email = f"{prefix}.manager@{DOMAIN}"
-				demo.ensure_user(email, first, last, ["Maison Manager", "Sales User", "Stock User"])
+				demo.ensure_user(email, first, last, ["AWANZ Manager", "Sales User", "Stock User"])
 				demo.ensure_associate(email, code, "Manager", MANAGER_PINS[code])
 			else:
 				email = f"{prefix}.{kind.lower()}@{DOMAIN}"
-				demo.ensure_user(email, first, last, ["Maison Associate", "Sales User"])
+				demo.ensure_user(email, first, last, ["AWANZ Associate", "Sales User"])
 				demo.ensure_associate(email, code, "Associate", "2580" if kind == "A1" else "1357")
 			demo.ensure_user_permission(email, warehouse)
 
@@ -174,7 +174,7 @@ def ensure_readers() -> int:
 
 	n = 0
 	for s in stores.STORES:
-		doc = frappe.get_doc("Maison Boutique", s["code"])
+		doc = frappe.get_doc("AWANZ Store", s["code"])
 		if doc.get("readers"):
 			continue
 		doc.append("readers", {"label": "Counter 1 · V660p", "device_type": "verifone_v660p", "has_printer": 1, "enabled": 1, "stripe_reader_id": f"tmr_sim_{s['code'].lower().replace('-', '')}_1"})
@@ -191,7 +191,7 @@ def ensure_damaged_warehouses() -> list[str]:
 	except Exception:
 		return []
 	out = []
-	for b in frappe.get_all("Maison Boutique", filters={"company": COMPANY}, pluck="name"):
+	for b in frappe.get_all("AWANZ Store", filters={"company": COMPANY}, pluck="name"):
 		try:
 			out.append(ensure_damaged_warehouse(b))
 		except Exception:
@@ -209,13 +209,13 @@ COMMISSION_RULES = [
 
 
 def ensure_commission_rules() -> int:
-	if not frappe.db.exists("DocType", "Maison Commission Rule"):
+	if not frappe.db.exists("DocType", "AWANZ Commission Rule"):
 		return 0
 	n = 0
 	for title, rate, boutique, role, group, dept, prio in COMMISSION_RULES:
-		if frappe.db.exists("Maison Commission Rule", title):
+		if frappe.db.exists("AWANZ Commission Rule", title):
 			continue
-		frappe.get_doc({"doctype": "Maison Commission Rule", "title": title, "rate_percent": rate, "boutique": boutique, "role": role, "item_group": group, "department": dept, "priority": prio, "enabled": 1}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Commission Rule", "title": title, "rate_percent": rate, "boutique": boutique, "role": role, "item_group": group, "department": dept, "priority": prio, "enabled": 1}).insert(ignore_permissions=True)
 		n += 1
 	return n
 
@@ -249,14 +249,14 @@ FEEDBACK = [
 
 
 def ensure_feedback() -> int:
-	if not frappe.db.exists("DocType", "Maison Feedback"):
+	if not frappe.db.exists("DocType", "AWANZ Feedback"):
 		return 0
 	n = 0
 	for boutique, rating, comment in FEEDBACK:
 		invoice = frappe.db.get_value("Sales Invoice", {"maison_boutique": boutique, "docstatus": 1, "is_return": 0}, "name", order_by="posting_date desc")
-		if not invoice or frappe.db.exists("Maison Feedback", {"sales_invoice": invoice}):
+		if not invoice or frappe.db.exists("AWANZ Feedback", {"sales_invoice": invoice}):
 			continue
-		frappe.get_doc({"doctype": "Maison Feedback", "sales_invoice": invoice, "boutique": boutique, "associate": frappe.db.get_value("Sales Invoice", invoice, "maison_associate"), "rating": rating, "comment": comment, "submitted_at": frappe.utils.now_datetime(), "status": "New"}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Feedback", "sales_invoice": invoice, "boutique": boutique, "associate": frappe.db.get_value("Sales Invoice", invoice, "maison_associate"), "rating": rating, "comment": comment, "submitted_at": frappe.utils.now_datetime(), "status": "New"}).insert(ignore_permissions=True)
 		n += 1
 	return n
 

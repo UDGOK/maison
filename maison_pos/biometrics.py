@@ -8,7 +8,7 @@ operating point of that model is the **euclidean distance between the RAW descri
 ``distance < 0.6`` ⇒ same person. That is the rule used on both sides:
 
 * templates are stored and returned **raw** (never unit-normalised);
-* ``Maison POS Settings.match_threshold`` is the **maximum distance** (default ``0.6``);
+* ``AWANZ POS Settings.match_threshold`` is the **maximum distance** (default ``0.6``);
   a device may only *tighten* it (lower distance);
 * the API returns ``distance`` per candidate plus a display-only
   ``score = clamp(1 − distance / 1.2, 0, 1)`` and ``threshold_distance``.
@@ -39,14 +39,14 @@ MAX_TEMPLATES_PER_CUSTOMER = 10
 CONSENT_METHODS = ("Hold-to-agree", "Signature")
 
 DEFAULT_CONSENT_TEXT_EN = (
-	"I agree that Maison may create and store a mathematical template of my facial features "
+	"I agree that AWANZ may create and store a mathematical template of my facial features "
 	"(a \"face template\") so that this boutique can recognise me and offer personalised service "
-	"when I visit. No photograph or video of my face is kept; only the template. Maison will not "
+	"when I visit. No photograph or video of my face is kept; only the template. AWANZ will not "
 	"sell, lease or trade my face template, will not use it for any purpose other than identifying "
 	"me as a client, and will permanently destroy it when I withdraw my consent, when I have not "
-	"visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. "
+	"visited an AWANZ boutique for 36 months, or sooner if required by law — whichever comes first. "
 	"I may withdraw this consent at any time by asking any boutique manager or by writing to "
-	"privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available "
+	"privacy@maison.example. AWANZ's Biometric Data Retention and Destruction Policy is available "
 	"at every boutique and on maison.example/privacy/biometrics."
 )
 

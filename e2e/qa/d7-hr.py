@@ -54,11 +54,11 @@ print(f"\n{len(bad)} field discrepancies"); [print('  !',b) for b in bad[:20]]
 # ---- commission statement ----
 cs = dq.call("maison_pos.api.hr.commission_statement", {"from_date":str(FROM),"to_date":str(TODAY),"boutique":B})["message"]
 print("\ncommission_statement keys:", list(cs.keys()) if isinstance(cs,dict) else type(cs))
-ent = dq.get_list("Maison Commission Entry", filters={"boutique":B,"posting_date":("between",[str(FROM),str(TODAY)])},
+ent = dq.get_list("AWANZ Commission Entry", filters={"boutique":B,"posting_date":("between",[str(FROM),str(TODAY)])},
        fields=["associate","commission_amount","base_amount","is_reversal","rate_percent"], limit=5000)
 tot=defaultdict(float); base=defaultdict(float)
 for e in ent: tot[e["associate"]]+=float(e["commission_amount"] or 0); base[e["associate"]]+=float(e["base_amount"] or 0)
-print(f"raw Maison Commission Entry rows: {len(ent)}")
+print(f"raw AWANZ Commission Entry rows: {len(ent)}")
 rows = cs.get("rows") or cs.get("associates") or []
 for r in rows:
     a=r.get("associate"); ok = abs(float(r.get("commission",0))-tot[a])<0.011
@@ -69,4 +69,4 @@ for p in perf:
     ok=abs(float(p["commission"])-tot[p["associate"]])<0.011
     if not ok: bad.append(f"perf.commission {p['associate']}: API={p['commission']} entries={round(tot[p['associate']],2)}")
 print(f"\ntotal discrepancies incl. commission: {len(bad)}")
-json.dump({"bad":bad,"perf":perf,"bt_net":bt_net,"bt_gross":bt_gross}, open("/home/claude/maison/e2e/qa/results-d7.json","w"), indent=1, default=str)
+json.dump({"bad":bad,"perf":perf,"bt_net":bt_net,"bt_gross":bt_gross}, open("/home/claude/awanz/e2e/qa/results-d7.json","w"), indent=1, default=str)

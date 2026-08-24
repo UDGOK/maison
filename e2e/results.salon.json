@@ -1,6 +1,6 @@
 {
   "base": "http://maison.localhost:8000",
-  "run": "T1D0K",
+  "run": "ACRFC",
   "passed": 32,
   "total": 32,
   "results": [
@@ -17,7 +17,7 @@
     {
       "step": "pairing code (6 digits) + QR + 10 min countdown on the POS",
       "ok": true,
-      "detail": "791849 · 10:00"
+      "detail": "425972 · 10:00"
     },
     {
       "step": "Salon pairs with the code → ambient screen",
@@ -30,14 +30,14 @@
       "detail": ""
     },
     {
-      "step": "server: Maison Salon Session Paired for this POS device",
+      "step": "server: AWANZ Salon Session Paired for this POS device",
       "ok": true,
-      "detail": "a6541b43"
+      "detail": "3acd8e22"
     },
     {
       "step": "ambient shows the hour and a playlist piece",
       "ok": true,
-      "detail": "00:38"
+      "detail": "08:42"
     },
     {
       "step": "first piece without a client → Salon asks \"Are you a client of the house?\"",
@@ -62,7 +62,7 @@
     {
       "step": "basket mirror: 3 lines, newest piece large, total matches the POS",
       "ok": true,
-      "detail": "Cufflinks Onyx and Gold · 12368.95"
+      "detail": "Cufflinks Onyx and Gold · 16117.45"
     },
     {
       "step": "basket mirror shows points to be earned",
@@ -72,12 +72,12 @@
     {
       "step": "\"Ask about this piece\" → CRM interaction + POS notice",
       "ok": true,
-      "detail": "Client asked about Cufflinks Onyx and Gold: Is this one available in rose gold? (T1D0K)"
+      "detail": "Client asked about Cufflinks Onyx and Gold: Is this one available in rose gold? (ACRFC)"
     },
     {
       "step": "Salon payment screen shows the amount",
       "ok": true,
-      "detail": "12368.95"
+      "detail": "16117.45"
     },
     {
       "step": "Salon shows \"Approved\" with the gold pulse",
@@ -87,22 +87,22 @@
     {
       "step": "sale submitted with the Salon-identified client",
       "ok": true,
-      "detail": "ACC-SINV-2026-03001"
+      "detail": "ACC-SINV-2026-03040"
     },
     {
       "step": "thank-you: name, points earned and receipt QR",
       "ok": true,
-      "detail": "+7,479"
+      "detail": "+9,746"
     },
     {
-      "step": "feedback reaches HQ (Maison Feedback, status New)",
+      "step": "feedback reaches HQ (AWANZ Feedback, status New)",
       "ok": true,
-      "detail": "{\"rating\":5,\"comment\":\"Exquisite service (T1D0K)\",\"boutique\":\"CHI-OAK\",\"status\":\"New\"}"
+      "detail": "{\"rating\":5,\"comment\":\"Exquisite service (ACRFC)\",\"boutique\":\"CHI-OAK\",\"status\":\"New\"}"
     },
     {
       "step": "HQ feedback summary counts it",
       "ok": true,
-      "detail": "22 → 23"
+      "detail": "24 → 25"
     },
     {
       "step": "private-viewing invitation sets the Client Profile flag",
@@ -117,7 +117,7 @@
     {
       "step": "sign-up creates the Customer (client № assigned) and attaches it on the POS",
       "ok": true,
-      "detail": "{\"name\":\"Salon Newcomer T1D0K\",\"mobile_no\":\"+1 312 555 7300\",\"maison_client_number\":\"MC778051\"}"
+      "detail": "{\"name\":\"Salon Newcomer ACRFC\",\"mobile_no\":\"+1 312 555 7664\",\"maison_client_number\":\"MC705560\"}"
     },
     {
       "step": "sign-up stores marketing preferences + birthday on the Client Profile",
@@ -137,7 +137,7 @@
     {
       "step": "server: consent_agreed message carries the method + version, no biometrics stored by the Salon",
       "ok": true,
-      "detail": "{\"method\":\"Hold-to-agree\",\"text_version\":\"2026-08-1\",\"captured_at\":\"2026-08-24 01:38:43.550889\",\"customer\":\"Salon Newcomer T1D0K\"}"
+      "detail": "{\"method\":\"Hold-to-agree\",\"text_version\":\"2026-08-1\",\"captured_at\":\"2026-08-24 09:43:17.288506\",\"customer\":\"Salon Newcomer ACRFC\"}"
     },
     {
       "step": "POS without a camera → Salon: \"We will finish this at the counter\"",

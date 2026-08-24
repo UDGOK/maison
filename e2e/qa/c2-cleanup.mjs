@@ -19,13 +19,13 @@ try {
 } catch (e) { log('PO cleanup:', String(e).slice(0, 250)) }
 
 // ---------- 2. cancel every still-open shipment of mine
-const open = await a.list('Maison Shipment', { boutique: STORE, status: ['in', ['Pending', 'Picking', 'Packed', 'Shipped']] }, ['name', 'status', 'material_request'], 100)
+const open = await a.list('AWANZ Shipment', { boutique: STORE, status: ['in', ['Pending', 'Picking', 'Packed', 'Shipped']] }, ['name', 'status', 'material_request'], 100)
 for (const s of open) {
   try { await w.post('maison_pos.api.shipping.mark', { shipment: s.name, status: 'Cancelled' }); log('cancelled shipment', s.name, s.status) }
   catch (e) { log('shipment', s.name, 'cancel failed', String(e).slice(0, 200)) }
 }
 // ---------- 3. cancel the submitted Material Requests that belong to cancelled shipments
-const cancelled = await a.list('Maison Shipment', { boutique: STORE, status: 'Cancelled' }, ['name', 'material_request'], 100)
+const cancelled = await a.list('AWANZ Shipment', { boutique: STORE, status: 'Cancelled' }, ['name', 'material_request'], 100)
 for (const s of cancelled) {
   if (!s.material_request) continue
   const mr = await a.value('Material Request', s.material_request, ['docstatus', 'status'])
@@ -35,13 +35,13 @@ for (const s of cancelled) {
   }
 }
 // ---------- 4. reject every request still pending (this also deletes its draft MR)
-const pending = await a.list('Maison Replenishment Request', { boutique: STORE, status: 'Pending Approval' }, ['name'], 100)
+const pending = await a.list('AWANZ Replenishment Request', { boutique: STORE, status: 'Pending Approval' }, ['name'], 100)
 for (const r of pending) {
   try { await w.post('maison_pos.api.shipping.reject', { request: r.name, reason: `${TAG} QA test request — withdrawn during cleanup` }); log('rejected', r.name) }
   catch (e) { log('reject', r.name, 'failed', String(e).slice(0, 200)) }
 }
 // ---------- 5. drafts from the cycle count
-for (const [dt, name] of [['Stock Reconciliation', 'MAT-RECO-2026-00001'], ['Maison Cycle Count', 'MCC-2026-00045'], ['Maison Cycle Count', 'MCC-2026-00046']]) {
+for (const [dt, name] of [['Stock Reconciliation', 'MAT-RECO-2026-00001'], ['AWANZ Cycle Count', 'MCC-2026-00045'], ['AWANZ Cycle Count', 'MCC-2026-00046']]) {
   try { await a.post('frappe.client.delete', { doctype: dt, name }); log('deleted', dt, name) }
   catch (e) { log('delete', dt, name, String(e).slice(0, 200)) }
 }

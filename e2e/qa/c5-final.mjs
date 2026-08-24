@@ -26,7 +26,7 @@ record('a store manager opening /warehouse-wall gets the permission gate', (awai
 await ctx.close()
 // final clean board
 const { ctx: c2, page: wall } = await pageAs(WH, { viewport: { width: 1920, height: 1080 }, tag: 'wall' })
-await wall.addInitScript(() => { window.__maisonWallPrintDry = true })
+await wall.addInitScript(() => { window.__awanzWallPrintDry = true })
 await wall.goto('/warehouse-wall', { waitUntil: 'domcontentloaded' })
 await wall.waitForSelector('[data-testid=warehouse-wall]', { timeout: 45000 })
 await sleep(3000)

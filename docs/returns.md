@@ -1,6 +1,6 @@
-# Maison POS — itemized returns & exchanges (v0.4 E)
+# AWANZ POS — itemized returns & exchanges (v0.4 E)
 
-## Policy (Maison POS Settings)
+## Policy (AWANZ POS Settings)
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -9,7 +9,7 @@
 | `returns_manager_threshold` | 2 500 | Refund / exchange credit (incl. tax) above this needs a manager PIN; `0` = always |
 
 Reasons: *Change of mind, Defect, Sizing, Gift return, Other*. Conditions: *Sellable* (back on
-the floor) / *Damaged* (to the boutique's **Damaged** warehouse, `Maison Boutique.damaged_warehouse`,
+the floor) / *Damaged* (to the boutique's **Damaged** warehouse, `AWANZ Store.damaged_warehouse`,
 created by the seed / `after_migrate` as `<code> Damaged - <abbr>`).
 
 ## POS flow (`/returns`, `/exchange/:invoice`)
@@ -53,7 +53,7 @@ exchange payments not covering the difference), `VALIDATION_ERROR`.
   sellable from the POS; shows as *Damaged* in the Serial Ledger report).
 - **Refund tenders** (credit note `is_pos = 1`): `Card` or `Cash` row with a negative amount equal
   to the credit note total. **Card** refunds call `stripe.Refund.create(payment_intent=…, amount=…)`
-  (idempotency key `maison-refund-<credit note>`; partial refunds allowed); the refund id is stored
+  (idempotency key `awanz-refund-<credit note>`; partial refunds allowed); the refund id is stored
   in `maison_refund_id`. Without `stripe_secret_key` (or for `pi_sim_…` intents) the refund is
   simulated (`re_sim_…`).
 - **Store credit**: credit note `is_pos = 0` with no tenders → stays **unallocated**
@@ -86,7 +86,7 @@ remainder outstanding on the credit note. Both documents reference each other th
 
 ### Print formats
 
-`Maison Return Receipt` (Jinja, `templates/print/return_receipt.html`, fixture in
+`AWANZ Return Receipt` (Jinja, `templates/print/return_receipt.html`, fixture in
 `fixtures/print_format.json`) prints credit notes: RETURN / EXCHANGE banner, original sale, new
 sale, approver, reason + condition per line, credit, refund tender or store credit, points note,
 signature line, QR to `/r/<token>` (credit notes get their own receipt token; the public page and
@@ -94,8 +94,8 @@ signature line, QR to `/r/<token>` (credit notes get their own receipt token; th
 
 ## Reports
 
-`Maison Returns` (by reason / boutique / associate or line detail); `Maison Daily Sales`, `Maison
-Sales Tax Summary`, `Maison Sales by Item / Associate`, `Maison Client Purchases` and the POS X/Z
+`AWANZ Returns` (by reason / boutique / associate or line detail); `AWANZ Daily Sales`, `AWANZ
+Sales Tax Summary`, `AWANZ Sales by Item / Associate`, `AWANZ Client Purchases` and the POS X/Z
 report all net credit notes (negative rows) automatically. The dashboard "Low stock" tile shows
 *Returns today* and `dashboard.live_summary.returns` carries the count / value.
 

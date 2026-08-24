@@ -14,7 +14,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 	"Sales Invoice": [
-		{"fieldname": "maison_coupon", "label": "Maison Coupon", "fieldtype": "Link", "options": "Maison Coupon", "insert_after": "maison_notes", "read_only": 1, "no_copy": 1},
+		{"fieldname": "maison_coupon", "label": "AWANZ Coupon", "fieldtype": "Link", "options": "AWANZ Coupon", "insert_after": "maison_notes", "read_only": 1, "no_copy": 1},
 		{"fieldname": "maison_coupon_discount", "label": "Coupon Discount", "fieldtype": "Currency", "insert_after": "maison_coupon", "read_only": 1, "no_copy": 1},
 		{"fieldname": "maison_promotions", "label": "Promotions Applied (JSON)", "fieldtype": "Small Text", "insert_after": "maison_coupon_discount", "read_only": 1, "no_copy": 1, "hidden": 1},
 	],
@@ -22,10 +22,10 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 		{"fieldname": "maison_coupon_discount", "label": "Coupon Discount", "fieldtype": "Currency", "insert_after": "discount_amount", "read_only": 1, "no_copy": 1},
 	],
 	# v0.4 switches for this section live as custom fields on the Single so the JSON stays untouched
-	"Maison POS Settings": [
+	"AWANZ POS Settings": [
 		{"fieldname": "section_v04_crm", "label": "Promotions, feedback & loyalty (v0.4)", "fieldtype": "Section Break", "insert_after": "consent_text"},
 		{"fieldname": "promotions_enabled", "label": "Promotions & coupons in POS", "fieldtype": "Check", "default": "1", "insert_after": "section_v04_crm"},
-		{"fieldname": "birthday_bonus_points", "label": "Birthday bonus points", "fieldtype": "Int", "default": "0", "insert_after": "promotions_enabled", "description": "Loyalty points credited on the client's birthday (0 = off). Needs a birthday on the Maison Client Profile."},
+		{"fieldname": "birthday_bonus_points", "label": "Birthday bonus points", "fieldtype": "Int", "default": "0", "insert_after": "promotions_enabled", "description": "Loyalty points credited on the client's birthday (0 = off). Needs a birthday on the AWANZ Client Profile."},
 		{"fieldname": "column_break_v04_crm", "fieldtype": "Column Break", "insert_after": "birthday_bonus_points"},
 		{"fieldname": "feedback_enabled", "label": "Private feedback on receipt page", "fieldtype": "Check", "default": "1", "insert_after": "column_break_v04_crm"},
 		{"fieldname": "feedback_alert_threshold", "label": "Alert manager when rating ≤", "fieldtype": "Int", "default": "2", "insert_after": "feedback_enabled"},
@@ -50,16 +50,16 @@ def create_v04_custom_fields() -> None:
 
 
 def ensure_v04_settings_defaults() -> None:
-	if not frappe.db.exists("DocType", "Maison POS Settings"):
+	if not frappe.db.exists("DocType", "AWANZ POS Settings"):
 		return
-	stored = frappe.db.get_singles_dict("Maison POS Settings")
+	stored = frappe.db.get_singles_dict("AWANZ POS Settings")
 	for key, value in SETTINGS_DEFAULTS.items():
 		if stored.get(key) in (None, ""):
 			try:
-				frappe.db.set_single_value("Maison POS Settings", key, value)
+				frappe.db.set_single_value("AWANZ POS Settings", key, value)
 			except Exception:
 				pass
-	frappe.clear_cache(doctype="Maison POS Settings")
+	frappe.clear_cache(doctype="AWANZ POS Settings")
 
 
 def ensure_tier_customer_groups() -> list[str]:
@@ -82,4 +82,4 @@ def setup_v04_crm() -> None:
 	try:
 		ensure_tier_customer_groups()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison tier customer groups")
+		frappe.log_error(frappe.get_traceback(), "awanz tier customer groups")

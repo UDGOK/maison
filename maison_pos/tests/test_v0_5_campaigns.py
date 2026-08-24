@@ -192,9 +192,9 @@ class V05Base(FrappeTestCase):
 		frappe.db.rollback(save_point="v05_test")
 
 	def _campaign(self, code, **values):
-		if frappe.db.exists("Maison Campaign", code):
-			frappe.delete_doc("Maison Campaign", code, force=True, ignore_permissions=True)
-		doc = frappe.get_doc({"doctype": "Maison Campaign", "campaign_code": code, "title": code, "channel": "Email", "status": "Sent", "send_date": add_days(nowdate(), -5), **values})
+		if frappe.db.exists("AWANZ Campaign", code):
+			frappe.delete_doc("AWANZ Campaign", code, force=True, ignore_permissions=True)
+		doc = frappe.get_doc({"doctype": "AWANZ Campaign", "campaign_code": code, "title": code, "channel": "Email", "status": "Sent", "send_date": add_days(nowdate(), -5), **values})
 		doc.insert(ignore_permissions=True)
 		return doc
 
@@ -222,7 +222,7 @@ class TestSegmentBuilder(V05Base):
 		self.assertIn(isabella, names)
 		self.assertNotIn("Walk-in Client", names)
 		# SMS channel honours do_not_sms
-		frappe.get_doc({"doctype": "Maison Client Profile", "customer": isabella, "do_not_sms": 1}).insert(ignore_permissions=True) if not frappe.db.exists("Maison Client Profile", isabella) else frappe.db.set_value("Maison Client Profile", isabella, "do_not_sms", 1)
+		frappe.get_doc({"doctype": "AWANZ Client Profile", "customer": isabella, "do_not_sms": 1}).insert(ignore_permissions=True) if not frappe.db.exists("AWANZ Client Profile", isabella) else frappe.db.set_value("AWANZ Client Profile", isabella, "do_not_sms", 1)
 		c.channel = "SMS"
 		c.save()
 		self.assertNotIn(isabella, {r["customer"] for r in segments.build_segment(c.name)})
@@ -240,16 +240,16 @@ class TestSegmentBuilder(V05Base):
 		c.segment_boutique = None
 		c.segment_signal_type = "Birthday"
 		c.save()
-		sig_customers = set(frappe.get_all("Maison Client Signal", filters={"signal_type": "Birthday", "status": "Open"}, pluck="customer"))
+		sig_customers = set(frappe.get_all("AWANZ Client Signal", filters={"signal_type": "Birthday", "status": "Open"}, pluck="customer"))
 		self.assertTrue({r["customer"] for r in segments.build_segment(c.name)} <= sig_customers)
 		# tier override wins
 		c.segment_signal_type = None
 		c.segment_tier = "Patron"
 		c.save()
-		if frappe.db.exists("Maison Client Profile", isabella):
-			frappe.db.set_value("Maison Client Profile", isabella, "vip_tier_override", "Patron")
+		if frappe.db.exists("AWANZ Client Profile", isabella):
+			frappe.db.set_value("AWANZ Client Profile", isabella, "vip_tier_override", "Patron")
 		else:
-			frappe.get_doc({"doctype": "Maison Client Profile", "customer": isabella, "vip_tier_override": "Patron"}).insert(ignore_permissions=True)
+			frappe.get_doc({"doctype": "AWANZ Client Profile", "customer": isabella, "vip_tier_override": "Patron"}).insert(ignore_permissions=True)
 		self.assertIn(isabella, {r["customer"] for r in segments.build_segment(c.name)})
 
 	def test_export_segment_email_group_and_csv(self):
@@ -273,7 +273,7 @@ class TestAttributionJob(V05Base):
 		inv = self._sale(isabella, items=[{"item_code": "AC-012", "qty": 2, "rate": 160}])
 		summary = attribution.run_attribution(campaign=c.name)
 		self.assertGreaterEqual(summary["attributed_invoices"], 1)
-		row = frappe.db.get_value("Maison Campaign Attribution", {"sales_invoice": inv, "campaign": c.name}, ["type", "amount", "boutique"], as_dict=True)
+		row = frappe.db.get_value("AWANZ Campaign Attribution", {"sales_invoice": inv, "campaign": c.name}, ["type", "amount", "boutique"], as_dict=True)
 		self.assertEqual(row.type, "Direct")
 		self.assertEqual(row.amount, 320.0)
 		self.assertEqual(row.boutique, "NYC-5AV")
@@ -282,17 +282,17 @@ class TestAttributionJob(V05Base):
 		# the demo client may have other (history) sales inside the window -> at least this one
 		direct = perf["campaigns"][0]["attributed_direct"]
 		self.assertGreaterEqual(direct, 320.0)
-		self.assertEqual(direct, frappe.db.get_value("Maison Campaign Attribution", {"campaign": c.name, "type": "Direct"}, "sum(amount)"))
+		self.assertEqual(direct, frappe.db.get_value("AWANZ Campaign Attribution", {"campaign": c.name, "type": "Direct"}, "sum(amount)"))
 		self.assertAlmostEqual(perf["campaigns"][0]["roi"], (direct - 100) / 100, places=3)
 		self.assertEqual(perf["totals"]["attributed_direct"], direct)
 		# idempotent: a second run does not duplicate rows
 		attribution.run_attribution(campaign=c.name)
-		self.assertEqual(frappe.db.count("Maison Campaign Attribution", {"sales_invoice": inv}), 1)
+		self.assertEqual(frappe.db.count("AWANZ Campaign Attribution", {"sales_invoice": inv}), 1)
 		# a manager of another boutique sees no attributed revenue from NYC
 		frappe.set_user(CHI_ASSOCIATE.replace("a1", "manager"))
 		perf = campaigns_api.performance(campaign=c.name)
 		self.assertEqual(perf["boutique"], "CHI-OAK")
-		chi_only = frappe.db.get_value("Maison Campaign Attribution", {"campaign": c.name, "type": "Direct", "boutique": "CHI-OAK"}, "sum(amount)") or 0.0
+		chi_only = frappe.db.get_value("AWANZ Campaign Attribution", {"campaign": c.name, "type": "Direct", "boutique": "CHI-OAK"}, "sum(amount)") or 0.0
 		self.assertEqual(perf["campaigns"][0]["attributed_direct"], chi_only)
 		self.assertLess(chi_only, direct)  # the NYC sale is not in the Oak Street view
 
@@ -303,7 +303,7 @@ class TestAttributionJob(V05Base):
 		inv = self._sale(isabella)
 		credit = sales.void(inv, "test")["credit_note"]
 		attribution.run_attribution(campaign=c.name)
-		self.assertEqual(frappe.db.count("Maison Campaign Attribution", {"sales_invoice": credit}), 0)
+		self.assertEqual(frappe.db.count("AWANZ Campaign Attribution", {"sales_invoice": credit}), 0)
 
 	def test_record_touch_upserts_and_backfills(self):
 		isabella = _customer("Isabella Marchetti")
@@ -311,7 +311,7 @@ class TestAttributionJob(V05Base):
 		t1 = webhooks.record_touch(c.name, isabella, "clicked", "2026-08-10 10:00:00")
 		t2 = webhooks.record_touch(c.name, isabella, "sent", "2026-08-09 09:00:00")
 		self.assertEqual(t1, t2)
-		d = frappe.db.get_value("Maison Campaign Touch", t1, ["sent_at", "opened_at", "clicked_at"], as_dict=True)
+		d = frappe.db.get_value("AWANZ Campaign Touch", t1, ["sent_at", "opened_at", "clicked_at"], as_dict=True)
 		self.assertEqual(str(d.sent_at), "2026-08-09 09:00:00")
 		self.assertEqual(str(d.opened_at), "2026-08-10 10:00:00")
 		self.assertEqual(str(d.clicked_at), "2026-08-10 10:00:00")
@@ -346,7 +346,7 @@ class TestWebhookEndpoints(V05Base):
 		self._with_request(body, {"Klaviyo-Signature": sig})
 		res = campaigns_api.webhook_klaviyo()
 		self.assertEqual(res["recorded"], 1)
-		touch = frappe.db.get_value("Maison Campaign Touch", {"campaign": c.name, "customer": _customer("Isabella Marchetti")}, ["source", "opened_at", "sent_at"], as_dict=True)
+		touch = frappe.db.get_value("AWANZ Campaign Touch", {"campaign": c.name, "customer": _customer("Isabella Marchetti")}, ["source", "opened_at", "sent_at"], as_dict=True)
 		self.assertEqual(touch.source, "Klaviyo")
 		self.assertIsNotNone(touch.opened_at)
 		self.assertIsNotNone(touch.sent_at)
@@ -368,7 +368,7 @@ class TestWebhookEndpoints(V05Base):
 		res = campaigns_api.webhook_brevo()
 		self.assertEqual(res["recorded"], 1)
 		self.assertEqual(res["unmatched"][0]["reason"], "customer")
-		self.assertTrue(frappe.db.exists("Maison Campaign Touch", {"campaign": c.name, "source": "Brevo"}))
+		self.assertTrue(frappe.db.exists("AWANZ Campaign Touch", {"campaign": c.name, "source": "Brevo"}))
 
 
 class TestEmployeePerformance(V05Base):
@@ -380,9 +380,9 @@ class TestEmployeePerformance(V05Base):
 		sales.void(inv_client, "test")
 		# follow-ups: +2 assigned to a1 (one done) on top of whatever the demo seed created
 		base = {r["associate"]: r for r in hr.employee_performance(boutique="NYC-5AV", from_date=nowdate(), to_date=nowdate())}[NYC_ASSOCIATE]
-		frappe.get_doc({"doctype": "Maison Client Interaction", "customer": isabella, "type": "Follow-up", "associate": NYC_ASSOCIATE, "boutique": "NYC-5AV", "ts": now_datetime(), "follow_up_date": nowdate(), "status": "Done", "done_on": now_datetime()}).insert(ignore_permissions=True)
-		frappe.get_doc({"doctype": "Maison Client Interaction", "customer": isabella, "type": "Follow-up", "associate": NYC_ASSOCIATE, "boutique": "NYC-5AV", "ts": now_datetime(), "follow_up_date": nowdate(), "status": "Open"}).insert(ignore_permissions=True)
-		frappe.get_doc({"doctype": "Maison Biometric Consent", "customer": isabella, "status": "Active", "boutique": "NYC-5AV", "associate": NYC_ASSOCIATE, "captured_at": now_datetime(), "consent_text_version": "t", "method": "Hold-to-agree"}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Client Interaction", "customer": isabella, "type": "Follow-up", "associate": NYC_ASSOCIATE, "boutique": "NYC-5AV", "ts": now_datetime(), "follow_up_date": nowdate(), "status": "Done", "done_on": now_datetime()}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Client Interaction", "customer": isabella, "type": "Follow-up", "associate": NYC_ASSOCIATE, "boutique": "NYC-5AV", "ts": now_datetime(), "follow_up_date": nowdate(), "status": "Open"}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Biometric Consent", "customer": isabella, "status": "Active", "boutique": "NYC-5AV", "associate": NYC_ASSOCIATE, "captured_at": now_datetime(), "consent_text_version": "t", "method": "Hold-to-agree"}).insert(ignore_permissions=True)
 		rows = {r["associate"]: r for r in hr.employee_performance(boutique="NYC-5AV", from_date=nowdate(), to_date=nowdate())}
 		a1, a2 = rows[NYC_ASSOCIATE], rows[NYC_ASSOCIATE_2]
 		self.assertEqual(a1["tickets"], 2)
@@ -417,14 +417,14 @@ class TestEmployeePerformance(V05Base):
 class TestAssignCall(V05Base):
 	def _signal(self, boutique="NYC-5AV", preferred=NYC_ASSOCIATE):
 		isabella = _customer("Isabella Marchetti")
-		return frappe.get_doc({"doctype": "Maison Client Signal", "customer": isabella, "customer_name": "Isabella Marchetti", "boutique": boutique, "preferred_associate": preferred, "signal_type": "VIP lapsing", "priority": 80, "status": "Open", "week": "2026-W34", "reason": "test"}).insert(ignore_permissions=True)
+		return frappe.get_doc({"doctype": "AWANZ Client Signal", "customer": isabella, "customer_name": "Isabella Marchetti", "boutique": boutique, "preferred_associate": preferred, "signal_type": "VIP lapsing", "priority": 80, "status": "Open", "week": "2026-W34", "reason": "test"}).insert(ignore_permissions=True)
 
 	def test_hq_assigns_to_preferred_associate_and_creates_task(self):
 		sig = self._signal()
 		frappe.set_user(HQ)
 		res = insights.assign_call(sig.name)
 		self.assertEqual(res["associate"], NYC_ASSOCIATE)
-		task = frappe.get_doc("Maison Client Interaction", res["task"])
+		task = frappe.get_doc("AWANZ Client Interaction", res["task"])
 		self.assertEqual((task.type, task.status, task.associate), ("Call", "Open", NYC_ASSOCIATE))
 		sig.reload()
 		self.assertEqual(sig.assigned_associate, NYC_ASSOCIATE)
@@ -434,8 +434,8 @@ class TestAssignCall(V05Base):
 			self.assertEqual(frappe.db.get_value("CRM Task", res["crm_task"], "assigned_to"), NYC_ASSOCIATE)
 		# re-assign to a2 cancels the first call
 		res2 = insights.assign_call(sig.name, associate=NYC_ASSOCIATE_2)
-		self.assertEqual(frappe.db.get_value("Maison Client Interaction", task.name, "status"), "Cancelled")
-		self.assertEqual(frappe.db.get_value("Maison Client Interaction", res2["task"], "associate"), NYC_ASSOCIATE_2)
+		self.assertEqual(frappe.db.get_value("AWANZ Client Interaction", task.name, "status"), "Cancelled")
+		self.assertEqual(frappe.db.get_value("AWANZ Client Interaction", res2["task"], "associate"), NYC_ASSOCIATE_2)
 		# appears in the signal list payload
 		row = next(r for r in insights.client_signals(boutique="NYC-5AV", limit=500)["signals"] if r["name"] == sig.name)
 		self.assertEqual(row["assigned_associate"], NYC_ASSOCIATE_2)

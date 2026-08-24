@@ -18,20 +18,20 @@ const soLeft = await admin.list('Sales Order', { maison_web_order: 1, customer: 
 record('cleanup · web orders cancelled', soLeft.length === 0, `left: ${soLeft.map((s) => s.name).join(', ') || 'none'}`)
 
 // giveaway: clear the winner links, then delete entries + the giveaway
-for (const g of await admin.list('Maison Giveaway', { title: ['like', 'QA4 %'] }, ['name'], 5)) {
-  for (const f of ['winner_entry', 'winner', 'draw_audit', 'draw_seed']) await admin.post('frappe.client.set_value', { doctype: 'Maison Giveaway', name: g.name, fieldname: f, value: '' }).catch(() => {})
-  for (const e of await admin.list('Maison Giveaway Entry', { giveaway: g.name }, ['name'], 50)) await del('Maison Giveaway Entry', e.name)
-  await del('Maison Giveaway', g.name)
+for (const g of await admin.list('AWANZ Giveaway', { title: ['like', 'QA4 %'] }, ['name'], 5)) {
+  for (const f of ['winner_entry', 'winner', 'draw_audit', 'draw_seed']) await admin.post('frappe.client.set_value', { doctype: 'AWANZ Giveaway', name: g.name, fieldname: f, value: '' }).catch(() => {})
+  for (const e of await admin.list('AWANZ Giveaway Entry', { giveaway: g.name }, ['name'], 50)) await del('AWANZ Giveaway Entry', e.name)
+  await del('AWANZ Giveaway', g.name)
 }
-record('cleanup · test giveaway removed', (await admin.list('Maison Giveaway', { title: ['like', 'QA4 %'] }, ['name'], 5)).length === 0, JSON.stringify(out.failed.slice(-2)))
+record('cleanup · test giveaway removed', (await admin.list('AWANZ Giveaway', { title: ['like', 'QA4 %'] }, ['name'], 5)).length === 0, JSON.stringify(out.failed.slice(-2)))
 
 // leftover giveaway entries pointing at cancelled invoices of the seeded giveaway are left as-is
 const state = {
   invoices: await admin.list('Sales Invoice', { customer: ['like', 'QA4%'], docstatus: 1 }, ['name'], 20),
   orders: await admin.list('Sales Order', { customer: ['like', 'QA4%'], docstatus: 1 }, ['name'], 20),
-  enquiries: await admin.list('Maison Web Enquiry', { customer_name: ['like', 'QA4%'] }, ['name', 'status'], 10),
-  feedback: await admin.list('Maison Feedback', { comment: ['like', '%QA4%'] }, ['name', 'rating'], 10),
-  sessions: await admin.list('Maison Salon Session', { status: 'Paired' }, ['name', 'boutique'], 20),
+  enquiries: await admin.list('AWANZ Web Enquiry', { customer_name: ['like', 'QA4%'] }, ['name', 'status'], 10),
+  feedback: await admin.list('AWANZ Feedback', { comment: ['like', '%QA4%'] }, ['name', 'rating'], 10),
+  sessions: await admin.list('AWANZ Salon Session', { status: 'Paired' }, ['name', 'boutique'], 20),
   customers: await admin.list('Customer', { name: ['like', 'QA4%'] }, ['name', 'disabled'], 20)
 }
 record('cleanup · nothing of mine is left submitted', state.invoices.length === 0 && state.orders.length === 0, JSON.stringify({ invoices: state.invoices.length, orders: state.orders.length }))

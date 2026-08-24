@@ -1,6 +1,6 @@
 import { launch, check, save, shot, BASE } from './lib-dash.mjs'
 const { browser, page, console_ } = await launch()
-await page.goto(`${BASE}/maison-dashboard?view=boutiques`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=boutiques`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="boutiques-table"] .row.data', { timeout: 45000 })
 await page.waitForTimeout(1000)
 const hdrs = await page.locator('.hdr .th').evaluateAll((e) => e.map((x) => ({ s: x.getAttribute('data-sort'), t: x.textContent.trim() })))

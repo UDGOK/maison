@@ -22,7 +22,7 @@ const key = ref(0)
       <button class="label link" @click="key++">Reload</button>
       <button class="label link" @click="salon.setVirtual(false)">Close</button>
     </div>
-    <iframe :key="key" :src="src" title="Maison Salon (virtual)"></iframe>
+    <iframe :key="key" :src="src" title="AWANZ Salon (virtual)"></iframe>
   </div>
 </template>
 

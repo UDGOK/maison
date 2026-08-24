@@ -621,7 +621,7 @@ function mockShipment(state: MockState, req: ReplenishmentRequest, ageMs: number
     age_seconds: Math.round(ageMs / 1000),
     created_at: req.approved_at,
     approved_at: req.approved_at,
-    packing_list_url: `/printview?doctype=Maison%20Shipment&name=${name}&format=Maison%20Packing%20List&no_letterhead=1`,
+    packing_list_url: `/printview?doctype=AWANZ%20Shipment&name=${name}&format=AWANZ%20Packing%20List&no_letterhead=1`,
     lines,
     ship_to: addrFor(req.boutique),
     ship_from: FROM,
@@ -636,11 +636,11 @@ let state: MockState = fresh()
 function emit(e: Omit<WallEvent, 'ts'>) {
   const ev = { ...e, ts: new Date().toISOString() } as WallEvent
   for (const l of state.listeners) l(ev)
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('maison-mock-wall', { detail: ev }))
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('awanz-mock-wall', { detail: ev }))
 }
 
 async function guard() {
-  if (typeof window !== 'undefined' && window.__maisonOffline) throw new ApiError('Offline', 'NETWORK', 0)
+  if (typeof window !== 'undefined' && window.__awanzOffline) throw new ApiError('Offline', 'NETWORK', 0)
   await new Promise((r) => setTimeout(r, 15))
 }
 
@@ -664,12 +664,12 @@ function strip(sh: ShipmentDetail, withLines = true): Shipment {
 
 function findShipment(name: string): ShipmentDetail {
   const sh = state.shipments.find((s) => s.name === name)
-  if (!sh) throw new ApiError(`Maison Shipment ${name} not found`, 'DoesNotExistError', 404)
+  if (!sh) throw new ApiError(`AWANZ Shipment ${name} not found`, 'DoesNotExistError', 404)
   return sh
 }
 function findRequest(name: string): ReplenishmentRequest {
   const r = state.requests.find((s) => s.name === name)
-  if (!r) throw new ApiError(`Maison Replenishment Request ${name} not found`, 'DoesNotExistError', 404)
+  if (!r) throw new ApiError(`AWANZ Replenishment Request ${name} not found`, 'DoesNotExistError', 404)
   return r
 }
 
@@ -802,7 +802,7 @@ export const mockWarehouse: WarehouseApi = {
   admin: {
     async me() {
       await guard()
-      return { user: 'warehouse@cloudchaserz.example', full_name: 'Wanda Houston', roles: ['Maison Warehouse Admin'], warehouse_admin: true, supply_unrestricted: true, boutique: null, main_warehouse: MOCK_WAREHOUSE, warehouse_boutique: 'HOU-WH', brand: { brand_name: 'CloudChaserz', wordmark_text: 'CLOUDCHASERZ', product_name: 'Maison POS by CloudChaserz' }, provider: 'simulated', stores: Object.keys(MOCK_STORES) }
+      return { user: 'warehouse@cloudchaserz.example', full_name: 'Wanda Houston', roles: ['AWANZ Warehouse Admin'], warehouse_admin: true, supply_unrestricted: true, boutique: null, main_warehouse: MOCK_WAREHOUSE, warehouse_boutique: 'HOU-WH', brand: { brand_name: 'CloudChaserz', wordmark_text: 'CLOUDCHASERZ', product_name: 'AWANZ POS by CloudChaserz' }, provider: 'simulated', stores: Object.keys(MOCK_STORES) }
     },
     async wall() {
       await guard()

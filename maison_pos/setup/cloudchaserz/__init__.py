@@ -6,8 +6,8 @@ the 11 real stores (Houston Montrose + 10 Oklahoma) and the ``HOU-WH`` main ware
 (loyalty program + fixed reward tiers + promotion calendar + giveaway + events campaign) and
 the adapted sales history (``maison_pos.setup.cloudchaserz.history``).
 
-The jewellery seed (``maison_pos.setup.demo``, company *Maison*) stays callable as
-``profile="maison"`` — the regression suites rely on it. The two profiles use different
+The jewellery seed (``maison_pos.setup.demo``, company *AWANZ*) stays callable as
+``profile="awanz"`` — the regression suites rely on it. The two profiles use different
 companies so they can coexist on one site (tests seed the jewellery profile inside their own
 transaction on a CloudChaserz site).
 
@@ -60,7 +60,7 @@ def profile_globals() -> Iterator[None]:
 
 
 def is_seeded() -> bool:
-	return bool(frappe.db.exists("Maison Boutique", "HOU-MTR"))
+	return bool(frappe.db.exists("AWANZ Store", "HOU-MTR"))
 
 
 @frappe.whitelist()
@@ -115,8 +115,8 @@ def status() -> dict[str, Any]:
 	return {
 		"seeded": is_seeded(),
 		"company": COMPANY,
-		"brand_name": frappe.db.get_single_value("Maison POS Settings", "brand_name"),
-		"stores": frappe.get_all("Maison Boutique", filters={"company": COMPANY, "enabled": 1}, pluck="name"),
+		"brand_name": frappe.db.get_single_value("AWANZ POS Settings", "brand_name"),
+		"stores": frappe.get_all("AWANZ Store", filters={"company": COMPANY, "enabled": 1}, pluck="name"),
 		"items": frappe.db.count("Item", {"item_code": ("in", [i["code"] for i in catalog.ITEMS])}),
 		"loyalty_program": LOYALTY_PROGRAM,
 		"history": history_status(),
@@ -171,7 +171,7 @@ def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
 		"stores": store_codes,
 		"items": frappe.db.count("Item", {"item_code": ("in", [i["code"] for i in catalog.ITEMS])}),
 		"customers": frappe.db.count("Customer", {"customer_name": ("in", [c[0] for c in users.CUSTOMERS])}),
-		"associates": frappe.db.count("Maison Associate"),
+		"associates": frappe.db.count("AWANZ Associate"),
 		"loyalty_program": LOYALTY_PROGRAM,
 		"password": DEMO_PASSWORD,
 		"rewards": summary_rewards,

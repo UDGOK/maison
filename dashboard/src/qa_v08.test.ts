@@ -84,7 +84,7 @@ describe('D-4 / D-12 KPI strip', () => {
 describe('D-8 reports tab', () => {
   it('no longer prints the framework name', async () => {
     const html = await render(() => import('./components/ReportsSection.vue'), {
-      reports: [{ name: 'Maison Daily Sales', group: 'Sales', description: 'x', route: '/app/query-report/Maison Daily Sales' }],
+      reports: [{ name: 'AWANZ Daily Sales', group: 'Sales', description: 'x', route: '/app/query-report/AWANZ Daily Sales' }],
     })
     const rendered = html.replace(/<!--[\s\S]*?-->/g, '').toLowerCase()
     expect(rendered).not.toContain('frappe')

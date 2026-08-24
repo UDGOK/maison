@@ -73,4 +73,4 @@ for g,(n,u) in sorted(grp_calc.items()):
     if st!="OK": mism+=1
     print(f"   {str(g):24} API={a} calc={n:.2f} units API={cell['units'] if cell else None} calc={u:.1f}  {st}")
 print("matrix mismatches:", mism)
-json.dump({"ok":ok,"matrix_mismatch":mism}, open("/home/claude/maison/e2e/qa/results-d4.json","w"), indent=1, default=str)
+json.dump({"ok":ok,"matrix_mismatch":mism}, open("/home/claude/awanz/e2e/qa/results-d4.json","w"), indent=1, default=str)

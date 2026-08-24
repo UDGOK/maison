@@ -72,7 +72,7 @@ export const useSalonStore = defineStore('salonDevice', {
     remote: (s): SalonState => s.model.remote,
     client: (s): SalonClient | null => clientOf(s.model),
     stale: (s): boolean => isStale(s.model, s.now),
-    // --- v0.6 N: brand tokens from the boutique settings (never a hard-coded "Maison") ---
+    // --- v0.6 N: brand tokens from the boutique settings (never a hard-coded "AWANZ") ---
     brandName: (s): string => s.settings?.brand?.brand_name || 'CloudChaserz',
     wordmark: (s): string => s.settings?.brand?.wordmark_text || (s.settings?.brand?.brand_name || 'CloudChaserz').toUpperCase(),
     programName: (s): string => s.settings?.rewards_program_name || s.settings?.brand?.rewards_program_name || `${s.settings?.brand?.brand_name || 'CloudChaserz'} Rewards`,

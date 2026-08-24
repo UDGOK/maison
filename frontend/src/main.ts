@@ -83,7 +83,7 @@ async function registerServiceWorker() {
     window.addEventListener('online', update)
     setInterval(update, 60 * 60 * 1000)
   } catch (err) {
-    console.warn('[maison] service worker registration failed', err)
+    console.warn('[awanz] service worker registration failed', err)
   }
 }
 

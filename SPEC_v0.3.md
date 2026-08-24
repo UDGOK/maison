@@ -1,4 +1,4 @@
-# Maison POS — v0.3: Client Recognition (camera) — contract for backend + frontend agents
+# AWANZ POS — v0.3: Client Recognition (camera) — contract for backend + frontend agents
 
 Read SPEC.md, SPEC_v0.2.md first. Additive; keep all suites green.
 
@@ -12,16 +12,16 @@ At the Sell screen a small "Recognition" tile (camera preview, gold frame) runs 
 
 ## Backend (maison_pos)
 Doctypes:
-- `Maison Face Template` (child of Customer, table field `maison_face_templates`): `embedding` (Long Text JSON float array), `model` (Data, e.g. "face-api/faceRecognitionNet@1"), `dims` (Int), `quality` (Float), `captured_at`, `boutique`, `device_id`, `consent` (Link → Maison Biometric Consent).
-- `Maison Biometric Consent`: `customer`, `status` (Active/Revoked), `consent_text_version`, `consent_text` (snapshot), `method` (Hold-to-agree / Signature), `signature` (Attach Image, optional), `boutique`, `associate`, `device_id`, `captured_at`, `revoked_at`, `revoked_by`, `ip`. Customer fields already exist: `maison_face_consent` (Check) + add `maison_face_consent_at`; keep them in sync.
-- `Maison Recognition Event`: `customer` (nullable), `boutique`, `device_id`, `score`, `outcome` (Matched/NoMatch/Enrolled/Undone/Declined), `sales_invoice` (nullable), `ts`. Used for audit + dashboard tile.
-- `Maison POS Settings` additions: `face_recognition_enabled` (exists), `recognition_model` (Data), `match_threshold` (Float default 0.55 for euclidean-distance models — define clearly: the API accepts `score` 0–1 where higher is better; backend converts), `biometric_retention_months` (Int 36), `consent_text` (Text, default provided), `consent_text_version` (Data "2026-08-1"), `recognition_offline_cache` (Check 1). Maison Boutique: `face_recognition_enabled` override (Select: Inherit/On/Off).
+- `AWANZ Face Template` (child of Customer, table field `maison_face_templates`): `embedding` (Long Text JSON float array), `model` (Data, e.g. "face-api/faceRecognitionNet@1"), `dims` (Int), `quality` (Float), `captured_at`, `boutique`, `device_id`, `consent` (Link → AWANZ Biometric Consent).
+- `AWANZ Biometric Consent`: `customer`, `status` (Active/Revoked), `consent_text_version`, `consent_text` (snapshot), `method` (Hold-to-agree / Signature), `signature` (Attach Image, optional), `boutique`, `associate`, `device_id`, `captured_at`, `revoked_at`, `revoked_by`, `ip`. Customer fields already exist: `maison_face_consent` (Check) + add `maison_face_consent_at`; keep them in sync.
+- `AWANZ Recognition Event`: `customer` (nullable), `boutique`, `device_id`, `score`, `outcome` (Matched/NoMatch/Enrolled/Undone/Declined), `sales_invoice` (nullable), `ts`. Used for audit + dashboard tile.
+- `AWANZ POS Settings` additions: `face_recognition_enabled` (exists), `recognition_model` (Data), `match_threshold` (Float default 0.55 for euclidean-distance models — define clearly: the API accepts `score` 0–1 where higher is better; backend converts), `biometric_retention_months` (Int 36), `consent_text` (Text, default provided), `consent_text_version` (Data "2026-08-1"), `recognition_offline_cache` (Check 1). AWANZ Store: `face_recognition_enabled` override (Select: Inherit/On/Off).
 API (`maison_pos.api.recognition`):
 - `match(embedding: list[float], model: str, boutique: str) -> {matches: [{customer, customer_name, client_number, score, tier, loyalty_points}], threshold}` — server-side cosine similarity across Active-consent templates of same model; uses a process-level cache of (customer, vector) refreshed on template change (frappe.cache). Also logs a Recognition Event (outcome Matched/NoMatch).
 - `enroll(embeddings: list[list[float]], model, quality: list[float], boutique, device_id, consent: {method, text_version, signature_data_url?}, customer?: str, phone?: str, email?: str, name?: str) -> {customer, client_number, consent, templates}` — finds Customer by `customer` or by phone/email (digits-normalised), else creates one; creates Consent + templates; sets customer flags; logs Enrolled.
 - `decline(boutique, device_id, phone?, email?, name?) -> {customer}` — creates/links the Customer without biometrics; logs Declined.
-- `templates(boutique, since?) -> {templates: [{customer, customer_name, client_number, embedding, model}], deleted: [customer...]}` — for offline cache; only if `recognition_offline_cache`; permission Maison Associate+.
-- `revoke(customer, reason) -> {ok}` — Maison Manager+; purges templates, revokes consent, logs.
+- `templates(boutique, since?) -> {templates: [{customer, customer_name, client_number, embedding, model}], deleted: [customer...]}` — for offline cache; only if `recognition_offline_cache`; permission AWANZ Associate+.
+- `revoke(customer, reason) -> {ok}` — AWANZ Manager+; purges templates, revokes consent, logs.
 - `log_event(customer?, outcome, score?, sales_invoice?)` for Undone.
 Scheduler: `maison_pos.tasks.purge_expired_biometrics` daily. Dashboard `live_summary` adds `recognition: {matched_today, enrolled_today}`.
 Tests: match math + threshold, enroll creates customer by phone, decline path, revoke purges, retention purge, permissions.
@@ -36,7 +36,7 @@ Seed: no face templates (obviously); consent text default.
 - Settings: enable/disable per device, camera selection, show/hide preview, threshold slider (manager), and a "Test recognition" mode.
 - Mock API supports match/enroll/decline/templates/revoke with in-memory vectors.
 - Tests: cosine/threshold logic, quality gate, stability/liveness state machine (unit with synthetic sequences), enrolment queue replay, consent hold timing.
-- E2E: Chromium fake camera: launch with `--use-fake-device-for-media-stream --use-file-for-fake-video-capture=<file.y4m or .mjpeg>` using a synthetic face video generated from a public-domain portrait (e.g. fetch a CC0 portrait from Wikimedia/Unsplash source if network allows; else render a simple synthetic face with canvas — may not pass the detector; then fall back to injecting embeddings via a test hook `window.__maisonRecognitionTest.emit({...})`). Verify: enrol flow creates the customer + consent server-side; re-running with the same face/embedding auto-attaches; Undo; Decline path; revoke purges.
+- E2E: Chromium fake camera: launch with `--use-fake-device-for-media-stream --use-file-for-fake-video-capture=<file.y4m or .mjpeg>` using a synthetic face video generated from a public-domain portrait (e.g. fetch a CC0 portrait from Wikimedia/Unsplash source if network allows; else render a simple synthetic face with canvas — may not pass the detector; then fall back to injecting embeddings via a test hook `window.__awanzRecognitionTest.emit({...})`). Verify: enrol flow creates the customer + consent server-side; re-running with the same face/embedding auto-attaches; Undo; Decline path; revoke purges.
 
 ## Legal/ops deliverables (docs/)
 `docs/biometrics-policy.md`: retention & destruction policy template, consent text (EN + ES), signage text for the boutique entrance ("This boutique uses facial recognition for client service with your consent"), BIPA/CCPA/TX/WA notes, DPIA-style risk list, and the rule that recognition is off by default per boutique and must be switched on by Head Office.

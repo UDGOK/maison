@@ -10,7 +10,7 @@
   Licence attribution is *not* removed by this: it lives in each app's LICENSE file, in the
   source headers and at /api/method/maison_pos.setup.whitelabel.attribution. See docs/white-label.md.
 -#}
-{%- set _b = maison_brand or get_brand() -%}
+{%- set _b = awanz_brand or get_brand() -%}
 <span class="text-muted">
 {%- if _b and _b.product_name -%}
 	{%- if _b.brand_website -%}
@@ -21,7 +21,7 @@
 	{%- if _b and _b.product_name %} &middot; {% endif -%}
 	Powered by
 	{%- if _b.developer_website %}
-	<a class="maison-dev-credit" href="{{ _b.developer_website }}" target="_blank" rel="noreferrer noopener">{{ _b.developer_name }}</a>
+	<a class="awanz-dev-credit" href="{{ _b.developer_website }}" target="_blank" rel="noreferrer noopener">{{ _b.developer_name }}</a>
 	{%- else %} {{ _b.developer_name }}{%- endif -%}
 {%- endif -%}
 </span>

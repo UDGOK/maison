@@ -19,13 +19,13 @@ record('the linked Material Request is submitted with the approved quantities', 
 record('the shipment is wired to the request / MR / transit warehouse', ap1.shipment.replenishment_request === R1 && !!ap1.shipment.transit_warehouse,
   `req=${ap1.shipment.replenishment_request} mr=${ap1.shipment.material_request} from=${ap1.shipment.from_warehouse} transit=${ap1.shipment.transit_warehouse} to=${ap1.shipment.to_warehouse}`)
 record('the request records approved_by / approved_at and links the shipment', !!ap1.request.approved_by && !!ap1.request.approved_at,
-  JSON.stringify(await a.value('Maison Replenishment Request', R1, ['status', 'approved_by', 'approved_at', 'shipment'])))
-const nl1 = await a.list('Notification Log', { document_type: 'Maison Shipment', document_name: state.S1 }, ['for_user', 'subject'], 10)
+  JSON.stringify(await a.value('AWANZ Replenishment Request', R1, ['status', 'approved_by', 'approved_at', 'shipment'])))
+const nl1 = await a.list('Notification Log', { document_type: 'AWANZ Shipment', document_name: state.S1 }, ['for_user', 'subject'], 10)
 record('the store manager is notified that the request was approved', nl1.length > 0, JSON.stringify(nl1).slice(0, 300))
 
 // ---- 3.2 approving twice
 const twice = await w.tryPost('maison_pos.api.shipping.approve', { request: R1, lines: JSON.stringify([{ item_code: 'KRT-001', approved_qty: 3 }]) })
-const shipCount = (await a.list('Maison Shipment', { replenishment_request: R1 }, ['name'], 10)).length
+const shipCount = (await a.list('AWANZ Shipment', { replenishment_request: R1 }, ['name'], 10)).length
 record('approving an already-approved request is refused and creates no second shipment', !twice.ok && shipCount === 1,
   `${twice.status} ${String(twice.exc).slice(0, 150)}; shipments for ${R1}: ${shipCount}`)
 const rejAfter = await w.tryPost('maison_pos.api.shipping.reject', { request: R1, reason: 'too late' })
@@ -49,10 +49,10 @@ record('warehouse admin rejects a request with a reason', rej.request.status ===
   `${state.R3} -> ${rej.request.status}: "${rej.request.rejection_reason}"`)
 record('rejecting deletes the draft Material Request (nothing left half-open)', !rej.request.material_request,
   `material_request=${rej.request.material_request}; MR ${r3.material_request} exists=${(await a.list('Material Request', { name: r3.material_request }, ['name'], 2)).length}`)
-const nl3 = await a.list('Notification Log', { document_type: 'Maison Replenishment Request', document_name: state.R3 }, ['for_user', 'subject'], 10)
+const nl3 = await a.list('Notification Log', { document_type: 'AWANZ Replenishment Request', document_name: state.R3 }, ['for_user', 'subject'], 10)
 record('the store manager is notified of the rejection, with the reason', nl3.some(n => n.for_user === MGR.usr) && /discontinued/.test(nl3[0]?.subject || ''),
   JSON.stringify(nl3).slice(0, 300))
-const noShip = await a.list('Maison Shipment', { replenishment_request: state.R3 }, ['name'], 5)
+const noShip = await a.list('AWANZ Shipment', { replenishment_request: state.R3 }, ['name'], 5)
 record('a rejected request creates no shipment', noShip.length === 0, `${noShip.length} shipments`)
 const mgrSees = (await m.get('maison_pos.api.inventory.replenishment_requests', { boutique: STORE, status: 'all' })).requests.find(r => r.name === state.R3)
 record('the rejected request shows on the store\'s Receive feed with the reason', mgrSees?.status === 'Rejected' && !!mgrSees?.rejection_reason,
@@ -74,7 +74,7 @@ record('the request line shows the warehouse on-hand so the admin can see the sh
   Number(r5.request.lines[0].on_hand_warehouse) === Number(scarce.actual_qty),
   `line.on_hand_warehouse=${r5.request.lines[0].on_hand_warehouse} vs Bin ${scarce.actual_qty}`)
 
-writeFileSync('/home/claude/maison/e2e/qa/state.json', JSON.stringify({ R1, R2, ...state }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/state.json', JSON.stringify({ R1, R2, ...state }, null, 1))
 log('\nSTATE ' + JSON.stringify(state))
 await Promise.all([m.dispose(), w.dispose()])
 saveResults('results-w3.json')

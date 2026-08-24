@@ -12,10 +12,10 @@ import type { Brand } from '@/api'
 
 export const DEFAULT_BRAND: Brand = {
   brand_name: 'CloudChaserz',
-  product_name: 'Maison POS by CloudChaserz',
+  product_name: 'AWANZ POS by CloudChaserz',
   tagline: 'Elevate Your Smoking Experience',
   wordmark_text: 'CLOUDCHASERZ',
-  sub_mark: 'Maison POS',
+  sub_mark: 'AWANZ',
   legal_name: 'CloudChaserz World LLC',
   support_email: 'support@cloudchaserzworld.com',
   brand_website: 'https://cloudchaserzworld.com',
@@ -33,17 +33,17 @@ export const DEFAULT_BRAND: Brand = {
 /** The jewellery world (mock API / legacy sites) keeps its own tokens. */
 export const JEWELLERY_BRAND: Brand = {
   ...DEFAULT_BRAND,
-  brand_name: 'Maison',
-  product_name: 'Maison POS',
+  brand_name: 'AWANZ',
+  product_name: 'AWANZ POS',
   tagline: 'Fine jewellery & timepieces',
-  wordmark_text: 'MAISON',
+  wordmark_text: 'AWANZ',
   sub_mark: 'POS',
-  legal_name: 'Maison Jewelers',
+  legal_name: 'AWANZ Jewelers',
   support_email: 'concierge@maison.example',
   brand_website: 'https://maison.example',
   vertical: 'Jewellery',
   store_noun: 'Boutique',
-  rewards_program_name: 'Maison Collectors'
+  rewards_program_name: 'AWANZ Collectors'
 }
 
 export function normalizeBrand(raw?: Partial<Brand> | null): Brand {
@@ -73,7 +73,7 @@ export function normalizeBrand(raw?: Partial<Brand> | null): Brand {
   }
 }
 
-/** Age-gate switches (`Maison POS Settings`, merged into `bootstrap.settings`). */
+/** Age-gate switches (`AWANZ POS Settings`, merged into `bootstrap.settings`). */
 export interface AgeGateSettings {
   age_verification_required: boolean
   minimum_age: number

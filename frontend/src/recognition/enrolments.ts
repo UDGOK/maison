@@ -3,8 +3,8 @@
  * the bench is unreachable sits in Dexie `pending_enrolments` and is replayed FIFO by the sync
  * store on the next successful heartbeat — exactly like sales. Never contains images.
  */
-import { ApiError, type EnrollResult, type MaisonApi } from '@/api/types'
-import type { MaisonDB, PendingEnrolmentRow } from '@/db'
+import { ApiError, type EnrollResult, type AwanzApi } from '@/api/types'
+import type { AwanzDB, PendingEnrolmentRow } from '@/db'
 import { v4 as uuidv4 } from 'uuid'
 
 export type PendingEnrolment = Omit<PendingEnrolmentRow, 'id' | 'created_at' | 'attempts' | 'error'>
@@ -31,8 +31,8 @@ function plainVector(e: ArrayLike<number>): number[] {
 
 export class EnrolmentQueue {
   constructor(
-    private db: MaisonDB,
-    private api: MaisonApi,
+    private db: AwanzDB,
+    private api: AwanzApi,
     private now: () => Date = () => new Date()
   ) {}
 

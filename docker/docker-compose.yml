@@ -1,10 +1,10 @@
-# Maison POS — single-host Docker Compose (Frappe v15 + ERPNext v15 + maison_pos)
+# AWANZ POS — single-host Docker Compose (Frappe v15 + ERPNext v15 + maison_pos)
 # Derived from frappe_docker/pwd.yml. See README.md in this folder.
 #
 # Image selection:
 #   default  -> frappe/erpnext:v15 (official; maison_pos must then be installed with `bench get-app`
 #               inside the backend container — see README "Option A")
-#   custom   -> build docker/Containerfile with maison_pos baked in and set IMAGE=maison/erpnext:v15
+#   custom   -> build docker/Containerfile with maison_pos baked in and set IMAGE=awanz/erpnext:v15
 #               (README "Option B", recommended for production)
 
 x-image: &image

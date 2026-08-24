@@ -66,7 +66,7 @@ class TestDemoStockRebase(FrappeTestCase):
 		self.assertEqual(frappe.db.count("Stock Entry", {"docstatus": 1, "to_warehouse": se.to_warehouse}), 1)
 
 	def test_rebase_requires_system_manager(self):
-		frappe.set_user(frappe.db.get_value("Maison Associate", {"boutique": "NYC-5AV", "role": "Associate"}, "user"))
+		frappe.set_user(frappe.db.get_value("AWANZ Associate", {"boutique": "NYC-5AV", "role": "Associate"}, "user"))
 		with self.assertRaises(frappe.PermissionError):
 			demo.rebase_stock()
 

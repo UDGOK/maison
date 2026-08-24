@@ -1,6 +1,6 @@
 """CloudChaserz Rewards demo data (v0.6 Q): the ERPNext Loyalty Program ($1 = 1 point on the net
-paid amount), the fixed ``Maison Reward Tier`` rows ($5/100 · $10/200 · $15/300), this month's and
-next month's ``Maison Promotion Calendar``, an open ``Maison Giveaway`` and an "Events" campaign
+paid amount), the fixed ``AWANZ Reward Tier`` rows ($5/100 · $10/200 · $15/300), this month's and
+next month's ``AWANZ Promotion Calendar``, an open ``AWANZ Giveaway`` and an "Events" campaign
 (the v0.5 "Private viewing" channel generalised for the smoke-shop brand)."""
 
 from __future__ import annotations
@@ -68,11 +68,11 @@ def ensure_tiers() -> list[str]:
 
 
 def _coupon(code: str, title: str, discount_type: str, value: float, valid_from, valid_upto) -> str | None:
-	if not frappe.db.exists("DocType", "Maison Coupon"):
+	if not frappe.db.exists("DocType", "AWANZ Coupon"):
 		return None
-	if _exists("Maison Coupon", code):
+	if _exists("AWANZ Coupon", code):
 		return code
-	doc = frappe.get_doc({"doctype": "Maison Coupon", "code": code, "title": title, "enabled": 1, "discount_type": discount_type, "value": value, "usage": "Multi-use", "max_uses": 0, "valid_from": valid_from, "valid_upto": valid_upto})
+	doc = frappe.get_doc({"doctype": "AWANZ Coupon", "code": code, "title": title, "enabled": 1, "discount_type": discount_type, "value": value, "usage": "Multi-use", "max_uses": 0, "valid_from": valid_from, "valid_upto": valid_upto})
 	doc.flags.ignore_permissions = True
 	doc.insert()
 	return code
@@ -114,13 +114,13 @@ PROMOS = [
 
 
 def ensure_promotion_calendar() -> list[str]:
-	if not frappe.db.exists("DocType", "Maison Promotion Calendar"):
+	if not frappe.db.exists("DocType", "AWANZ Promotion Calendar"):
 		return []
 	out = []
 	today = getdate(nowdate())
 	for offset, title, headline, group, pct, featured in PROMOS:
 		month = get_first_day(add_months(today, offset))
-		name = frappe.db.get_value("Maison Promotion Calendar", {"month": month}, "name")
+		name = frappe.db.get_value("AWANZ Promotion Calendar", {"month": month}, "name")
 		if name:
 			out.append(name)
 			continue
@@ -130,7 +130,7 @@ def ensure_promotion_calendar() -> list[str]:
 		rule = _pricing_rule(f"{title} {month.strftime('%b %Y')}", group, pct, first, last)
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Promotion Calendar",
+				"doctype": "AWANZ Promotion Calendar",
 				"title": f"{title} — {month.strftime('%B %Y')}",
 				"month": month,
 				"status": "Planned",
@@ -148,15 +148,15 @@ def ensure_promotion_calendar() -> list[str]:
 
 
 def ensure_giveaway() -> str | None:
-	if not frappe.db.exists("DocType", "Maison Giveaway"):
+	if not frappe.db.exists("DocType", "AWANZ Giveaway"):
 		return None
-	name = frappe.db.get_value("Maison Giveaway", {"title": GIVEAWAY_TITLE}, "name")
+	name = frappe.db.get_value("AWANZ Giveaway", {"title": GIVEAWAY_TITLE}, "name")
 	if name:
 		return name
 	today = getdate(nowdate())
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Giveaway",
+			"doctype": "AWANZ Giveaway",
 			"title": GIVEAWAY_TITLE,
 			"status": "Open",
 			"prize_item": "DSP-006" if _exists("Item", "DSP-006") else None,
@@ -177,9 +177,9 @@ def ensure_giveaway() -> str | None:
 
 def ensure_events_campaign() -> str | None:
 	"""The v0.5 'Private viewing' invitation becomes a generic **Events** campaign with an RSVP link."""
-	if not frappe.db.exists("DocType", "Maison Campaign"):
+	if not frappe.db.exists("DocType", "AWANZ Campaign"):
 		return None
-	name = frappe.db.get_value("Maison Campaign", {"campaign_code": EVENTS_CAMPAIGN_CODE}, "name")
+	name = frappe.db.get_value("AWANZ Campaign", {"campaign_code": EVENTS_CAMPAIGN_CODE}, "name")
 	if name:
 		return name
 	from maison_pos.brand import get_brand
@@ -188,7 +188,7 @@ def ensure_events_campaign() -> str | None:
 	try:
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Campaign",
+				"doctype": "AWANZ Campaign",
 				"title": f"{brand['brand_name']} launch night — new drops + giveaways",
 				"campaign_code": EVENTS_CAMPAIGN_CODE,
 				"channel": "Event",

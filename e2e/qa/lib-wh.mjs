@@ -7,7 +7,7 @@ export const BASE = process.env.BASE || 'https://cloudchaserz.frappe.cloud'
 export const HOST = new URL(BASE).host
 export const SID = process.env.ADMIN_SID || (existsSync('/tmp/qa2-sid') ? readFileSync('/tmp/qa2-sid', 'utf8').trim() : '')
 export const PWD = 'cloud123'
-export const SHOTS = '/home/claude/maison/e2e/qa/shots-warehouse'
+export const SHOTS = '/home/claude/awanz/e2e/qa/shots-warehouse'
 mkdirSync(SHOTS, { recursive: true })
 
 export const STORE = process.env.STORE || 'OK-JENKS'
@@ -24,7 +24,7 @@ export function record(step, ok, detail = '', severity = '') {
   log(`${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? ' — ' + String(detail).slice(0, 400) : ''}`)
 }
 export function saveResults(file) {
-  writeFileSync(path.join('/home/claude/maison/e2e/qa', file), JSON.stringify({ base: BASE, store: STORE, results, console: console_ }, null, 1))
+  writeFileSync(path.join('/home/claude/awanz/e2e/qa', file), JSON.stringify({ base: BASE, store: STORE, results, console: console_ }, null, 1))
   const p = results.filter(r => r.ok).length
   log(`\n${p}/${results.length} passed. console issues: ${console_.length}`)
   for (const c of console_.slice(0, 20)) log(`  ${c.tag} ${c.type} ${c.text}`)

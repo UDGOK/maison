@@ -2,8 +2,8 @@
 
 HRMS is optional. When the ``hrms`` app is installed the clock-in/out creates ``Employee
 Checkin`` rows (IN / OUT, ``device_id`` = boutique) and commissions can be pushed to
-``Additional Salary``; without it everything still works on the ``Maison Shift`` /
-``Maison Commission Entry`` doctypes (feature detection via :func:`hrms_installed`).
+``Additional Salary``; without it everything still works on the ``AWANZ Shift`` /
+``AWANZ Commission Entry`` doctypes (feature detection via :func:`hrms_installed`).
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, date_diff, flt, get_datetime, getdate, now_datetime, nowdate, time_diff_in_seconds
 
-from maison_pos.maison_pos.doctype.maison_commission_rule.maison_commission_rule import active_rules, match_rule
+from maison_pos.awanz_pos.doctype.awanz_commission_rule.awanz_commission_rule import active_rules, match_rule
 from maison_pos.scoping import (
-	ALL_MAISON_ROLES,
+	ALL_AWANZ_ROLES,
 	assert_boutique_access,
 	assert_roles,
 	get_associate,
@@ -29,7 +29,7 @@ from maison_pos.scoping import (
 )
 
 PAYROLL_FORMATS = ("gusto", "adp", "quickbooks", "hrms")
-COMMISSION_COMPONENT = "Maison Commission"
+COMMISSION_COMPONENT = "AWANZ Commission"
 
 
 # ---------------------------------------------------------------------------
@@ -41,8 +41,8 @@ def hrms_installed() -> bool:
 
 
 def employee_for_associate(associate: str) -> Optional[str]:
-	"""Employee linked to the Maison Associate (explicit link, else match by user_id)."""
-	emp = frappe.db.get_value("Maison Associate", associate, "employee")
+	"""Employee linked to the AWANZ Associate (explicit link, else match by user_id)."""
+	emp = frappe.db.get_value("AWANZ Associate", associate, "employee")
 	if emp and frappe.db.exists("Employee", emp):
 		return emp
 	if frappe.db.exists("DocType", "Employee"):
@@ -55,7 +55,7 @@ def employee_for_associate(associate: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 def _open_shift(associate: str) -> Optional[dict[str, Any]]:
 	rows = frappe.get_all(
-		"Maison Shift",
+		"AWANZ Shift",
 		filters={"associate": associate, "status": ("in", ("On shift", "On break"))},
 		fields=["name", "boutique", "clock_in", "status", "break_started", "break_minutes", "device_id", "employee"],
 		order_by="clock_in desc",
@@ -89,7 +89,7 @@ def _hrms_checkin(employee: Optional[str], log_type: str, boutique: str, device_
 		doc.insert()
 		return doc.name
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison hrms checkin")
+		frappe.log_error(frappe.get_traceback(), "awanz hrms checkin")
 		return None
 
 
@@ -115,10 +115,10 @@ def _shift_payload(shift: Optional[dict[str, Any]]) -> dict[str, Any]:
 @frappe.whitelist()
 def clock_in(associate: str, boutique: str, device_id: Optional[str] = None) -> dict[str, Any]:
 	"""Start a shift for *associate* at *boutique* (idempotent: returns the open shift if any)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	_assert_self_or_manager(associate)
 	boutique = assert_boutique_access(boutique)
-	if not frappe.db.exists("Maison Associate", {"name": associate, "enabled": 1}):
+	if not frappe.db.exists("AWANZ Associate", {"name": associate, "enabled": 1}):
 		frappe.throw(_("Associate {0} not found").format(associate), frappe.DoesNotExistError)
 	existing = _open_shift(associate)
 	if existing:
@@ -127,7 +127,7 @@ def clock_in(associate: str, boutique: str, device_id: Optional[str] = None) -> 
 	employee = employee_for_associate(associate)
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Shift",
+			"doctype": "AWANZ Shift",
 			"associate": associate,
 			"employee": employee,
 			"boutique": boutique,
@@ -139,19 +139,19 @@ def clock_in(associate: str, boutique: str, device_id: Optional[str] = None) -> 
 	)
 	doc.flags.ignore_permissions = True
 	doc.insert()
-	frappe.publish_realtime("maison_shift", {"associate": associate, "boutique": boutique, "status": "On shift"}, room="maison_dashboard")
+	frappe.publish_realtime("awanz_shift", {"associate": associate, "boutique": boutique, "status": "On shift"}, room="awanz_dashboard")
 	return {**_shift_payload(doc.as_dict()), "created": True, "hrms": hrms_installed()}
 
 
 @frappe.whitelist()
 def clock_out(associate: str, device_id: Optional[str] = None) -> dict[str, Any]:
 	"""End the open shift (closes an open break first). No-op when not clocked in."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	_assert_self_or_manager(associate)
 	shift = _open_shift(associate)
 	if not shift:
 		return {"on_shift": False, "shift": None, "closed": False}
-	doc = frappe.get_doc("Maison Shift", shift["name"])
+	doc = frappe.get_doc("AWANZ Shift", shift["name"])
 	ts = now_datetime()
 	if doc.status == "On break" and doc.break_started:
 		doc.break_minutes = cint(doc.break_minutes) + int(time_diff_in_seconds(ts, get_datetime(doc.break_started)) // 60)
@@ -162,7 +162,7 @@ def clock_out(associate: str, device_id: Optional[str] = None) -> dict[str, Any]
 	doc.checkin_out = _hrms_checkin(doc.employee, "OUT", doc.boutique, device_id or doc.device_id, ts)
 	doc.flags.ignore_permissions = True
 	doc.save()
-	frappe.publish_realtime("maison_shift", {"associate": associate, "boutique": doc.boutique, "status": "Off shift"}, room="maison_dashboard")
+	frappe.publish_realtime("awanz_shift", {"associate": associate, "boutique": doc.boutique, "status": "Off shift"}, room="awanz_dashboard")
 	return {
 		"on_shift": False,
 		"closed": True,
@@ -173,12 +173,12 @@ def clock_out(associate: str, device_id: Optional[str] = None) -> dict[str, Any]
 @frappe.whitelist()
 def toggle_break(associate: str) -> dict[str, Any]:
 	"""Start or end a break on the open shift."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	_assert_self_or_manager(associate)
 	shift = _open_shift(associate)
 	if not shift:
 		frappe.throw(_("Not clocked in"), frappe.ValidationError)
-	doc = frappe.get_doc("Maison Shift", shift["name"])
+	doc = frappe.get_doc("AWANZ Shift", shift["name"])
 	ts = now_datetime()
 	if doc.status == "On break":
 		doc.break_minutes = cint(doc.break_minutes) + int(time_diff_in_seconds(ts, get_datetime(doc.break_started)) // 60)
@@ -195,7 +195,7 @@ def toggle_break(associate: str) -> dict[str, Any]:
 @frappe.whitelist()
 def shift_status(associate: Optional[str] = None) -> dict[str, Any]:
 	"""Open shift for *associate* (default: the caller's associate record)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	associate = associate or (get_associate() or {}).get("name")
 	if not associate:
 		return {"on_shift": False, "shift": None, "hrms": hrms_installed()}
@@ -206,10 +206,10 @@ def shift_status(associate: Optional[str] = None) -> dict[str, Any]:
 @frappe.whitelist()
 def on_shift(boutique: str) -> list[dict[str, Any]]:
 	"""Manager view: who is clocked in at *boutique* right now."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	rows = frappe.get_all(
-		"Maison Shift",
+		"AWANZ Shift",
 		filters={"boutique": boutique, "status": ("in", ("On shift", "On break"))},
 		fields=["name", "associate", "associate_name", "boutique", "clock_in", "status", "break_minutes", "break_started", "device_id", "employee"],
 		order_by="clock_in asc",
@@ -220,12 +220,12 @@ def on_shift(boutique: str) -> list[dict[str, Any]]:
 @frappe.whitelist()
 def shifts(boutique: str, from_date: Optional[str] = None, to_date: Optional[str] = None) -> list[dict[str, Any]]:
 	"""Manager+: shift history for a boutique and period (timesheet)."""
-	assert_roles("Maison Manager", "Maison Regional", "Maison Head Office", "System Manager")
+	assert_roles("AWANZ Manager", "AWANZ Regional", "AWANZ Head Office", "System Manager")
 	boutique = assert_boutique_access(boutique)
 	to_date = getdate(to_date or nowdate())
 	from_date = getdate(from_date) if from_date else add_days(to_date, -14)
 	return frappe.get_all(
-		"Maison Shift",
+		"AWANZ Shift",
 		filters={"boutique": boutique, "clock_in": ("between", (f"{from_date} 00:00:00", f"{to_date} 23:59:59"))},
 		fields=["name", "associate", "associate_name", "employee", "clock_in", "clock_out", "status", "break_minutes", "worked_minutes"],
 		order_by="clock_in desc",
@@ -241,20 +241,20 @@ def _line_base(row) -> float:
 
 
 def create_commission_entries(doc) -> list[str]:
-	"""Create ``Maison Commission Entry`` rows for every line of a submitted POS invoice.
+	"""Create ``AWANZ Commission Entry`` rows for every line of a submitted POS invoice.
 
 	Returns the created names. Returns (``is_return``) produce reversal rows (negative
 	amounts, ``is_reversal=1``). Idempotent per invoice.
 	"""
 	if not doc.get("is_pos") or not doc.get("maison_associate"):
 		return []
-	if frappe.db.exists("Maison Commission Entry", {"sales_invoice": doc.name, "reversal_of": ("is", "not set")}):
+	if frappe.db.exists("AWANZ Commission Entry", {"sales_invoice": doc.name, "reversal_of": ("is", "not set")}):
 		return []
 	associate = doc.maison_associate
 	if doc.get("is_return") and doc.get("return_against"):
 		# a return reverses the commission of whoever made the original sale, not of the manager voiding it
 		associate = frappe.db.get_value("Sales Invoice", doc.return_against, "maison_associate") or associate
-	assoc = frappe.db.get_value("Maison Associate", associate, ["name", "role", "boutique", "employee"], as_dict=True)
+	assoc = frappe.db.get_value("AWANZ Associate", associate, ["name", "role", "boutique", "employee"], as_dict=True)
 	if not assoc:
 		return []
 	rules = active_rules(doc.posting_date)
@@ -273,7 +273,7 @@ def create_commission_entries(doc) -> list[str]:
 		amount = flt(base * flt(rule["rate_percent"]) / 100.0, 2)
 		entry = frappe.get_doc(
 			{
-				"doctype": "Maison Commission Entry",
+				"doctype": "AWANZ Commission Entry",
 				"sales_invoice": doc.name,
 				"posting_date": doc.posting_date,
 				"associate": assoc.name,
@@ -299,17 +299,17 @@ def create_commission_entries(doc) -> list[str]:
 def reverse_commission_entries(doc) -> list[str]:
 	"""On cancel: add a mirror (negative) row for every entry of the invoice not yet reversed."""
 	entries = frappe.get_all(
-		"Maison Commission Entry",
+		"AWANZ Commission Entry",
 		filters={"sales_invoice": doc.name, "reversal_of": ("is", "not set")},
 		fields=["name", "associate", "employee", "boutique", "item_code", "item_group", "department", "rule", "base_amount", "rate_percent", "commission_amount"],
 	)
 	created = []
 	for e in entries:
-		if frappe.db.exists("Maison Commission Entry", {"reversal_of": e.name}):
+		if frappe.db.exists("AWANZ Commission Entry", {"reversal_of": e.name}):
 			continue
 		rev = frappe.get_doc(
 			{
-				"doctype": "Maison Commission Entry",
+				"doctype": "AWANZ Commission Entry",
 				"sales_invoice": doc.name,
 				"posting_date": nowdate(),
 				"associate": e.associate,
@@ -340,7 +340,7 @@ def on_invoice_submit(doc, method: Optional[str] = None) -> None:
 	try:
 		create_commission_entries(doc)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"maison commission {doc.name}")
+		frappe.log_error(frappe.get_traceback(), f"awanz commission {doc.name}")
 
 
 def on_invoice_cancel(doc, method: Optional[str] = None) -> None:
@@ -349,7 +349,7 @@ def on_invoice_cancel(doc, method: Optional[str] = None) -> None:
 	try:
 		reverse_commission_entries(doc)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"maison commission reversal {doc.name}")
+		frappe.log_error(frappe.get_traceback(), f"awanz commission reversal {doc.name}")
 
 
 def _period(from_date: Optional[str], to_date: Optional[str]) -> tuple[Any, Any]:
@@ -383,7 +383,7 @@ def commission_statement(
 
 	Associates see only their own rows; managers their boutique; HQ/Regional everything.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	from_date, to_date = _period(from_date, to_date)
 	user = frappe.session.user
 	if not is_unrestricted(user):
@@ -393,7 +393,7 @@ def commission_statement(
 			associate = (get_associate(user) or {}).get("name") or "__none__"
 			boutique = None
 	rows = frappe.get_all(
-		"Maison Commission Entry",
+		"AWANZ Commission Entry",
 		filters=_commission_filters(from_date, to_date, boutique, associate, status),
 		fields=["name", "sales_invoice", "posting_date", "associate", "associate_name", "employee", "boutique", "item_code", "item_group", "department", "rule", "base_amount", "rate_percent", "commission_amount", "is_reversal", "status"],
 		order_by="associate asc, posting_date asc, name asc",
@@ -432,7 +432,7 @@ def employee_performance(boutique: Optional[str] = None, from_date: Optional[str
 	``recognition_enrolments`` (biometric consents captured by the associate in the period),
 	``commission``. Sorted by sales desc.
 	"""
-	assert_roles("Maison Manager", "Maison Regional", "Maison Head Office", "System Manager")
+	assert_roles("AWANZ Manager", "AWANZ Regional", "AWANZ Head Office", "System Manager")
 	from_date, to_date = _period(from_date, to_date)
 	if boutique or not is_unrestricted():
 		boutique = assert_boutique_access(boutique or get_user_boutique())
@@ -480,7 +480,7 @@ def employee_performance(boutique: Optional[str] = None, from_date: Optional[str
 	fu_from = add_days(nowdate(), -(cint(follow_up_days) or 30))
 	fu_filters_base: dict[str, Any] = {"follow_up_date": ("is", "set"), "creation": (">=", f"{fu_from} 00:00:00")}
 	for name, s in stats.items():
-		s["associate_name"] = frappe.db.get_value("Maison Associate", name, "full_name")
+		s["associate_name"] = frappe.db.get_value("AWANZ Associate", name, "full_name")
 		s["avg_ticket"] = flt(s["gross_sales"] / s["tickets"], 2) if s["tickets"] else 0.0
 		bt = boutique_totals.get(s["boutique"] or "", {"sales": 0.0, "returns": 0.0, "tickets": 0})
 		# same basis as `avg_ticket` above: sales only, returns excluded (v0.8 QA D-2)
@@ -491,14 +491,14 @@ def employee_performance(boutique: Optional[str] = None, from_date: Optional[str
 		s["clients_identified_per_sale"] = s["conversion"]
 		s["returns_rate"] = flt(s["returns"] / s["tickets"], 3) if s["tickets"] else 0.0
 		s["commission"] = flt(
-			frappe.db.get_value("Maison Commission Entry", {"associate": name, "posting_date": ("between", (from_date, to_date))}, "sum(commission_amount)") or 0, 2
+			frappe.db.get_value("AWANZ Commission Entry", {"associate": name, "posting_date": ("between", (from_date, to_date))}, "sum(commission_amount)") or 0, 2
 		)
-		s["follow_ups_assigned"] = frappe.db.count("Maison Client Interaction", {**fu_filters_base, "associate": name, "status": ("!=", "Cancelled")})
-		s["follow_ups_done"] = frappe.db.count("Maison Client Interaction", {**fu_filters_base, "associate": name, "status": "Done"})
+		s["follow_ups_assigned"] = frappe.db.count("AWANZ Client Interaction", {**fu_filters_base, "associate": name, "status": ("!=", "Cancelled")})
+		s["follow_ups_done"] = frappe.db.count("AWANZ Client Interaction", {**fu_filters_base, "associate": name, "status": "Done"})
 		s["follow_up_rate"] = flt(s["follow_ups_done"] / s["follow_ups_assigned"], 3) if s["follow_ups_assigned"] else None
 		s["recognition_enrolments"] = (
-			frappe.db.count("Maison Biometric Consent", {"associate": name, "captured_at": ("between", (f"{from_date} 00:00:00", f"{to_date} 23:59:59"))})
-			if frappe.db.exists("DocType", "Maison Biometric Consent")
+			frappe.db.count("AWANZ Biometric Consent", {"associate": name, "captured_at": ("between", (f"{from_date} 00:00:00", f"{to_date} 23:59:59"))})
+			if frappe.db.exists("DocType", "AWANZ Biometric Consent")
 			else 0
 		)
 	# --- end v0.5 M ---
@@ -517,7 +517,7 @@ def _employee_meta(employee: Optional[str]) -> dict[str, Any]:
 def build_payroll_rows(from_date, to_date, boutique: Optional[str] = None, only_open: bool = True) -> list[dict[str, Any]]:
 	"""One row per associate: commission total for the period (+ employee identifiers)."""
 	filters = _commission_filters(from_date, to_date, boutique, None, "Open" if only_open else None)
-	rows = frappe.get_all("Maison Commission Entry", filters=filters, fields=["name", "associate", "associate_name", "employee", "boutique", "commission_amount"])
+	rows = frappe.get_all("AWANZ Commission Entry", filters=filters, fields=["name", "associate", "associate_name", "employee", "boutique", "commission_amount"])
 	out: dict[str, dict[str, Any]] = {}
 	for r in rows:
 		o = out.setdefault(r.associate, {"associate": r.associate, "associate_name": r.associate_name, "employee": r.employee, "boutique": r.boutique, "amount": 0.0, "entries": []})
@@ -595,7 +595,7 @@ def export_to_hrms(rows: list[dict[str, Any]], to_date) -> list[str]:
 		r["additional_salary"] = None
 		r["skipped"] = None
 		if not r["employee"]:
-			r["skipped"] = "no Employee linked to the Maison Associate"
+			r["skipped"] = "no Employee linked to the AWANZ Associate"
 			continue
 		if flt(r["amount"]) <= 0:
 			r["skipped"] = "non-positive amount"
@@ -613,7 +613,7 @@ def export_to_hrms(rows: list[dict[str, Any]], to_date) -> list[str]:
 				"amount": flt(r["amount"], 2),
 				"payroll_date": to_date,
 				"overwrite_salary_structure_amount": 0,
-				"ref_doctype": "Maison Commission Entry",
+				"ref_doctype": "AWANZ Commission Entry",
 				"ref_docname": r["entries"][0],
 			}
 		)
@@ -622,11 +622,11 @@ def export_to_hrms(rows: list[dict[str, Any]], to_date) -> list[str]:
 		try:
 			doc.submit()
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison additional salary submit")
+			frappe.log_error(frappe.get_traceback(), "awanz additional salary submit")
 		created.append(doc.name)
 		r["additional_salary"] = doc.name
 		for entry in r["entries"]:
-			frappe.db.set_value("Maison Commission Entry", entry, {"additional_salary": doc.name}, update_modified=False)
+			frappe.db.set_value("AWANZ Commission Entry", entry, {"additional_salary": doc.name}, update_modified=False)
 	return created
 
 
@@ -644,7 +644,7 @@ def payroll_export(
 	Additional Salary rows). ``mark_exported=1`` flips the entries to *Exported* with the
 	export reference so they are not exported twice.
 	"""
-	assert_roles("Maison Head Office", "System Manager")
+	assert_roles("AWANZ Head Office", "System Manager")
 	fmt = (format or "gusto").lower()
 	if fmt not in PAYROLL_FORMATS:
 		frappe.throw(_("Unknown payroll format {0}").format(fmt), frappe.ValidationError)
@@ -660,7 +660,7 @@ def payroll_export(
 	if cint(mark_exported):
 		for r in rows:
 			for entry in r["entries"]:
-				frappe.db.set_value("Maison Commission Entry", entry, {"status": "Exported", "payroll_export": ref}, update_modified=False)
+				frappe.db.set_value("AWANZ Commission Entry", entry, {"status": "Exported", "payroll_export": ref}, update_modified=False)
 		result["marked"] = sum(len(r["entries"]) for r in rows)
 	return result
 

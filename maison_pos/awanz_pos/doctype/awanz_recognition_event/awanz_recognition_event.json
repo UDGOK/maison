@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ts",
+  "outcome",
+  "score",
+  "column_break_main",
+  "customer",
+  "boutique",
+  "device_id",
+  "sales_invoice",
+  "section_detail",
+  "user",
+  "detail"
+ ],
+ "fields": [
+  {
+   "fieldname": "ts",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Timestamp",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "outcome",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Outcome",
+   "options": "Matched\nNoMatch\nEnrolled\nUndone\nDeclined\nRevoked\nPurged",
+   "reqd": 1
+  },
+  {
+   "fieldname": "score",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Score",
+   "precision": "4",
+   "description": "Similarity score 0–1 (higher is better); empty for non-match events"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "boutique",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Boutique",
+   "options": "AWANZ Store",
+   "search_index": 1
+  },
+  {
+   "fieldname": "device_id",
+   "fieldtype": "Data",
+   "label": "Device ID"
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "section_detail",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "detail",
+   "fieldtype": "Small Text",
+   "label": "Detail",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Recognition Event",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "AWANZ Head Office", "share": 1, "write": 1},
+  {"read": 1, "report": 1, "role": "AWANZ Regional"},
+  {"read": 1, "report": 1, "role": "AWANZ Manager"}
+ ],
+ "sort_field": "ts",
+ "sort_order": "DESC",
+ "states": []
+}

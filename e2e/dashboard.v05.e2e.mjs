@@ -6,7 +6,7 @@
  *
  * 1. POS sale submitted in an associate context (chi.oak.a1) → the CHI-OAK live card and the
  *    chain ticker update within 1 s of the server response (socket.io, no refetch).
- * 2. Products tabs render from the precomputed Maison Product Trend table.
+ * 2. Products tabs render from the precomputed AWANZ Product Trend table.
  * 3. Boutiques table sorting works (matches the API rows sorted in JS).
  */
 import { chromium } from './node_modules/playwright/index.mjs'
@@ -67,7 +67,7 @@ async function posSale() {
 }
 
 // ---- 1. Live: card + ticker update within 1 s ------------------------------------------------
-await page.goto(`${BASE}/maison-dashboard`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="live-cards"] .bcard[data-boutique="CHI-OAK"]', { timeout: 30000 })
 await page.waitForSelector('.live.off, .top .live:not(.off)', { timeout: 30000 }).catch(() => {})
 await page.waitForFunction(() => document.querySelector('.top .live')?.textContent?.includes('Live'), null, { timeout: 30000 })

@@ -16,6 +16,6 @@ def get_context(context):
 	data = program()
 	base_context(context, nav="rewards", title=f"{data['program_name']} — {data['brand']['brand_name']}")
 	context.program = data
-	context.stores = core.boutiques() if frappe.db.exists("DocType", "Maison Boutique") else []
+	context.stores = core.boutiques() if frappe.db.exists("DocType", "AWANZ Store") else []
 	context.csrf_token = frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else ""
 	return context

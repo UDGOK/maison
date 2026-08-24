@@ -1,6 +1,6 @@
 """v0.8 QA C2 — CloudChaserz Salon playlists.
 
-The client-facing screen (`/salon`) fills the gap between sales with a `Maison Salon Playlist`:
+The client-facing screen (`/salon`) fills the gap between sales with a `AWANZ Salon Playlist`:
 without one it shows nothing but the wordmark and the clock. The jewellery seed has always
 created two (`setup/demo_v05_salon.py`); the CloudChaserz seed had no Salon step at all, so the
 ambient screen was bare on the smoke-shop tenant.
@@ -44,11 +44,11 @@ STORE_PLAYLIST: dict[str, Any] = {
 
 def seed_salon() -> dict[str, Any]:
 	"""Create / refresh the CloudChaserz playlists. Safe to run repeatedly."""
-	if not frappe.db.exists("DocType", "Maison Salon Playlist"):
-		return {"skipped": "Maison Salon Playlist not installed"}
+	if not frappe.db.exists("DocType", "AWANZ Salon Playlist"):
+		return {"skipped": "AWANZ Salon Playlist not installed"}
 	from maison_pos.setup.demo_v05_salon import _upsert_playlist
 
 	names = [_upsert_playlist(GLOBAL_PLAYLIST)]
-	if frappe.db.exists("Maison Boutique", STORE_PLAYLIST["boutique"]):
+	if frappe.db.exists("AWANZ Store", STORE_PLAYLIST["boutique"]):
 		names.append(_upsert_playlist(STORE_PLAYLIST))
-	return {"playlists": names, "pieces": frappe.db.count("Maison Salon Playlist Item", {"parent": ("in", names)})}
+	return {"playlists": names, "pieces": frappe.db.count("AWANZ Salon Playlist Item", {"parent": ("in", names)})}

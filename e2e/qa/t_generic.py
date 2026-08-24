@@ -1,5 +1,5 @@
 import sys, json
-sys.path.insert(0, "/home/claude/maison/e2e/qa")
+sys.path.insert(0, "/home/claude/awanz/e2e/qa")
 from harness import sess, summ
 
 OWN, OTHER = "OK-MINGO", "OK-ETUL"
@@ -17,8 +17,8 @@ def get_list(s, doctype, filters=None, fields=None, limit=2000, order_by=None):
     if order_by: p["order_by"] = order_by
     return s.get("frappe.client.get_list", **p)
 
-mgr = sess("manager")       # Maison Manager @ OK-MINGO
-asc = sess("associate")     # Maison Associate @ OK-MINGO
+mgr = sess("manager")       # AWANZ Manager @ OK-MINGO
+asc = sess("associate")     # AWANZ Associate @ OK-MINGO
 print("========== D3 re-verify: manager lists OTHER store's Sales Invoices / returns ==========")
 for label, filt in [
     ("other-store invoices", [["maison_boutique","=",OTHER]]),
@@ -38,12 +38,12 @@ tests = [
     ("Stock Entry",        None, ["name","from_warehouse","to_warehouse"]),
     ("Material Request",   None, ["name","set_warehouse"]),
     ("Purchase Receipt",   None, ["name","set_warehouse"]),
-    ("Maison Shipment",    [["boutique","=",OTHER]], ["name","boutique","status"]),
-    ("Maison Replenishment Request", [["boutique","=",OTHER]], ["name","boutique"]),
-    ("Maison Stock Alert", [["boutique","=",OTHER]], ["name","boutique"]),
-    ("Maison Feedback",    [["boutique","=",OTHER]], ["name","boutique"]),
-    ("Maison Age Check",   [["boutique","=",OTHER]], ["name","boutique"]),
-    ("Maison Biometric Consent", [["boutique","=",OTHER]], ["name","boutique"]),
+    ("AWANZ Shipment",    [["boutique","=",OTHER]], ["name","boutique","status"]),
+    ("AWANZ Replenishment Request", [["boutique","=",OTHER]], ["name","boutique"]),
+    ("AWANZ Stock Alert", [["boutique","=",OTHER]], ["name","boutique"]),
+    ("AWANZ Feedback",    [["boutique","=",OTHER]], ["name","boutique"]),
+    ("AWANZ Age Check",   [["boutique","=",OTHER]], ["name","boutique"]),
+    ("AWANZ Biometric Consent", [["boutique","=",OTHER]], ["name","boutique"]),
 ]
 for dt, filt, fields in tests:
     r = get_list(mgr, dt, filters=filt, fields=fields)
@@ -55,13 +55,13 @@ for dt, filt, fields in tests:
     else:
         print(f"  [{r.status_code}] {dt}: {r.text[:100]}")
 
-print("========== Maison Associate PIN-hash exposure ==========")
+print("========== AWANZ Associate PIN-hash exposure ==========")
 for who in ("associate","manager"):
     s = sess(who)
-    r = get_list(s, "Maison Associate", fields=["name","user","boutique","role","pin","pin_hash","full_name"], limit=50)
+    r = get_list(s, "AWANZ Associate", fields=["name","user","boutique","role","pin","pin_hash","full_name"], limit=50)
     print(f"  as {who}: [{r.status_code}] {str(r.json().get('message'))[:300] if r.ok else r.text[:150]}")
 # also try reading a single Associate doc from OTHER store to see PIN fields
-r = sess("manager").get("frappe.client.get", doctype="Maison Associate", name="ok.etul.a1@cloudchaserz.example")
+r = sess("manager").get("frappe.client.get", doctype="AWANZ Associate", name="ok.etul.a1@cloudchaserz.example")
 print("  manager get OTHER-store associate doc:", summ(r)[:300])
 
 print("========== Customer cross-store read (are clients global?) ==========")
@@ -70,8 +70,8 @@ print("  manager Customer list:", summ(r)[:300])
 rc = sess("manager").get("maison_pos.api.customers.search", q="a", limit=5)
 print("  manager customers.search:", summ(rc)[:200])
 
-print("========== Maison POS Settings & User read ==========")
-r = sess("manager").get("frappe.client.get", doctype="Maison POS Settings", name="Maison POS Settings")
+print("========== AWANZ POS Settings & User read ==========")
+r = sess("manager").get("frappe.client.get", doctype="AWANZ POS Settings", name="AWANZ POS Settings")
 print("  manager reads POS Settings singleton:", summ(r)[:250])
 r = get_list(sess("associate"), "User", fields=["name","email","api_key","api_secret"], limit=5)
 print("  associate lists User (api keys?):", summ(r)[:250])

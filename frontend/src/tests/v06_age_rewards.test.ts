@@ -225,15 +225,15 @@ describe('brand tokens', () => {
   it('normalises with CloudChaserz defaults and keeps the jewellery wording', () => {
     const b = normalizeBrand(null)
     expect(b.wordmark_text).toBe('CLOUDCHASERZ')
-    expect(b.sub_mark).toBe('Maison POS')
+    expect(b.sub_mark).toBe('AWANZ')
     expect(b.store_noun).toBe('Store')
     expect(normalizeBrand({ brand_name: 'Acme', vertical: 'General' })).toMatchObject({ wordmark_text: 'ACME', store_noun: 'Store', rewards_program_name: 'Acme Rewards' })
-    expect(normalizeBrand(JEWELLERY_BRAND)).toMatchObject({ wordmark_text: 'MAISON', store_noun: 'Boutique' })
+    expect(normalizeBrand(JEWELLERY_BRAND)).toMatchObject({ wordmark_text: 'AWANZ', store_noun: 'Boutique' })
   })
   it('welcome line does not double the brand', () => {
     expect(welcomeLine({ brand_name: 'CloudChaserz' }, 'CloudChaserz Montrose')).toBe('Welcome to CloudChaserz Montrose')
     expect(welcomeLine({ brand_name: 'CloudChaserz' }, 'Montrose')).toBe('Welcome to CloudChaserz Montrose')
-    expect(welcomeLine({ brand_name: 'Maison' }, null)).toBe('Welcome to Maison')
+    expect(welcomeLine({ brand_name: 'AWANZ' }, null)).toBe('Welcome to AWANZ')
   })
   it('age settings normalise safely', () => {
     expect(normalizeAge({ minimum_age: '21', age_verification_required: '1', id_scan_enabled: 0 })).toEqual({ age_verification_required: true, minimum_age: 21, id_scan_enabled: false, reward_allow_stacking: false })

@@ -35,7 +35,7 @@ function isoish(v: unknown): string {
  */
 export function normalizeSale(raw: unknown): SaleEvent {
   const r = (raw || {}) as Record<string, unknown>
-  const sign = Number(r.docstatus) === 2 || r.event === 'maison_sale_cancelled' ? -1 : 1
+  const sign = Number(r.docstatus) === 2 || r.event === 'awanz_sale_cancelled' ? -1 : 1
   const num = (k: string) => (Number.isFinite(Number(r[k])) ? Number(r[k]) : 0)
   const net = r.net !== undefined ? num('net') : r.amount !== undefined ? num('amount') : num('grand_total')
   const items = Array.isArray(r.items)

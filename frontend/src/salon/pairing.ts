@@ -4,8 +4,8 @@
  */
 export const PAIR_CODE_TTL_MS = 10 * 60 * 1000
 export const PAIR_CODE_LENGTH = 6
-export const SALON_TOKEN_KEY = 'maison.salon.session'
-export const SALON_DEVICE_KEY = 'maison.salon.device'
+export const SALON_TOKEN_KEY = 'awanz.salon.session'
+export const SALON_DEVICE_KEY = 'awanz.salon.device'
 
 export function normalizeCode(raw: string): string {
   return (raw || '').toUpperCase().replace(/^MS:/, '').replace(/\D+/g, '').slice(0, PAIR_CODE_LENGTH)

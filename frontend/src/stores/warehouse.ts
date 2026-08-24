@@ -8,8 +8,8 @@ import { connectWallRealtime, POLL_MS } from '@/warehouse/realtime'
 import { diffWall, printJobsFor } from '@/warehouse/wall'
 import { packingListUrl, printDocument } from '@/warehouse/print'
 
-const SOUND_KEY = 'maison.wall.sound'
-const PREFER_KEY = 'maison.wall.prefer'
+const SOUND_KEY = 'awanz.wall.sound'
+const PREFER_KEY = 'awanz.wall.prefer'
 
 interface WarehouseState {
   me: WarehouseMe | null
@@ -51,7 +51,7 @@ export const useWarehouseStore = defineStore('warehouse', {
   }),
   getters: {
     allowed: (s) => !!s.me?.supply_unrestricted,
-    brand: (s) => s.me?.brand || { brand_name: 'CloudChaserz', wordmark_text: 'CLOUDCHASERZ', product_name: 'Maison POS by CloudChaserz' },
+    brand: (s) => s.me?.brand || { brand_name: 'CloudChaserz', wordmark_text: 'CLOUDCHASERZ', product_name: 'AWANZ POS by CloudChaserz' },
     totalOpen: (s) => (s.wall ? s.wall.counts.pending_approval + s.wall.counts.to_pick + s.wall.counts.packing + s.wall.counts.ready : 0)
   },
   actions: {

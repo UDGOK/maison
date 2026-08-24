@@ -37,7 +37,7 @@ export const useLoyaltyStore = defineStore('loyalty', {
     },
     async refresh(customer: Customer): Promise<TierProgress | null> {
       if (this.loading[customer.name]) return null
-      if (typeof window !== 'undefined' && window.__maisonOffline) return null
+      if (typeof window !== 'undefined' && window.__awanzOffline) return null
       this.loading[customer.name] = true
       try {
         const tp = await v04.promotions.loyalty(customer.name)

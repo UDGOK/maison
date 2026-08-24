@@ -5,7 +5,7 @@ import fs from 'fs'
 
 const BASE='https://cloudchaserz.frappe.cloud', HOST='cloudchaserz.frappe.cloud'
 const SID=fs.readFileSync('/tmp/ccsid','utf8').trim()
-const SHOTS='/home/claude/maison/e2e/qa/shots-secux'
+const SHOTS='/home/claude/awanz/e2e/qa/shots-secux'
 const ASSOC={usr:'ok.mingo.a1@cloudchaserz.example',pwd:'cloud123',pin:'2580'}
 
 const browser=await chromium.launch({headless:true})
@@ -19,7 +19,7 @@ function state(sid){return {cookies:[{name:'sid',value:sid,domain:HOST,path:'/',
   const page=await c.newPage()
   try{
     await page.goto('/pos/unlock',{waitUntil:'domcontentloaded'})
-    await page.evaluate(()=>localStorage.setItem('maisonE2E','1'))
+    await page.evaluate(()=>localStorage.setItem('awanzE2E','1'))
     await page.goto('/pos',{waitUntil:'domcontentloaded'})
     await page.waitForSelector('.unlock select.input',{timeout:45000})
     await page.selectOption('.unlock select.input >> nth=0','OK-MINGO')
@@ -47,7 +47,7 @@ function state(sid){return {cookies:[{name:'sid',value:sid,domain:HOST,path:'/',
   await c.close()
 }
 
-// 2) Error UX: expired/bogus session on /maison-dashboard
+// 2) Error UX: expired/bogus session on /awanz-dashboard
 async function shotText(name, opts, path){
   const c=await newCtx(opts); const page=await c.newPage()
   let out={name}
@@ -66,12 +66,12 @@ async function shotText(name, opts, path){
 
 console.log('\n=== ERROR-HANDLING UX (route 9) ===')
 const cases=[]
-cases.push(await shotText('expired-dashboard',{storageState:state('deadbeef00deadbeef00deadbeef00dead'),viewport:{width:1440,height:900}},'/maison-dashboard'))
+cases.push(await shotText('expired-dashboard',{storageState:state('deadbeef00deadbeef00deadbeef00dead'),viewport:{width:1440,height:900}},'/awanz-dashboard'))
 // associate (logged in, not HQ) loads the HQ dashboard -> permission denial UX
 {
   const c=await loggedCtx(ASSOC,{viewport:{width:1440,height:900}}); const page=await c.newPage()
   let out={name:'assoc-loads-dashboard'}
-  try{ const r=await page.goto('/maison-dashboard',{waitUntil:'domcontentloaded',timeout:40000}); await page.waitForTimeout(2500); out.status=r?r.status():0; out.url=page.url(); out.text=(await page.evaluate(()=>document.body.innerText)).replace(/\s+/g,' ').trim().slice(0,300); out.raw=/(frappe\.exceptions|PermissionError|Traceback|500 Internal)/.test(out.text); await page.screenshot({path:`${SHOTS}/err-assoc-dashboard.png`}) }catch(e){out.err=String(e).slice(0,120)}
+  try{ const r=await page.goto('/awanz-dashboard',{waitUntil:'domcontentloaded',timeout:40000}); await page.waitForTimeout(2500); out.status=r?r.status():0; out.url=page.url(); out.text=(await page.evaluate(()=>document.body.innerText)).replace(/\s+/g,' ').trim().slice(0,300); out.raw=/(frappe\.exceptions|PermissionError|Traceback|500 Internal)/.test(out.text); await page.screenshot({path:`${SHOTS}/err-assoc-dashboard.png`}) }catch(e){out.err=String(e).slice(0,120)}
   await c.close(); cases.push(out)
 }
 // expired session on /warehouse
@@ -86,7 +86,7 @@ for(const x of cases) console.log(' ', JSON.stringify(x))
   const c=await loggedCtx(ASSOC,{viewport:{width:390,height:844}}); const page=await c.newPage()
   try{
     await page.goto('/pos/unlock',{waitUntil:'domcontentloaded'})
-    await page.evaluate(()=>localStorage.setItem('maisonE2E','1'))
+    await page.evaluate(()=>localStorage.setItem('awanzE2E','1'))
     await page.goto('/pos',{waitUntil:'domcontentloaded'})
     await page.waitForSelector('.unlock select.input',{timeout:45000})
     await page.selectOption('.unlock select.input >> nth=0','OK-MINGO')

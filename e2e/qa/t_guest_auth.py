@@ -1,5 +1,5 @@
 import sys, json
-sys.path.insert(0, "/home/claude/maison/e2e/qa")
+sys.path.insert(0, "/home/claude/awanz/e2e/qa")
 from harness import Sess, sess, summ, PERSONAS, BASE
 g = sess("guest"); adm = sess("admin"); mgr = sess("manager"); asc = sess("associate")
 
@@ -14,7 +14,7 @@ guest_probes = [
     ("GET","maison_pos.api.shipping.wall",{}),
     ("GET","frappe.client.get_list",{"doctype":"Customer","fields":'["name","mobile_no"]',"limit_page_length":5}),
     ("GET","frappe.client.get_list",{"doctype":"Sales Invoice","fields":'["name","grand_total"]',"limit_page_length":5}),
-    ("GET","frappe.client.get_list",{"doctype":"Maison Associate","fields":'["name","pin_hash"]',"limit_page_length":5}),
+    ("GET","frappe.client.get_list",{"doctype":"AWANZ Associate","fields":'["name","pin_hash"]',"limit_page_length":5}),
     ("GET","frappe.client.get_list",{"doctype":"User","fields":'["name","email"]',"limit_page_length":5}),
 ]
 for meth, m, p in guest_probes:
@@ -39,12 +39,12 @@ print("  bad pair:", summ(r)[:80])
 print("\n========== CSRF enforcement on mutating POST (cookie session, NO token) ==========")
 # manager POST without CSRF header
 m_notoken = Sess(PERSONAS["manager"]); m_notoken.csrf = ""   # strip token
-r = m_notoken.post("frappe.client.set_value", doctype="Maison Associate",
+r = m_notoken.post("frappe.client.set_value", doctype="AWANZ Associate",
                    name="ok.mingo.a1@cloudchaserz.example", fieldname="failed_pin_attempts", value=0)
 print("  manager set_value WITHOUT csrf token:", r.status_code, "->", ("CSRF ENFORCED" if r.status_code in (400,403) else "NOT ENFORCED (mutated!)"), r.text[:80])
-# also a maison api mutation without token
+# also a awanz api mutation without token
 r2 = m_notoken.post("maison_pos.api.crm.log_interaction", customer="x", type="Call")
-print("  maison api POST WITHOUT csrf token:", r2.status_code, r2.text[:80])
+print("  awanz api POST WITHOUT csrf token:", r2.status_code, r2.text[:80])
 
 print("\n========== expired / bogus sid behaviour ==========")
 bad = Sess(); bad.s.cookies.set("sid","deadbeef"*7, domain="cloudchaserz.frappe.cloud")

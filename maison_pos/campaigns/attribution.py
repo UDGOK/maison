@@ -1,6 +1,6 @@
 """Attribution rules + nightly job (SPEC v0.5 §M).
 
-Rule (per campaign windows, defaults 14 / 30 days; see :class:`MaisonCampaign`):
+Rule (per campaign windows, defaults 14 / 30 days; see :class:`AWANZCampaign`):
 
 1. Candidate touches for a sale = the customer's touches whose *touch time* (latest of
    ``clicked_at`` / ``opened_at`` / ``sent_at`` that is not after the sale) lies within the
@@ -27,7 +27,7 @@ from typing import Any, Iterable, Optional
 import frappe
 from frappe.utils import add_days, flt, get_datetime, getdate, now_datetime, nowdate
 
-from maison_pos.maison_pos.doctype.maison_campaign.maison_campaign import DEFAULT_ASSISTED_WINDOW_DAYS, DEFAULT_DIRECT_WINDOW_DAYS
+from maison_pos.awanz_pos.doctype.awanz_campaign.awanz_campaign import DEFAULT_ASSISTED_WINDOW_DAYS, DEFAULT_DIRECT_WINDOW_DAYS
 
 DIRECT = "Direct"
 ASSISTED = "Assisted"
@@ -137,10 +137,10 @@ def campaign_meta(names: Optional[Iterable[str]] = None) -> dict[str, dict[str, 
 		filters["name"] = ("in", list(names))
 	meta = {
 		r.name: {"direct_window_days": r.direct_window_days, "assisted_window_days": r.assisted_window_days, "featured_items": set(), "channel": r.channel, "title": r.title}
-		for r in frappe.get_all("Maison Campaign", filters=filters, fields=["name", "title", "channel", "direct_window_days", "assisted_window_days"])
+		for r in frappe.get_all("AWANZ Campaign", filters=filters, fields=["name", "title", "channel", "direct_window_days", "assisted_window_days"])
 	}
 	if meta:
-		for r in frappe.get_all("Maison Campaign Item", filters={"parent": ("in", list(meta))}, fields=["parent", "item_code"]):
+		for r in frappe.get_all("AWANZ Campaign Item", filters={"parent": ("in", list(meta))}, fields=["parent", "item_code"]):
 			meta[r.parent]["featured_items"].add(r.item_code)
 	return meta
 
@@ -197,13 +197,13 @@ def touches_for(customers: Iterable[str], campaigns: Optional[Iterable[str]] = N
 	if campaigns is not None:
 		filters["campaign"] = ("in", list(campaigns))
 	out: dict[str, list[dict[str, Any]]] = {}
-	for t in frappe.get_all("Maison Campaign Touch", filters=filters, fields=["name", "campaign", "customer", "sent_at", "opened_at", "clicked_at"]):
+	for t in frappe.get_all("AWANZ Campaign Touch", filters=filters, fields=["name", "campaign", "customer", "sent_at", "opened_at", "clicked_at"]):
 		out.setdefault(t.customer, []).append(t)
 	return out
 
 
 def run_attribution(from_date=None, to_date=None, campaign: Optional[str] = None, commit: bool = False) -> dict[str, Any]:
-	"""(Re)compute ``Maison Campaign Attribution`` for the sales in the window (idempotent).
+	"""(Re)compute ``AWANZ Campaign Attribution`` for the sales in the window (idempotent).
 
 	Default window: today minus the longest assisted window (+1 day grace) … today. Existing rows
 	for the invoices in the window (and for cancelled invoices) are replaced.
@@ -216,7 +216,7 @@ def run_attribution(from_date=None, to_date=None, campaign: Optional[str] = None
 	if not meta:
 		return summary
 
-	touched_customers = {t.customer for t in frappe.get_all("Maison Campaign Touch", filters={"campaign": ("in", list(meta))}, fields=["customer"], distinct=True)}
+	touched_customers = {t.customer for t in frappe.get_all("AWANZ Campaign Touch", filters={"campaign": ("in", list(meta))}, fields=["customer"], distinct=True)}
 	invoices = invoices_for_window(from_date, to_date, touched_customers)
 	summary["invoices"] = len(invoices)
 	touches = touches_for({i["customer"] for i in invoices}, meta)
@@ -225,15 +225,15 @@ def run_attribution(from_date=None, to_date=None, campaign: Optional[str] = None
 	del_filters: dict[str, Any] = {"posting_date": ("between", (from_date, to_date))}
 	if campaign:
 		del_filters["campaign"] = campaign
-	frappe.db.delete("Maison Campaign Attribution", del_filters)
+	frappe.db.delete("AWANZ Campaign Attribution", del_filters)
 	stale = frappe.db.sql(
-		"""select a.name from `tabMaison Campaign Attribution` a
+		"""select a.name from `tabAWANZ Campaign Attribution` a
 		   left join `tabSales Invoice` si on si.name = a.sales_invoice
 		   where si.name is null or si.docstatus != 1""",
 		pluck="name",
 	)
 	if stale:
-		frappe.db.delete("Maison Campaign Attribution", {"name": ("in", stale)})
+		frappe.db.delete("AWANZ Campaign Attribution", {"name": ("in", stale)})
 
 	for inv in invoices:
 		rows = attribute_invoice(inv, touches.get(inv["customer"], []), meta)
@@ -241,7 +241,7 @@ def run_attribution(from_date=None, to_date=None, campaign: Optional[str] = None
 			continue
 		summary["attributed_invoices"] += 1
 		for row in rows:
-			row.update({"doctype": "Maison Campaign Attribution", "posting_date": inv["posting_date"], "boutique": inv["boutique"], "associate": inv["associate"], "computed_at": computed_at})
+			row.update({"doctype": "AWANZ Campaign Attribution", "posting_date": inv["posting_date"], "boutique": inv["boutique"], "associate": inv["associate"], "computed_at": computed_at})
 			frappe.get_doc(row).insert(ignore_permissions=True)
 			summary["rows"] += 1
 			summary["direct" if row["type"] == DIRECT else "assisted"] += 1
@@ -261,7 +261,7 @@ def refresh_campaign_stats(campaigns: Iterable[str], computed_at=None) -> None:
 	for name in campaigns:
 		touches = frappe.db.sql(
 			"""select count(*) as sends, sum(opened_at is not null) as opens, sum(clicked_at is not null) as clicks
-			   from `tabMaison Campaign Touch` where campaign = %s""",
+			   from `tabAWANZ Campaign Touch` where campaign = %s""",
 			name,
 			as_dict=True,
 		)[0]
@@ -269,12 +269,12 @@ def refresh_campaign_stats(campaigns: Iterable[str], computed_at=None) -> None:
 			"""select sum(case when type='Direct' then amount else 0 end) as direct,
 			          sum(case when type='Assisted' then amount else 0 end) as assisted,
 			          count(distinct customer) as buyers
-			   from `tabMaison Campaign Attribution` where campaign = %s""",
+			   from `tabAWANZ Campaign Attribution` where campaign = %s""",
 			name,
 			as_dict=True,
 		)[0]
 		frappe.db.set_value(
-			"Maison Campaign",
+			"AWANZ Campaign",
 			name,
 			{
 				"sends": int(touches.sends or 0),

@@ -484,7 +484,7 @@ def seed_webshop() -> dict[str, Any]:
 		# --- v0.8 QA A1 — the shop could not take an order from a new customer ---
 		# `Website Settings.disable_signup = 1`, no `Portal Settings.default_role` and not one
 		# Website User: `/cart` and `/shop/checkout` both redirect to a `/login` that offered no
-		# way to register. The Maison seed has always created a shopper and set the portal role
+		# way to register. The AWANZ seed has always created a shopper and set the portal role
 		# (`demo_v04_webshop.ensure_web_user`); this seed simply never called it.
 		from maison_pos.webshop.setup import ensure_portal_signup
 

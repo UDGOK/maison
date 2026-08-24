@@ -1,7 +1,7 @@
 """Customer document events: auto-assign the printed client number, keep face-consent fields in sync.
 
 Consent fields on Customer (``maison_face_consent`` Check, ``maison_face_consent_at`` Datetime,
-``maison_face_consent_on`` legacy mirror) are *derived* from the ``Maison Biometric Consent``
+``maison_face_consent_on`` legacy mirror) are *derived* from the ``AWANZ Biometric Consent``
 records written by ``maison_pos.api.recognition``. Unticking the box in the desk is treated
 as a withdrawal: templates are dropped from the document and the Active consent is revoked.
 """

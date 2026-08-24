@@ -1,6 +1,6 @@
 # Head-office dashboard v2 — "Command" (v0.5 L)
 
-`/maison-dashboard` (roles: Maison Head Office, Maison Regional, System Manager). Vue 3 app in
+`/awanz-dashboard` (roles: AWANZ Head Office, AWANZ Regional, System Manager). Vue 3 app in
 `dashboard/`, built into `maison_pos/public/dashboard/`. Designed for a wall screen (1920×1080 and
 3840×2160) and a laptop, for chains of 40–100 boutiques.
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | **Live** (default) | KPI strip (net + vs same weekday last week, invoices, card/cash, avg ticket, returns, pending approvals, low stock, open feedback ≤ 2); chain ticker (latest 10 sales); **store-level live cards** ranked by net (vs LW %, tickets, "Sold · Perpetual 41 · $86,500 · 2 s ago", status) that pulse on a sale; region filter, search, sort; selecting a card opens the boutique's own item-level feed + hourly bars; chain hourly chart + low-stock tile | `dashboard.live_summary`, `dashboard.ticker`, `dashboard.boutique_feed`, socket events |
 | **Boutiques** | Sortable table: net today / WTD / MTD, vs LW, WTD vs LW, tickets, avg ticket, conversion (identified clients / tickets, MTD), returns %, stock value, low-stock count, associates on shift, status, 14-day sparkline. Click a row → drill-in page (hourly, top items, associates, recent sales, alerts, feedback) | `dashboard.boutiques_table`, `dashboard.boutique_detail` |
-| **Products** | **Trending in stores**: chain-wide items ranked by velocity change (units this 7 d vs previous 7 d and vs the 28 d baseline) with *Trending up / New / Cooling / Steady* badges, group + badge filters, stores selling, sell-through, days-on-hand. **Top products by store**: boutique selector or all → per-boutique top 10 by net or units with share of boutique sales, plus the item-group × boutique matrix | `dashboard.product_trends`, `dashboard.top_products` — both read the precomputed **Maison Product Trend** table |
+| **Products** | **Trending in stores**: chain-wide items ranked by velocity change (units this 7 d vs previous 7 d and vs the 28 d baseline) with *Trending up / New / Cooling / Steady* badges, group + badge filters, stores selling, sell-through, days-on-hand. **Top products by store**: boutique selector or all → per-boutique top 10 by net or units with share of boutique sales, plus the item-group × boutique matrix | `dashboard.product_trends`, `dashboard.top_products` — both read the precomputed **AWANZ Product Trend** table |
 | **Clients** | Churn-risk list for top tiers (Patron / Collector / Connoisseur filter) with "Assign call", follow-up rate per associate (CRM tasks done / assigned, 30 d), upcoming dates, recognition stats; associate performance (`hr.employee_performance`) and campaign performance (`campaigns.performance`) appear when those endpoints exist | `dashboard.clients_overview` |
 | **Insights** | v0.4 H weekly insights (unchanged) | `api.insights.*` |
 | **Reports** | Period comparison + report links (v0.4 F) | `api.reports.*` |
@@ -22,7 +22,7 @@ URL state: `?view=live|boutiques|products|clients|insights|reports`, `&boutique=
 
 * **Incremental aggregates, not refetches.** The store keeps one mutable record per boutique in a
   `Map` (`dashboard/src/lib/aggregate.ts`: `createAggState`, `foldSale`, `foldHeartbeat`,
-  `reduceEvents`). A `maison_sale` socket event is folded in O(1): boutique net / tickets / returns /
+  `reduceEvents`). A `awanz_sale` socket event is folded in O(1): boutique net / tickets / returns /
   avg ticket / vs-LW / last sale / hourly bucket / per-boutique feed / chain ticker. Duplicates
   (reconnect replays) are dropped by invoice id. A full `live_summary` reconcile runs every 60 s
   and on socket reconnect (`seedFromSummary` keeps the live feeds).
@@ -56,7 +56,7 @@ sparkline endpoints; faint 1 px grids; tabular numerals; status colours reserved
 
 ## Backend
 
-### `Maison Product Trend` + `maison_pos/insights/trends.py`
+### `AWANZ Product Trend` + `maison_pos/insights/trends.py`
 
 One row per `item × (boutique | ALL) × period` (`7d`, `28d`):
 `units, units_prev, units_baseline (4-period window / 4), net, net_prev, velocity (units/week),
@@ -103,7 +103,7 @@ compute_trends()                    -> {rows, items, boutiques, seconds}
 heartbeat(...)                      (unchanged)
 ```
 
-Realtime (`maison_pos.utils.invoice_summary`, room `doctype:Sales Invoice`, event `maison_sale`)
+Realtime (`maison_pos.utils.invoice_summary`, room `doctype:Sales Invoice`, event `awanz_sale`)
 now carries `amount`, `top_item` (highest-value line), `tier` (loyalty tier) and `is_return`. No
 phone / e-mail / address ever leaves the server; `customer_name` stays for the v0.2 feed contract.
 

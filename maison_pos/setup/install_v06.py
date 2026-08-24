@@ -3,8 +3,8 @@ rewards program switches. Idempotent; called from ``setup.install.after_install`
 ``after_migrate``.
 
 Everything of this section lives as **Custom Fields** (on the Single, on Item / Sales Invoice /
-Maison Boutique) so the shared doctype JSONs stay untouched while other sections are built in
-parallel. Internal doctype names stay ``Maison *``; the user-facing brand comes from the
+AWANZ Store) so the shared doctype JSONs stay untouched while other sections are built in
+parallel. Internal doctype names stay ``AWANZ *``; the user-facing brand comes from the
 settings (``maison_pos.brand.get_brand``).
 """
 
@@ -22,10 +22,10 @@ AGE_RESTRICTED_GROUPS = ("Disposables", "E-Liquid", "Devices & Mods", "Pods & Co
 
 BRAND_DEFAULTS: dict[str, Any] = {
 	"brand_name": "CloudChaserz",
-	"product_name": "Maison POS by CloudChaserz",
+	"product_name": "AWANZ POS by CloudChaserz",
 	"tagline": "Elevate Your Smoking Experience",
 	"wordmark_text": "CLOUDCHASERZ",
-	"sub_mark": "Maison POS",
+	"sub_mark": "AWANZ",
 	"legal_name": "CloudChaserz World LLC",
 	"support_email": "support@cloudchaserzworld.com",
 	"brand_website": "https://cloudchaserzworld.com",
@@ -60,7 +60,7 @@ REWARDS_DEFAULTS: dict[str, Any] = {
 SETTINGS_DEFAULTS: dict[str, Any] = {**BRAND_DEFAULTS, **AGE_DEFAULTS, **REWARDS_DEFAULTS}
 
 CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
-	"Maison POS Settings": [
+	"AWANZ POS Settings": [
 		{"fieldname": "section_v06_brand", "label": "Brand (v0.6)", "fieldtype": "Section Break", "insert_after": "low_stock_notify_regional", "collapsible": 0},
 		{"fieldname": "brand_name", "label": "Brand name", "fieldtype": "Data", "default": BRAND_DEFAULTS["brand_name"], "insert_after": "section_v06_brand"},
 		{"fieldname": "product_name", "label": "Product name", "fieldtype": "Data", "default": BRAND_DEFAULTS["product_name"], "insert_after": "brand_name"},
@@ -75,7 +75,7 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 		# v0.7 — platform developer credit ("Powered by ...")
 		{"fieldname": "developer_name", "label": "Developed by", "fieldtype": "Data", "default": BRAND_DEFAULTS["developer_name"], "insert_after": "brand_logo", "description": "Shown as \"Powered by <name>\" in the website footer, the launcher and the About dialog. Clear it to show no credit."},
 		{"fieldname": "developer_website", "label": "Developer website", "fieldtype": "Data", "default": BRAND_DEFAULTS["developer_website"], "insert_after": "developer_name"},
-		{"fieldname": "head_office_boutique", "label": "Head office store", "fieldtype": "Link", "options": "Maison Boutique", "insert_after": "developer_website"},
+		{"fieldname": "head_office_boutique", "label": "Head office store", "fieldtype": "Link", "options": "AWANZ Store", "insert_after": "developer_website"},
 		{"fieldname": "main_warehouse", "label": "Main warehouse", "fieldtype": "Link", "options": "Warehouse", "insert_after": "head_office_boutique"},
 		{"fieldname": "vertical", "label": "Vertical", "fieldtype": "Select", "options": "\n".join(VERTICALS), "default": BRAND_DEFAULTS["vertical"], "insert_after": "main_warehouse", "description": "Controls which product attribute fields the POS / shop show."},
 		{"fieldname": "section_v06_age", "label": "Age verification (v0.6)", "fieldtype": "Section Break", "insert_after": "vertical"},
@@ -113,13 +113,13 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 		{"fieldname": "maison_age_method", "label": "Method", "fieldtype": "Select", "options": "\nScan\nManual", "insert_after": "maison_age_verified", "read_only": 1, "no_copy": 1},
 		{"fieldname": "maison_age_dob_year_ok", "label": "DOB year OK", "fieldtype": "Check", "default": "0", "insert_after": "maison_age_method", "read_only": 1, "no_copy": 1},
 		{"fieldname": "maison_age_column", "fieldtype": "Column Break", "insert_after": "maison_age_dob_year_ok"},
-		{"fieldname": "maison_age_checked_by", "label": "Checked by", "fieldtype": "Link", "options": "Maison Associate", "insert_after": "maison_age_column", "read_only": 1, "no_copy": 1},
+		{"fieldname": "maison_age_checked_by", "label": "Checked by", "fieldtype": "Link", "options": "AWANZ Associate", "insert_after": "maison_age_column", "read_only": 1, "no_copy": 1},
 		{"fieldname": "maison_age_checked_at", "label": "Checked at", "fieldtype": "Datetime", "insert_after": "maison_age_checked_by", "read_only": 1, "no_copy": 1},
-		{"fieldname": "maison_age_check", "label": "Age check log", "fieldtype": "Link", "options": "Maison Age Check", "insert_after": "maison_age_checked_at", "read_only": 1, "no_copy": 1},
-		{"fieldname": "maison_reward_tier", "label": "Reward tier redeemed", "fieldtype": "Link", "options": "Maison Reward Tier", "insert_after": "maison_age_check", "read_only": 1, "no_copy": 1},
+		{"fieldname": "maison_age_check", "label": "Age check log", "fieldtype": "Link", "options": "AWANZ Age Check", "insert_after": "maison_age_checked_at", "read_only": 1, "no_copy": 1},
+		{"fieldname": "maison_reward_tier", "label": "Reward tier redeemed", "fieldtype": "Link", "options": "AWANZ Reward Tier", "insert_after": "maison_age_check", "read_only": 1, "no_copy": 1},
 		{"fieldname": "maison_giveaway_entries", "label": "Giveaway entries", "fieldtype": "Int", "default": "0", "insert_after": "maison_reward_tier", "read_only": 1, "no_copy": 1},
 	],
-	"Maison Boutique": [
+	"AWANZ Store": [
 		{"fieldname": "section_v06_store", "label": "Store (v0.6)", "fieldtype": "Section Break", "insert_after": "damaged_warehouse"},
 		{"fieldname": "boutique_type", "label": "Type", "fieldtype": "Select", "options": "Store\nWarehouse", "default": "Store", "insert_after": "section_v06_store", "in_standard_filter": 1},
 		{"fieldname": "is_warehouse", "label": "Is warehouse (not a store)", "fieldtype": "Check", "default": "0", "insert_after": "boutique_type"},
@@ -132,7 +132,7 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 	],
 	"Loyalty Program": [
 		{"fieldname": "maison_rewards_section", "label": "CloudChaserz Rewards", "fieldtype": "Section Break", "insert_after": "collection_rules"},
-		{"fieldname": "maison_reward_tiers_note", "fieldtype": "HTML", "options": "<p>Fixed redemption tiers are <b>Maison Reward Tier</b> rows linked to this program ($5 off at 100 points, …).</p>", "insert_after": "maison_rewards_section"},
+		{"fieldname": "maison_reward_tiers_note", "fieldtype": "HTML", "options": "<p>Fixed redemption tiers are <b>AWANZ Reward Tier</b> rows linked to this program ($5 off at 100 points, …).</p>", "insert_after": "maison_rewards_section"},
 	],
 }
 
@@ -157,38 +157,38 @@ def create_v06_custom_fields() -> None:
 
 def ensure_v06_settings_defaults() -> None:
 	"""Persist the defaults on the Single (Frappe does not apply defaults to an existing Single row)."""
-	if not frappe.db.exists("DocType", "Maison POS Settings"):
+	if not frappe.db.exists("DocType", "AWANZ POS Settings"):
 		return
-	stored = frappe.db.get_singles_dict("Maison POS Settings")
+	stored = frappe.db.get_singles_dict("AWANZ POS Settings")
 	for key, value in SETTINGS_DEFAULTS.items():
 		if stored.get(key) in (None, ""):
 			try:
-				frappe.db.set_single_value("Maison POS Settings", key, value)
+				frappe.db.set_single_value("AWANZ POS Settings", key, value)
 			except Exception:
 				pass
-	frappe.clear_cache(doctype="Maison POS Settings")
+	frappe.clear_cache(doctype="AWANZ POS Settings")
 
 
 def ensure_warehouse_admin_role() -> None:
-	"""``Maison Warehouse Admin`` is owned by section P; create it here only if still absent so the
+	"""``AWANZ Warehouse Admin`` is owned by section P; create it here only if still absent so the
 	v0.6 demo users can be seeded in any order."""
-	if not frappe.db.exists("Role", "Maison Warehouse Admin"):
-		frappe.get_doc({"doctype": "Role", "role_name": "Maison Warehouse Admin", "desk_access": 1, "is_custom": 1}).insert(ignore_permissions=True)
+	if not frappe.db.exists("Role", "AWANZ Warehouse Admin"):
+		frappe.get_doc({"doctype": "Role", "role_name": "AWANZ Warehouse Admin", "desk_access": 1, "is_custom": 1}).insert(ignore_permissions=True)
 
 
 def ensure_rewards_role_perms() -> None:
-	"""Maison roles may read the rewards / age doctypes (row scoping through queries)."""
+	"""AWANZ roles may read the rewards / age doctypes (row scoping through queries)."""
 	from frappe.permissions import add_permission, update_permission_property
 
 	grants = {
-		("Maison Age Check", "Maison Associate"): ("read", "create"),
-		("Maison Age Check", "Maison Manager"): ("read", "create"),
-		("Maison Giveaway Entry", "Maison Manager"): ("read",),
-		("Maison Giveaway", "Maison Associate"): ("read",),
-		("Maison Giveaway", "Maison Manager"): ("read",),
-		("Maison Reward Tier", "Maison Associate"): ("read",),
-		("Maison Reward Tier", "Maison Manager"): ("read",),
-		("Maison Promotion Calendar", "Maison Manager"): ("read",),
+		("AWANZ Age Check", "AWANZ Associate"): ("read", "create"),
+		("AWANZ Age Check", "AWANZ Manager"): ("read", "create"),
+		("AWANZ Giveaway Entry", "AWANZ Manager"): ("read",),
+		("AWANZ Giveaway", "AWANZ Associate"): ("read",),
+		("AWANZ Giveaway", "AWANZ Manager"): ("read",),
+		("AWANZ Reward Tier", "AWANZ Associate"): ("read",),
+		("AWANZ Reward Tier", "AWANZ Manager"): ("read",),
+		("AWANZ Promotion Calendar", "AWANZ Manager"): ("read",),
 	}
 	for (doctype, role), ptypes in grants.items():
 		if not (frappe.db.exists("DocType", doctype) and frappe.db.exists("Role", role)):
@@ -207,8 +207,8 @@ def setup_v06() -> None:
 	try:
 		ensure_warehouse_admin_role()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison v0.6 warehouse admin role")
+		frappe.log_error(frappe.get_traceback(), "awanz v0.6 warehouse admin role")
 	try:
 		ensure_rewards_role_perms()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison v0.6 role perms")
+		frappe.log_error(frappe.get_traceback(), "awanz v0.6 role perms")

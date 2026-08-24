@@ -146,7 +146,7 @@ try {
   await page.waitForFunction(() => /rejected/i.test(document.body.innerText) && !/0 rejected/.test(document.body.innerText), null, { timeout: 60000 }).catch(() => {})
   await sleep(3000)
   const qConf = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-  const srvLog = (await admin.list('Maison Sync Log', { offline_uuid: uuidConf }, ['status', 'error'], 2))[0]
+  const srvLog = (await admin.list('AWANZ Sync Log', { offline_uuid: uuidConf }, ['status', 'error'], 2))[0]
   const confInv = await admin.list('Sales Invoice', { maison_offline_uuid: uuidConf }, ['name'], 3)
   const htmlLeak = /<\/?[a-z][\s\S]*>/i.test(qConf.slice(0, 4000)) || /Traceback|File \"/i.test(qConf)
   record('6.6 a stock conflict is refused and surfaces cleanly in the queue',

@@ -10,6 +10,6 @@ declare module '*.vue' {
 interface ImportMetaEnv {
   readonly VITE_MOCK?: string
   readonly VITE_STRIPE_PUBLISHABLE_KEY?: string
-  /** v0.3 — expose window.__maisonRecognitionTest for e2e */
+  /** v0.3 — expose window.__awanzRecognitionTest for e2e */
   readonly VITE_E2E?: string
 }

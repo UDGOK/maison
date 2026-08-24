@@ -24,7 +24,7 @@ from maison_pos import brand as brand_module
 from maison_pos.api import pwa
 from maison_pos.setup import whitelabel
 
-SETTINGS = "Maison POS Settings"
+SETTINGS = "AWANZ POS Settings"
 BRAND_FIELDS = (
 	"brand_name",
 	"product_name",
@@ -360,12 +360,12 @@ class TestWhiteLabel(FrappeTestCase):
 		fake = _Fake()
 		whitelabel.scrub_email_headers(fake)
 		self.assertNotIn("X-Frappe-Site", fake.msg_root)
-		self.assertIn("X-Maison-Site", fake.msg_root)
+		self.assertIn("X-AWANZ-Site", fake.msg_root)
 
 	def test_bootinfo_carries_the_brand_for_the_desk(self):
 		boot = frappe._dict()
 		whitelabel.extend_bootinfo(boot)
-		self.assertEqual(boot.maison_brand["brand_name"], whitelabel._brand()["brand_name"])
+		self.assertEqual(boot.awanz_brand["brand_name"], whitelabel._brand()["brand_name"])
 
 	# ------------------------------------------------------------------ templates / pages
 	def test_our_footer_overrides_shadow_the_erpnext_ones(self):
@@ -384,7 +384,7 @@ class TestWhiteLabel(FrappeTestCase):
 
 		brand = whitelabel._brand()
 		powered = frappe.render_template(
-			"templates/includes/footer/footer_powered.html", {"maison_brand": brand}
+			"templates/includes/footer/footer_powered.html", {"awanz_brand": brand}
 		)
 		self.assertIn(brand["product_name"], powered)
 		for framework in ("Frappe", "ERPNext"):

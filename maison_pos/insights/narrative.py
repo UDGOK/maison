@@ -121,7 +121,7 @@ def build_numbers(period_end: Optional[_dt.date] = None, days: int = 7) -> dict[
 
 	# v0.6 D4 — shops only
 	_warehouses = warehouse_boutiques()
-	boutiques = [b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, fields=["name", "boutique_name", "city"], order_by="name") if b.name not in _warehouses]
+	boutiques = [b for b in frappe.get_all("AWANZ Store", filters={"enabled": 1}, fields=["name", "boutique_name", "city"], order_by="name") if b.name not in _warehouses]
 	codes = [b.name for b in boutiques]
 	cur = _totals(str(start), str(end), codes)
 	prev = _totals(str(prev_start), str(prev_end), codes)
@@ -160,8 +160,8 @@ def build_numbers(period_end: Optional[_dt.date] = None, days: int = 7) -> dict[
 			}
 		)
 	per_b.sort(key=lambda r: -r["net"])
-	signals = frappe.get_all("Maison Client Signal", filters={"status": "Open"}, fields=["signal_type", "count(name) as n"], group_by="signal_type")
-	rebalance = frappe.get_all("Maison Rebalance Suggestion", filters={"status": "Open"}, fields=["item_name", "from_boutique", "to_boutique", "qty", "value"], order_by="value desc", limit=5)
+	signals = frappe.get_all("AWANZ Client Signal", filters={"status": "Open"}, fields=["signal_type", "count(name) as n"], group_by="signal_type")
+	rebalance = frappe.get_all("AWANZ Rebalance Suggestion", filters={"status": "Open"}, fields=["item_name", "from_boutique", "to_boutique", "qty", "value"], order_by="value desc", limit=5)
 	new_clients = _new_clients(str(start), str(end))
 	return {
 		"period": {"from": str(start), "to": str(end), "days": days, "prev_from": str(prev_start), "prev_to": str(prev_end)},
@@ -245,7 +245,7 @@ def llm_config() -> Optional[dict[str, str]]:
 
 
 PROMPT = (
-	"You are the retail analyst of Maison, a luxury jewellery house. Write the Monday morning summary for "
+	"You are the retail analyst of AWANZ, a luxury jewellery house. Write the Monday morning summary for "
 	"the head-office team from the JSON numbers below: 3 to 5 short paragraphs of plain English, no headings, "
 	"no bullet points, no markdown. Lead with the chain result versus the previous week, then boutique "
 	"differences worth a conversation, the best sellers, the clienteling list, and open stock rebalance "
@@ -280,7 +280,7 @@ def llm_narrative(numbers: dict[str, Any], config: dict[str, str]) -> str:
 # report
 # ---------------------------------------------------------------------------
 def generate_report(period_end: Optional[_dt.date] = None, days: int = 7, use_llm: Optional[bool] = None) -> "frappe.model.document.Document":
-	"""Build numbers, write the narrative and store a ``Maison Insight Report`` (one per period)."""
+	"""Build numbers, write the narrative and store a ``AWANZ Insight Report`` (one per period)."""
 	numbers = build_numbers(period_end, days)
 	generator, model, error = "Template", None, None
 	text = None
@@ -291,12 +291,12 @@ def generate_report(period_end: Optional[_dt.date] = None, days: int = 7, use_ll
 			generator, model = "Anthropic", cfg["model"]
 		except Exception as exc:  # fall back to the template; keep the error for the operator
 			error = f"{type(exc).__name__}: {str(exc)[:300]}"
-			frappe.log_error(frappe.get_traceback(), "Maison insights: Anthropic narrative failed")
+			frappe.log_error(frappe.get_traceback(), "AWANZ insights: Anthropic narrative failed")
 	if not text:
 		text = template_narrative(numbers)
 	p = numbers["period"]
-	existing = frappe.db.get_value("Maison Insight Report", {"period_start": p["from"], "period_end": p["to"], "kind": "Weekly"}, "name")
-	doc = frappe.get_doc("Maison Insight Report", existing) if existing else frappe.new_doc("Maison Insight Report")
+	existing = frappe.db.get_value("AWANZ Insight Report", {"period_start": p["from"], "period_end": p["to"], "kind": "Weekly"}, "name")
+	doc = frappe.get_doc("AWANZ Insight Report", existing) if existing else frappe.new_doc("AWANZ Insight Report")
 	doc.update(
 		{
 			"kind": "Weekly",
@@ -320,11 +320,11 @@ def generate_report(period_end: Optional[_dt.date] = None, days: int = 7, use_ll
 
 
 def email_report(doc, recipients: Optional[list[str]] = None) -> list[str]:
-	"""Send the narrative to every enabled user holding Maison Head Office."""
+	"""Send the narrative to every enabled user holding AWANZ Head Office."""
 	if recipients is None:
 		recipients = [
 			r.parent
-			for r in frappe.get_all("Has Role", filters={"role": "Maison Head Office", "parenttype": "User"}, fields=["parent"])
+			for r in frappe.get_all("Has Role", filters={"role": "AWANZ Head Office", "parenttype": "User"}, fields=["parent"])
 			if r.parent not in ("Administrator", "Guest") and frappe.db.get_value("User", r.parent, "enabled")
 		]
 	recipients = sorted(set(recipients))
@@ -334,7 +334,7 @@ def email_report(doc, recipients: Optional[list[str]] = None) -> list[str]:
 	try:
 		_send(doc, recipients, body)
 	except Exception as exc:  # no outgoing account on a dev site, SMTP down, ...
-		frappe.log_error(frappe.get_traceback(), "Maison insights: weekly e-mail failed")
+		frappe.log_error(frappe.get_traceback(), "AWANZ insights: weekly e-mail failed")
 		doc.db_set("error", ((doc.error + "\n") if doc.error else "") + f"E-mail not sent: {type(exc).__name__}: {str(exc)[:200]}", update_modified=False)
 		return []
 	doc.db_set("emailed_to", ", ".join(recipients), update_modified=False)
@@ -345,9 +345,9 @@ def email_report(doc, recipients: Optional[list[str]] = None) -> list[str]:
 def _send(doc, recipients: list[str], body: str) -> None:
 	frappe.sendmail(
 		recipients=recipients,
-		subject=f"Maison weekly insights — {doc.title}",
+		subject=f"AWANZ weekly insights — {doc.title}",
 		message=f"<div style='font-family:Jost,Helvetica,Arial,sans-serif;max-width:640px'>{body}<p style='color:#7d7668;font-size:12px'>Generated by {doc.generator}{' · ' + doc.model if doc.model else ''} on {doc.generated_at}.</p></div>",
-		reference_doctype="Maison Insight Report",
+		reference_doctype="AWANZ Insight Report",
 		reference_name=doc.name,
 		delayed=False,
 	)

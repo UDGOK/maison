@@ -116,7 +116,7 @@ export const usePromosStore = defineStore('promos', {
       if (!force && this.boutique === boutique && this.version) return
       this.loading = true
       try {
-        if (typeof window !== 'undefined' && window.__maisonOffline) throw new Error('offline')
+        if (typeof window !== 'undefined' && window.__awanzOffline) throw new Error('offline')
         const res = await v04.promotions.active(boutique)
         this.apply(res)
         await setSetting('promotions', JSON.parse(JSON.stringify(res)))

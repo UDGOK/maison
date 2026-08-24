@@ -11,7 +11,7 @@ import os
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-ROLES = ("Maison Associate", "Maison Manager", "Maison Regional", "Maison Head Office")
+ROLES = ("AWANZ Associate", "AWANZ Manager", "AWANZ Regional", "AWANZ Head Office")
 MODES_OF_PAYMENT = (("Cash", "Cash"), ("Card", "Bank"))
 
 
@@ -52,25 +52,25 @@ def create_custom_fields_from_fixture() -> None:
 # (doctype, role) -> granted ptypes. Data scoping comes from the Warehouse User Permission
 # created per associate/manager by the seed / admin; role perms only open the doctype.
 ROLE_DOCPERMS: dict[tuple[str, str], tuple[str, ...]] = {
-	("Sales Invoice", "Maison Associate"): ("read", "create", "submit", "print", "email"),
-	("Sales Invoice", "Maison Manager"): ("read", "write", "create", "submit", "cancel", "amend", "print", "email"),
-	("Sales Invoice", "Maison Regional"): ("read", "print", "email"),
-	("Sales Invoice", "Maison Head Office"): ("read", "write", "create", "submit", "cancel", "amend", "print", "email"),
-	("Customer", "Maison Associate"): ("read", "write", "create"),
-	("Customer", "Maison Manager"): ("read", "write", "create"),
-	("Customer", "Maison Regional"): ("read",),
-	("Customer", "Maison Head Office"): ("read", "write", "create"),
+	("Sales Invoice", "AWANZ Associate"): ("read", "create", "submit", "print", "email"),
+	("Sales Invoice", "AWANZ Manager"): ("read", "write", "create", "submit", "cancel", "amend", "print", "email"),
+	("Sales Invoice", "AWANZ Regional"): ("read", "print", "email"),
+	("Sales Invoice", "AWANZ Head Office"): ("read", "write", "create", "submit", "cancel", "amend", "print", "email"),
+	("Customer", "AWANZ Associate"): ("read", "write", "create"),
+	("Customer", "AWANZ Manager"): ("read", "write", "create"),
+	("Customer", "AWANZ Regional"): ("read",),
+	("Customer", "AWANZ Head Office"): ("read", "write", "create"),
 	# ERPNext v15 creates a Serial and Batch Bundle (with permission checks) when a Sales Invoice
 	# with serial numbers is submitted; Sales User alone cannot create it, so serialized POS sales
 	# by associates failed with "No permission for Serial and Batch Bundle".
-	("Serial and Batch Bundle", "Maison Associate"): ("read", "write", "create", "submit", "cancel"),
-	("Serial and Batch Bundle", "Maison Manager"): ("read", "write", "create", "submit", "cancel", "amend"),
-	("Serial and Batch Bundle", "Maison Head Office"): ("read", "write", "create", "submit", "cancel", "amend"),
+	("Serial and Batch Bundle", "AWANZ Associate"): ("read", "write", "create", "submit", "cancel"),
+	("Serial and Batch Bundle", "AWANZ Manager"): ("read", "write", "create", "submit", "cancel", "amend"),
+	("Serial and Batch Bundle", "AWANZ Head Office"): ("read", "write", "create", "submit", "cancel", "amend"),
 }
 
 
 def create_role_permissions() -> None:
-	"""Grant the Maison roles access to Sales Invoice / Customer (Custom DocPerm, idempotent)."""
+	"""Grant the AWANZ roles access to Sales Invoice / Customer (Custom DocPerm, idempotent)."""
 	from frappe.permissions import add_permission, update_permission_property
 
 	for (doctype, role), ptypes in ROLE_DOCPERMS.items():
@@ -119,7 +119,7 @@ def create_print_format() -> None:
 
 def ensure_settings_defaults() -> None:
 	"""Fill v0.3 recognition defaults (consent text, threshold, retention) on existing sites."""
-	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import ensure_recognition_defaults
+	from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import ensure_recognition_defaults
 
 	ensure_recognition_defaults()
 	ensure_rounding_method()
@@ -141,6 +141,29 @@ def ensure_rounding_method() -> None:
 	if frappe.db.get_single_value("System Settings", "rounding_method") != ROUNDING_METHOD:
 		frappe.db.set_single_value("System Settings", "rounding_method", ROUNDING_METHOD)
 		frappe.clear_cache()
+
+
+def ensure_awanz_names() -> None:
+	"""v0.9 re-assertion: nothing a user reads may still say "Maison".
+
+	The one-shot migration is ``patches/v0_9/rename_to_awanz.py``. This runs on **every**
+	``bench migrate`` because two things put the old strings back: ``sync_fixtures`` /
+	``sync_customizations`` re-import Custom Field labels from JSON, and an operator can
+	restore a pre-rename backup on top of a new deployment. Both re-assertions are indexed
+	``LIKE '%Maison%'`` lookups that match nothing on a healthy site.
+	"""
+	from maison_pos.patches.v0_9 import rename_to_awanz as rename
+
+	stale = [dt for dt in rename.DOCTYPES if frappe.db.exists("DocType", dt)]
+	if stale:
+		print(
+			"maison_pos: WARNING — pre-v0.9 doctype(s) still on this site: "
+			+ ", ".join(sorted(stale)[:5])
+			+ f"{' …' if len(stale) > 5 else ''}. Run "
+			"`bench --site <site> execute maison_pos.patches.v0_9.rename_to_awanz.execute`."
+		)
+	rename.relabel_custom_fields()
+	rename.rebrand_stored_settings()
 
 
 def ensure_launcher_home_page() -> None:
@@ -240,14 +263,16 @@ def after_install() -> None:
 	from maison_pos.setup.whitelabel import refresh_footer_credit
 
 	refresh_footer_credit()
+	# v0.9 — re-assert the AWANZ naming (labels, brand tokens, role home pages)
+	ensure_awanz_names()
 	# v0.6 — one URL that gets staff to their screen
 	ensure_launcher_home_page()
-	# --- v0.7 white-label — brand every Frappe/ERPNext surface from Maison POS Settings ---
+	# --- v0.7 white-label — brand every Frappe/ERPNext surface from AWANZ POS Settings ---
 	from maison_pos.setup.whitelabel import setup_whitelabel
 
 	setup_whitelabel()
 	# --- end v0.7 white-label ---
-	# --- v0.7 security — re-assert the Maison Associate permlevels. Frappe ignores a doctype's
+	# --- v0.7 security — re-assert the AWANZ Associate permlevels. Frappe ignores a doctype's
 	# standard permissions as soon as the site holds a single Custom DocPerm row for it, so the
 	# permlevel-1/2 rows have to be mirrored there on every migrate (idempotent, no-op otherwise).
 	from maison_pos.patches.v0_7.associate_hardening import ensure_permlevel_docperms
@@ -292,9 +317,11 @@ def after_migrate() -> None:
 	from maison_pos.setup.whitelabel import refresh_footer_credit
 
 	refresh_footer_credit()
+	# v0.9 — re-assert the AWANZ naming (labels, brand tokens, role home pages)
+	ensure_awanz_names()
 	# v0.6 — one URL that gets staff to their screen
 	ensure_launcher_home_page()
-	# --- v0.7 white-label — brand every Frappe/ERPNext surface from Maison POS Settings ---
+	# --- v0.7 white-label — brand every Frappe/ERPNext surface from AWANZ POS Settings ---
 	from maison_pos.setup.whitelabel import setup_whitelabel
 
 	setup_whitelabel()

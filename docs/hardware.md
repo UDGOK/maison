@@ -1,4 +1,4 @@
-# Maison POS — handheld hardware (v0.4 A)
+# AWANZ POS — handheld hardware (v0.4 A)
 
 ## Decision: Verifone V660p on Stripe Terminal
 
@@ -14,7 +14,7 @@ The primary handheld for boutiques is the **Verifone V660p** running **Stripe Te
 | Scanner | no camera/scanner — see *Scanning* |
 | SDK | Stripe Terminal JS SDK (internet reader): `collectPaymentMethod` → `processPayment`, and `terminal.print(canvas)` for the printer |
 
-Why the V660p and not a phone-only setup: the associate carries an iPhone running the Maison
+Why the V660p and not a phone-only setup: the associate carries an iPhone running the AWANZ
 PWA (the v0.2 phone layout) and the V660p is the **client-facing** device for the card tap and the
 receipt, so the associate never hands their phone to the client. At a roaming station an iPad
 drives the same reader.
@@ -36,7 +36,7 @@ drives the same reader.
   line, store credit, signature block) and exchanges use the same renderer.
 - **Simulated reader**: without `VITE_STRIPE_PUBLISHABLE_KEY` the in-app `SimulatedReader` has
   a `has_printer` flag (driven by the boutique's reader row or `true` by default) and keeps the
-  last bitmap in `window.__maisonLastReaderPrint` / `printer.lastReaderPreview` so the e2e run
+  last bitmap in `window.__awanzLastReaderPrint` / `printer.lastReaderPreview` so the e2e run
   and the Settings "Test reader print" can inspect the canvas path.
 
 ## Alternative: Stripe Reader S710 + Epson TM-P20II
@@ -55,14 +55,14 @@ in Settings).
 
 Clover Flex is **Fiserv-locked**: it only processes through Clover's own gateway/merchant
 account, exposes no Stripe Terminal (or any third-party) SDK and its printer/scanner APIs are
-only reachable from Clover-native Android apps. It cannot be paired to the Maison PWA / Stripe
+only reachable from Clover-native Android apps. It cannot be paired to the AWANZ PWA / Stripe
 account, so receipts, refunds (`PaymentIntent` refunds) and the card-present metadata the
 backend stores (`maison_terminal_ref`, brand, last4) would not exist. Not compatible.
 
 ## Pairing steps (per reader)
 
 1. In the Stripe dashboard create a **Location** per boutique and put its id in
-   `Maison Boutique.stripe_location_id`.
+   `AWANZ Store.stripe_location_id`.
 2. Power the V660p, join it to the boutique Wi-Fi (WPA2-Enterprise supported) and generate the
    **pairing code** from its Settings screen; register it in Stripe → Terminal → Readers under
    the boutique location. Note the `tmr_…` reader id.
@@ -80,7 +80,7 @@ them every Terminal endpoint (and refunds) is simulated.
 
 ## Multiple readers per boutique
 
-`Maison Boutique.readers` (child table `Maison Boutique Reader`: label, stripe_reader_id,
+`AWANZ Store.readers` (child table `AWANZ Store Reader`: label, stripe_reader_id,
 device_type, has_printer, enabled, serial_number, notes) is the registry. `catalog.bootstrap`
 ships it to the POS; the printer store offers the enabled rows, defaults to the first one, and
 remembers the pick per device. Two associates can therefore each pair their iPhone to their own

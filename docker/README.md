@@ -1,4 +1,4 @@
-# Maison POS — Docker deployment
+# AWANZ POS — Docker deployment
 
 Runs Frappe v15 + ERPNext v15 + `maison_pos` on any host with Docker Engine 24+ and Compose v2.
 Layout follows [frappe_docker](https://github.com/frappe/frappe_docker) `pwd.yml`.
@@ -13,7 +13,7 @@ Layout follows [frappe_docker](https://github.com/frappe/frappe_docker) `pwd.yml
 ## Quick start
 
 ```bash
-git clone <repo> maison && cd maison
+git clone <repo> awanz && cd awanz
 chmod +x docker/setup.sh
 ./docker/setup.sh            # Option A — official image, app installed at runtime (dev/demo)
 #   or
@@ -36,7 +36,7 @@ All via environment variables or `docker/.env`:
 | `DB_ROOT_PASSWORD` | `admin` | MariaDB root |
 | `HTTP_PORT` | `8080` | Host port mapped to nginx |
 | `DEVELOPER_MODE` | `0` | Set `1` to allow DocType edits / fixture export |
-| `IMAGE` / `VERSION` | `frappe/erpnext` / `v15` | Image to run (`setup.sh --build` sets `maison/erpnext:v15`) |
+| `IMAGE` / `VERSION` | `frappe/erpnext` / `v15` | Image to run (`setup.sh --build` sets `awanz/erpnext:v15`) |
 
 ## Option A — official image (`frappe/erpnext:v15`)
 
@@ -51,8 +51,8 @@ Data survives `docker compose down`, but `down -v` wipes the DB and you re-run `
 ```bash
 ./docker/setup.sh --build
 # or manually:
-docker build -f docker/Containerfile -t maison/erpnext:v15 .
-IMAGE=maison/erpnext VERSION=v15 docker compose -f docker/docker-compose.yml up -d
+docker build -f docker/Containerfile -t awanz/erpnext:v15 .
+IMAGE=awanz/erpnext VERSION=v15 docker compose -f docker/docker-compose.yml up -d
 ```
 
 The image contains bench + frappe + erpnext + maison_pos with built assets; `create-site` detects
@@ -78,10 +78,10 @@ export APPS_JSON_BASE64=$(base64 -w 0 ../maison/docker/apps.json)
 docker build --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
   --build-arg=FRAPPE_BRANCH=version-15 \
   --build-arg=APPS_JSON_BASE64=$APPS_JSON_BASE64 \
-  --tag=maison/erpnext:v15 --file=images/layered/Containerfile .
+  --tag=awanz/erpnext:v15 --file=images/layered/Containerfile .
 ```
 
-Then run with `IMAGE=maison/erpnext VERSION=v15` as in Option B.
+Then run with `IMAGE=awanz/erpnext VERSION=v15` as in Option B.
 
 ## Day-2 operations
 

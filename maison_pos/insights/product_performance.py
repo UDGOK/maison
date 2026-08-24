@@ -141,7 +141,7 @@ def load_sales(from_date: str, to_date: str, boutiques: list[str]) -> list[dict[
 
 
 def load_stock(boutiques: list[str]) -> tuple[dict[tuple[str, str], float], dict[str, str]]:
-	wh = {b.name: b.warehouse for b in frappe.get_all("Maison Boutique", filters={"name": ("in", boutiques)}, fields=["name", "warehouse"])}
+	wh = {b.name: b.warehouse for b in frappe.get_all("AWANZ Store", filters={"name": ("in", boutiques)}, fields=["name", "warehouse"])}
 	by_wh = {v: k for k, v in wh.items()}
 	stock: dict[tuple[str, str], float] = {}
 	if by_wh:
@@ -157,7 +157,7 @@ def product_performance(days: Optional[int] = None, boutiques: Optional[list[str
 
 	# v0.6 D4 — shops only; the head-office warehouse row is not a store
 	_warehouses = warehouse_boutiques()
-	boutiques = boutiques or [b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name") if b not in _warehouses]
+	boutiques = boutiques or [b for b in frappe.get_all("AWANZ Store", filters={"enabled": 1}, pluck="name", order_by="name") if b not in _warehouses]
 	sales = load_sales(from_date, to_date, boutiques)
 	stock, _wh = load_stock(boutiques)
 	codes = sorted({r.item_code for r in sales} | {k[0] for k in stock.keys()})
@@ -250,12 +250,12 @@ def product_performance(days: Optional[int] = None, boutiques: Optional[list[str
 
 
 def compute_rebalance_suggestions(days: int = DEFAULT_DAYS) -> dict[str, Any]:
-	"""Weekly job: refresh Open ``Maison Rebalance Suggestion`` rows (keeps Transferred / Dismissed)."""
+	"""Weekly job: refresh Open ``AWANZ Rebalance Suggestion`` rows (keeps Transferred / Dismissed)."""
 	perf = product_performance(days)
-	frappe.db.delete("Maison Rebalance Suggestion", {"status": "Open"})
+	frappe.db.delete("AWANZ Rebalance Suggestion", {"status": "Open"})
 	dismissed = {
 		(r.item_code, r.from_boutique, r.to_boutique)
-		for r in frappe.get_all("Maison Rebalance Suggestion", filters={"status": "Dismissed"}, fields=["item_code", "from_boutique", "to_boutique"])
+		for r in frappe.get_all("AWANZ Rebalance Suggestion", filters={"status": "Dismissed"}, fields=["item_code", "from_boutique", "to_boutique"])
 	}
 	computed_at = frappe.utils.now_datetime()
 	created = 0
@@ -265,7 +265,7 @@ def compute_rebalance_suggestions(days: int = DEFAULT_DAYS) -> dict[str, Any]:
 		meta = frappe.db.get_value("Item", s["item_code"], ["item_name", "item_group", "has_serial_no"], as_dict=True)
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Rebalance Suggestion",
+				"doctype": "AWANZ Rebalance Suggestion",
 				"item_code": s["item_code"],
 				"item_name": meta.item_name,
 				"item_group": meta.item_group,

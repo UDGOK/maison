@@ -1,7 +1,7 @@
 import sys, json
-sys.path.insert(0, "/home/claude/maison/e2e/qa")
+sys.path.insert(0, "/home/claude/awanz/e2e/qa")
 from harness import sess, summ
-mgr = sess("manager")   # Maison Manager @ OK-MINGO
+mgr = sess("manager")   # AWANZ Manager @ OK-MINGO
 B = "OK-ETUL"
 
 # (method, params, is_post) — all target store B; a scoped manager must get 403

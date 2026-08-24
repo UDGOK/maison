@@ -3,7 +3,7 @@ const { browser, page, console_ } = await launch()
 
 // ---------- INSIGHTS ----------
 let t0 = Date.now()
-await page.goto(`${BASE}/maison-dashboard?view=insights`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=insights`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('.insights .tiles .tile', { timeout: 45000 })
 await page.waitForTimeout(3500)
 check('Insights tab loads', true, `${Date.now() - t0} ms`)
@@ -30,7 +30,7 @@ check('contact list count matches client_signals', contacts >= Math.min(sig.sign
 
 // ---------- REPORTS ----------
 t0 = Date.now()
-await page.goto(`${BASE}/maison-dashboard?view=reports`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=reports`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('section.reports .group', { timeout: 45000 })
 await page.waitForTimeout(1800)
 check('Reports tab loads', true, `${Date.now() - t0} ms`)
@@ -41,7 +41,7 @@ check('report catalogue lists reports', names.length >= 8, `${names.length}: ${n
 const csvLinks = await page.locator('section.reports .item .csv').count()
 check('every report has a CSV link', csvLinks === names.length, `${csvLinks} CSV links / ${names.length} reports`)
 const missing = ['Commission Statement', 'Promotion Performance', 'Campaign Performance'].filter((n) => !names.some((x) => x.includes(n)))
-check('all 11 Maison Script Reports are linked', missing.length === 0, missing.length ? `missing from the Reports tab: ${missing.join(', ')}` : 'all linked')
+check('all 11 AWANZ Script Reports are linked', missing.length === 0, missing.length ? `missing from the Reports tab: ${missing.join(', ')}` : 'all linked')
 const badWords = ['Frappe', 'ERPNext'].filter((w) => repTxt.includes(w))
 check('no "Frappe"/"ERPNext" text on the Reports tab', badWords.length === 0, badWords.length ? `found ${badWords.join(', ')} — header text: "${repTxt.split('\n').slice(0, 3).join(' | ')}"` : 'none')
 const href = await page.locator('section.reports .item .name').first().getAttribute('href')

@@ -1,6 +1,6 @@
 {% extends "maison_pos/templates/webshop/base.html" %}
 {% from "maison_pos/templates/webshop/macros.html" import product_card %}
-{% set m = maison %}
+{% set m = awanz %}
 {% set mw_group = doc.item_group %}
 {% set price_info = (shopping_cart.product_info.price if shopping_cart and shopping_cart.product_info else none) or {} %}
 

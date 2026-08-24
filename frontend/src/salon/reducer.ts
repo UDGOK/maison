@@ -2,7 +2,7 @@
  * v0.5 K — the Salon's screen state machine, pure and unit-tested.
  *
  * Input: server states (`salon_state`, strictly increasing `seq`), local intents (the client tapped
- * "Join Maison", finished the feedback, …) and clock ticks. Output: `view` — the screen the Salon
+ * "Join AWANZ", finished the feedback, …) and clock ticks. Output: `view` — the screen the Salon
  * renders — plus the local flags each screen needs. The remote state is the source of truth; local
  * state only refines it (sub-steps inside identify / receipt) and is reset whenever the POS moves on.
  */

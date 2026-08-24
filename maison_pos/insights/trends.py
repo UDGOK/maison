@@ -1,4 +1,4 @@
-"""v0.5 L — product trends precomputed into ``Maison Product Trend``.
+"""v0.5 L — product trends precomputed into ``AWANZ Product Trend``.
 
 The dashboard "Products" tab must load in well under 300 ms with 100 boutiques, so nothing
 is aggregated at request time: every 15 minutes (``hooks.scheduler_events``) — or on demand via
@@ -43,8 +43,8 @@ ALL = "ALL"
 TREND_UP_PCT = 25.0
 COOLING_PCT = -25.0
 MIN_UNITS = 2.0
-CACHE_PREFIX = "maison_product_trends"
-LAST_RUN_KEY = "maison_trends_last_run"
+CACHE_PREFIX = "awanz_product_trends"
+LAST_RUN_KEY = "awanz_trends_last_run"
 
 FIELDS = [
 	"name", "creation", "modified", "modified_by", "owner", "docstatus",
@@ -235,7 +235,7 @@ def load_sales_buckets(boutiques: list[str], today: Any = None) -> list[dict[str
 
 
 def load_stock(boutiques: list[str]) -> dict[tuple[str, str], float]:
-	wh = {b.name: b.warehouse for b in frappe.get_all("Maison Boutique", filters={"name": ("in", boutiques)}, fields=["name", "warehouse"])}
+	wh = {b.name: b.warehouse for b in frappe.get_all("AWANZ Store", filters={"name": ("in", boutiques)}, fields=["name", "warehouse"])}
 	by_wh = {v: k for k, v in wh.items() if v}
 	out: dict[tuple[str, str], float] = {}
 	if by_wh:
@@ -255,7 +255,7 @@ def clear_cache() -> None:
 
 
 def compute_trends(commit: bool = True, today: Any = None) -> dict[str, Any]:
-	"""Recompute every ``Maison Product Trend`` row (idempotent; replaces the table).
+	"""Recompute every ``AWANZ Product Trend`` row (idempotent; replaces the table).
 
 	``bench --site X execute maison_pos.insights.trends.compute_trends``
 	"""
@@ -264,13 +264,13 @@ def compute_trends(commit: bool = True, today: Any = None) -> dict[str, Any]:
 
 	# v0.6 D4 — the head-office warehouse is not a shop and must not get a trend column
 	_warehouses = warehouse_boutiques()
-	boutiques = [b for b in frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name") if b not in _warehouses]
+	boutiques = [b for b in frappe.get_all("AWANZ Store", filters={"enabled": 1}, pluck="name", order_by="name") if b not in _warehouses]
 	sales = load_sales_buckets(boutiques, today)
 	stock = load_stock(boutiques)
 	codes = sorted({s["item_code"] for s in sales} | {k[0] for k in stock})
 	rows = build_rows(sales, stock, load_item_meta(codes), today)
 	now = now_datetime()
-	frappe.db.delete("Maison Product Trend")
+	frappe.db.delete("AWANZ Product Trend")
 	values = []
 	for i, r in enumerate(rows):
 		values.append(
@@ -284,7 +284,7 @@ def compute_trends(commit: bool = True, today: Any = None) -> dict[str, Any]:
 			]
 		)
 	if values:
-		frappe.db.bulk_insert("Maison Product Trend", FIELDS, values, chunk_size=2000)
+		frappe.db.bulk_insert("AWANZ Product Trend", FIELDS, values, chunk_size=2000)
 	out = {"rows": len(rows), "items": len(codes), "boutiques": len(boutiques), "seconds": round(time.time() - started, 2), "computed_at": str(now)}
 	# --- v0.8 QA D-13 — commit before touching any cache ---
 	# The stamp was written and the caches cleared *before* the commit, so a concurrent read

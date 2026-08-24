@@ -33,7 +33,7 @@ from maison_pos.api.sales import (
 	ERR_PAYMENT,
 	ERR_PERMISSION,
 	ERR_VALIDATION,
-	MaisonPOSError,
+	AwanzPOSError,
 	_split_serials,
 	_validate_payments_cover_total,
 	build_sales_invoice,
@@ -41,8 +41,8 @@ from maison_pos.api.sales import (
 	get_invoice_by_token,
 )
 from maison_pos.identifiers import new_receipt_token
-from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_operations_settings
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_associate, is_manager_or_above
+from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_operations_settings
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_associate, is_manager_or_above
 from maison_pos.stripe_terminal import client as stripe_client
 from maison_pos.utils import receipt_payload
 
@@ -53,7 +53,7 @@ EXCHANGE_MOP = "Exchange Credit"
 ERR_MANAGER_REQUIRED = "MANAGER_REQUIRED"
 
 
-class ManagerRequiredError(MaisonPOSError):
+class ManagerRequiredError(AwanzPOSError):
 	error_code = ERR_MANAGER_REQUIRED
 
 
@@ -153,29 +153,29 @@ def _normalize_lines(lines: Any) -> list[dict[str, Any]]:
 	if isinstance(lines, str):
 		lines = json.loads(lines or "[]")
 	if not isinstance(lines, builtins.list) or not lines:
-		raise MaisonPOSError(_("Select at least one line to return"))
+		raise AwanzPOSError(_("Select at least one line to return"))
 	out = []
 	for raw in lines:
 		if not isinstance(raw, dict) or not raw.get("item_code"):
-			raise MaisonPOSError(_("Each return line needs an item_code"))
+			raise AwanzPOSError(_("Each return line needs an item_code"))
 		serials = _split_serials(raw.get("serial_no") or raw.get("serials"))
 		qty = flt(raw.get("qty") or (len(serials) if serials else 1))
 		if serials and len(serials) != cint(qty):
-			raise MaisonPOSError(_("{0}: quantity {1} does not match {2} serial number(s)").format(raw["item_code"], qty, len(serials)))
+			raise AwanzPOSError(_("{0}: quantity {1} does not match {2} serial number(s)").format(raw["item_code"], qty, len(serials)))
 		if qty <= 0:
-			raise MaisonPOSError(_("{0}: return quantity must be positive").format(raw["item_code"]))
+			raise AwanzPOSError(_("{0}: return quantity must be positive").format(raw["item_code"]))
 		reason = raw.get("reason") or "Other"
 		if reason not in REASONS:
-			raise MaisonPOSError(_("Unknown return reason {0}").format(reason))
+			raise AwanzPOSError(_("Unknown return reason {0}").format(reason))
 		condition = raw.get("condition") or "Sellable"
 		if condition not in CONDITIONS:
-			raise MaisonPOSError(_("Unknown condition {0}").format(condition))
+			raise AwanzPOSError(_("Unknown condition {0}").format(condition))
 		out.append({"row": raw.get("row"), "item_code": raw["item_code"], "qty": qty, "serials": serials, "reason": reason, "condition": condition})
 	return out
 
 
 def _verify_manager(boutique: str, manager: Optional[str], manager_pin: Optional[str], amount: float, why: str) -> Optional[str]:
-	"""Return the approving Maison Associate name, or raise ``ManagerRequiredError``.
+	"""Return the approving AWANZ Associate name, or raise ``ManagerRequiredError``.
 
 	A caller who is already a manager (or unrestricted) approves implicitly.
 	"""
@@ -184,19 +184,19 @@ def _verify_manager(boutique: str, manager: Optional[str], manager_pin: Optional
 		return assoc["name"] if assoc else None
 	if not manager or not manager_pin:
 		raise ManagerRequiredError(_("Manager approval required: {0}").format(why), amount=amount, reason=why)
-	row = frappe.db.get_value("Maison Associate", manager, ["name", "boutique", "role", "enabled"], as_dict=True)
+	row = frappe.db.get_value("AWANZ Associate", manager, ["name", "boutique", "role", "enabled"], as_dict=True)
 	if not row or not row.enabled or row.role not in ("Manager", "Regional", "HeadOffice"):
 		raise ManagerRequiredError(_("{0} is not a manager").format(manager), amount=amount, reason=why)
 	if row.role == "Manager" and row.boutique != boutique:
 		raise ManagerRequiredError(_("{0} manages another boutique").format(manager), amount=amount, reason=why)
-	doc = frappe.get_doc("Maison Associate", manager)
+	doc = frappe.get_doc("AWANZ Associate", manager)
 	if not doc.verify_pin(str(manager_pin)):
 		raise ManagerRequiredError(_("Manager PIN incorrect"), amount=amount, reason=why)
 	return doc.name
 
 
 def _damaged_warehouse(boutique: str, company: str) -> str:
-	wh = frappe.db.get_value("Maison Boutique", boutique, "damaged_warehouse")
+	wh = frappe.db.get_value("AWANZ Store", boutique, "damaged_warehouse")
 	if wh:
 		return wh
 	# lazily create "<code> Damaged" under All Warehouses
@@ -207,8 +207,8 @@ def _damaged_warehouse(boutique: str, company: str) -> str:
 		doc.flags.ignore_permissions = True
 		doc.insert(ignore_if_duplicate=True)
 		name = doc.name
-	frappe.db.set_value("Maison Boutique", boutique, "damaged_warehouse", name, update_modified=False)
-	frappe.clear_document_cache("Maison Boutique", boutique)
+	frappe.db.set_value("AWANZ Store", boutique, "damaged_warehouse", name, update_modified=False)
+	frappe.clear_document_cache("AWANZ Store", boutique)
 	return name
 
 
@@ -250,7 +250,7 @@ def _reverse_commission(credit_note, original) -> Optional[dict[str, Any]]:
 	except TypeError:
 		return fn(original.name)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"Maison commission reversal {credit_note.name}")
+		frappe.log_error(frappe.get_traceback(), f"AWANZ commission reversal {credit_note.name}")
 		return None
 
 
@@ -312,7 +312,7 @@ def _settle_loyalty_after_return(cn, src, ctx: dict[str, Any]) -> dict[str, Any]
 			ctx["customer"], ctx["program"], ctx["company"], ctx["points"], invoice=cn.name, posting_date=cn.posting_date
 		)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), f"Maison loyalty claw-back {cn.name}")
+		frappe.log_error(frappe.get_traceback(), f"AWANZ loyalty claw-back {cn.name}")
 		return {"points_clawed_back": 0, "points_shortfall": ctx["points"], "error": True}
 	return {
 		"points_clawed_back": cint(result["clawed_back"]),
@@ -347,12 +347,12 @@ def _build_credit_note(src, lines: list[dict[str, Any]], boutique: str, reason: 
 					src_row = row
 					break
 		if src_row is None:
-			raise MaisonPOSError(_("{0}: nothing left to return on {1}").format(sel["item_code"], src.name), ERR_NOT_FOUND)
+			raise AwanzPOSError(_("{0}: nothing left to return on {1}").format(sel["item_code"], src.name), ERR_NOT_FOUND)
 		if src_row.item_code != sel["item_code"]:
-			raise MaisonPOSError(_("Line {0} is {1}, not {2}").format(sel.get("row"), src_row.item_code, sel["item_code"]))
+			raise AwanzPOSError(_("Line {0} is {1}, not {2}").format(sel.get("row"), src_row.item_code, sel["item_code"]))
 		returnable_qty = abs(flt(src_row.qty))
 		if sel["qty"] > returnable_qty + 1e-9:
-			raise MaisonPOSError(_("{0}: only {1} left to return").format(sel["item_code"], returnable_qty))
+			raise AwanzPOSError(_("{0}: only {1} left to return").format(sel["item_code"], returnable_qty))
 		available_serials = _split_serials(src_row.get("serial_no"))
 		has_serial = cint(frappe.get_cached_value("Item", sel["item_code"], "has_serial_no"))
 		if has_serial:
@@ -360,10 +360,10 @@ def _build_credit_note(src, lines: list[dict[str, Any]], boutique: str, reason: 
 				if len(available_serials) == cint(sel["qty"]):
 					sel["serials"] = available_serials
 				else:
-					raise MaisonPOSError(_("{0}: serial number(s) required").format(sel["item_code"]))
+					raise AwanzPOSError(_("{0}: serial number(s) required").format(sel["item_code"]))
 			bad = [s for s in sel["serials"] if s not in available_serials]
 			if bad:
-				raise MaisonPOSError(_("Serial {0} was not sold on {1} (or is already returned)").format(", ".join(bad), src.name), ERR_NOT_FOUND, serials=bad)
+				raise AwanzPOSError(_("Serial {0} was not sold on {1} (or is already returned)").format(", ".join(bad), src.name), ERR_NOT_FOUND, serials=bad)
 			src_row.use_serial_batch_fields = 1
 			src_row.serial_no = "\n".join(sel["serials"])
 		src_row.qty = -abs(flt(sel["qty"]))
@@ -389,7 +389,7 @@ def _build_credit_note(src, lines: list[dict[str, Any]], boutique: str, reason: 
 			# ERPNext re-clears the header field when the rows disagree — `events.sales_invoice.
 			# stamp_store` restores it in `before_submit`). `maison_pos.scoping.sales_invoice_query`
 			# scopes the list independently of this stamp.
-			"set_warehouse": frappe.db.get_value("Maison Boutique", boutique, "warehouse"),
+			"set_warehouse": frappe.db.get_value("AWANZ Store", boutique, "warehouse"),
 			"pos_profile": src.pos_profile,
 			"maison_boutique": boutique,
 			"maison_associate": (get_associate() or {}).get("name"),
@@ -432,7 +432,7 @@ def _refund_payments(cn, src, method: str, amount: float) -> dict[str, Any]:
 	if method == "card":
 		pi = src.get("maison_terminal_ref")
 		if not pi:
-			raise MaisonPOSError(_("{0} was not paid by card on this terminal; refund in cash or as store credit").format(src.name), ERR_PAYMENT)
+			raise AwanzPOSError(_("{0} was not paid by card on this terminal; refund in cash or as store credit").format(src.name), ERR_PAYMENT)
 		card_paid = sum(flt(p.amount) for p in src.payments if (p.mode_of_payment or "").lower() != "cash")
 		already = sum(
 			abs(flt(p.amount))
@@ -441,7 +441,7 @@ def _refund_payments(cn, src, method: str, amount: float) -> dict[str, Any]:
 			if (p.mode_of_payment or "").lower() == "card"
 		)
 		if amount > card_paid - already + 0.005:
-			raise MaisonPOSError(_("Card refund {0} exceeds the amount charged to the card ({1} left)").format(amount, round(card_paid - already, 2)), ERR_PAYMENT)
+			raise AwanzPOSError(_("Card refund {0} exceeds the amount charged to the card ({1} left)").format(amount, round(card_paid - already, 2)), ERR_PAYMENT)
 		mop = "Card"
 	else:
 		mop = "Cash"
@@ -455,7 +455,7 @@ def _refund_payments(cn, src, method: str, amount: float) -> dict[str, Any]:
 def _do_card_refund(cn, src, amount: float, reason: Optional[str]) -> None:
 	from maison_pos.api.stripe_terminal import to_minor
 
-	res = stripe_client.refund(src.get("maison_terminal_ref"), to_minor(amount, cn.currency), reason=reason, idempotency_key=f"maison-refund-{cn.name}")
+	res = stripe_client.refund(src.get("maison_terminal_ref"), to_minor(amount, cn.currency), reason=reason, idempotency_key=f"awanz-refund-{cn.name}")
 	cn.db_set("maison_refund_id", res.get("id"), update_modified=False)
 
 
@@ -502,7 +502,7 @@ def _validate_return_payments(cn) -> None:
 	total = abs(flt(cn.rounded_total or cn.grand_total))
 	paid = abs(sum(flt(p.amount) for p in cn.payments))
 	if abs(paid - total) > 0.01:
-		raise MaisonPOSError(_("Refund tenders ({0}) do not match the credit note total ({1})").format(paid, total), ERR_PAYMENT, paid=paid, total=total)
+		raise AwanzPOSError(_("Refund tenders ({0}) do not match the credit note total ({1})").format(paid, total), ERR_PAYMENT, paid=paid, total=total)
 
 
 def _result(cn, src, extra: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -542,7 +542,7 @@ def lookup(invoice: Optional[str] = None, token: Optional[str] = None, customer:
 
 	Returns ``{invoices: [...]}``; each entry lists lines with ``returnable_qty`` / ``returnable_serials``.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	docs = []
 	if token:
 		t = token.strip()
@@ -606,12 +606,12 @@ def return_items(
 	when the refund exceeds the manager threshold or the policy window and no valid manager PIN
 	was supplied.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if refund_method not in ("card", "cash", "store_credit"):
-		raise MaisonPOSError(_("refund_method must be card, cash or store_credit"))
+		raise AwanzPOSError(_("refund_method must be card, cash or store_credit"))
 	src = frappe.get_doc("Sales Invoice", invoice)
 	if src.docstatus != 1 or not src.get("is_pos") or src.get("is_return"):
-		raise MaisonPOSError(_("{0} is not a submitted POS sale").format(invoice), ERR_NOT_FOUND)
+		raise AwanzPOSError(_("{0} is not a submitted POS sale").format(invoice), ERR_NOT_FOUND)
 	boutique = assert_boutique_access(src.get("maison_boutique"))
 	sel = _normalize_lines(lines)
 	ops = get_operations_settings()
@@ -667,19 +667,19 @@ def exchange(
 	remainder is refunded through *refund_method* (``cash`` / ``card`` / ``store_credit``).
 	Returns the credit note, the new invoice and the settled ``difference`` (> 0 = client paid).
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if isinstance(new_items, str):
 		new_items = json.loads(new_items or "[]")
 	if isinstance(payments, str):
 		payments = json.loads(payments or "[]")
 	payments = payments or []
 	if not new_items:
-		raise MaisonPOSError(_("An exchange needs at least one new item"))
+		raise AwanzPOSError(_("An exchange needs at least one new item"))
 	src = frappe.get_doc("Sales Invoice", invoice)
 	if src.docstatus != 1 or not src.get("is_pos") or src.get("is_return"):
-		raise MaisonPOSError(_("{0} is not a submitted POS sale").format(invoice), ERR_NOT_FOUND)
+		raise AwanzPOSError(_("{0} is not a submitted POS sale").format(invoice), ERR_NOT_FOUND)
 	boutique = assert_boutique_access(src.get("maison_boutique"))
-	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	b = frappe.get_cached_doc("AWANZ Store", boutique)
 	sel = _normalize_lines(lines)
 	ops = get_operations_settings()
 	ensure_exchange_mode_of_payment(src.company)
@@ -737,11 +737,11 @@ def exchange(
 	if difference > 0.005:
 		paid = sum(flt(p.get("amount")) for p in payments)
 		if paid + 0.005 < difference:
-			raise MaisonPOSError(_("Payments ({0}) do not cover the exchange difference ({1})").format(paid, difference), ERR_PAYMENT, paid=paid, due=difference)
+			raise AwanzPOSError(_("Payments ({0}) do not cover the exchange difference ({1})").format(paid, difference), ERR_PAYMENT, paid=paid, due=difference)
 		for p in payments:
 			mop = p.get("mode_of_payment")
 			if not mop or not frappe.db.exists("Mode of Payment", mop):
-				raise MaisonPOSError(_("Unknown mode of payment {0}").format(mop), ERR_PAYMENT)
+				raise AwanzPOSError(_("Unknown mode of payment {0}").format(mop), ERR_PAYMENT)
 			new_si.append("payments", {"mode_of_payment": mop, "account": (get_bank_cash_account(mop, src.company) or {}).get("account"), "amount": flt(p.get("amount"))})
 			if p.get("stripe_payment_intent"):
 				new_si.maison_terminal_ref = p.get("stripe_payment_intent")
@@ -819,7 +819,7 @@ def exchange(
 @frappe.whitelist()
 def policy(boutique: Optional[str] = None) -> dict[str, Any]:
 	"""Return / exchange policy (windows, manager threshold, reasons, conditions) for the POS."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	ops = get_operations_settings()
 	return {**ops, "reasons": list(REASONS), "conditions": list(CONDITIONS), "refund_methods": list(REFUND_METHODS), "stripe_configured": stripe_client.is_configured()}
 
@@ -827,7 +827,7 @@ def policy(boutique: Optional[str] = None) -> dict[str, Any]:
 @frappe.whitelist()
 def recent(boutique: Optional[str] = None, limit: int = 20) -> dict[str, Any]:
 	"""Latest credit notes of the boutique (Returns screen history)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	rows = frappe.get_all(
 		"Sales Invoice",

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Clients tab — churn-risk list for top tiers (Maison Client Signal), follow-up rates per
+ * Clients tab — churn-risk list for top tiers (AWANZ Client Signal), follow-up rates per
  * associate (30 d), upcoming dates, recognition stats; associate performance and campaign
  * performance are shown when the backend provides them (feature-detected).
  */

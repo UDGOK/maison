@@ -145,7 +145,7 @@ try {
   record('3.8 card sale of a 2-line basket whose per-line tax rounds up is accepted', /Synced/i.test(s4.pill),
     `basket ${net8} + tax(per-line) ${perLine} = ${g8}; server tax(on-net-total) would be ${onNet} = ${R(net8 + onNet)}; sync pill "${s4.pill}"; invoice=${i4?.name || 'none'}`, 'high')
   await shot(page, 'pay-card-tax-mismatch')
-  const errRow = (await admin.list('Maison Sync Log', { offline_uuid: s4.uuid }, ['status', 'error'], 2))[0]
+  const errRow = (await admin.list('AWANZ Sync Log', { offline_uuid: s4.uuid }, ['status', 'error'], 2))[0]
   note('3.8 sync log for that sale', JSON.stringify(errRow))
 } catch (e) {
   record('t3 crashed', false, String(e.stack || e), 'high')

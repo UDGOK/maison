@@ -1,11 +1,11 @@
 """v0.6 O/P install glue — idempotent, called from ``after_install`` / ``after_migrate``.
 
-* Role ``Maison Warehouse Admin`` (+ Custom DocPerms on the ERPNext stock documents it drives).
-* Custom fields: Item dims (``maison_length/width/height``), Maison Boutique ship-to + in-transit
-  warehouse, Maison POS Settings shipping / wall options (kept as Custom Fields so the v0.6 N
+* Role ``AWANZ Warehouse Admin`` (+ Custom DocPerms on the ERPNext stock documents it drives).
+* Custom fields: Item dims (``maison_length/width/height``), AWANZ Store ship-to + in-transit
+  warehouse, AWANZ POS Settings shipping / wall options (kept as Custom Fields so the v0.6 N
   stream's edits to the doctype JSONs never collide).
-* Workflow ``Maison Replenishment Approval`` on Maison Replenishment Request.
-* Print format ``Maison Packing List`` (Jinja, ``templates/print/packing_list.html``).
+* Workflow ``AWANZ Replenishment Approval`` on AWANZ Replenishment Request.
+* Print format ``AWANZ Packing List`` (Jinja, ``templates/print/packing_list.html``).
 * ``<store> In Transit`` warehouses for every existing store.
 """
 
@@ -16,9 +16,9 @@ import os
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-WAREHOUSE_ADMIN_ROLE = "Maison Warehouse Admin"
-WORKFLOW_NAME = "Maison Replenishment Approval"
-PACKING_LIST_FORMAT = "Maison Packing List"
+WAREHOUSE_ADMIN_ROLE = "AWANZ Warehouse Admin"
+WORKFLOW_NAME = "AWANZ Replenishment Approval"
+PACKING_LIST_FORMAT = "AWANZ Packing List"
 
 CUSTOM_FIELDS = {
 	"Item": [
@@ -27,7 +27,7 @@ CUSTOM_FIELDS = {
 		{"fieldname": "maison_width", "fieldtype": "Float", "label": "Width (cm)", "insert_after": "maison_length"},
 		{"fieldname": "maison_height", "fieldtype": "Float", "label": "Height (cm)", "insert_after": "maison_width"},
 	],
-	"Maison Boutique": [
+	"AWANZ Store": [
 		{"fieldname": "ship_to_section", "fieldtype": "Section Break", "label": "Ship-to (warehouse shipments)", "insert_after": "damaged_warehouse", "collapsible": 1},
 		{"fieldname": "ship_contact_name", "fieldtype": "Data", "label": "Ship-to Contact", "insert_after": "ship_to_section"},
 		{"fieldname": "ship_address_line2", "fieldtype": "Data", "label": "Address Line 2", "insert_after": "ship_contact_name"},
@@ -36,7 +36,7 @@ CUSTOM_FIELDS = {
 		{"fieldname": "ship_country", "fieldtype": "Data", "label": "Country", "insert_after": "ship_postal_code", "default": "US"},
 		{"fieldname": "transit_warehouse", "fieldtype": "Link", "label": "In-Transit Warehouse", "options": "Warehouse", "insert_after": "ship_country", "read_only": 1},
 	],
-	"Maison POS Settings": [
+	"AWANZ POS Settings": [
 		{"fieldname": "shipping_section", "fieldtype": "Section Break", "label": "Warehouse & Shipping", "insert_after": "consent_text_version", "collapsible": 1},
 		{"fieldname": "shipping_provider", "fieldtype": "Select", "label": "Rate Provider", "options": "Simulated\nShippo\nEasyPost", "default": "Simulated", "insert_after": "shipping_section"},
 		{"fieldname": "auto_print_packing_list", "fieldtype": "Check", "label": "Wall auto-prints packing list", "default": "1", "insert_after": "shipping_provider"},
@@ -58,7 +58,7 @@ CUSTOM_FIELDS = {
 	],
 }
 
-# Warehouse admin drives ERPNext stock documents from /warehouse; Maison Manager posts receipts at the store.
+# Warehouse admin drives ERPNext stock documents from /warehouse; AWANZ Manager posts receipts at the store.
 ROLE_DOCPERMS: dict[tuple[str, str], tuple[str, ...]] = {
 	("Stock Entry", WAREHOUSE_ADMIN_ROLE): ("read", "write", "create", "submit", "cancel", "print"),
 	("Material Request", WAREHOUSE_ADMIN_ROLE): ("read", "write", "create", "submit", "cancel", "print"),
@@ -67,12 +67,12 @@ ROLE_DOCPERMS: dict[tuple[str, str], tuple[str, ...]] = {
 	("Item", WAREHOUSE_ADMIN_ROLE): ("read",),
 	("Warehouse", WAREHOUSE_ADMIN_ROLE): ("read",),
 	("Bin", WAREHOUSE_ADMIN_ROLE): ("read",),
-	("Maison Boutique", WAREHOUSE_ADMIN_ROLE): ("read",),
-	("Maison Stock Alert", WAREHOUSE_ADMIN_ROLE): ("read", "write"),
-	("Stock Entry", "Maison Manager"): ("read", "print"),
-	("Material Request", "Maison Manager"): ("read", "write", "create", "print"),
-	("Purchase Order", "Maison Manager"): ("read", "print"),
-	("Purchase Receipt", "Maison Manager"): ("read", "print"),
+	("AWANZ Store", WAREHOUSE_ADMIN_ROLE): ("read",),
+	("AWANZ Stock Alert", WAREHOUSE_ADMIN_ROLE): ("read", "write"),
+	("Stock Entry", "AWANZ Manager"): ("read", "print"),
+	("Material Request", "AWANZ Manager"): ("read", "write", "create", "print"),
+	("Purchase Order", "AWANZ Manager"): ("read", "print"),
+	("Purchase Receipt", "AWANZ Manager"): ("read", "print"),
 }
 
 
@@ -101,7 +101,7 @@ def create_docperms() -> None:
 
 
 def create_workflow() -> None:
-	if not frappe.db.exists("DocType", "Maison Replenishment Request") or frappe.db.exists("Workflow", WORKFLOW_NAME):
+	if not frappe.db.exists("DocType", "AWANZ Replenishment Request") or frappe.db.exists("Workflow", WORKFLOW_NAME):
 		return
 	for state in ("Pending Approval", "Approved", "Rejected"):
 		if not frappe.db.exists("Workflow State", state):
@@ -109,12 +109,12 @@ def create_workflow() -> None:
 	for action in ("Approve", "Reject"):
 		if not frappe.db.exists("Workflow Action Master", action):
 			frappe.get_doc({"doctype": "Workflow Action Master", "workflow_action_name": action}).insert(ignore_permissions=True)
-	approvers = (WAREHOUSE_ADMIN_ROLE, "Maison Head Office")
+	approvers = (WAREHOUSE_ADMIN_ROLE, "AWANZ Head Office")
 	doc = frappe.get_doc(
 		{
 			"doctype": "Workflow",
 			"workflow_name": WORKFLOW_NAME,
-			"document_type": "Maison Replenishment Request",
+			"document_type": "AWANZ Replenishment Request",
 			"is_active": 1,
 			"override_status": 0,
 			"send_email_alert": 0,
@@ -137,7 +137,7 @@ def create_workflow() -> None:
 
 def create_print_format() -> None:
 	path = os.path.join(frappe.get_app_path("maison_pos"), "templates", "print", "packing_list.html")
-	if not os.path.exists(path) or not frappe.db.exists("DocType", "Maison Shipment"):
+	if not os.path.exists(path) or not frappe.db.exists("DocType", "AWANZ Shipment"):
 		return
 	with open(path, encoding="utf-8") as f:
 		html = f.read()
@@ -149,8 +149,8 @@ def create_print_format() -> None:
 		{
 			"doctype": "Print Format",
 			"name": PACKING_LIST_FORMAT,
-			"doc_type": "Maison Shipment",
-			"module": "Maison POS",
+			"doc_type": "AWANZ Shipment",
+			"module": "AWANZ POS",
 			"standard": "No",
 			"custom_format": 1,
 			"print_format_type": "Jinja",
@@ -171,7 +171,7 @@ def ensure_transit_warehouses() -> list[str]:
 	from maison_pos.shipping import ensure_transit_warehouse, grant_transit_permissions, store_boutiques
 
 	out = []
-	if not frappe.db.exists("DocType", "Maison Boutique") or not frappe.db.table_exists("Maison Boutique"):
+	if not frappe.db.exists("DocType", "AWANZ Store") or not frappe.db.table_exists("AWANZ Store"):
 		return out
 	for code in store_boutiques():
 		try:
@@ -179,7 +179,7 @@ def ensure_transit_warehouses() -> list[str]:
 			grant_transit_permissions(code, transit)
 			out.append(transit)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), f"maison transit warehouse {code}")
+			frappe.log_error(frappe.get_traceback(), f"awanz transit warehouse {code}")
 	return out
 
 

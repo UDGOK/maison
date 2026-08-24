@@ -119,37 +119,37 @@ def customer_tier(customer: Optional[str]) -> Optional[str]:
 # --- end v0.5 L ---
 
 
-def publish_sale(doc, event: str = "maison_sale") -> None:
+def publish_sale(doc, event: str = "awanz_sale") -> None:
 	"""Push a sale (or cancellation) to the head-office dashboard room."""
 	payload = invoice_summary(doc)
 	payload["event"] = event
 	# v0.5 L — the 5 s live_summary cache must not serve stale totals right after a sale
 	try:
-		frappe.cache.delete_keys("maison_live_summary")
+		frappe.cache.delete_keys("awanz_live_summary")
 	except Exception:  # pragma: no cover - cache unavailable
 		pass
 	frappe.publish_realtime(event, payload, room=DASHBOARD_ROOM, after_commit=True)
 
 
 def publish_heartbeat(payload: dict[str, Any]) -> None:
-	frappe.publish_realtime("maison_heartbeat", payload, room=DASHBOARD_ROOM, after_commit=True)
+	frappe.publish_realtime("awanz_heartbeat", payload, room=DASHBOARD_ROOM, after_commit=True)
 
 
 def touch_last_seen(boutique: Optional[str], device_id: Optional[str]) -> None:
 	"""Update (or create) the heartbeat row for a device when a sale lands."""
 	if not boutique or not device_id:
 		return
-	name = frappe.db.get_value("Maison Device Heartbeat", {"boutique": boutique, "device_id": device_id}, "name")
+	name = frappe.db.get_value("AWANZ Device Heartbeat", {"boutique": boutique, "device_id": device_id}, "name")
 	now = now_datetime()
 	if name:
 		frappe.db.set_value(
-			"Maison Device Heartbeat",
+			"AWANZ Device Heartbeat",
 			name,
 			{"last_seen": now, "status": "Online"},
 			update_modified=False,
 		)
 	else:
-		hb = frappe.new_doc("Maison Device Heartbeat")
+		hb = frappe.new_doc("AWANZ Device Heartbeat")
 		hb.update({"boutique": boutique, "device_id": device_id, "last_seen": now, "queued": 0, "status": "Online"})
 		hb.flags.ignore_permissions = True
 		hb.insert()
@@ -158,12 +158,12 @@ def touch_last_seen(boutique: Optional[str], device_id: Optional[str]) -> None:
 def get_receipt_context(doc) -> dict[str, Any]:
 	"""Jinja helper: everything the 80 mm receipt needs beyond the invoice itself."""
 	boutique = None
-	if doc.get("maison_boutique") and frappe.db.exists("Maison Boutique", doc.maison_boutique):
-		boutique = frappe.get_doc("Maison Boutique", doc.maison_boutique)
+	if doc.get("maison_boutique") and frappe.db.exists("AWANZ Store", doc.maison_boutique):
+		boutique = frappe.get_doc("AWANZ Store", doc.maison_boutique)
 
 	associate_name = None
-	if doc.get("maison_associate") and frappe.db.exists("Maison Associate", doc.maison_associate):
-		associate_name = frappe.db.get_value("Maison Associate", doc.maison_associate, "full_name")
+	if doc.get("maison_associate") and frappe.db.exists("AWANZ Associate", doc.maison_associate):
+		associate_name = frappe.db.get_value("AWANZ Associate", doc.maison_associate, "full_name")
 
 	tier = None
 	points_balance = 0.0
@@ -179,7 +179,7 @@ def get_receipt_context(doc) -> dict[str, Any]:
 				tier = details.get("tier_name")
 				points_balance = flt(details.get("loyalty_points"))
 		except Exception:  # pragma: no cover - loyalty is optional
-			frappe.log_error(frappe.get_traceback(), "Maison receipt loyalty lookup")
+			frappe.log_error(frappe.get_traceback(), "AWANZ receipt loyalty lookup")
 
 	points_earned = 0.0
 	if doc.docstatus == 1:
@@ -207,7 +207,7 @@ def get_receipt_context(doc) -> dict[str, Any]:
 
 		rewards = receipt_extras(doc)
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Maison receipt rewards extras")
+		frappe.log_error(frappe.get_traceback(), "AWANZ receipt rewards extras")
 	from maison_pos.brand import get_age_settings
 
 	# --- end v0.6 N/Q ---
@@ -233,15 +233,15 @@ def get_receipt_context(doc) -> dict[str, Any]:
 # receipt QR
 # ---------------------------------------------------------------------------
 def receipt_qr_enabled() -> bool:
-	"""``Maison POS Settings.receipt_qr_enabled`` (defaults to on when the single was never saved)."""
-	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_pos_settings
+	"""``AWANZ POS Settings.receipt_qr_enabled`` (defaults to on when the single was never saved)."""
+	from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_pos_settings
 
 	return bool(get_pos_settings()["receipt_qr_enabled"])
 
 
 def receipt_url(token: str) -> str:
 	"""Public URL encoded in the receipt QR: ``<receipt_qr_base_url>/r/<token>``."""
-	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_receipt_qr_base_url
+	from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_receipt_qr_base_url
 
 	return f"{get_receipt_qr_base_url()}/r/{token}"
 

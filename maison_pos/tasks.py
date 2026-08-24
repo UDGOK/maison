@@ -13,21 +13,21 @@ STALE_AFTER_SECONDS = 180  # 3 missed 60s pings
 def check_heartbeat_staleness() -> None:
 	"""Flip devices whose last ping is older than ``STALE_AFTER_SECONDS`` to Offline.
 
-	Publishes one ``maison_heartbeat`` event per device that changed state so the
+	Publishes one ``awanz_heartbeat`` event per device that changed state so the
 	head-office wall updates without polling.
 	"""
 	cutoff = add_to_date(now_datetime(), seconds=-STALE_AFTER_SECONDS)
 	# Query builder on purpose: frappe.get_all strips ``last_seen`` from both fields and
 	# filters (substring match on the optional ``_seen`` column), which would have marked
 	# every Online device Offline on each run.
-	HB = frappe.qb.DocType("Maison Device Heartbeat")
+	HB = frappe.qb.DocType("AWANZ Device Heartbeat")
 	stale = (
 		frappe.qb.from_(HB)
 		.select(HB.name, HB.boutique, HB.device_id, HB.last_seen, HB.queued)
 		.where((HB.status == "Online") & (HB.last_seen < cutoff))
 	).run(as_dict=True)
 	for row in stale:
-		frappe.db.set_value("Maison Device Heartbeat", row.name, "status", "Offline", update_modified=False)
+		frappe.db.set_value("AWANZ Device Heartbeat", row.name, "status", "Offline", update_modified=False)
 		publish_heartbeat(
 			{
 				"boutique": row.boutique,
@@ -44,7 +44,7 @@ def check_heartbeat_staleness() -> None:
 def purge_old_sync_logs(days: int = 90) -> None:
 	"""Delete successful sync log rows older than *days* (errors are kept)."""
 	cutoff = add_days(now_datetime(), -days)
-	frappe.db.delete("Maison Sync Log", {"status": ("in", ["Success", "Duplicate"]), "creation": ("<", cutoff)})
+	frappe.db.delete("AWANZ Sync Log", {"status": ("in", ["Success", "Duplicate"]), "creation": ("<", cutoff)})
 	frappe.db.commit()
 
 
@@ -61,12 +61,12 @@ def purge_expired_biometrics(retention_months: int | None = None) -> dict:
 	from frappe.query_builder.functions import Max
 
 	from maison_pos.api.recognition import purge_customer_biometrics
-	from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import get_recognition_settings
+	from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import get_recognition_settings
 
 	months = int(retention_months or get_recognition_settings()["biometric_retention_months"])
 	cutoff = add_months(now_datetime(), -months)
 	consents = frappe.get_all(
-		"Maison Biometric Consent", filters={"status": "Active"}, fields=["name", "customer", "captured_at"]
+		"AWANZ Biometric Consent", filters={"status": "Active"}, fields=["name", "customer", "captured_at"]
 	)
 	if not consents:
 		return {"checked": 0, "purged": []}
@@ -90,7 +90,7 @@ def purge_expired_biometrics(retention_months: int | None = None) -> dict:
 				c.customer,
 				reason=f"Retention policy: no visit in {months} months (last activity {last_dt.date()})",
 				outcome="Purged",
-				boutique=frappe.db.get_value("Maison Biometric Consent", c.name, "boutique"),
+				boutique=frappe.db.get_value("AWANZ Biometric Consent", c.name, "boutique"),
 			)
 			purged.append(c.customer)
 	if purged and not frappe.flags.in_test:

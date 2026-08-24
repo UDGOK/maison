@@ -6,7 +6,7 @@ import fs from 'fs'
 const BASE = 'https://cloudchaserz.frappe.cloud'
 const HOST = 'cloudchaserz.frappe.cloud'
 const SID = fs.readFileSync('/tmp/ccsid', 'utf8').trim()
-const SHOTS = '/home/claude/maison/e2e/qa/shots-secux'
+const SHOTS = '/home/claude/awanz/e2e/qa/shots-secux'
 const TOKEN = 'NPh8inzLoWWL4fkb'
 const FORBIDDEN = [/Frappe/i, /ERPNext/i, /frappe\.io/i, /erpnext\.com/i]
 
@@ -30,7 +30,7 @@ const routes = [
   ['login', '/login', false],
   ['start', '/start', true],
   ['pos-unlock', '/pos', false],
-  ['dashboard', '/maison-dashboard', true],
+  ['dashboard', '/awanz-dashboard', true],
   ['warehouse', '/warehouse', true],
   ['warehouse-wall', '/warehouse-wall', true],
   ['shop', '/shop', false],
@@ -52,8 +52,8 @@ for (const [name, path, admin] of routes) {
     const html = await page.content()
     const text = await page.evaluate(() => document.body ? document.body.innerText : '')
     const title = await page.title().catch(() => '')
-    // visible-text mentions of Maison as a standalone wordmark (D1 signal on dashboard)
-    const maisonVisible = /\bMaison\b/.test(text)
+    // visible-text mentions of AWANZ as a standalone wordmark (D1 signal on dashboard)
+    const awanzVisible = /\bAWANZ\b/.test(text)
     const cloudchaserzVisible = /CLOUDCHASERZ|CloudChaserz/.test(text)
     const futonix = /Futonix/i.test(html)
     const poweredByFutonix = /Powered by\s*<[^>]*>?\s*Futonix|Powered by Futonix/i.test(html) || (/Powered by/i.test(text) && /Futonix/i.test(text))
@@ -61,11 +61,11 @@ for (const [name, path, admin] of routes) {
       name, path, status, title,
       text_hits: scan(text),          // forbidden strings in RENDERED TEXT (bad)
       html_hits: scan(html),          // forbidden strings in SOURCE (allow-listed identifiers)
-      maisonVisible, cloudchaserzVisible, futonix, poweredByFutonix,
+      awanzVisible, cloudchaserzVisible, futonix, poweredByFutonix,
     }
     results.push(r)
     await page.screenshot({ path: `${SHOTS}/wl-${name}.png`, fullPage: false }).catch(() => {})
-    console.log(`[${status}] ${name.padEnd(16)} textForbidden=${JSON.stringify(r.text_hits)} htmlForbidden=${JSON.stringify(r.html_hits)} MaisonVisible=${maisonVisible} Futonix=${futonix}`)
+    console.log(`[${status}] ${name.padEnd(16)} textForbidden=${JSON.stringify(r.text_hits)} htmlForbidden=${JSON.stringify(r.html_hits)} AwanzVisible=${awanzVisible} Futonix=${futonix}`)
   } catch (e) {
     results.push({ name, path, error: String(e).slice(0, 120) })
     console.log(`[ERR] ${name}: ${String(e).slice(0, 100)}`)
@@ -78,7 +78,7 @@ for (const [name, path, admin] of routes) {
   const c = await ctx(true, { viewport: { width: 1920, height: 1080 } })
   const page = await c.newPage()
   try {
-    await page.goto('/maison-dashboard', { waitUntil: 'domcontentloaded', timeout: 45000 })
+    await page.goto('/awanz-dashboard', { waitUntil: 'domcontentloaded', timeout: 45000 })
     await page.waitForTimeout(4000)
     const wm = await page.locator('[data-testid="wordmark"], .wordmark').first().textContent().catch(() => '(none)')
     const bodyText = await page.evaluate(() => document.body.innerText.slice(0, 400))

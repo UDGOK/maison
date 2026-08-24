@@ -7,7 +7,7 @@ Three audiences:
 * **signed-in shopper** (a Website User with a Contact → Customer, exactly as webshop
   does it): cart boutique, checkout → Sales Order with ``maison_boutique``, reserve
   with deposit, online payment through the ``payments`` app (or the simulated gateway);
-* **boutique staff** (Maison roles, scoped by boutique): the POS "Web orders" queue —
+* **boutique staff** (AWANZ roles, scoped by boutique): the POS "Web orders" queue —
   list, detail, pick / ready / cancel. Collection itself goes through
   ``sales.submit_batch`` with ``sales_order`` on the payload so the Sales Invoice gets the
   same receipt, points and commission as a counter sale.
@@ -23,7 +23,7 @@ from frappe import _
 from frappe.utils import cint, flt, get_url, now_datetime, nowdate
 
 from maison_pos.api.catalog import absolute_file_url
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_allowed_boutiques, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_allowed_boutiques, is_unrestricted
 from maison_pos.webshop import FULFILMENTS, core, is_payments_installed, is_webshop_installed
 from maison_pos.webshop.setup import SIMULATED_GATEWAY
 
@@ -261,7 +261,7 @@ def _ensure_portal_party(user: str, full_name: str) -> Optional[str]:
 	webshop creates these lazily on the first ``get_party`` — but Frappe has already created a
 	*bare* Contact for the new User, webshop resolves the party through the **first** contact of
 	the user, and ERPNext then refuses the cart Quotation with "Contact Person does not belong to
-	<customer>". The Maison seed works around the same thing for its demo shopper
+	<customer>". The AWANZ seed works around the same thing for its demo shopper
 	(``setup/demo_v04_webshop.ensure_web_user``); a self-registered shopper needs it too.
 	"""
 	if not is_webshop_installed():
@@ -375,7 +375,7 @@ def enquire(
 	boutique: Optional[str] = None,
 	serial_no: Optional[str] = None,
 ) -> dict[str, Any]:
-	"""Create a ``Maison Web Enquiry`` (+ an ERPNext Lead, best effort) for an Enquire-mode piece."""
+	"""Create a ``AWANZ Web Enquiry`` (+ an ERPNext Lead, best effort) for an Enquire-mode piece."""
 	_guest_limit("webshop.enquire", 5, 600)
 	if not frappe.db.exists("Item", item_code):
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
@@ -384,7 +384,7 @@ def enquire(
 		frappe.throw(_("Please tell us your name"), frappe.ValidationError)
 	if not (email or phone):
 		frappe.throw(_("Please leave an e-mail address or a phone number"), frappe.ValidationError)
-	if boutique and not frappe.db.exists("Maison Boutique", boutique):
+	if boutique and not frappe.db.exists("AWANZ Store", boutique):
 		frappe.throw(_("Unknown boutique {0}").format(boutique), frappe.DoesNotExistError)
 	if not boutique:
 		# default: the boutique that holds the piece, else the first enabled one
@@ -402,7 +402,7 @@ def enquire(
 
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Web Enquiry",
+			"doctype": "AWANZ Web Enquiry",
 			"item_code": item_code,
 			"serial_no": serial_no,
 			"boutique": boutique,
@@ -440,10 +440,10 @@ def enquire(
 				lead = lead_doc.name
 			doc.db_set("lead", lead, update_modified=False)
 	except Exception:  # noqa: BLE001 - the enquiry itself is what matters
-		frappe.log_error(frappe.get_traceback(), "maison web enquiry lead")
+		frappe.log_error(frappe.get_traceback(), "awanz web enquiry lead")
 
 	try:
-		frappe.publish_realtime("maison_web_enquiry", {"name": doc.name, "boutique": boutique, "item_code": item_code}, room="maison_dashboard")
+		frappe.publish_realtime("awanz_web_enquiry", {"name": doc.name, "boutique": boutique, "item_code": item_code}, room="awanz_dashboard")
 	except Exception:  # noqa: BLE001
 		pass
 	return {"enquiry": doc.name, "boutique": boutique, "lead": lead}
@@ -659,7 +659,7 @@ def set_boutique(boutique: str, fulfilment: Optional[str] = None) -> dict[str, A
 	_require_login()
 	from webshop.webshop.shopping_cart.cart import _get_cart_quotation
 
-	if not frappe.db.exists("Maison Boutique", {"name": boutique, "enabled": 1}):
+	if not frappe.db.exists("AWANZ Store", {"name": boutique, "enabled": 1}):
 		frappe.throw(_("Unknown boutique {0}").format(boutique), frappe.DoesNotExistError)
 	quotation = _get_cart_quotation()
 	quotation.maison_boutique = boutique
@@ -679,7 +679,7 @@ def _ensure_cart_address(quotation) -> None:
 		"Dynamic Link", {"link_doctype": party_type, "link_name": party, "parenttype": "Address"}, "parent"
 	)
 	if not existing:
-		b = frappe.get_cached_doc("Maison Boutique", quotation.maison_boutique)
+		b = frappe.get_cached_doc("AWANZ Store", quotation.maison_boutique)
 		addr = frappe.get_doc(
 			{
 				"doctype": "Address",
@@ -717,9 +717,9 @@ def place_order(boutique: Optional[str] = None, fulfilment: Optional[str] = None
 		frappe.throw(_("Your cart is empty"), frappe.ValidationError)
 
 	boutique = boutique or quotation.get("maison_boutique")
-	if not boutique or not frappe.db.exists("Maison Boutique", {"name": boutique, "enabled": 1}):
+	if not boutique or not frappe.db.exists("AWANZ Store", {"name": boutique, "enabled": 1}):
 		frappe.throw(_("Please choose the boutique where you will collect your order"), frappe.ValidationError)
-	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	b = frappe.get_cached_doc("AWANZ Store", boutique)
 
 	for it in quotation.items:
 		item = frappe.db.get_value("Item", it.item_code, ["item_code", "has_serial_no", "is_stock_item", "maison_web_mode"], as_dict=True)
@@ -758,7 +758,7 @@ def place_order(boutique: Optional[str] = None, fulfilment: Optional[str] = None
 	so.update(
 		{
 			# NOT "Shopping Cart": ERPNext auto-invoices Shopping Cart orders when a Payment Request is
-			# paid; a Maison web order is invoiced at the counter on collection (stock, receipt, points).
+			# paid; an AWANZ web order is invoiced at the counter on collection (stock, receipt, points).
 			"order_type": "Sales",
 			"maison_web_order": 1,
 			"maison_boutique": boutique,
@@ -803,9 +803,9 @@ def reserve(item_code: str, boutique: str, serial_no: Optional[str] = None, note
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
 	if core.effective_web_mode(item) != "Reserve-with-deposit":
 		frappe.throw(_("{0} cannot be reserved online").format(item.item_name), frappe.ValidationError)
-	if not frappe.db.exists("Maison Boutique", {"name": boutique, "enabled": 1}):
+	if not frappe.db.exists("AWANZ Store", {"name": boutique, "enabled": 1}):
 		frappe.throw(_("Unknown boutique {0}").format(boutique), frappe.DoesNotExistError)
-	b = frappe.get_cached_doc("Maison Boutique", boutique)
+	b = frappe.get_cached_doc("AWANZ Store", boutique)
 	per = next((a for a in core.availability(item_code) if a["boutique"] == boutique), None)
 	if not per or flt(per["qty"]) < 1:
 		frappe.throw(_("{0} is not available at {1}").format(item.item_name, b.boutique_name), frappe.ValidationError)
@@ -945,7 +945,7 @@ def simulate_payment(payment_request: str) -> dict[str, Any]:
 		return {"status": "Paid", "sales_order": pr.reference_name, "redirect_to": f"/shop/order?name={pr.reference_name}"}
 	# same path as a real gateway callback: Payment Request.on_payment_authorized → advance Payment Entry.
 	# Creating the Payment Entry needs accounting rights the shopper lacks → run it as Administrator
-	# (MaisonPaymentRequest does the same for real gateways when it is the active override).
+	# (AwanzPaymentRequest does the same for real gateways when it is the active override).
 	user = frappe.session.user
 	try:
 		frappe.set_user("Administrator")
@@ -1002,7 +1002,7 @@ def order(name: str) -> dict[str, Any]:
 # boutique staff: POS "Web orders" queue
 # ---------------------------------------------------------------------------
 def _order_dict(so, with_customer: bool = True) -> dict[str, Any]:
-	b = frappe.db.get_value("Maison Boutique", so.maison_boutique, ["boutique_name", "city", "warehouse"], as_dict=True) or frappe._dict()
+	b = frappe.db.get_value("AWANZ Store", so.maison_boutique, ["boutique_name", "city", "warehouse"], as_dict=True) or frappe._dict()
 	prepaid = flt(so.get("maison_prepaid_amount"))
 	lines = []
 	for it in so.items:
@@ -1067,7 +1067,7 @@ def _order_dict(so, with_customer: bool = True) -> dict[str, Any]:
 @frappe.whitelist()
 def web_orders(boutique: str, status: Optional[str] = None, include_done: int = 0) -> dict[str, Any]:
 	"""Queue for one boutique: open web orders (+ open enquiries)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	filters: dict[str, Any] = {"maison_web_order": 1, "maison_boutique": boutique, "docstatus": 1}
 	if status:
@@ -1077,7 +1077,7 @@ def web_orders(boutique: str, status: Optional[str] = None, include_done: int = 
 	names = frappe.get_all("Sales Order", filters=filters, pluck="name", order_by="creation asc", limit=200)
 	orders = [_order_dict(frappe.get_doc("Sales Order", n), with_customer=False) for n in names]
 	enquiries = frappe.get_all(
-		"Maison Web Enquiry",
+		"AWANZ Web Enquiry",
 		filters={"boutique": boutique, "status": ("in", ("New", "Contacted") if not cint(include_done) else ("New", "Contacted", "Closed"))},
 		fields=["name", "status", "enquiry_date", "item_code", "item_name", "serial_no", "customer_name", "email", "phone", "message", "customer", "response"],
 		order_by="enquiry_date desc",
@@ -1097,7 +1097,7 @@ def web_orders(boutique: str, status: Optional[str] = None, include_done: int = 
 
 @frappe.whitelist()
 def web_order(name: str) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	so = frappe.get_doc("Sales Order", name)
 	if not so.maison_web_order:
 		frappe.throw(_("{0} is not a web order").format(name), frappe.ValidationError)
@@ -1108,7 +1108,7 @@ def web_order(name: str) -> dict[str, Any]:
 @frappe.whitelist()
 def set_web_order_status(name: str, status: str, note: Optional[str] = None) -> dict[str, Any]:
 	"""Pick / Ready / Cancel from the POS queue. ``Collected`` is set by the Sales Invoice submit hook."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	so = frappe.get_doc("Sales Order", name)
 	if not so.maison_web_order:
 		frappe.throw(_("{0} is not a web order").format(name), frappe.ValidationError)
@@ -1126,9 +1126,9 @@ def set_web_order_status(name: str, status: str, note: Optional[str] = None) -> 
 		try:
 			so.update_status("Closed")
 		except Exception:  # noqa: BLE001 - closing is cosmetic; the queue status is what the POS reads
-			frappe.log_error(frappe.get_traceback(), "maison web order close")
+			frappe.log_error(frappe.get_traceback(), "awanz web order close")
 	try:
-		frappe.publish_realtime("maison_web_order", {"name": name, "boutique": so.maison_boutique, "status": status}, room="maison_dashboard")
+		frappe.publish_realtime("maison_web_order", {"name": name, "boutique": so.maison_boutique, "status": status}, room="awanz_dashboard")
 	except Exception:  # noqa: BLE001
 		pass
 	return {"name": name, "status": status}
@@ -1136,8 +1136,8 @@ def set_web_order_status(name: str, status: str, note: Optional[str] = None) -> 
 
 @frappe.whitelist()
 def update_enquiry(name: str, status: str, response: Optional[str] = None) -> dict[str, Any]:
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
-	doc = frappe.get_doc("Maison Web Enquiry", name)
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
+	doc = frappe.get_doc("AWANZ Web Enquiry", name)
 	assert_boutique_access(doc.boutique)
 	if status not in ("New", "Contacted", "Closed"):
 		frappe.throw(_("Unknown status {0}").format(status), frappe.ValidationError)
@@ -1154,7 +1154,7 @@ def _notify_boutique(so) -> None:
 		frappe.publish_realtime(
 			"maison_web_order",
 			{"name": so.name, "boutique": so.maison_boutique, "status": so.maison_web_status, "grand_total": flt(so.grand_total)},
-			room="maison_dashboard",
+			room="awanz_dashboard",
 		)
 	except Exception:  # noqa: BLE001
 		pass

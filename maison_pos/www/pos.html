@@ -6,21 +6,21 @@
     <meta name="theme-color" content="#0B0B0A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="{{ brand.brand_name if brand else 'Maison' }}" />
+    <meta name="apple-mobile-web-app-title" content="{{ brand.brand_name if brand else 'AWANZ' }}" />
     <title>{{ title }}</title>
     <script>
       // Injected by www/pos.py; consumed by frontend/src/api/frappe.ts
       window.csrf_token = "{{ csrf_token }}";
-      window.maison_user = "{{ site_user }}";
+      window.awanz_user = "{{ site_user }}";
       // v0.6 N — brand tokens (also in catalog.bootstrap.brand; this makes the Unlock screen branded before the first bootstrap)
-      window.maison_brand = {{ (brand or {}) | tojson }};
+      window.awanz_brand = {{ (brand or {}) | tojson }};
     </script>
     {{ head_tags | safe }}
     <style>
       html, body { background: #0B0B0A; color: #EFE8DA; margin: 0; height: 100%; font-family: Jost, Helvetica, Arial, sans-serif; }
-      .maison-fallback { padding: 48px; max-width: 640px; }
-      .maison-fallback h1 { font-family: Unbounded, "Arial Black", sans-serif; letter-spacing: .3em; font-weight: 900; }
-      .maison-fallback code { color: #C9A96E; }
+      .awanz-fallback { padding: 48px; max-width: 640px; }
+      .awanz-fallback h1 { font-family: Unbounded, "Arial Black", sans-serif; letter-spacing: .3em; font-weight: 900; }
+      .awanz-fallback code { color: #C9A96E; }
     </style>
   </head>
   <body>
@@ -28,8 +28,8 @@
     {% if built %}
       {{ body_tags | safe }}
     {% else %}
-      <div class="maison-fallback">
-        <h1>MAISON</h1>
+      <div class="awanz-fallback">
+        <h1>AWANZ</h1>
         <p>{{ build_hint }}</p>
         <p><code>cd frontend && npm i && npm run build</code></p>
       </div>

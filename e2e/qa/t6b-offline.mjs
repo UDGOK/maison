@@ -48,7 +48,7 @@ try {
   const uuidC = page.url().split('/receipt/')[1]
   await goOnline()
   const qTxt = await drain()
-  const log = (await admin.list('Maison Sync Log', { offline_uuid: uuidC }, ['status', 'error'], 2))[0]
+  const log = (await admin.list('AWANZ Sync Log', { offline_uuid: uuidC }, ['status', 'error'], 2))[0]
   const inv = await admin.list('Sales Invoice', { maison_offline_uuid: uuidC }, ['name'], 3)
   const binAfter = (await admin.list('Bin', { item_code: code, warehouse: L.WH }, ['actual_qty'], 1))[0]
   const clean = !/Traceback|<[a-z]+ |File \"|frappe\.exceptions/i.test(String(log?.error || ''))
@@ -79,7 +79,7 @@ try {
   const uuidA = page.url().split('/receipt/')[1]
   await goOnline()
   const qTxt2 = await drain()
-  const logA = (await admin.list('Maison Sync Log', { offline_uuid: uuidA }, ['status', 'error'], 2))[0]
+  const logA = (await admin.list('AWANZ Sync Log', { offline_uuid: uuidA }, ['status', 'error'], 2))[0]
   const invA = await admin.list('Sales Invoice', { maison_offline_uuid: uuidA }, ['name', 'docstatus'], 3)
   if (invA[0]) created.push(invA[0].name)
   record('6.7b an offline sale of an age-restricted item syncs', invA.length === 1 && /Success/i.test(logA?.status || ''),

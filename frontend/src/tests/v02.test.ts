@@ -69,7 +69,7 @@ describe('mock API v0.2 contract', () => {
 })
 
 const snap: ReceiptSnapshot = {
-  boutique: 'CHI-OAK', boutique_name: 'Maison Oak Street', address_line: '118 East Oak Street', city: 'Chicago, IL 60611', phone: '+1 312 555 0118',
+  boutique: 'CHI-OAK', boutique_name: 'AWANZ Oak Street', address_line: '118 East Oak Street', city: 'Chicago, IL 60611', phone: '+1 312 555 0118',
   associate_name: 'Claire Dubois', customer_name: 'Eleanor Whitmore', customer_tier: 'Gold', customer_client_number: 'MC482910',
   receipt_qr_base_url: 'https://maison-demo.frappe.cloud',
   lines: [{ item_code: 'AC-CLN-036', item_name: 'Jewelry Cleaning Kit', qty: 1, rate: 45, amount: 45 }],

@@ -3,10 +3,10 @@
  *
  * Mirrors the POS composable (`frontend/src/stores/brand.ts` + `frontend/src/brand/tokens.ts`).
  * The Jinja shell already puts the tenant's tokens on the page —
- * `maison_pos/www/maison-dashboard.html` renders
- * `window.maison_brand = {"wordmark_text": "CLOUDCHASERZ", "store_noun": "Store", …}` — but the
- * SPA used to hard-code "Maison" and "Boutique(s)", so a CloudChaserz tenant read
- * `Maison · Today · All Boutiques` on a page whose tab title was already `CLOUDCHASERZ · Command`.
+ * `maison_pos/www/awanz-dashboard.html` renders
+ * `window.awanz_brand = {"wordmark_text": "CLOUDCHASERZ", "store_noun": "Store", …}` — but the
+ * SPA used to hard-code the product wordmark and "Boutique(s)", so a CloudChaserz tenant read
+ * `AWANZ · Today · All Boutiques` on a page whose tab title was already `CLOUDCHASERZ · Command`.
  *
  * Nothing here is reactive to the server: the tokens are baked into the page at render time, so
  * they are read once and frozen. `setBrand()` exists for tests.
@@ -25,13 +25,13 @@ export interface Brand {
 }
 
 export const DEFAULT_BRAND: Brand = {
-  brand_name: 'Maison',
-  product_name: 'Maison POS',
-  wordmark_text: 'Maison',
+  brand_name: 'AWANZ',
+  product_name: 'AWANZ POS',
+  wordmark_text: 'AWANZ',
   sub_mark: 'POS',
   vertical: 'Jewellery',
   store_noun: 'Boutique',
-  rewards_program_name: 'Maison Collectors',
+  rewards_program_name: 'AWANZ Collectors',
 }
 
 function str(raw: Record<string, unknown>, key: keyof Brand, fallback: string): string {
@@ -63,11 +63,11 @@ export function pluralize(noun: string): string {
 
 export const lower = (s: string) => s.toLocaleLowerCase()
 
-const state = ref<Brand>(normalizeBrand(typeof window !== 'undefined' ? (window.maison_brand as never) : null))
+const state = ref<Brand>(normalizeBrand(typeof window !== 'undefined' ? (window.awanz_brand as never) : null))
 
-/** Re-read `window.maison_brand` (tests set it, then call this). */
+/** Re-read `window.awanz_brand` (tests set it, then call this). */
 export function refreshBrand(): Brand {
-  state.value = normalizeBrand(typeof window !== 'undefined' ? (window.maison_brand as never) : null)
+  state.value = normalizeBrand(typeof window !== 'undefined' ? (window.awanz_brand as never) : null)
   return state.value
 }
 

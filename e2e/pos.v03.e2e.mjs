@@ -1,6 +1,6 @@
-// Maison POS v0.3 end-to-end run against the REAL bench: client recognition with Chromium's fake
+// AWANZ POS v0.3 end-to-end run against the REAL bench: client recognition with Chromium's fake
 // camera fed the synthetic-face videos in frontend/e2e-assets/ (real on-device detection; the
-// `window.__maisonRecognitionTest` hook is only used when the detector never sees a face).
+// `window.__awanzRecognitionTest` hook is only used when the detector never sees a face).
 //
 // Run:  PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://maison.localhost:8000 ADMIN_PWD=admin node e2e/pos.v03.e2e.mjs
 // Env:  BASE (default http://maison.localhost:8000), ASSOC_USER/ASSOC_PWD, MANAGER_USER/MANAGER_PWD, ADMIN_PWD
@@ -85,7 +85,7 @@ async function adminApi() {
     },
     setValue: (doctype, name, fieldname, value) => api.post('frappe.client.set_value', { doctype, name, fieldname, value }),
     list: (doctype, filters, fields = ['name'], limit = 50) => api.get('frappe.client.get_list', { doctype, filters: JSON.stringify(filters), fields: JSON.stringify(fields), limit_page_length: limit, order_by: 'creation desc' }),
-    events: (customer, outcome) => api.list('Maison Recognition Event', { customer, outcome }, ['name', 'outcome', 'score', 'boutique', 'device_id', 'ts']),
+    events: (customer, outcome) => api.list('AWANZ Recognition Event', { customer, outcome }, ['name', 'outcome', 'score', 'boutique', 'device_id', 'ts']),
     customerByPhone: async (phone) => (await api.get('maison_pos.api.customers.search', { q: phone.replace(/\D/g, '').slice(-7), limit: 20 })).find((c) => (c.mobile_no || '').replace(/\D/g, '').endsWith(phone.replace(/\D/g, '').slice(-7))) || null,
     customerByEmail: async (email) => (await api.list('Customer', { email_id: email }, ['name', 'customer_name', 'maison_face_consent', 'maison_client_number']))[0] || null,
     status: (customer) => api.get('maison_pos.api.recognition.status', { customer }),
@@ -120,7 +120,7 @@ async function freshDevice(page) {
   await page.evaluate(async () => {
     localStorage.clear()
     sessionStorage.clear()
-    localStorage.setItem('maisonE2E', '1')
+    localStorage.setItem('awanzE2E', '1')
     const dbs = (await indexedDB.databases?.()) || [{ name: 'maison_pos' }]
     await Promise.all(dbs.map((d) => new Promise((r) => { const req = indexedDB.deleteDatabase(d.name); req.onsuccess = req.onerror = req.onblocked = () => r() })))
   })
@@ -142,7 +142,7 @@ async function unlock(page, user) {
   await page.waitForSelector('.tile', { timeout: 15000 })
 }
 
-const tileState = (page) => page.evaluate(() => window.__maisonRecognitionTest?.state())
+const tileState = (page) => page.evaluate(() => window.__awanzRecognitionTest?.state())
 const dismissNotices = (page) => page.evaluate(() => document.querySelectorAll('.notice .notice-btn:last-child').forEach((b) => b.click()))
 const attachedName = (page) => page.evaluate(() => document.querySelector('.basket .client-name')?.textContent.trim())
 
@@ -164,7 +164,7 @@ async function waitVerdict(page, timeout = 45000) {
   let s = await waitTile(page, ['new', 'recognised'], timeout)
   const real = !!s
   if (!s) {
-    await page.evaluate((e) => window.__maisonRecognitionTest.emit({ embedding: e, quality: 0.9 }), FAKE_EMBEDDING)
+    await page.evaluate((e) => window.__awanzRecognitionTest.emit({ embedding: e, quality: 0.9 }), FAKE_EMBEDDING)
     s = await waitTile(page, ['new', 'recognised'], 10000)
   }
   return { state: s, real }
@@ -187,7 +187,7 @@ async function ensureCapture(page) {
     if (!s?.enrolOpen || s.enrolStep === 'saving' || s.enrolStep === 'done') return true
     await page.waitForTimeout(300)
   }
-  await page.evaluate((e) => window.__maisonRecognitionTest.samples([{ embedding: e }, { embedding: e }, { embedding: e }]), FAKE_EMBEDDING)
+  await page.evaluate((e) => window.__awanzRecognitionTest.samples([{ embedding: e }, { embedding: e }, { embedding: e }]), FAKE_EMBEDDING)
   return false
 }
 
@@ -215,8 +215,8 @@ const dist = (m) => (typeof m?.distance === 'number' ? m.distance.toFixed(3) : '
 // 0. Enable recognition for CHI-OAK (global switch + boutique Inherit) and clear stale enrolments of earlier runs
 let before
 try {
-  await admin.setValue('Maison POS Settings', 'Maison POS Settings', 'face_recognition_enabled', 1)
-  await admin.setValue('Maison Boutique', BOUTIQUE, 'face_recognition_enabled', 'Inherit')
+  await admin.setValue('AWANZ POS Settings', 'AWANZ POS Settings', 'face_recognition_enabled', 1)
+  await admin.setValue('AWANZ Store', BOUTIQUE, 'face_recognition_enabled', 'Inherit')
   const boot = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
   const s = boot.settings
   record('recognition enabled for CHI-OAK via API (Administrator)', s.face_recognition_enabled === 1 && s.match_threshold === 0.6 && s.match_distance_threshold === 0.6 && s.recognition_model === MODEL,
@@ -338,7 +338,7 @@ let customerB = null
     const attached = await attachedName(page)
     customerB = await admin.customerByEmail(EMAIL_B)
     const tplB = customerB ? await admin.templateCount(customerB.name) : -1
-    const consentsB = customerB ? await admin.list('Maison Biometric Consent', { customer: customerB.name }) : []
+    const consentsB = customerB ? await admin.list('AWANZ Biometric Consent', { customer: customerB.name }) : []
     record('decline: client created + attached WITHOUT biometrics', attached === NAME_B && customerB && !customerB.maison_face_consent && tplB === 0 && consentsB.length === 0,
       `attached "${attached}" · ${customerB?.name} consent=${customerB?.maison_face_consent} templates=${tplB} consents=${consentsB.length}`)
     const declined = customerB ? await admin.events(customerB.name, 'Declined') : []
@@ -381,7 +381,7 @@ let customerB = null
     if (customerA) {
       const st = await admin.status(customerA.name)
       const tpl = await admin.templateCount(customerA.name)
-      const consents = await admin.list('Maison Biometric Consent', { customer: customerA.name }, ['name', 'status', 'revoked_by', 'revoke_reason'])
+      const consents = await admin.list('AWANZ Biometric Consent', { customer: customerA.name }, ['name', 'status', 'revoked_by', 'revoke_reason'])
       const revoked = await admin.events(customerA.name, 'Revoked')
       record('server: templates purged, consent Revoked, flags cleared, Revoked event', tpl === 0 && st.face_consent === 0 && !st.consent && consents.length >= 1 && consents.every((c) => c.status === 'Revoked') && revoked.length >= 1,
         `templates=${tpl} face_consent=${st.face_consent} consents=${consents.map((c) => `${c.status}/${c.revoked_by}`).join(',')} revoked_events=${revoked.length}`)
@@ -464,8 +464,8 @@ try {
 }
 try {
   for (const c of [customerOff]) if (c) await admin.post('maison_pos.api.recognition.revoke', { customer: c.name, reason: 'e2e cleanup' })
-  await admin.setValue('Maison POS Settings', 'Maison POS Settings', 'face_recognition_enabled', 0)
-  await admin.setValue('Maison Boutique', BOUTIQUE, 'face_recognition_enabled', 'Inherit')
+  await admin.setValue('AWANZ POS Settings', 'AWANZ POS Settings', 'face_recognition_enabled', 0)
+  await admin.setValue('AWANZ Store', BOUTIQUE, 'face_recognition_enabled', 'Inherit')
   const s = (await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })).settings
   record('recognition switched off again for the dev site', s.face_recognition_enabled === 0 && s.face_recognition_global === 0, JSON.stringify({ face_recognition_enabled: s.face_recognition_enabled, global: s.face_recognition_global }))
 } catch (e) {

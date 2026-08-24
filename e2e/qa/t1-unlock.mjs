@@ -7,7 +7,7 @@ const { context, page } = await L.posContext(browser, L.A1, 'pos')
 
 try {
   // baseline: nobody else has locked our associates out
-  const assocRows = await admin.list('Maison Associate', { boutique: L.STORE }, ['name', 'user', 'full_name', 'role', 'failed_pin_attempts', 'enabled'], 20)
+  const assocRows = await admin.list('AWANZ Associate', { boutique: L.STORE }, ['name', 'user', 'full_name', 'role', 'failed_pin_attempts', 'enabled'], 20)
   note('baseline associates @ ' + L.STORE, JSON.stringify(assocRows))
 
   // ---- 1.1 load catalogue
@@ -70,7 +70,7 @@ try {
   const status1 = (await page.locator('[data-testid=shift-status]').textContent()).replace(/\s+/g, ' ').trim()
   record('1.5 clock in puts the associate on shift', /On shift|On break/i.test(status1), `before="${status0}" after="${status1}"`)
   await shot(page, 'clocked-in')
-  const shifts = await admin.list('Maison Shift', { associate: L.A1.usr }, ['name', 'status', 'clock_in', 'clock_out', 'boutique'], 3)
+  const shifts = await admin.list('AWANZ Shift', { associate: L.A1.usr }, ['name', 'status', 'clock_in', 'clock_out', 'boutique'], 3)
   record('1.5b clock-in recorded server-side', shifts.length > 0, JSON.stringify(shifts[0] || {}))
 
   // ---- 1.6 clock out
@@ -91,7 +91,7 @@ try {
     await page.waitForTimeout(1400)
     msgs.push((await page.locator('[data-testid=clock-msg]').textContent()).trim())
   }
-  const after = await admin.value('Maison Associate', a2.name, ['failed_pin_attempts'])
+  const after = await admin.value('AWANZ Associate', a2.name, ['failed_pin_attempts'])
   const locked = Number(after.failed_pin_attempts || 0) >= 5
   record('1.8 PIN lockout counter increments and locks after 5 failures', locked, `failed_pin_attempts=${after.failed_pin_attempts}; messages=${JSON.stringify(msgs)}`)
   // does the UI say "locked"?
@@ -104,12 +104,12 @@ try {
   const stillLocked = !/\/sell/.test(page.url())
   record('1.8c correct PIN refused while locked', stillLocked, `url=${page.url()} msg="${(await page.locator('[data-testid=clock-msg]').textContent()).trim()}"`)
   // CLEAN UP: reset the counter
-  await admin.post('frappe.client.set_value', { doctype: 'Maison Associate', name: a2.name, fieldname: 'failed_pin_attempts', value: 0 })
-  const reset = await admin.value('Maison Associate', a2.name, ['failed_pin_attempts'])
+  await admin.post('frappe.client.set_value', { doctype: 'AWANZ Associate', name: a2.name, fieldname: 'failed_pin_attempts', value: 0 })
+  const reset = await admin.value('AWANZ Associate', a2.name, ['failed_pin_attempts'])
   note('cleanup: A2 failed_pin_attempts reset', JSON.stringify(reset))
   // and A1 too, in case the wrong-PIN tests bumped it
   const a1 = assocRows.find((r) => r.user === L.A1.usr)
-  await admin.post('frappe.client.set_value', { doctype: 'Maison Associate', name: a1.name, fieldname: 'failed_pin_attempts', value: 0 })
+  await admin.post('frappe.client.set_value', { doctype: 'AWANZ Associate', name: a1.name, fieldname: 'failed_pin_attempts', value: 0 })
 } catch (e) {
   record('t1 crashed', false, String(e.stack || e), 'high')
   await shot(page, 'crash-t1').catch(() => {})

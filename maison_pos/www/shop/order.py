@@ -13,7 +13,7 @@ STEPS = ["New", "Picking", "Ready", "Collected"]
 
 
 def get_context(context):
-	base_context(context, nav="account", title="Your order — Maison")
+	base_context(context, nav="account", title="Your order — AWANZ")
 	require_login(context)
 	name = frappe.form_dict.get("name")
 	if not name or not frappe.db.exists("Sales Order", name):
@@ -25,7 +25,7 @@ def get_context(context):
 	context.steps = STEPS
 	status = context.order["status"]
 	context.step_index = STEPS.index(status) if status in STEPS else -1
-	b = frappe.db.get_value("Maison Boutique", context.order["boutique"], ["boutique_name", "address_line", "city", "phone", "email"], as_dict=True) or {}
+	b = frappe.db.get_value("AWANZ Store", context.order["boutique"], ["boutique_name", "address_line", "city", "phone", "email"], as_dict=True) or {}
 	context.boutique = b
 	pr = frappe.db.get_value(
 		"Payment Request",

@@ -1,4 +1,4 @@
-"""Serve the built Maison POS PWA shell at ``/pos``.
+"""Serve the built AWANZ POS PWA shell at ``/pos``.
 
 The Vite build (``frontend/``) writes hashed assets into ``maison_pos/public/pos/``
 (served by Frappe/nginx at ``/assets/maison_pos/pos/``). Because the file names are
@@ -94,7 +94,7 @@ def _brand_manifest(head: str) -> str:
     The Vite build bakes the app's own name into ``manifest.webmanifest``; installing the POS on
     a home screen would then show that instead of the tenant's. ``maison_pos.api.pwa.manifest``
     serves the same document with the name, short name, description and icons read from
-    ``Maison POS Settings`` at request time, so one build serves every tenant.
+    ``AWANZ POS Settings`` at request time, so one build serves every tenant.
     """
     return _MANIFEST_HREF_RE.sub(lambda m: f"{m.group(1)}{BRANDED_MANIFEST}{m.group(3)}", head)
 # --- end v0.7 white-label ---

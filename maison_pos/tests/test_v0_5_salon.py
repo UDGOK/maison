@@ -1,6 +1,6 @@
-"""v0.5 K — Maison Salon: pairing (code TTL, single use), token auth, masking / sanitising,
+"""v0.5 K — AWANZ Salon: pairing (code TTL, single use), token auth, masking / sanitising,
 identify / sign-up attaching the client, consent hand-off, questions → CRM timeline, feedback →
-Maison Feedback, preferences → Client Profile, unpair / expiry, Guest list scoping."""
+AWANZ Feedback, preferences → Client Profile, unpair / expiry, Guest list scoping."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class TestPairing(SalonBase):
 		session = salon.pair(pc["qr"], "TEST-SALON")
 		self.assertEqual(session["status"], "Paired")
 		self.assertEqual(len(session["token"]), 32)
-		self.assertEqual(session["boutique_name"], "Maison Oak Street")
+		self.assertEqual(session["boutique_name"], "AWANZ Oak Street")
 		self.assertEqual(session["state"]["screen"], "idle")
 		self.assertTrue(session["playlist"], "demo playlist should be delivered at pairing")
 		self.assertIn("consent_text", session["settings"])
@@ -222,11 +222,11 @@ class TestIdentifyAndSignup(SalonBase):
 		cust = r["client"]["customer"]
 		self.assertEqual(frappe.db.get_value("Customer", cust, "customer_name"), "Salon Newcomer")
 		self.assertTrue(frappe.db.get_value("Customer", cust, "maison_client_number"))
-		prof = frappe.db.get_value("Maison Client Profile", cust, ["do_not_email", "do_not_sms", "birthday"], as_dict=True)
+		prof = frappe.db.get_value("AWANZ Client Profile", cust, ["do_not_email", "do_not_sms", "birthday"], as_dict=True)
 		self.assertEqual(prof.do_not_email, 0)
 		self.assertEqual(prof.do_not_sms, 1)
 		self.assertEqual(str(prof.birthday), "1990-05-04")
-		self.assertTrue(frappe.db.exists("Maison Client Interaction", {"customer": cust, "type": "Visit"}))
+		self.assertTrue(frappe.db.exists("AWANZ Client Interaction", {"customer": cust, "type": "Visit"}))
 		# second sign-up with the same phone links instead of duplicating
 		r2 = salon.signup(s["token"], name="Salon Newcomer", phone="312-555-0777")
 		self.assertFalse(r2["created"])
@@ -266,7 +266,7 @@ class TestIdentifyAndSignup(SalonBase):
 		self.assertEqual(frappe.db.get_value("Customer", cust, "maison_face_consent"), 0)
 		frappe.set_user("Guest")
 		self.assertTrue(salon.consent_decline(s["token"])["ok"])
-		self.assertTrue(frappe.db.exists("Maison Recognition Event", {"customer": cust, "outcome": "Declined"}))
+		self.assertTrue(frappe.db.exists("AWANZ Recognition Event", {"customer": cust, "outcome": "Declined"}))
 
 
 class TestClientelingAndFeedback(SalonBase):
@@ -277,7 +277,7 @@ class TestClientelingAndFeedback(SalonBase):
 		salon.identify(s["token"], "312 555 0105")
 		r = salon.ask(s["token"], "Is the bezel ceramic?", item_code="TP-001")
 		self.assertTrue(r["interaction"])
-		row = frappe.db.get_value("Maison Client Interaction", r["interaction"], ["customer", "type", "note", "boutique"], as_dict=True)
+		row = frappe.db.get_value("AWANZ Client Interaction", r["interaction"], ["customer", "type", "note", "boutique"], as_dict=True)
 		self.assertEqual(row.customer, mei)
 		self.assertEqual(row.type, "Note")
 		self.assertIn("Meridian Automatic 40mm Steel", row.note)
@@ -297,7 +297,7 @@ class TestClientelingAndFeedback(SalonBase):
 		salon.identify(s["token"], "312 555 0105")
 		r = salon.preferences(s["token"], {"ring_size": "6.5", "wrist_size": "16 cm", "metal_preference": "Rose Gold", "styles": ["Minimal", "Heritage", "Bogus"], "occasions": ["Anniversary", "Wedding"], "anniversary": "2020-09-12"})
 		self.assertEqual(r["styles"], ["Minimal", "Heritage"])
-		prof = frappe.db.get_value("Maison Client Profile", mei, ["ring_size", "wrist_size", "metal_preference", "style_notes", "anniversary"], as_dict=True)
+		prof = frappe.db.get_value("AWANZ Client Profile", mei, ["ring_size", "wrist_size", "metal_preference", "style_notes", "anniversary"], as_dict=True)
 		self.assertEqual(prof.ring_size, "6.5")
 		self.assertEqual(prof.wrist_size, "16 cm")
 		self.assertEqual(prof.metal_preference, "Rose Gold")
@@ -306,7 +306,7 @@ class TestClientelingAndFeedback(SalonBase):
 		self.assertEqual(str(prof.anniversary), "2020-09-12")
 		# invalid metal is dropped, never raises
 		salon.preferences(s["token"], {"metal_preference": "Brass"})
-		self.assertEqual(frappe.db.get_value("Maison Client Profile", mei, "metal_preference"), "Rose Gold")
+		self.assertEqual(frappe.db.get_value("AWANZ Client Profile", mei, "metal_preference"), "Rose Gold")
 
 	def test_invite_sets_profile_flag(self):
 		s = self.pair()
@@ -314,13 +314,13 @@ class TestClientelingAndFeedback(SalonBase):
 		frappe.set_user("Guest")
 		salon.identify(s["token"], "312 555 0105")
 		self.assertEqual(salon.invite(s["token"], 1)["wants_invitation"], 1)
-		flag = frappe.db.get_value("Maison Client Profile", mei, ["private_viewing_invite", "private_viewing_invite_on"], as_dict=True)
+		flag = frappe.db.get_value("AWANZ Client Profile", mei, ["private_viewing_invite", "private_viewing_invite_on"], as_dict=True)
 		self.assertEqual(flag.private_viewing_invite, 1)
 		self.assertTrue(flag.private_viewing_invite_on)
 		salon.invite(s["token"], 0)
-		self.assertEqual(frappe.db.get_value("Maison Client Profile", mei, "private_viewing_invite"), 0)
+		self.assertEqual(frappe.db.get_value("AWANZ Client Profile", mei, "private_viewing_invite"), 0)
 
-	def test_feedback_reaches_maison_feedback_via_receipt_token(self):
+	def test_feedback_reaches_awanz_feedback_via_receipt_token(self):
 		from maison_pos.api.sales import submit_batch
 
 		s = self.pair()
@@ -337,7 +337,7 @@ class TestClientelingAndFeedback(SalonBase):
 		with self.assertRaises(frappe.ValidationError):
 			salon.feedback(s["token"], 9)
 		r = salon.feedback(s["token"], 2, "Lovely, but the wait was long")
-		fb = frappe.get_doc("Maison Feedback", r["feedback"])
+		fb = frappe.get_doc("AWANZ Feedback", r["feedback"])
 		self.assertEqual(fb.sales_invoice, res["invoice_name"])
 		self.assertEqual(fb.rating, 2)
 		self.assertEqual(fb.boutique, "CHI-OAK")

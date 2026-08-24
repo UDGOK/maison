@@ -93,7 +93,7 @@ try {
   const syz = await L.waitSynced(page)
   const zi = (await L.invoiceForUuid(admin, syz.uuid, 8))[0]
   if (zi) created.push(zi.name)
-  const zlog = (await admin.list('Maison Sync Log', { offline_uuid: syz.uuid }, ['status', 'error'], 2))[0]
+  const zlog = (await admin.list('AWANZ Sync Log', { offline_uuid: syz.uuid }, ['status', 'error'], 2))[0]
   record('8.6 a fully discounted ($0.00) sale can be completed', !!zi && Number(zi.docstatus) === 1,
     `basket total ${zeroTotal}, amount due ${zeroDue}, pill "${syz.pill}", invoice ${zi?.name} (${zi?.grand_total}); sync log=${JSON.stringify(zlog)}`)
   await shot(page, 'edge-zero-receipt')
@@ -142,7 +142,7 @@ try {
   await sleep(9000)
   const pillExp2 = (await page.locator('.receipt-view .pill').first().textContent()).trim()
   const rvTxt = (await page.locator('.receipt-view .left').innerText()).replace(/\s+/g, ' ')
-  const expLog = (await admin.list('Maison Sync Log', { offline_uuid: uuidExp }, ['status', 'error'], 2))[0]
+  const expLog = (await admin.list('AWANZ Sync Log', { offline_uuid: uuidExp }, ['status', 'error'], 2))[0]
   const expInv = await admin.list('Sales Invoice', { maison_offline_uuid: uuidExp }, ['name'], 2)
   record('8.3 a sale made after the Frappe session expired is not silently lost',
     expInv.length === 0 ? /Queued|Rejected|Sending/i.test(pillExp2) : true,

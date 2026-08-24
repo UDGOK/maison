@@ -41,7 +41,7 @@ print("\nrun_attribution:", json.dumps(job.get("message", job), default=str)[:60
 results["job"] = job.get("message")
 
 # 4. inspect the attribution rows
-rows = dq.get_list("Maison Campaign Attribution", fields=["name","sales_invoice","campaign","customer","type","amount","invoice_total","item_level","touch_at","days_to_sale","posting_date","boutique","associate"], limit=100)
+rows = dq.get_list("AWANZ Campaign Attribution", fields=["name","sales_invoice","campaign","customer","type","amount","invoice_total","item_level","touch_at","days_to_sale","posting_date","boutique","associate"], limit=100)
 print(f"\nattribution rows: {len(rows)}")
 for r in rows: print("  ", json.dumps(r, default=str))
 results["rows"] = rows
@@ -70,7 +70,7 @@ print(f"attributed_sales rows: {len(asales)}")
 results["attributed_sales"] = asales
 
 # 7. desk report picks it up
-rep = dq.call("frappe.desk.query_report.run", {"report_name":"Maison Campaign Performance",
+rep = dq.call("frappe.desk.query_report.run", {"report_name":"AWANZ Campaign Performance",
       "filters": json.dumps({"from_date": str(TODAY - timedelta(days=45)), "to_date": str(TODAY)}), "ignore_prepared_report":1})["message"]
 r0 = rep["result"][0]
 print(f"desk report: direct={r0.get('attributed_direct')} assisted={r0.get('attributed_assisted')} buyers={r0.get('buyers')} chart={'yes' if rep.get('chart') else 'no'}")
@@ -88,5 +88,5 @@ print("  first 2 lines:", " || ".join(body.strip().split("\n")[:2])[:260])
 print("  data lines:", max(0, len(body.strip().split("\n"))-1))
 results["export_csv_lines"] = max(0, len(body.strip().split("\n"))-1)
 results["export_headers"] = head
-json.dump(results, open("/home/claude/maison/e2e/qa/results-d8.json","w"), indent=1, default=str)
-json.dump({"touches":touch_names,"attributions":[r["name"] for r in rows]}, open("/home/claude/maison/e2e/qa/created-campaign.json","w"), indent=1)
+json.dump(results, open("/home/claude/awanz/e2e/qa/results-d8.json","w"), indent=1, default=str)
+json.dump({"touches":touch_names,"attributions":[r["name"] for r in rows]}, open("/home/claude/awanz/e2e/qa/created-campaign.json","w"), indent=1)

@@ -68,7 +68,7 @@ async function load(force = false) {
   error.value = ''
   const key = `profile:${props.customer.name}`
   try {
-    if (window.__maisonOffline) throw Object.assign(new Error('offline'), { code: 'NETWORK' })
+    if (window.__awanzOffline) throw Object.assign(new Error('offline'), { code: 'NETWORK' })
     profile.value = await v04.crm.profile(props.customer.name)
     cached.value = false
     await setSetting(key, JSON.parse(JSON.stringify(profile.value)))

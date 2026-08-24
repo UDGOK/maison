@@ -1,4 +1,4 @@
-"""``Website Item`` override: Monolith Gold product page + Maison context (web mode, availability).
+"""``Website Item`` override: Monolith Gold product page + AWANZ context (web mode, availability).
 
 Registered through ``override_doctype_class`` in hooks (only effective when ``webshop`` is
 installed — otherwise the import of the base class fails and the hook is skipped by Frappe).
@@ -17,8 +17,8 @@ except Exception:  # noqa: BLE001
 from maison_pos.webshop import core
 
 
-class MaisonWebsiteItem(_Base):
-	"""Same data model, Maison template + extra context."""
+class AwanzWebsiteItem(_Base):
+	"""Same data model, AWANZ template + extra context."""
 
 	website = frappe._dict(
 		page_title_field="web_item_name",
@@ -36,14 +36,14 @@ class MaisonWebsiteItem(_Base):
 
 	def get_context(self, context):
 		context = super().get_context(context)
-		context.update(maison_item_context(self, context))
+		context.update(awanz_item_context(self, context))
 		context.body_class = "mw-shop product-page"
 		context.mw_nav = "collection"
 		return context
 
 
-def maison_item_context(doc, context=None) -> dict:
-	"""Everything the Maison product page needs beyond webshop's own context."""
+def awanz_item_context(doc, context=None) -> dict:
+	"""Everything the AWANZ product page needs beyond webshop's own context."""
 	item = frappe.db.get_value(
 		"Item",
 		doc.item_code,
@@ -84,7 +84,7 @@ def maison_item_context(doc, context=None) -> dict:
 	deposit = core.deposit_for(doc.item_code, rate) if mode == "Reserve-with-deposit" else 0.0
 
 	return {
-		"maison": frappe._dict(
+		"awanz": frappe._dict(
 			{
 				"web_mode": mode,
 				"availability": avail,

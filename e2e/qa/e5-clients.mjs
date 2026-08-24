@@ -2,7 +2,7 @@ import { launch, check, save, shot, BASE } from './lib-dash.mjs'
 import { writeFileSync } from 'node:fs'
 const { browser, page, console_ } = await launch()
 const t0 = Date.now()
-await page.goto(`${BASE}/maison-dashboard?view=clients`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=clients`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('.clients .card', { timeout: 45000 })
 await page.waitForTimeout(2000)
 check('Clients tab loads', true, `${Date.now() - t0} ms`)
@@ -45,18 +45,18 @@ await shot(page, '14-clients-tier-1920.png')
 
 // ---- Assign call ----
 const sig = await page.locator('.card.churn .li[data-signal]').first().getAttribute('data-signal')
-const before = (await (await page.request.get(`${BASE}/api/method/frappe.client.get_count?doctype=Maison%20Client%20Interaction`)).json()).message
+const before = (await (await page.request.get(`${BASE}/api/method/frappe.client.get_count?doctype=AWANZ%20Client%20Interaction`)).json()).message
 await page.locator(`.card.churn .li[data-signal="${sig}"] .assign`).click()
 await page.waitForTimeout(2500)
-const after = (await (await page.request.get(`${BASE}/api/method/frappe.client.get_count?doctype=Maison%20Client%20Interaction`)).json()).message
-const sigDoc = (await (await page.request.get(`${BASE}/api/method/frappe.client.get?doctype=Maison%20Client%20Signal&name=${sig}`)).json()).message
+const after = (await (await page.request.get(`${BASE}/api/method/frappe.client.get_count?doctype=AWANZ%20Client%20Interaction`)).json()).message
+const sigDoc = (await (await page.request.get(`${BASE}/api/method/frappe.client.get?doctype=AWANZ%20Client%20Signal&name=${sig}`)).json()).message
 check('"Assign call" creates a follow-up task', after === before + 1 && !!sigDoc.call_task,
   `interactions ${before}→${after}; signal.call_task=${sigDoc.call_task} crm_task=${sigDoc.crm_task} assigned=${sigDoc.assigned_associate} at=${sigDoc.assigned_at}`)
-const inter = sigDoc.call_task ? (await (await page.request.get(`${BASE}/api/method/frappe.client.get?doctype=Maison%20Client%20Interaction&name=${sigDoc.call_task}`)).json()).message : null
+const inter = sigDoc.call_task ? (await (await page.request.get(`${BASE}/api/method/frappe.client.get?doctype=AWANZ%20Client%20Interaction&name=${sigDoc.call_task}`)).json()).message : null
 check('the follow-up is a Call, Open, with a due date and the right client', !!inter && inter.type === 'Call' && inter.status === 'Open' && !!inter.follow_up_date && inter.customer === sigDoc.customer,
   inter ? `type=${inter.type} status=${inter.status} due=${inter.follow_up_date} customer=${inter.customer} associate=${inter.associate}` : 'no interaction')
 await shot(page, '15-clients-assign-call-1920.png')
-writeFileSync('/home/claude/maison/e2e/qa/created-assign.json', JSON.stringify({ signal: sig, interaction: sigDoc.call_task, crm_task: sigDoc.crm_task, customer: sigDoc.customer }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/created-assign.json', JSON.stringify({ signal: sig, interaction: sigDoc.call_task, crm_task: sigDoc.crm_task, customer: sigDoc.customer }, null, 1))
 check('no console errors on Clients', console_.filter(c=>!/favicon/.test(c)).length === 0, console_.slice(0, 5).join(' | '))
 save('results-e5.json')
 await browser.close()

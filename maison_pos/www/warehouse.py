@@ -1,6 +1,6 @@
 """Serve the Warehouse Admin desk (v0.6 P) at ``/warehouse`` — same Vite bundle as ``/pos``.
 
-Login required; role gating (Maison Warehouse Admin / Head Office / System Manager) happens in
+Login required; role gating (AWANZ Warehouse Admin / Head Office / System Manager) happens in
 the app through ``maison_pos.api.shipping.me`` and on every endpoint server-side.
 """
 

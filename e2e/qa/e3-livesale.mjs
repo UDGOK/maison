@@ -16,7 +16,7 @@ check('associate login for the live-sale probe', lg.ok(), `${lg.status()} ${ASSO
 const posHtml = await (await assoc.request.get(`${BASE}/pos`)).text()
 const csrf = posHtml.match(/window\.csrf_token = "([^"]*)"/)?.[1] || ''
 
-await page.goto(`${BASE}/maison-dashboard`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="live-cards"] .bcard', { timeout: 45000 })
 await page.waitForFunction(() => /LIVE/i.test(document.querySelector('.top')?.textContent || ''), null, { timeout: 30000 }).catch(() => {})
 await page.waitForTimeout(2500)
@@ -68,7 +68,7 @@ const cancel = await page.request.post(`${BASE}/api/method/frappe.client.cancel`
   data: { doctype: 'Sales Invoice', name: invoice } })
 const ctext = (await cancel.text()).slice(0, 300)
 check('CLEANUP: test invoice cancelled', cancel.ok(), `${cancel.status()} ${invoice} ${ctext.slice(0,160)}`)
-writeFileSync('/home/claude/maison/e2e/qa/created.json', JSON.stringify({ invoice, cancelled: cancel.ok(), boutique: B }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/created.json', JSON.stringify({ invoice, cancelled: cancel.ok(), boutique: B }, null, 1))
 check('no console errors during the live update', console_.filter(c=>!/favicon/.test(c)).length === 0, console_.slice(0, 4).join(' | '))
 save('results-e3.json')
 await browser.close(); await b2.close()

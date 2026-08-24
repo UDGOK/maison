@@ -1,4 +1,4 @@
-// QA4 · C — Concierge Q&A (client attached, empty basket) → Maison Client Profile.
+// QA4 · C — Concierge Q&A (client attached, empty basket) → AWANZ Client Profile.
 import * as L from './lib-srs.mjs'
 import fs from 'node:fs'
 const { record, note, shot, go, log, sleep } = L
@@ -11,12 +11,12 @@ const browser = await L.newBrowser()
 const waitView = (page, view, ms = 25000) => page.waitForFunction((v) => document.documentElement.dataset.salonView === v, view, { timeout: ms })
 const salonView = (page) => page.evaluate(() => document.documentElement.dataset.salonView)
 const cust = await admin.value('Customer', MEMBER, ['maison_client_number'])
-const before = await admin.doc('Maison Client Profile', MEMBER)
+const before = await admin.doc('AWANZ Client Profile', MEMBER)
 
 const pos = await L.ctxFor(browser, L.A1, 'pos', { viewport: { width: 1440, height: 1024 } })
 const salon = await L.ctxFor(browser, null, 'salon', { viewport: PORTRAIT })
 await L.unlock(pos.page, L.A1, { fresh: true })
-const deviceId = await pos.page.evaluate(() => localStorage.getItem('maison.device_id') || '')
+const deviceId = await pos.page.evaluate(() => localStorage.getItem('awanz.device_id') || '')
 await L.nav(pos.page, 'Settings')
 await pos.page.waitForSelector('[data-testid=salon-settings]', { timeout: 20000 })
 await pos.page.click('[data-testid=salon-pair]')
@@ -63,7 +63,7 @@ if (conc) {
   }
   await sleep(4000)
   const saved = await salon.page.locator('[data-testid=concierge-saved]').count()
-  const p = await admin.doc('Maison Client Profile', MEMBER)
+  const p = await admin.doc('AWANZ Client Profile', MEMBER)
   const changed = Object.keys(p).filter((k) => !k.startsWith('_') && JSON.stringify(p[k]) !== JSON.stringify(before[k]) && !['modified', 'modified_by'].includes(k))
   record('C · Concierge answers are written to the client profile', saved === 1 || changed.length > 0,
     `steps=${steps.join('→')} · saved-banner=${saved} · profile fields changed: ${JSON.stringify(changed.map((k) => [k, String(p[k]).slice(0, 60)]))}`)

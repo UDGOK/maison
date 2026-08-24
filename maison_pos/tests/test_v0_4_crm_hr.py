@@ -71,7 +71,7 @@ class TestCommissions(V04Base):
 	def test_entries_created_on_submit_with_best_rule(self):
 		# AC-012 (Accessories) → base 2 %; NYC associate bridal band BR-006 → "NYC associates bridal push 3.5%"
 		si = self._submit(boutique="NYC-5AV", items=[{"item_code": "AC-012", "qty": 2, "rate": 160}, {"item_code": "BR-006", "qty": 1, "rate": 1950}])
-		rows = frappe.get_all("Maison Commission Entry", filters={"sales_invoice": si.name}, fields=["item_code", "rate_percent", "commission_amount", "rule", "associate", "employee", "is_reversal"])
+		rows = frappe.get_all("AWANZ Commission Entry", filters={"sales_invoice": si.name}, fields=["item_code", "rate_percent", "commission_amount", "rule", "associate", "employee", "is_reversal"])
 		by_item = {r.item_code: r for r in rows}
 		self.assertEqual(set(by_item), {"AC-012", "BR-006"})
 		self.assertEqual(by_item["AC-012"].rate_percent, 2.0)
@@ -86,18 +86,18 @@ class TestCommissions(V04Base):
 
 	def test_manager_role_does_not_get_associate_only_rule(self):
 		si = self._submit(boutique="NYC-5AV", associate=NYC_MANAGER, items=[{"item_code": "BR-006", "qty": 1, "rate": 1950}])
-		row = frappe.get_value("Maison Commission Entry", {"sales_invoice": si.name}, ["rule", "rate_percent"], as_dict=True)
+		row = frappe.get_value("AWANZ Commission Entry", {"sales_invoice": si.name}, ["rule", "rate_percent"], as_dict=True)
 		self.assertEqual(row.rule, "Bridal 2.5%")
 
 	def test_return_reverses_commission(self):
 		serial = first_serial("TP-001", "NYC-5AV")
 		si = self._submit(boutique="NYC-5AV", items=[{"item_code": "TP-001", "qty": 1, "rate": 6900, "serial_no": serial}])
-		original = frappe.get_value("Maison Commission Entry", {"sales_invoice": si.name}, ["commission_amount", "associate"], as_dict=True)
+		original = frappe.get_value("AWANZ Commission Entry", {"sales_invoice": si.name}, ["commission_amount", "associate"], as_dict=True)
 		self.assertAlmostEqual(original.commission_amount, 6900 * 0.03, places=2)
 		frappe.set_user(NYC_MANAGER)
 		cn = sales.void(si.name, "test return")["credit_note"]
 		frappe.set_user("Administrator")
-		rev = frappe.get_value("Maison Commission Entry", {"sales_invoice": cn}, ["commission_amount", "is_reversal", "associate"], as_dict=True)
+		rev = frappe.get_value("AWANZ Commission Entry", {"sales_invoice": cn}, ["commission_amount", "is_reversal", "associate"], as_dict=True)
 		self.assertTrue(rev.is_reversal)
 		self.assertAlmostEqual(rev.commission_amount, -original.commission_amount, places=2)
 		# the reversal hits the original seller, not the manager who voided
@@ -110,7 +110,7 @@ class TestCommissions(V04Base):
 		si = self._submit(boutique="NYC-5AV", items=[{"item_code": "AC-012", "qty": 1, "rate": 160}])
 		si.reload()
 		si.cancel()
-		rows = frappe.get_all("Maison Commission Entry", filters={"sales_invoice": si.name}, fields=["commission_amount", "is_reversal", "reversal_of"])
+		rows = frappe.get_all("AWANZ Commission Entry", filters={"sales_invoice": si.name}, fields=["commission_amount", "is_reversal", "reversal_of"])
 		self.assertEqual(len(rows), 2)
 		self.assertAlmostEqual(sum(r.commission_amount for r in rows), 0.0, places=2)
 		self.assertTrue(any(r.reversal_of for r in rows))
@@ -175,7 +175,7 @@ class TestShifts(V04Base):
 		status = hr.shift_status()
 		self.assertTrue(status["on_shift"])
 		if hr.hrms_installed():
-			self.assertTrue(frappe.db.get_value("Maison Shift", res["shift"]["name"], "checkin_in"), "Employee Checkin IN expected")
+			self.assertTrue(frappe.db.get_value("AWANZ Shift", res["shift"]["name"], "checkin_in"), "Employee Checkin IN expected")
 		brk = hr.toggle_break(NYC_ASSOCIATE)
 		self.assertEqual(brk["shift"]["status"], "On break")
 		hr.toggle_break(NYC_ASSOCIATE)
@@ -184,9 +184,9 @@ class TestShifts(V04Base):
 		frappe.set_user(NYC_ASSOCIATE)
 		out = hr.clock_out(NYC_ASSOCIATE)
 		self.assertTrue(out["closed"])
-		self.assertEqual(frappe.db.get_value("Maison Shift", res["shift"]["name"], "status"), "Off shift")
+		self.assertEqual(frappe.db.get_value("AWANZ Shift", res["shift"]["name"], "status"), "Off shift")
 		if hr.hrms_installed():
-			self.assertEqual(frappe.db.count("Employee Checkin", {"employee": frappe.db.get_value("Maison Associate", NYC_ASSOCIATE, "employee"), "device_id": ("like", "NYC-5AV:%")}), 2)
+			self.assertEqual(frappe.db.count("Employee Checkin", {"employee": frappe.db.get_value("AWANZ Associate", NYC_ASSOCIATE, "employee"), "device_id": ("like", "NYC-5AV:%")}), 2)
 		self.assertFalse(hr.shift_status()["on_shift"])
 
 	def test_associate_cannot_clock_others_or_other_boutique(self):
@@ -231,11 +231,11 @@ class TestCoupons(V04Base):
 			promotions.validate_coupon("NOPE", lines)
 		self.assertEqual(ctx.exception.reason, "unknown")
 		# expired / disabled
-		frappe.get_doc({"doctype": "Maison Coupon", "code": "old", "title": "Old", "discount_type": "Percent", "value": 5, "valid_upto": add_days(nowdate(), -1)}).insert()
+		frappe.get_doc({"doctype": "AWANZ Coupon", "code": "old", "title": "Old", "discount_type": "Percent", "value": 5, "valid_upto": add_days(nowdate(), -1)}).insert()
 		with self.assertRaises(promotions.CouponError) as ctx:
 			promotions.validate_coupon("OLD", lines)
 		self.assertEqual(ctx.exception.reason, "expired")
-		frappe.db.set_value("Maison Coupon", "OLD", {"valid_upto": None, "enabled": 0})
+		frappe.db.set_value("AWANZ Coupon", "OLD", {"valid_upto": None, "enabled": 0})
 		with self.assertRaises(promotions.CouponError) as ctx:
 			promotions.validate_coupon("OLD", lines)
 		self.assertEqual(ctx.exception.reason, "disabled")
@@ -256,8 +256,8 @@ class TestCoupons(V04Base):
 		self.assertAlmostEqual(si.maison_coupon_discount, 48.0, places=2)
 		self.assertAlmostEqual(si.net_total, net, places=2)
 		self.assertAlmostEqual(si.grand_total, total, places=2)
-		self.assertEqual(frappe.db.get_value("Maison Coupon", "VIP-ISABELLA", "used_count"), 1)
-		self.assertTrue(frappe.db.exists("Maison Coupon Redemption", {"sales_invoice": si.name}))
+		self.assertEqual(frappe.db.get_value("AWANZ Coupon", "VIP-ISABELLA", "used_count"), 1)
+		self.assertTrue(frappe.db.exists("AWANZ Coupon Redemption", {"sales_invoice": si.name}))
 		# second use → structured error
 		res = sales.submit_batch([pos_invoice(boutique="NYC-5AV", customer=isabella, items=items, payments=[{"mode_of_payment": "Card", "amount": total}], coupon_code="VIP-ISABELLA")])["results"][0]
 		self.assertEqual(res["status"], "error")
@@ -266,7 +266,7 @@ class TestCoupons(V04Base):
 		# cancel gives the use back
 		si.reload()
 		si.cancel()
-		self.assertEqual(frappe.db.get_value("Maison Coupon", "VIP-ISABELLA", "used_count"), 0)
+		self.assertEqual(frappe.db.get_value("AWANZ Coupon", "VIP-ISABELLA", "used_count"), 0)
 
 	def test_device_mismatch_rejected(self):
 		items = [{"item_code": "AC-012", "qty": 2, "rate": 160, "coupon_discount": 100.0}]
@@ -302,14 +302,14 @@ class TestCoupons(V04Base):
 
 	def test_birthday_bonus(self):
 		mei = _customer("Mei-Lin Chen")
-		frappe.db.set_single_value("Maison POS Settings", "birthday_bonus_points", 250)
+		frappe.db.set_single_value("AWANZ POS Settings", "birthday_bonus_points", 250)
 		crm.update_profile(mei, {"birthday": "1987-08-30"})
 		res = promotions.birthday_bonus("2026-08-30")
 		self.assertIn(mei, res["credited"])
 		self.assertEqual(frappe.db.get_value("Loyalty Point Entry", {"customer": mei, "posting_date": "2026-08-30", "purchase_amount": 0}, "loyalty_points"), 250)
 		again = promotions.birthday_bonus("2026-08-30")
 		self.assertNotIn(mei, again["credited"])
-		frappe.db.set_single_value("Maison POS Settings", "birthday_bonus_points", 0)
+		frappe.db.set_single_value("AWANZ POS Settings", "birthday_bonus_points", 0)
 
 
 # ---------------------------------------------------------------------------
@@ -333,19 +333,19 @@ class TestFeedbackPrivacy(V04Base):
 			self.assertRaises(frappe.PermissionError, feedback.list)
 			self.assertRaises(frappe.PermissionError, feedback.summary)
 			# the doctype has no Guest permission: desk/REST reads fail too
-			self.assertFalse(frappe.has_permission("Maison Feedback", "read"))
-			self.assertRaises(frappe.PermissionError, frappe.get_list, "Maison Feedback")
+			self.assertFalse(frappe.has_permission("AWANZ Feedback", "read"))
+			self.assertRaises(frappe.PermissionError, frappe.get_list, "AWANZ Feedback")
 			# bad token / rating
 			self.assertRaises(frappe.DoesNotExistError, feedback.submit, "nope-token", 5)
 			self.assertEqual(feedback.status("nope-token")["valid"], False)
 		finally:
 			frappe.set_user("Administrator")
-		row = frappe.get_doc("Maison Feedback", {"sales_invoice": si.name})
+		row = frappe.get_doc("AWANZ Feedback", {"sales_invoice": si.name})
 		self.assertEqual(row.rating, 2)  # first submission wins
 		self.assertEqual(row.comment, "Felt rushed")
 		self.assertEqual(row.boutique, "CHI-OAK")
 		self.assertTrue(row.alerted, "rating ≤ 2 must alert")
-		self.assertTrue(frappe.db.exists("Notification Log", {"document_type": "Maison Feedback", "document_name": row.name, "for_user": "chi.oak.manager@maison.example"}))
+		self.assertTrue(frappe.db.exists("Notification Log", {"document_type": "AWANZ Feedback", "document_name": row.name, "for_user": "chi.oak.manager@maison.example"}))
 
 	def test_rating_bounds_and_disabled(self):
 		si = self._submit(boutique="CHI-OAK", items=[{"item_code": "AC-012", "qty": 1, "rate": 160}])
@@ -355,14 +355,14 @@ class TestFeedbackPrivacy(V04Base):
 			self.assertRaises(frappe.ValidationError, feedback.submit, si.maison_receipt_token, 6)
 		finally:
 			frappe.set_user("Administrator")
-		frappe.db.set_single_value("Maison POS Settings", "feedback_enabled", 0)
+		frappe.db.set_single_value("AWANZ POS Settings", "feedback_enabled", 0)
 		try:
 			frappe.set_user("Guest")
 			self.assertEqual(feedback.status(si.maison_receipt_token)["enabled"], False)
 			self.assertRaises(frappe.ValidationError, feedback.submit, si.maison_receipt_token, 4)
 		finally:
 			frappe.set_user("Administrator")
-			frappe.db.set_single_value("Maison POS Settings", "feedback_enabled", 1)
+			frappe.db.set_single_value("AWANZ POS Settings", "feedback_enabled", 1)
 
 	def test_manager_sees_own_boutique_only(self):
 		a = self._submit(boutique="CHI-OAK", items=[{"item_code": "AC-012", "qty": 1, "rate": 160}])
@@ -382,7 +382,7 @@ class TestFeedbackPrivacy(V04Base):
 		s = feedback.summary()
 		self.assertGreaterEqual(s["count"], 2)
 		self.assertTrue({"CHI-OAK", "NYC-5AV"} <= {x["boutique"] for x in s["by_boutique"]})
-		name = frappe.db.get_value("Maison Feedback", {"sales_invoice": a.name}, "name")
+		name = frappe.db.get_value("AWANZ Feedback", {"sales_invoice": a.name}, "name")
 		self.assertEqual(feedback.respond(name, "Called the client, apologised")["status"], "Responded")
 
 
@@ -407,7 +407,7 @@ class TestClientProfile(V04Base):
 		self.assertIn("loyalty", p)
 		self.assertFalse(p["can_edit_tier"])
 		self.assertTrue(crm.update_profile(mei, {"ring_size": "6", "do_not_sms": 1})["profile"]["do_not_sms"])
-		self.assertEqual(frappe.db.get_value("Maison Client Profile", mei, "ring_size"), "6")
+		self.assertEqual(frappe.db.get_value("AWANZ Client Profile", mei, "ring_size"), "6")
 		self.assertRaises(frappe.PermissionError, crm.update_profile, mei, {"vip_tier_override": "Patron"})
 		self.assertRaises(frappe.ValidationError, crm.update_profile, mei, {"bogus": 1})
 		frappe.set_user("chi.oak.manager@maison.example")
@@ -416,10 +416,10 @@ class TestClientProfile(V04Base):
 
 	def test_profile_created_on_first_access_and_contact_linked(self):
 		cust = _customer("Marcus Thompson")
-		self.assertFalse(frappe.db.exists("Maison Client Profile", cust))
+		self.assertFalse(frappe.db.exists("AWANZ Client Profile", cust))
 		frappe.set_user(NYC_ASSOCIATE)
 		p = crm.profile(cust)
-		self.assertTrue(frappe.db.exists("Maison Client Profile", cust))
+		self.assertTrue(frappe.db.exists("AWANZ Client Profile", cust))
 		self.assertEqual(p["wishlist"], [])
 		self.assertTrue(p["crm"]["contact"], "a Contact should be linked for Frappe CRM")
 		self.assertTrue(frappe.db.exists("Dynamic Link", {"parent": p["crm"]["contact"], "link_doctype": "Customer", "link_name": cust}))
@@ -470,17 +470,17 @@ class TestClientProfile(V04Base):
 	def test_wishlist_alert_on_stock_arrival(self):
 		cust = _customer("Alexander Petrov")  # wishes TP-003, preferred CHI-OAK / associate
 		frappe.set_user("Administrator")
-		warehouse = frappe.db.get_value("Maison Boutique", "CHI-OAK", "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", "CHI-OAK", "warehouse")
 		# other suites may have received TP-003 already (Stock Entry hook) → reset the cooldown
-		for row in frappe.get_all("Maison Wishlist Item", filters={"parent": cust, "item_code": "TP-003"}, pluck="name"):
-			frappe.db.set_value("Maison Wishlist Item", row, "alerted_on", None, update_modified=False)
+		for row in frappe.get_all("AWANZ Wishlist Item", filters={"parent": cust, "item_code": "TP-003"}, pluck="name"):
+			frappe.db.set_value("AWANZ Wishlist Item", row, "alerted_on", None, update_modified=False)
 		alerts = crm.wishlist_matches_for("TP-003", warehouse, "TP-003-NEW-001")
 		self.assertTrue(any(a["customer"] == cust for a in alerts))
 		alert = next(a for a in alerts if a["customer"] == cust)
-		assoc = frappe.db.get_value("Maison Client Profile", cust, "preferred_associate")
+		assoc = frappe.db.get_value("AWANZ Client Profile", cust, "preferred_associate")
 		self.assertEqual(alert["users"], [assoc])
 		self.assertTrue(frappe.db.exists("Notification Log", {"for_user": assoc, "document_name": cust}))
-		self.assertEqual(frappe.db.get_value("Maison Client Interaction", alert["interaction"], "type"), "Wishlist match")
+		self.assertEqual(frappe.db.get_value("AWANZ Client Interaction", alert["interaction"], "type"), "Wishlist match")
 		# cooldown: no second alert within 30 days
 		self.assertFalse(any(a["customer"] == cust for a in crm.wishlist_matches_for("TP-003", warehouse)))
 		frappe.set_user("chi.oak.manager@maison.example")

@@ -1,4 +1,4 @@
-"""v0.5 K — demo data for the Maison Salon: a global playlist of curated pieces plus one
+"""v0.5 K — demo data for the AWANZ Salon: a global playlist of curated pieces plus one
 boutique-specific playlist (Oak Street). Idempotent; called from ``maison_pos.setup.demo.seed``."""
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from typing import Any
 import frappe
 
 GLOBAL_PLAYLIST = {
-	"title": "Maison · House Selection",
+	"title": "AWANZ · House Selection",
 	"boutique": None,
 	"welcome_line": "Welcome to the house",
 	"items": [
@@ -35,12 +35,12 @@ OAK_STREET_PLAYLIST = {
 
 def _upsert_playlist(spec: dict[str, Any]) -> str:
 	title = spec["title"]
-	if frappe.db.exists("Maison Salon Playlist", title):
-		doc = frappe.get_doc("Maison Salon Playlist", title)
+	if frappe.db.exists("AWANZ Salon Playlist", title):
+		doc = frappe.get_doc("AWANZ Salon Playlist", title)
 	else:
-		doc = frappe.new_doc("Maison Salon Playlist")
+		doc = frappe.new_doc("AWANZ Salon Playlist")
 		doc.title = title
-	doc.boutique = spec["boutique"] if spec["boutique"] and frappe.db.exists("Maison Boutique", spec["boutique"]) else None
+	doc.boutique = spec["boutique"] if spec["boutique"] and frappe.db.exists("AWANZ Store", spec["boutique"]) else None
 	doc.welcome_line = spec["welcome_line"]
 	doc.enabled = 1
 	doc.set("items", [])
@@ -55,10 +55,10 @@ def _upsert_playlist(spec: dict[str, Any]) -> str:
 
 def seed_salon_v05() -> dict[str, Any]:
 	"""Create / refresh the two demo playlists. Safe to run repeatedly."""
-	if not frappe.db.exists("DocType", "Maison Salon Playlist"):
-		return {"skipped": "Maison Salon Playlist not installed"}
+	if not frappe.db.exists("DocType", "AWANZ Salon Playlist"):
+		return {"skipped": "AWANZ Salon Playlist not installed"}
 	names = [_upsert_playlist(GLOBAL_PLAYLIST), _upsert_playlist(OAK_STREET_PLAYLIST)]
 	# stale demo sessions from previous runs are noise in the desk list
-	for old in frappe.get_all("Maison Salon Session", filters={"status": ("in", ("Unpaired", "Expired"))}, pluck="name", limit=500):
-		frappe.delete_doc("Maison Salon Session", old, ignore_permissions=True, force=True)
-	return {"playlists": names, "pieces": frappe.db.count("Maison Salon Playlist Item", {"parent": ("in", names)})}
+	for old in frappe.get_all("AWANZ Salon Session", filters={"status": ("in", ("Unpaired", "Expired"))}, pluck="name", limit=500):
+		frappe.delete_doc("AWANZ Salon Session", old, ignore_permissions=True, force=True)
+	return {"playlists": names, "pieces": frappe.db.count("AWANZ Salon Playlist Item", {"parent": ("in", names)})}

@@ -1,4 +1,4 @@
-"""/shop/account — Maison Collectors: loyalty sign-in (client number + e-mail) and balance."""
+"""/shop/account — AWANZ Collectors: loyalty sign-in (client number + e-mail) and balance."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ sitemap = 0
 
 
 def get_context(context):
-	base_context(context, nav="account", title="Maison Collectors — Maison")
+	base_context(context, nav="account", title="AWANZ Collectors — AWANZ")
 	context.loyalty = None
 	context.signed_in = frappe.session.user != "Guest"
 	if context.signed_in:

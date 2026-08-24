@@ -4,7 +4,7 @@
  *   PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc.localhost:8001 ADMIN_PWD=admin \
  *     node e2e/cloudchaserz.e2e.mjs
  *
- *  A. Brand — the POS, the receipt and the shop are CloudChaserz, not "Maison".
+ *  A. Brand — the POS, the receipt and the shop are CloudChaserz, not "AWANZ".
  *  B. Age gate (21+) — an under-21 licence and an expired licence are both refused and the
  *     age-restricted item stays out of the basket; a valid licence passes and the sale carries
  *     the age check. Screenshots: POS at 1366x1024 and iPhone 390x844, Salon ID-check.
@@ -104,11 +104,11 @@ const admin = await client(ADMIN)
 const boot = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: STORE_A })
 const brand = boot.brand || {}
 record('bootstrap.brand is the CloudChaserz tenant (Smoke Shop vertical)',
-  brand.brand_name === 'CloudChaserz' && brand.product_name === 'Maison POS by CloudChaserz' && brand.vertical === 'Smoke Shop' && brand.wordmark_text === 'CLOUDCHASERZ' && brand.store_noun === 'Store',
+  brand.brand_name === 'CloudChaserz' && brand.product_name === 'AWANZ POS by CloudChaserz' && brand.vertical === 'Smoke Shop' && brand.wordmark_text === 'CLOUDCHASERZ' && brand.store_noun === 'Store',
   JSON.stringify({ brand_name: brand.brand_name, product_name: brand.product_name, vertical: brand.vertical, wordmark: brand.wordmark_text, store_noun: brand.store_noun, tagline: brand.tagline }))
 
 const stores = await admin.get('maison_pos.api.catalog.boutiques').catch(() => null)
-const allStores = await admin.list('Maison Boutique', { enabled: 1 }, ['name', 'is_warehouse'], 100)
+const allStores = await admin.list('AWANZ Store', { enabled: 1 }, ['name', 'is_warehouse'], 100)
 record('the 11 real stores plus the HOU-WH warehouse are seeded',
   allStores.filter((b) => !b.is_warehouse).length === 11 && allStores.some((b) => b.name === 'HOU-WH' && b.is_warehouse),
   `${allStores.length} boutiques: ${allStores.map((b) => b.name + (b.is_warehouse ? '*' : '')).join(', ')}`)
@@ -116,7 +116,7 @@ record('the 11 real stores plus the HOU-WH warehouse are seeded',
 const shopHtml = await (await admin.ctx.request.get('/rewards')).text()
 record('/rewards carries the exact programme copy and the three fixed tiers',
   /\$5 off at 100 points/.test(shopHtml) && /\$10 off at 200 points/.test(shopHtml) && /\$15 off at 300 points/.test(shopHtml) && /Earn 1 point for every \$1 you spend/.test(shopHtml) && !/no such element/.test(shopHtml),
-  `tiers ok; "Maison" occurrences outside asset paths: ${(shopHtml.replace(/\/assets\/maison_pos[^"']*/g, '').match(/Maison/g) || []).length}`)
+  `tiers ok; "AWANZ" occurrences outside asset paths: ${(shopHtml.replace(/\/assets\/maison_pos[^"']*/g, '').match(/AWANZ/g) || []).length}`)
 
 // ================================================================ B. age gate
 const ageItem = boot.items.find((i) => i.maison_age_restricted)
@@ -135,9 +135,9 @@ const r2 = await assoc.post('maison_pos.api.age.verify_scan', { raw: expired, bo
 record('age.verify_scan refuses an expired licence', r2.ok === false && r2.outcome === 'Expired' && /expired/i.test(String(r2.message || '')),
   JSON.stringify({ ok: r2.ok, outcome: r2.outcome, message: r2.message }))
 const r3 = await assoc.post('maison_pos.api.age.verify_scan', { raw: valid, boutique: STORE_A })
-record('age.verify_scan passes a valid 21+ licence and logs a Maison Age Check', r3.ok === true && r3.outcome === 'Verified' && !!r3.check,
+record('age.verify_scan passes a valid 21+ licence and logs an AWANZ Age Check', r3.ok === true && r3.outcome === 'Verified' && !!r3.check,
   JSON.stringify({ ok: r3.ok, outcome: r3.outcome, age: r3.age, method: r3.method, check: r3.check }))
-const logged = r3.check ? (await admin.list('Maison Age Check', { name: r3.check }, ['name', 'outcome', 'method', 'initials', 'boutique'], 5))[0] : null
+const logged = r3.check ? (await admin.list('AWANZ Age Check', { name: r3.check }, ['name', 'outcome', 'method', 'initials', 'boutique'], 5))[0] : null
 // The site runs in America/Chicago; `new Date().toISOString()` is UTC and can land on *tomorrow's*
 // date, which ERPNext then treats as a future Loyalty Point Entry (posting_date <= today) and the
 // balance reads 0. A real device posts local time — take the server's clock from the age check.
@@ -159,7 +159,7 @@ async function posPage(user, viewport, tag, device) {
 }
 async function unlockPos(page, user, store) {
   await page.goto('/pos/unlock')
-  await page.evaluate(() => { localStorage.setItem('maisonE2E', '1') })
+  await page.evaluate(() => { localStorage.setItem('awanzE2E', '1') })
   await page.goto('/pos')
   await page.waitForSelector('.unlock select.input', { timeout: 25000 })
   await page.selectOption('.unlock select.input >> nth=0', store)
@@ -223,11 +223,11 @@ for (const vp of [{ width: 1366, height: 1024 }, { width: 1024, height: 768 }, {
 const { ctx: ctxA, page: pos } = await posPage(ASSOC_A, { width: 1366, height: 1024 }, 'pos')
 await unlockPos(pos, ASSOC_A, STORE_A)
 const wordmark = (await pos.locator('.topbar').innerText()).replace(/\s+/g, ' ').trim()
-// the wordmark is CLOUDCHASERZ with the small "Maison POS" sub-mark (SPEC_v0.6 N), and the store
+// the wordmark is CLOUDCHASERZ with the small "AWANZ" sub-mark (SPEC_v0.6 N), and the store
 // line is the CloudChaserz store — never a jewellery boutique
 // the compact top bar (<= 1400 px) shows the store code rather than its full name
-record('the POS top bar is branded CloudChaserz (wordmark first, "Maison POS" only as the sub-mark)',
-  /^CLOUDCHASERZ\b/.test(wordmark) && wordmark.includes(STORE_A) && wordmark.indexOf('CLOUDCHASERZ') < wordmark.indexOf('MAISON POS'),
+record('the POS top bar is branded CloudChaserz (wordmark first, "AWANZ" only as the sub-mark)',
+  /^CLOUDCHASERZ\b/.test(wordmark) && wordmark.includes(STORE_A) && wordmark.indexOf('CLOUDCHASERZ') < wordmark.indexOf('AWANZ'),
   wordmark.slice(0, 160))
 await shot(pos, 'pos-cloudchaserz-1366')
 
@@ -332,7 +332,7 @@ async function sale(api, { items, payments, customer: cust, rewardTier, uuid, ag
 }
 // repeated runs eat the demo stock: top the open item up at store A before the rewards sales
 try {
-  const bq = (await admin.list('Maison Boutique', { name: STORE_A }, ['company', 'warehouse']))[0]
+  const bq = (await admin.list('AWANZ Store', { name: STORE_A }, ['company', 'warehouse']))[0]
   await admin.post('frappe.client.insert', {
     doc: {
       doctype: 'Stock Entry', stock_entry_type: 'Material Receipt', company: bq.company, docstatus: 1,

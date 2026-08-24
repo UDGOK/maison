@@ -1,7 +1,7 @@
 """v0.7 white-label — brand tokens for the branded 404 page (``www/404.html``).
 
 Frappe renders its own ``404`` template with a framework illustration; ours shadows it and reads
-every string from ``Maison POS Settings`` so the tenant's name is what a lost visitor sees.
+every string from ``AWANZ POS Settings`` so the tenant's name is what a lost visitor sees.
 """
 
 from __future__ import annotations

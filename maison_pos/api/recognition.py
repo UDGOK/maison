@@ -2,12 +2,12 @@
 
 Privacy rules enforced here (see docs/biometrics-policy.md):
 
-* only embeddings are stored (``Maison Face Template`` rows on the Customer) — never images;
-* nothing is enrolled without a ``Maison Biometric Consent`` record, and matching only ever
+* only embeddings are stored (``AWANZ Face Template`` rows on the Customer) — never images;
+* nothing is enrolled without a ``AWANZ Biometric Consent`` record, and matching only ever
   considers templates whose consent is **Active** and whose Customer still carries
   ``maison_face_consent = 1``;
 * revocation and the retention purge destroy the templates and revoke the consent;
-* every outcome is written to ``Maison Recognition Event``.
+* every outcome is written to ``AWANZ Recognition Event``.
 
 Matching is **euclidean distance on the raw embeddings** (``distance < threshold`` ⇒ same
 person, default 0.6 — face-api's published rule). ``score = clamp(1 − distance/1.2, 0, 1)`` is
@@ -38,13 +38,13 @@ from frappe.utils import cint, flt, get_datetime, now_datetime
 from maison_pos import biometrics
 from maison_pos.api.customers import _customer_rows, _loyalty, _phone_regexp
 from maison_pos.identifiers import digits_only
-from maison_pos.maison_pos.doctype.maison_pos_settings.maison_pos_settings import (
+from maison_pos.awanz_pos.doctype.awanz_pos_settings.awanz_pos_settings import (
 	get_recognition_settings,
 	is_recognition_enabled,
 )
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, is_unrestricted
 
-MANAGER_ROLES = ("Maison Manager", "Maison Regional", "Maison Head Office", "System Manager")
+MANAGER_ROLES = ("AWANZ Manager", "AWANZ Regional", "AWANZ Head Office", "System Manager")
 CACHE_VERSION_KEY = "maison_face_templates_version"
 MAX_MATCHES = 3
 OUTCOMES = ("Matched", "NoMatch", "Enrolled", "Undone", "Declined", "Revoked", "Purged")
@@ -198,7 +198,7 @@ def _log(
 		frappe.throw(_("Unknown outcome {0}").format(outcome), frappe.ValidationError)
 	ev = frappe.get_doc(
 		{
-			"doctype": "Maison Recognition Event",
+			"doctype": "AWANZ Recognition Event",
 			"ts": now_datetime(),
 			"outcome": outcome,
 			"score": flt(score) if score is not None else None,
@@ -235,9 +235,9 @@ def _cache_version() -> str:
 
 def _load_template_rows() -> list[dict[str, Any]]:
 	"""All matchable templates: Active consent, consent flag on the Customer, customer enabled."""
-	T = DocType("Maison Face Template")
+	T = DocType("AWANZ Face Template")
 	C = DocType("Customer")
-	K = DocType("Maison Biometric Consent")
+	K = DocType("AWANZ Biometric Consent")
 	rows = (
 		frappe.qb.from_(T)
 		.join(C)
@@ -294,7 +294,7 @@ def match(embedding: Any, model: str, boutique: str, device_id: Optional[str] = 
 	describe the closest candidate even when nothing passed (``best_distance`` is ``None`` with
 	no candidates). ``threshold`` is an alias of ``threshold_distance``. Logs ``Matched`` / ``NoMatch``.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	_assert_enabled(boutique)
 	settings = _settings(boutique)
@@ -352,7 +352,7 @@ def enroll(
 	``{customer, customer_name, client_number, consent, templates: [row names],
 	template_count, created, consent_text_version, event}``. ``offline_uuid`` makes replays idempotent.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	_assert_enabled(boutique)
 	settings = _settings(boutique)
@@ -362,9 +362,9 @@ def enroll(
 
 	offline_uuid = (offline_uuid or "").strip() or None
 	if offline_uuid:
-		existing = frappe.db.get_value("Maison Biometric Consent", {"offline_uuid": offline_uuid}, ["name", "customer"], as_dict=True)
+		existing = frappe.db.get_value("AWANZ Biometric Consent", {"offline_uuid": offline_uuid}, ["name", "customer"], as_dict=True)
 		if existing:
-			templates = frappe.get_all("Maison Face Template", filters={"parent": existing.customer, "consent": existing.name}, pluck="name")
+			templates = frappe.get_all("AWANZ Face Template", filters={"parent": existing.customer, "consent": existing.name}, pluck="name")
 			out = _customer_summary(existing.customer)
 			out.update({"consent": existing.name, "templates": templates, "template_count": len(templates), "created": False, "duplicate": True, "consent_text_version": None, "event": None})
 			return out
@@ -414,19 +414,19 @@ def enroll(
 		customer, created = find_or_create_customer(phone, email, name)
 
 	# --- consent record (previous Active one is superseded) --------------------
-	for old in frappe.get_all("Maison Biometric Consent", filters={"customer": customer, "status": "Active"}, pluck="name"):
-		frappe.db.set_value("Maison Biometric Consent", old, "status", "Superseded")
+	for old in frappe.get_all("AWANZ Biometric Consent", filters={"customer": customer, "status": "Active"}, pluck="name"):
+		frappe.db.set_value("AWANZ Biometric Consent", old, "status", "Superseded")
 	now = now_datetime()
 	consent_doc = frappe.get_doc(
 		{
-			"doctype": "Maison Biometric Consent",
+			"doctype": "AWANZ Biometric Consent",
 			"customer": customer,
 			"status": "Active",
 			"consent_text_version": text_version,
 			"consent_text": settings["consent_text"],
 			"method": method,
 			"boutique": boutique,
-			"associate": frappe.db.get_value("Maison Associate", {"user": frappe.session.user, "enabled": 1}, "name"),
+			"associate": frappe.db.get_value("AWANZ Associate", {"user": frappe.session.user, "enabled": 1}, "name"),
 			"device_id": device_id,
 			"captured_at": now,
 			"ip": _request_ip(),
@@ -511,7 +511,7 @@ def decline(
 	customer: Optional[str] = None,
 ) -> dict[str, Any]:
 	"""Client said "No thanks": create/link the Customer *without* biometrics; logs ``Declined``."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	created = False
 	if customer:
@@ -536,7 +536,7 @@ def templates(boutique: str, since: Optional[str] = None) -> dict[str, Any]:
 	``deleted`` lists customers whose consent was revoked / purged since then. Empty (with
 	``enabled: 0``) when ``recognition_offline_cache`` is off.
 	"""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	boutique = assert_boutique_access(boutique)
 	settings = _settings(boutique)
 	version = now_datetime().isoformat()
@@ -566,7 +566,7 @@ def templates(boutique: str, since: Optional[str] = None) -> dict[str, Any]:
 		deleted = sorted(
 			set(
 				frappe.get_all(
-					"Maison Biometric Consent",
+					"AWANZ Biometric Consent",
 					filters={"status": "Revoked", "revoked_at": (">=", since_dt)},
 					pluck="customer",
 				)
@@ -588,20 +588,20 @@ def purge_templates(customer: str, consent: Optional[str] = None) -> int:
 	filters: dict[str, Any] = {"parent": customer, "parenttype": "Customer"}
 	if consent:
 		filters["consent"] = consent
-	names = frappe.get_all("Maison Face Template", filters=filters, pluck="name")
+	names = frappe.get_all("AWANZ Face Template", filters=filters, pluck="name")
 	if names:
-		frappe.db.delete("Maison Face Template", {"name": ("in", names)})
+		frappe.db.delete("AWANZ Face Template", {"name": ("in", names)})
 		invalidate_template_cache()
 	return len(names)
 
 
 def revoke_consent_records(customer: str, reason: str, revoked_by: Optional[str] = None) -> list[str]:
 	"""Flip every Active/Superseded consent of *customer* to Revoked (no template handling)."""
-	names = frappe.get_all("Maison Biometric Consent", filters={"customer": customer, "status": ("in", ["Active", "Superseded"])}, pluck="name")
+	names = frappe.get_all("AWANZ Biometric Consent", filters={"customer": customer, "status": ("in", ["Active", "Superseded"])}, pluck="name")
 	now = now_datetime()
 	for n in names:
 		frappe.db.set_value(
-			"Maison Biometric Consent",
+			"AWANZ Biometric Consent",
 			n,
 			{"status": "Revoked", "revoked_at": now, "revoked_by": revoked_by or frappe.session.user, "revoke_reason": (reason or "")[:500]},
 		)
@@ -645,7 +645,7 @@ def log_event(
 	device_id: Optional[str] = None,
 ) -> dict[str, Any]:
 	"""Client-side outcomes (``Undone``; also ``Matched`` / ``NoMatch`` decided offline). Returns ``{ok, event}``."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if outcome not in CLIENT_LOGGABLE_OUTCOMES:
 		frappe.throw(_("outcome must be one of {0}").format(", ".join(CLIENT_LOGGABLE_OUTCOMES)), frappe.ValidationError)
 	if boutique or not is_unrestricted():
@@ -661,18 +661,18 @@ def log_event(
 @frappe.whitelist()
 def status(customer: str) -> dict[str, Any]:
 	"""Biometric status line for the Client screen: consent, enrolment date, template count."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if not frappe.db.exists("Customer", customer):
 		frappe.throw(_("Customer {0} not found").format(customer), frappe.DoesNotExistError)
 	out = _customer_summary(customer)
 	active = frappe.db.get_value(
-		"Maison Biometric Consent",
+		"AWANZ Biometric Consent",
 		{"customer": customer, "status": "Active"},
 		["name", "captured_at", "consent_text_version", "method", "boutique"],
 		as_dict=True,
 	)
 	out["consent"] = active
-	out["templates"] = frappe.db.count("Maison Face Template", {"parent": customer, "parenttype": "Customer"})
+	out["templates"] = frappe.db.count("AWANZ Face Template", {"parent": customer, "parenttype": "Customer"})
 	out["can_revoke"] = bool(set(MANAGER_ROLES) & set(frappe.get_roles())) or frappe.session.user == "Administrator"
 	return out
 
@@ -684,7 +684,7 @@ def recognition_counts(boutiques: list[str], day) -> dict[str, int]:
 	start = get_datetime(f"{day} 00:00:00")
 	end = get_datetime(f"{day} 23:59:59")
 	rows = frappe.get_all(
-		"Maison Recognition Event",
+		"AWANZ Recognition Event",
 		filters={"boutique": ("in", boutiques), "ts": ("between", [start, end])},
 		fields=["outcome", "count(name) as n"],
 		group_by="outcome",

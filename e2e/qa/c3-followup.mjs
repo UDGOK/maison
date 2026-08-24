@@ -3,18 +3,18 @@ const a = await apiFor('admin'), w = await apiFor(WH)
 
 // ---- reproduce + document the reject-from-alert failure
 const req = 'MRR-2026-00043'
-const before = await a.value('Maison Replenishment Request', req, ['status', 'material_request'])
-const alert = (await a.list('Maison Stock Alert', { material_request: before.material_request }, ['name', 'item_code', 'status', 'material_request'], 5))[0]
+const before = await a.value('AWANZ Replenishment Request', req, ['status', 'material_request'])
+const alert = (await a.list('AWANZ Stock Alert', { material_request: before.material_request }, ['name', 'item_code', 'status', 'material_request'], 5))[0]
 const r = await w.tryPost('maison_pos.api.shipping.reject', { request: req, reason: `${TAG} reproducing the reject bug` })
-const after = await a.value('Maison Replenishment Request', req, ['status', 'material_request', 'rejection_reason'])
+const after = await a.value('AWANZ Replenishment Request', req, ['status', 'material_request', 'rejection_reason'])
 record('BUG: a request raised by one-tap from a low-stock alert CANNOT be rejected', !r.ok,
-  `${req} (from alert ${alert?.name}, ${alert?.item_code}) -> reject returns ${r.status} ${String(r.exc).slice(0, 240)}; request stays ${JSON.stringify(after)} (was ${JSON.stringify(before)}); the alert still points at ${alert?.material_request}. shipping.py reject() deletes the draft Material Request BEFORE clearing Maison Stock Alert.material_request, so the delete hits LinkExistsError.`,
+  `${req} (from alert ${alert?.name}, ${alert?.item_code}) -> reject returns ${r.status} ${String(r.exc).slice(0, 240)}; request stays ${JSON.stringify(after)} (was ${JSON.stringify(before)}); the alert still points at ${alert?.material_request}. shipping.py reject() deletes the draft Material Request BEFORE clearing AWANZ Stock Alert.material_request, so the delete hits LinkExistsError.`,
   'high')
 // the workaround a human would have to apply
-await a.post('frappe.client.set_value', { doctype: 'Maison Stock Alert', name: alert.name, fieldname: 'material_request', value: '' })
+await a.post('frappe.client.set_value', { doctype: 'AWANZ Stock Alert', name: alert.name, fieldname: 'material_request', value: '' })
 const r2 = await w.tryPost('maison_pos.api.shipping.reject', { request: req, reason: `${TAG} QA test request — withdrawn during cleanup` })
 record('...and it can only be rejected after the alert link is cleared by hand (proves the cause)', r2.ok,
-  `after clearing Maison Stock Alert.material_request on ${alert.name}: reject -> ${r2.ok ? 'Rejected' : String(r2.exc).slice(0, 200)}`, 'high')
+  `after clearing AWANZ Stock Alert.material_request on ${alert.name}: reject -> ${r2.ok ? 'Rejected' : String(r2.exc).slice(0, 200)}`, 'high')
 
 // ---- remaining cleanup
 for (const [dt, name] of [['Stock Reconciliation', 'MAT-RECO-2026-00001']]) {

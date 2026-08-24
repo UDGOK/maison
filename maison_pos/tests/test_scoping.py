@@ -94,7 +94,7 @@ class TestScoping(FrappeTestCase):
 	def test_heartbeat_scoped(self):
 		frappe.set_user(CHI_ASSOCIATE)
 		self.assertTrue(dashboard.heartbeat("CHI-OAK", "IPAD-7", queued=2)["ok"])
-		hb = frappe.db.get_value("Maison Device Heartbeat", {"boutique": "CHI-OAK", "device_id": "IPAD-7"}, ["status", "queued"], as_dict=True)
+		hb = frappe.db.get_value("AWANZ Device Heartbeat", {"boutique": "CHI-OAK", "device_id": "IPAD-7"}, ["status", "queued"], as_dict=True)
 		self.assertEqual((hb.status, hb.queued), ("Online", 2))
 		with self.assertRaises(frappe.PermissionError):
 			dashboard.heartbeat("MIA-DD", "IPAD-7", queued=0)
@@ -104,7 +104,7 @@ class TestScoping(FrappeTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			frappe.get_doc(
 				{
-					"doctype": "Maison Price Change Request",
+					"doctype": "AWANZ Price Change Request",
 					"item_code": "AC-001",
 					"boutique": "CHI-OAK",
 					"proposed_rate": 2_000,
@@ -114,15 +114,15 @@ class TestScoping(FrappeTestCase):
 			).insert()
 
 	def test_pin_verify(self):
-		from maison_pos.maison_pos.doctype.maison_associate.maison_associate import verify_pin
+		from maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate import verify_pin
 
 		frappe.set_user(NYC_ASSOCIATE)
 		self.assertTrue(verify_pin(NYC_ASSOCIATE, "2580")["ok"])
 		self.assertFalse(verify_pin(NYC_ASSOCIATE, "0000")["ok"])
 		with self.assertRaises(frappe.PermissionError):
 			verify_pin(CHI_ASSOCIATE, "2580")
-		self.assertFalse(frappe.db.get_value("Maison Associate", NYC_ASSOCIATE, "pin"))
+		self.assertFalse(frappe.db.get_value("AWANZ Associate", NYC_ASSOCIATE, "pin"))
 		# v0.7 S2 — the hash lives in `__Auth` (Password fieldtype); the column holds only asterisks
-		column = frappe.db.get_value("Maison Associate", NYC_ASSOCIATE, "pin_hash")
+		column = frappe.db.get_value("AWANZ Associate", NYC_ASSOCIATE, "pin_hash")
 		self.assertEqual(set(column), {"*"})
-		self.assertTrue(frappe.get_doc("Maison Associate", NYC_ASSOCIATE).get_pin_hash().startswith("pbkdf2_sha256$"))
+		self.assertTrue(frappe.get_doc("AWANZ Associate", NYC_ASSOCIATE).get_pin_hash().startswith("pbkdf2_sha256$"))

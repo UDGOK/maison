@@ -1,4 +1,4 @@
-// Maison POS end-to-end run against the real bench.
+// AWANZ POS end-to-end run against the real bench.
 // Run:  PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node e2e/pos.e2e.mjs
 // Env:  BASE (default http://maison.localhost:8000), ASSOC_USER/ASSOC_PWD, ADMIN_PWD
 import { chromium } from 'playwright'
@@ -83,7 +83,7 @@ const STOCKED_BY_NAME = ['Silk Pocket Square', 'Travel Jewellery Case', 'Cufflin
 async function ensureStock(admin) {
   const b = await admin.get('maison_pos.api.catalog.bootstrap', { boutique: BOUTIQUE })
   const bq = (await admin.get('frappe.client.get_list', {
-    doctype: 'Maison Boutique', filters: JSON.stringify({ name: BOUTIQUE }), fields: JSON.stringify(['company', 'warehouse'])
+    doctype: 'AWANZ Store', filters: JSON.stringify({ name: BOUTIQUE }), fields: JSON.stringify(['company', 'warehouse'])
   }))[0]
   const rows = []
   for (const name of STOCKED_BY_NAME) {
@@ -110,7 +110,7 @@ async function ensureFreeSerial(admin) {
   const code = b.items.find((i) => i.has_serial_no)?.item_code
   if (!code) return
   const bq = (await admin.get('frappe.client.get_list', {
-    doctype: 'Maison Boutique', filters: JSON.stringify({ name: BOUTIQUE }), fields: JSON.stringify(['company', 'warehouse'])
+    doctype: 'AWANZ Store', filters: JSON.stringify({ name: BOUTIQUE }), fields: JSON.stringify(['company', 'warehouse'])
   }))[0]
   const tag = Math.random().toString(36).slice(2, 6).toUpperCase()
   await admin.post('frappe.client.insert', {
@@ -347,11 +347,11 @@ try {
     ws.on('framereceived', (f) => socketFrames.push({ in: String(f.payload).slice(0, 200) }))
     ws.on('socketerror', (e) => socketFrames.push({ err: String(e) }))
   })
-  await dpage.goto('/maison-dashboard', { waitUntil: 'networkidle' })
+  await dpage.goto('/awanz-dashboard', { waitUntil: 'networkidle' })
   await sleep(2000)
   await shot(dpage, 'dashboard-initial')
   const dashText0 = await dpage.locator('body').innerText()
-  record('dashboard opens as Administrator', dl.ok() && /MAISON/i.test(dashText0) && !/not built/i.test(dashText0), '')
+  record('dashboard opens as Administrator', dl.ok() && /AWANZ/i.test(dashText0) && !/not built/i.test(dashText0), '')
 
   const invoicesBefore = (await admin.get('maison_pos.api.dashboard.live_summary')).totals.invoices
   const kpiBefore = await dpage.evaluate(() => document.body.innerText)

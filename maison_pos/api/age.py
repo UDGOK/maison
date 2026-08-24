@@ -5,7 +5,7 @@ PDF417 barcode on the back of a US driver's licence / state ID (**AAMVA** DL/ID 
 standard) or enters the date of birth read from the ID by hand.
 
 Privacy: the raw barcode payload is parsed on the device *and* re-checked here, but **nothing
-but the outcome is stored** — ``Maison Age Check`` keeps method, outcome, age in years, DOB year,
+but the outcome is stored** — ``AWANZ Age Check`` keeps method, outcome, age in years, DOB year,
 initials (two letters) and whether the ID was expired. No name, licence number, address or
 photo ever reaches the database; the Sales Invoice carries ``maison_age_verified / method /
 dob_year_ok / checked_by / checked_at`` and a link to the audit row.
@@ -31,7 +31,7 @@ from frappe import _
 from frappe.utils import cint, getdate, now_datetime, nowdate
 
 from maison_pos.brand import get_age_settings
-from maison_pos.scoping import ALL_MAISON_ROLES, assert_boutique_access, assert_roles, get_associate
+from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_associate
 
 ERR_AGE = "AGE_VERIFICATION"
 
@@ -174,7 +174,7 @@ def _log(boutique: Optional[str], method: str, result: dict[str, Any], parsed: d
 		assoc = None
 	doc = frappe.get_doc(
 		{
-			"doctype": "Maison Age Check",
+			"doctype": "AWANZ Age Check",
 			"boutique": boutique,
 			"associate": assoc,
 			"device_id": device_id,
@@ -236,14 +236,14 @@ def _outcome_message(outcome: str, minimum: int, age: Optional[int]) -> str:
 @frappe.whitelist()
 def settings() -> dict[str, Any]:
 	"""Age-gate switches for the POS / Salon."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	return get_age_settings()
 
 
 @frappe.whitelist()
 def verify_scan(raw: str, boutique: Optional[str] = None, device_id: Optional[str] = None, offline_uuid: Optional[str] = None) -> dict[str, Any]:
 	"""Scan path: AAMVA PDF417 payload in, masked outcome out (+ audit row). The payload is not stored."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique:
 		boutique = assert_boutique_access(boutique)
 	if not get_age_settings()["id_scan_enabled"]:
@@ -255,7 +255,7 @@ def verify_scan(raw: str, boutique: Optional[str] = None, device_id: Optional[st
 @frappe.whitelist()
 def verify_manual(dob: str, boutique: Optional[str] = None, expiry: Optional[str] = None, initials: Optional[str] = None, device_id: Optional[str] = None, offline_uuid: Optional[str] = None) -> dict[str, Any]:
 	"""Manual path: the associate read the DOB (and optionally the expiry) off the ID."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique:
 		boutique = assert_boutique_access(boutique)
 	try:
@@ -275,7 +275,7 @@ def verify_manual(dob: str, boutique: Optional[str] = None, expiry: Optional[str
 @frappe.whitelist()
 def decline(boutique: Optional[str] = None, device_id: Optional[str] = None, offline_uuid: Optional[str] = None) -> dict[str, Any]:
 	"""The client could not / would not show an ID — logged, sale of restricted items refused."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	if boutique:
 		boutique = assert_boutique_access(boutique)
 	result = {"outcome": OUTCOME_DECLINED, "age": None, "ok": False, "dob_year_ok": 0, "expired": 0, "minimum_age": get_age_settings()["minimum_age"]}
@@ -306,7 +306,7 @@ def _checked_at(value: Any):
 
 		return parse_datetime(value) or now_datetime()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "maison age checked_at parse")
+		frappe.log_error(frappe.get_traceback(), "awanz age checked_at parse")
 		return now_datetime()
 
 
@@ -335,8 +335,8 @@ def apply_to_invoice(si, payload: dict[str, Any]) -> None:
 		)
 	method = "Scan" if str(check.get("method", "")).lower().startswith("s") else "Manual"
 	name = check.get("check")
-	if name and frappe.db.exists("Maison Age Check", name):
-		row = frappe.db.get_value("Maison Age Check", name, ["outcome", "dob_year_ok", "method"], as_dict=True)
+	if name and frappe.db.exists("AWANZ Age Check", name):
+		row = frappe.db.get_value("AWANZ Age Check", name, ["outcome", "dob_year_ok", "method"], as_dict=True)
 		if row.outcome != OUTCOME_VERIFIED:
 			raise AgeVerificationError(_("Age check {0} did not pass ({1})").format(name, row.outcome))
 		method = row.method or method
@@ -356,19 +356,19 @@ def apply_to_invoice(si, payload: dict[str, Any]) -> None:
 
 def link_check_to_invoice(doc, method: Optional[str] = None) -> None:
 	"""Sales Invoice on_submit: stamp the invoice name on the audit row."""
-	if doc.get("maison_age_check") and frappe.db.exists("Maison Age Check", doc.maison_age_check):
-		frappe.db.set_value("Maison Age Check", doc.maison_age_check, "sales_invoice", doc.name, update_modified=False)
+	if doc.get("maison_age_check") and frappe.db.exists("AWANZ Age Check", doc.maison_age_check):
+		frappe.db.set_value("AWANZ Age Check", doc.maison_age_check, "sales_invoice", doc.name, update_modified=False)
 
 
 @frappe.whitelist()
 def recent(boutique: Optional[str] = None, limit: int = 50) -> list[dict[str, Any]]:
 	"""Recent checks (managers: own store)."""
-	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
 	filters: dict[str, Any] = {}
 	if boutique:
 		filters["boutique"] = assert_boutique_access(boutique)
 	return frappe.get_all(
-		"Maison Age Check",
+		"AWANZ Age Check",
 		filters=filters,
 		fields=["name", "boutique", "associate", "method", "outcome", "ts", "age_years", "dob_year_ok", "id_expired", "issuer", "sales_invoice"],
 		order_by="ts desc",

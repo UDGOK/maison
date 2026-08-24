@@ -120,4 +120,4 @@ print(f"\nHOU-WH in by_boutique? {'HOU-WH' in [b['boutique'] for b in live['by_b
 print(f"\n{len(issues)} discrepancies")
 for i in issues[:40]: print("  !", i)
 json.dump({"issues": issues, "live": live, "calc_totals": tot, "t_live_ms": t_live*1000},
-          open("/home/claude/maison/e2e/qa/results-d1.json","w"), indent=1, default=str)
+          open("/home/claude/awanz/e2e/qa/results-d1.json","w"), indent=1, default=str)

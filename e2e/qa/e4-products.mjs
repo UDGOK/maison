@@ -1,7 +1,7 @@
 import { launch, check, save, shot, money, BASE } from './lib-dash.mjs'
 const { browser, page, console_ } = await launch()
 const t0 = Date.now()
-await page.goto(`${BASE}/maison-dashboard?view=products`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard?view=products`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="trending"] .row[data-item]', { timeout: 45000 })
 const tProd = Date.now() - t0
 await page.waitForTimeout(800)

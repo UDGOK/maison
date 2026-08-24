@@ -13,13 +13,13 @@ const runJob = async (job) => {
 }
 
 // ---- 1.x alerts auto-resolve once stock is back
-const openBefore = await a.list('Maison Stock Alert', { boutique: STORE, status: ['in', ['Open', 'Acknowledged']] }, ['name', 'item_code', 'status', 'qty'], 20)
+const openBefore = await a.list('AWANZ Stock Alert', { boutique: STORE, status: ['in', ['Open', 'Acknowledged']] }, ['name', 'item_code', 'status', 'qty'], 20)
 const onhand = {}
 for (const r of openBefore) onhand[r.item_code] = Number((await a.list('Bin', { item_code: r.item_code, warehouse: SWH }, ['actual_qty']))[0]?.actual_qty || 0)
 log('open before scan: ' + JSON.stringify(openBefore) + ' on hand now: ' + JSON.stringify(onhand))
 const scan = await runJob('inventory.low_stock_scan')
-const openAfter = await a.list('Maison Stock Alert', { boutique: STORE, status: ['in', ['Open', 'Acknowledged']] }, ['name', 'item_code', 'status'], 20)
-const resolved = await a.list('Maison Stock Alert', { name: ['in', openBefore.map(r => r.name)] }, ['name', 'item_code', 'status', 'qty', 'resolved_at'], 20)
+const openAfter = await a.list('AWANZ Stock Alert', { boutique: STORE, status: ['in', ['Open', 'Acknowledged']] }, ['name', 'item_code', 'status'], 20)
+const resolved = await a.list('AWANZ Stock Alert', { name: ['in', openBefore.map(r => r.name)] }, ['name', 'item_code', 'status', 'qty', 'resolved_at'], 20)
 record('alerts auto-resolve on the next scan once stock is back above the reorder level',
   scan.status === 'Complete' && resolved.every(r => r.status === 'Resolved') && openAfter.length === 0,
   `scan=${scan.status}; ${JSON.stringify(resolved.map(r => [r.item_code, r.status, r.qty]))}; open left for ${STORE}: ${openAfter.length}`)
@@ -31,7 +31,7 @@ const q0 = await a.list('Email Queue', {}, ['name'], 1, 'creation desc')
 const dig = await runJob('inventory.low_stock_digest')
 const q1 = await a.list('Email Queue', {}, ['name', 'status', 'reference_doctype', 'creation'], 10, 'creation desc')
 const fresh = q1.filter(r => !q0.length || r.name !== q0[0].name)
-const openAll = await a.list('Maison Stock Alert', { status: ['in', ['Open', 'Acknowledged']] }, ['name', 'boutique', 'item_code'], 200)
+const openAll = await a.list('AWANZ Stock Alert', { status: ['in', ['Open', 'Acknowledged']] }, ['name', 'boutique', 'item_code'], 200)
 record('inventory.low_stock_digest (daily job) runs without error', dig.status === 'Complete', `job status=${dig.status} details=${String(dig.details || '').slice(0, 200)}`)
 record('the digest is a no-op when no alert is open anywhere, and queues mail when some are',
   true, `${openAll.length} open alert(s) site-wide at run time (${[...new Set(openAll.map(r => r.boutique))].join(', ') || 'none'}); Email Queue rows created: ${fresh.length}${fresh.length ? ' -> ' + JSON.stringify(fresh.slice(0, 3).map(r => [r.name, r.status])) : ''}`,

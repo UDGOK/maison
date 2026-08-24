@@ -1,4 +1,4 @@
-// Maison Salon (v0.5 K) end-to-end run against the REAL bench, with TWO browser contexts:
+// AWANZ Salon (v0.5 K) end-to-end run against the REAL bench, with TWO browser contexts:
 //   POS  — the associate's iPad (/pos, logged in as chi.oak.a1)
 //   Salon — the client-facing iPad (/salon, a guest: no login, only the pairing code / session token)
 //
@@ -11,7 +11,7 @@
 //   POS adds two more pieces → Salon basket mirror updates (focus piece, lines, total, points) → "Ask about this piece" → CRM note
 //   POS cash pay → Salon: payment → Approved (gold pulse) → thank-you with points, receipt QR → feedback 1–5 → HQ sees it
 //   → private-viewing invitation → returns to ambient
-//   Sign-up from the Salon: POS starts a new sale → "Join Maison" → creates the Customer → attached on the POS; concierge Q&A
+//   Sign-up from the Salon: POS starts a new sale → "Join AWANZ" → creates the Customer → attached on the POS; concierge Q&A
 //   → Client Profile carries ring size / metal / styles; unpair → Salon back to pairing.
 import { chromium, request } from 'playwright'
 import fs from 'node:fs'
@@ -106,7 +106,7 @@ async function freshDevice(page) {
   await page.evaluate(async () => {
     localStorage.clear()
     sessionStorage.clear()
-    localStorage.setItem('maisonE2E', '1')
+    localStorage.setItem('awanzE2E', '1')
     const dbs = (await indexedDB.databases?.()) || [{ name: 'maison_pos' }]
     await Promise.all(dbs.map((d) => new Promise((r) => { const req = indexedDB.deleteDatabase(d.name); req.onsuccess = req.onerror = req.onblocked = () => r() })))
   })
@@ -168,10 +168,10 @@ const WATCH = boot.items.find((i) => i.item_group === 'Timepieces' && inStock(i)
 const ACCESSORIES = boot.items.filter((i) => i.item_group === 'Accessories' && !i.has_serial_no && Number(boot.stock?.[i.item_code] || 0) > 3).slice(0, 3)
 log(`pieces: ${WATCH?.item_name} + ${ACCESSORIES.map((a) => a.item_name).join(', ')}`)
 // recognition consent from the Salon needs the boutique switch On (restored at the end)
-const boutiqueRecognitionBefore = (await admin.value('Maison Boutique', BOUTIQUE, ['face_recognition_enabled']))?.face_recognition_enabled || 'Inherit'
-await admin.post('frappe.client.set_value', { doctype: 'Maison Boutique', name: BOUTIQUE, fieldname: 'face_recognition_enabled', value: 'On' })
+const boutiqueRecognitionBefore = (await admin.value('AWANZ Store', BOUTIQUE, ['face_recognition_enabled']))?.face_recognition_enabled || 'Inherit'
+await admin.post('frappe.client.set_value', { doctype: 'AWANZ Store', name: BOUTIQUE, fieldname: 'face_recognition_enabled', value: 'On' })
 // a clean slate: no paired session for this associate's devices
-for (const s of await admin.list('Maison Salon Session', { boutique: BOUTIQUE, status: 'Paired' }, ['name'], 20)) await admin.post('maison_pos.api.salon.unpair_pos', { session: s.name }).catch(() => null)
+for (const s of await admin.list('AWANZ Salon Session', { boutique: BOUTIQUE, status: 'Paired' }, ['name'], 20)) await admin.post('maison_pos.api.salon.unpair_pos', { session: s.name }).catch(() => null)
 
 const browser = await chromium.launch({ headless: true, args: ['--disable-gpu'] })
 const pos = await posContext(browser, ASSOC, 'pos')
@@ -204,8 +204,8 @@ try {
   await pos.page.waitForFunction(() => document.querySelector('[data-testid=salon-status]')?.textContent?.includes('Paired'), null, { timeout: 15000 })
   record('POS Settings card flips to Paired (poll / realtime)', true)
   await shot(pos.page, 'pos-settings-paired')
-  const session = (await assocApi.get('maison_pos.api.salon.pos_status', { boutique: BOUTIQUE, pos_device_id: await pos.page.evaluate(() => localStorage.getItem('maison.device_id') || '') })).session
-  record('server: Maison Salon Session Paired for this POS device', session?.status === 'Paired', session?.token?.slice(0, 8))
+  const session = (await assocApi.get('maison_pos.api.salon.pos_status', { boutique: BOUTIQUE, pos_device_id: await pos.page.evaluate(() => localStorage.getItem('awanz.device_id') || '') })).session
+  record('server: AWANZ Salon Session Paired for this POS device', session?.status === 'Paired', session?.token?.slice(0, 8))
   await salon.page.waitForSelector('[data-testid=ambient-piece]', { timeout: 10000 })
   const clock = (await salon.page.locator('[data-testid=salon-clock]').textContent()).trim()
   record('ambient shows the hour and a playlist piece', /\d/.test(clock) && (await salon.page.locator('[data-testid=ambient-piece]').count()) === 1, clock)
@@ -257,7 +257,7 @@ try {
   await salon.page.click('[data-testid=basket-send]')
   await salon.page.waitForSelector('[data-testid=basket-asked]', { timeout: 8000 })
   await pos.page.waitForFunction(() => /Client asks/.test(document.body.textContent || ''), null, { timeout: 10000 })
-  const note = (await admin.list('Maison Client Interaction', { customer: mei.name, type: 'Note' }, ['note'], 1))[0]
+  const note = (await admin.list('AWANZ Client Interaction', { customer: mei.name, type: 'Note' }, ['note'], 1))[0]
   record('"Ask about this piece" → CRM interaction + POS notice', !!note && note.note.includes(RUN) && note.note.includes(ACCESSORIES[1].item_name), note?.note)
   await shot(pos.page, 'pos-question-notice')
   await dismissNotices(pos.page)
@@ -308,14 +308,14 @@ try {
   await shot(salon.page, 'salon-feedback')
   await salon.page.click('[data-testid=feedback-send]')
   await waitView(salon.page, 'invite')
-  const fb = (await admin.list('Maison Feedback', { sales_invoice: invoice.name }, ['rating', 'comment', 'boutique', 'status']))[0]
-  record('feedback reaches HQ (Maison Feedback, status New)', fb?.rating === 5 && fb.comment.includes(RUN) && fb.boutique === BOUTIQUE, JSON.stringify(fb))
+  const fb = (await admin.list('AWANZ Feedback', { sales_invoice: invoice.name }, ['rating', 'comment', 'boutique', 'status']))[0]
+  record('feedback reaches HQ (AWANZ Feedback, status New)', fb?.rating === 5 && fb.comment.includes(RUN) && fb.boutique === BOUTIQUE, JSON.stringify(fb))
   const summary = await admin.get('maison_pos.api.feedback.summary', { days: 1 })
   record('HQ feedback summary counts it', summary.count >= feedbackBefore + 1, `${feedbackBefore} → ${summary.count}`)
   await shot(salon.page, 'salon-invite')
   await salon.page.click('[data-testid=invite-yes]')
   await salon.page.waitForSelector('[data-testid=invite-done]', { timeout: 20000 })
-  const inviteFlag = await admin.value('Maison Client Profile', mei.name, ['private_viewing_invite'])
+  const inviteFlag = await admin.value('AWANZ Client Profile', mei.name, ['private_viewing_invite'])
   record('private-viewing invitation sets the Client Profile flag', inviteFlag?.private_viewing_invite === 1, JSON.stringify(inviteFlag))
   await salon.page.click('[data-testid=invite-done]')
   await waitView(salon.page, 'ambient')
@@ -336,7 +336,7 @@ try {
   await pos.page.waitForFunction((n) => document.querySelector('.basket .client-name')?.textContent?.includes(n), NEWCOMER.name, { timeout: 20000 })
   const created = (await admin.list('Customer', { customer_name: NEWCOMER.name }, ['name', 'mobile_no', 'maison_client_number']))[0]
   record('sign-up creates the Customer (client № assigned) and attaches it on the POS', !!created?.maison_client_number && created.mobile_no === NEWCOMER.phone, JSON.stringify(created))
-  const prof = await admin.value('Maison Client Profile', created.name, ['do_not_email', 'do_not_sms', 'birthday'])
+  const prof = await admin.value('AWANZ Client Profile', created.name, ['do_not_email', 'do_not_sms', 'birthday'])
   record('sign-up stores marketing preferences + birthday on the Client Profile', prof?.do_not_email === 0 && prof?.do_not_sms === 1 && String(prof.birthday) === '1990-05-04', JSON.stringify(prof))
   await salon.page.waitForFunction(() => document.documentElement.dataset.salonView === 'signup' && !!document.querySelector('[data-testid=signup-offer-recognition]'), null, { timeout: 10000 })
   record('Salon offers the optional recognition consent after joining (boutique On)', true)
@@ -387,7 +387,7 @@ try {
   await salon.page.fill('[data-testid=occasion-date]', '2020-09-12')
   await salon.page.click('[data-testid=concierge-finish]')
   await salon.page.waitForSelector('[data-testid=concierge-saved]', { timeout: 10000 })
-  const prefs = await admin.value('Maison Client Profile', created.name, ['ring_size', 'wrist_size', 'metal_preference', 'style_notes', 'anniversary'])
+  const prefs = await admin.value('AWANZ Client Profile', created.name, ['ring_size', 'wrist_size', 'metal_preference', 'style_notes', 'anniversary'])
   record('concierge answers land in the Client Profile', prefs?.ring_size === '7' && prefs.wrist_size === '16 cm' && prefs.metal_preference === 'Rose Gold' && /Minimal, Heritage/.test(prefs.style_notes) && String(prefs.anniversary) === '2020-09-12', JSON.stringify(prefs))
   await shot(salon.page, 'salon-concierge-done')
   await pos.page.click('[data-testid=salon-concierge]') // end concierge
@@ -400,11 +400,11 @@ try {
   await pos.page.click('[data-testid=salon-unpair]')
   await waitView(salon.page, 'pair', 15000)
   record('unpair from the POS → Salon returns to the pairing screen', true)
-  const ended = await admin.value('Maison Salon Session', session.token, ['status'])
+  const ended = await admin.value('AWANZ Salon Session', session.token, ['status'])
   record('server session Unpaired', ended?.status === 'Unpaired', JSON.stringify(ended))
   // guest cannot list sessions
   const guest = await request.newContext({ baseURL: BASE })
-  const listed = await (await guest.get('/api/resource/Maison Salon Session')).json()
+  const listed = await (await guest.get('/api/resource/AWANZ Salon Session')).json()
   record('guest cannot list salon sessions', Array.isArray(listed.data) && listed.data.length === 0, JSON.stringify(listed).slice(0, 80))
   await guest.dispose()
 } catch (e) {
@@ -412,13 +412,13 @@ try {
   await shot(pos.page, 'pos-failure').catch(() => null)
   await shot(salon.page, 'salon-failure').catch(() => null)
 } finally {
-  await admin.post('frappe.client.set_value', { doctype: 'Maison Boutique', name: BOUTIQUE, fieldname: 'face_recognition_enabled', value: boutiqueRecognitionBefore }).catch(() => null)
+  await admin.post('frappe.client.set_value', { doctype: 'AWANZ Store', name: BOUTIQUE, fieldname: 'face_recognition_enabled', value: boutiqueRecognitionBefore }).catch(() => null)
   // clean up the test client
   if (NEWCOMER.name) {
     const created = (await admin.list('Customer', { customer_name: NEWCOMER.name }, ['name']).catch(() => []))[0]
     if (created) {
-      for (const dt of ['Maison Client Interaction', 'Maison Recognition Event']) for (const r of await admin.list(dt, { customer: created.name }, ['name']).catch(() => [])) await admin.post('frappe.client.delete', { doctype: dt, name: r.name }).catch(() => null)
-      await admin.post('frappe.client.delete', { doctype: 'Maison Client Profile', name: created.name }).catch(() => null)
+      for (const dt of ['AWANZ Client Interaction', 'AWANZ Recognition Event']) for (const r of await admin.list(dt, { customer: created.name }, ['name']).catch(() => [])) await admin.post('frappe.client.delete', { doctype: dt, name: r.name }).catch(() => null)
+      await admin.post('frappe.client.delete', { doctype: 'AWANZ Client Profile', name: created.name }).catch(() => null)
       await admin.post('frappe.client.delete', { doctype: 'Customer', name: created.name }).catch(() => null)
     }
   }

@@ -1,0 +1,52 @@
+{
+ "actions": [],
+ "autoname": "format:MCC-{YYYY}-{#####}",
+ "creation": "2026-08-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "boutique", "warehouse", "counted_at", "associate", "device_id",
+  "column_break_main", "status", "stock_reconciliation", "reviewed_by", "reviewed_at",
+  "section_result", "expected_serials", "scanned_serials", "missing_serials", "unexpected_serials",
+  "column_break_result", "qty_differences", "counts", "notes"
+ ],
+ "fields": [
+  {"fieldname": "boutique", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Boutique", "options": "AWANZ Store", "reqd": 1},
+  {"fieldname": "warehouse", "fieldtype": "Link", "label": "Warehouse", "options": "Warehouse", "reqd": 1},
+  {"fieldname": "counted_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Counted At", "reqd": 1},
+  {"fieldname": "associate", "fieldtype": "Link", "label": "Associate", "options": "AWANZ Associate"},
+  {"fieldname": "device_id", "fieldtype": "Data", "label": "Device"},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"default": "Draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "in_standard_filter": 1, "label": "Status", "options": "Draft\nReviewed\nDiscarded", "reqd": 1},
+  {"fieldname": "stock_reconciliation", "fieldtype": "Link", "label": "Stock Reconciliation (draft)", "options": "Stock Reconciliation", "read_only": 1},
+  {"fieldname": "reviewed_by", "fieldtype": "Link", "label": "Reviewed By", "options": "User", "read_only": 1},
+  {"fieldname": "reviewed_at", "fieldtype": "Datetime", "label": "Reviewed At", "read_only": 1},
+  {"fieldname": "section_result", "fieldtype": "Section Break", "label": "Result"},
+  {"fieldname": "expected_serials", "fieldtype": "Int", "in_list_view": 1, "label": "Expected Serials", "read_only": 1},
+  {"fieldname": "scanned_serials", "fieldtype": "Int", "in_list_view": 1, "label": "Scanned Serials", "read_only": 1},
+  {"fieldname": "missing_serials", "fieldtype": "Small Text", "label": "Unaccounted Serials (JSON)", "read_only": 1},
+  {"fieldname": "unexpected_serials", "fieldtype": "Small Text", "label": "Unexpected Serials (JSON)", "read_only": 1},
+  {"fieldname": "column_break_result", "fieldtype": "Column Break"},
+  {"fieldname": "qty_differences", "fieldtype": "Small Text", "label": "Qty Differences (JSON)", "read_only": 1},
+  {"fieldname": "counts", "fieldtype": "Long Text", "label": "Raw Counts (JSON)", "read_only": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "links": [],
+ "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Cycle Count",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "AWANZ Head Office", "share": 1, "write": 1},
+  {"read": 1, "report": 1, "role": "AWANZ Regional"},
+  {"create": 1, "read": 1, "report": 1, "role": "AWANZ Manager", "write": 1},
+  {"create": 1, "read": 1, "role": "AWANZ Associate"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

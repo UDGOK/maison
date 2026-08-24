@@ -1,4 +1,4 @@
-"""Inbound e-mail/SMS provider webhooks → ``Maison Campaign Touch`` (SPEC v0.5 §M).
+"""Inbound e-mail/SMS provider webhooks → ``AWANZ Campaign Touch`` (SPEC v0.5 §M).
 
 Signature verification (both providers):
 
@@ -21,7 +21,7 @@ Event mapping (lenient, both JSON-API style and flat payloads):
 | Brevo ``event`` | ``delivered`` / ``request`` / ``sent`` | ``opened`` / ``unique_opened`` | ``click`` / ``clicked`` |
 
 The campaign is resolved from (in order) ``campaign_code`` / ``utm_campaign`` / ``campaign_id``
-(matched to ``Maison Campaign.campaign_code``, ``klaviyo_campaign_id`` or ``brevo_campaign_id``);
+(matched to ``AWANZ Campaign.campaign_code``, ``klaviyo_campaign_id`` or ``brevo_campaign_id``);
 the customer from the e-mail (``Customer.email_id``, then a linked Contact e-mail) or phone.
 """
 
@@ -190,14 +190,14 @@ def resolve_campaign(ref: Any, provider: str) -> Optional[str]:
 	if ref in (None, ""):
 		return None
 	ref = str(ref).strip()
-	if frappe.db.exists("Maison Campaign", ref):
+	if frappe.db.exists("AWANZ Campaign", ref):
 		return ref
 	field = {"klaviyo": "klaviyo_campaign_id", "brevo": "brevo_campaign_id"}.get(provider)
 	if field:
-		found = frappe.db.get_value("Maison Campaign", {field: ref}, "name")
+		found = frappe.db.get_value("AWANZ Campaign", {field: ref}, "name")
 		if found:
 			return found
-	return frappe.db.get_value("Maison Campaign", {"campaign_code": ref}, "name")
+	return frappe.db.get_value("AWANZ Campaign", {"campaign_code": ref}, "name")
 
 
 def resolve_customer(email: Optional[str], phone: Optional[str] = None) -> Optional[str]:
@@ -239,11 +239,11 @@ def record_touch(campaign: str, customer: str, event: str, ts=None, source: str 
 	"""
 	ts = _ts(ts)
 	field = EVENT_FIELD[event]
-	name = frappe.db.get_value("Maison Campaign Touch", {"campaign": campaign, "customer": customer}, "name")
+	name = frappe.db.get_value("AWANZ Campaign Touch", {"campaign": campaign, "customer": customer}, "name")
 	if name:
-		doc = frappe.get_doc("Maison Campaign Touch", name)
+		doc = frappe.get_doc("AWANZ Campaign Touch", name)
 	else:
-		doc = frappe.get_doc({"doctype": "Maison Campaign Touch", "campaign": campaign, "customer": customer, "source": source, "channel": channel or frappe.db.get_value("Maison Campaign", campaign, "channel"), "email": email, "external_id": external_id})
+		doc = frappe.get_doc({"doctype": "AWANZ Campaign Touch", "campaign": campaign, "customer": customer, "source": source, "channel": channel or frappe.db.get_value("AWANZ Campaign", campaign, "channel"), "email": email, "external_id": external_id})
 	current = doc.get(field)
 	if not current or ts < get_datetime(current):
 		doc.set(field, ts)

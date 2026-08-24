@@ -1,4 +1,4 @@
-"""v0.4 section G — glue between Maison POS and the official Frappe ``webshop`` app.
+"""v0.4 section G — glue between AWANZ POS and the official Frappe ``webshop`` app.
 
 Everything in this package degrades gracefully when ``webshop`` / ``payments`` are not
 installed on the site: ``is_webshop_installed()`` guards the seed, the hooks and the API.

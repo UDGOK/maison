@@ -27,7 +27,7 @@ def stamp_store(doc) -> None:
 	if not doc.get("maison_boutique") and doc.get("is_return") and doc.get("return_against"):
 		doc.maison_boutique = frappe.db.get_value("Sales Invoice", doc.return_against, "maison_boutique")
 	if doc.get("maison_boutique") and not doc.get("set_warehouse"):
-		warehouse = frappe.db.get_value("Maison Boutique", doc.maison_boutique, "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", doc.maison_boutique, "warehouse")
 		if warehouse:
 			doc.set_warehouse = warehouse
 
@@ -61,7 +61,7 @@ def validate(doc, method: str | None = None) -> None:
 	_strip_walk_in_loyalty(doc)
 
 	if doc.get("maison_boutique"):
-		enabled = frappe.db.get_value("Maison Boutique", doc.maison_boutique, "enabled")
+		enabled = frappe.db.get_value("AWANZ Store", doc.maison_boutique, "enabled")
 		if enabled is None:
 			frappe.throw(_("Boutique {0} does not exist").format(doc.maison_boutique), frappe.ValidationError)
 		if not enabled:
@@ -95,7 +95,7 @@ def on_submit(doc, method: str | None = None) -> None:
 	if not doc.get("is_pos"):
 		return
 	touch_last_seen(doc.get("maison_boutique"), doc.get("maison_device_id"))
-	publish_sale(doc, "maison_sale")
+	publish_sale(doc, "awanz_sale")
 
 
 def unlink_exchange_pair(doc, method: str | None = None) -> None:
@@ -137,7 +137,7 @@ def on_cancel(doc, method: str | None = None) -> None:
 	try:
 		unlink_exchange_pair(doc, method)
 	except Exception:  # pragma: no cover — never block a cancellation on bookkeeping
-		frappe.log_error(frappe.get_traceback(), "maison exchange unlink")
+		frappe.log_error(frappe.get_traceback(), "awanz exchange unlink")
 	if not doc.get("is_pos"):
 		return
-	publish_sale(doc, "maison_sale_cancelled")
+	publish_sale(doc, "awanz_sale_cancelled")

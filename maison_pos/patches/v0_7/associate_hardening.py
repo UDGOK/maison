@@ -1,4 +1,4 @@
-"""v0.7 S1/S2/S5 — bring an installed site up to the hardened ``Maison Associate``.
+"""v0.7 S1/S2/S5 — bring an installed site up to the hardened ``AWANZ Associate``.
 
 ``bench migrate`` syncs the doctype itself (the new permlevels on ``user`` / ``boutique`` /
 ``role`` and on the PIN fields). Three things it cannot do on its own:
@@ -13,8 +13,8 @@
    hook would be the only thing left holding the door).
 3. **roles that were already over-granted.** The old ``_sync_user_role`` was add-only and ran
    with ``ignore_permissions``: whoever could write ``role`` could hand themselves
-   ``Maison Head Office``, and demoting them again left the Frappe role behind. Every user with
-   a ``Maison Associate`` row is re-synced to exactly the role that row says, and anything extra
+   ``AWANZ Head Office``, and demoting them again left the Frappe role behind. Every user with
+   a ``AWANZ Associate`` row is re-synced to exactly the role that row says, and anything extra
    is removed and logged.
 
 Idempotent: safe to run again, and safe on a site that never had the hole.
@@ -26,14 +26,14 @@ import frappe
 
 from maison_pos.audit import log as audit_log
 
-DOCTYPE = "Maison Associate"
+DOCTYPE = "AWANZ Associate"
 PERMLEVELS: dict[int, dict[str, tuple[str, ...]]] = {
 	1: {
 		"System Manager": ("read", "write"),
-		"Maison Head Office": ("read", "write"),
-		"Maison Regional": ("read", "write"),
-		"Maison Manager": ("read",),
-		"Maison Associate": ("read",),
+		"AWANZ Head Office": ("read", "write"),
+		"AWANZ Regional": ("read", "write"),
+		"AWANZ Manager": ("read",),
+		"AWANZ Associate": ("read",),
 	},
 	2: {"System Manager": ("read", "write")},
 }
@@ -66,7 +66,7 @@ def migrate_pin_hashes() -> int:
 			set_encrypted_password(DOCTYPE, row.name, row.pin_hash, "pin_hash")
 			frappe.db.set_value(DOCTYPE, row.name, "pin_hash", "*" * len(row.pin_hash), update_modified=False)
 		except Exception:  # pragma: no cover — a site without an encryption key keeps the old column
-			frappe.log_error(frappe.get_traceback(), "maison v0.7 pin hash migration")
+			frappe.log_error(frappe.get_traceback(), "awanz v0.7 pin hash migration")
 			return len(rows)
 	return len(rows)
 
@@ -90,7 +90,7 @@ def ensure_permlevel_docperms() -> None:
 
 def repair_role_grants() -> int:
 	"""Every associate carries exactly the Frappe role their ``role`` field says — no more."""
-	from maison_pos.maison_pos.doctype.maison_associate.maison_associate import ROLE_MAP
+	from maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate import ROLE_MAP
 
 	managed = set(ROLE_MAP.values())
 	fixed = 0
@@ -126,14 +126,14 @@ def repair_role_grants() -> int:
 
 
 def report_unmanaged_grants(managed: set) -> list[str]:
-	"""Log — but never touch — users who hold a ``Maison *`` role with no associate record.
+	"""Log — but never touch — users who hold a ``AWANZ *`` role with no associate record.
 
 	These are outside the sync's remit (an admin may legitimately have given somebody Head
-	Office without putting them on a shop floor), but a user with an unrestricted Maison role and
+	Office without putting them on a shop floor), but a user with an unrestricted AWANZ role and
 	no store attached is exactly the shape an operator should look at after this patch runs.
 	"""
 	holders = set(frappe.get_all("Has Role", filters={"parenttype": "User", "role": ("in", list(managed))}, pluck="parent"))
-	orphans = sorted(u for u in holders if u and not frappe.db.exists("Maison Associate", {"user": u}))
+	orphans = sorted(u for u in holders if u and not frappe.db.exists("AWANZ Associate", {"user": u}))
 	for user in orphans:
 		audit_log(
 			"patch.v0_7.role_without_associate_record",
@@ -141,5 +141,5 @@ def report_unmanaged_grants(managed: set) -> list[str]:
 			roles=sorted(r for r in frappe.get_roles(user) if r in managed),
 		)
 	if orphans:
-		print(f"maison_pos: review — {len(orphans)} user(s) hold a Maison role with no Maison Associate record: {', '.join(orphans)}")
+		print(f"maison_pos: review — {len(orphans)} user(s) hold an AWANZ role with no AWANZ Associate record: {', '.join(orphans)}")
 	return orphans

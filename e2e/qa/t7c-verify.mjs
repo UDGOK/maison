@@ -1,6 +1,6 @@
 import { apiFor, closeBrowser, record, saveResults, log, STORE } from './lib-wh.mjs'
 import { readFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin')
 const SWH = `${STORE} - CCZ`, TR = `${STORE} In Transit - CCZ`, DMG = `${STORE} Damaged - CCZ`, HQ = 'HOU-WH - CCZ'
 // full ledger for the discrepancy shipment SD

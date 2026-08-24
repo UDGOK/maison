@@ -14,7 +14,7 @@ barcode camera — use the phone/iPad camera or a Bluetooth scanner.
 | Inateck BCST-70 / BCST-60 / P6 | **HID** (default). | Default suffix CR; supports adding a prefix (e.g. `~`) via the manual's setup barcodes. Set the same prefix in Settings so it is stripped. Some firmware sends `CR LF` — trailing CR/LF are ignored automatically. |
 | Any USB / Lightning HID scanner (e.g. Honeywell Voyager 1202g, Zebra DS2208) | Keyboard wedge. | Works through the iPad camera connection kit; same configuration. |
 
-Label symbologies used by Maison: **EAN-13** on item tickets (`Item.maison_barcode`),
+Label symbologies used by AWANZ: **EAN-13** on item tickets (`Item.maison_barcode`),
 **Code-128** on serial labels (value = serial number), **QR** on client cards (`MC:<id>`),
 receipts (`/r/<token>` URL) and coupons (`CPN:<code>` or the bare code).
 
@@ -47,5 +47,5 @@ raw scans flow through `useScanStore().handle()`.
 | Scan types into the search box instead of adding the item | Focus is in a text field; tap outside it (the wedge deliberately ignores text inputs) or use the camera button. |
 | "Not in catalogue" although the label is correct | Check the Scanner test: a leading/trailing character means a prefix/suffix is configured on the scanner — enter it in Settings. |
 | Nothing happens on scan | Terminator mismatch (scanner sends Tab, Settings = Enter only) or the burst is slower than 50 ms/char. |
-| iPad keyboard disappears when the scanner is paired | iOS hides the soft keyboard for HID devices — use the scanner's keyboard-toggle barcode, or the Maison numeric keypads (client №, PIN) which are on-screen buttons. |
+| iPad keyboard disappears when the scanner is paired | iOS hides the soft keyboard for HID devices — use the scanner's keyboard-toggle barcode, or the AWANZ numeric keypads (client №, PIN) which are on-screen buttons. |
 | Camera scanner not available | Safari < 17 lacks `BarcodeDetector`; the ZXing fallback needs camera permission (Settings → Safari → Camera). |

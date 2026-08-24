@@ -5,7 +5,7 @@ import { sha256Hex } from '@/utils/hash'
 import { deviceId } from '@/utils/device'
 import { setSiteTimeZone } from '@/utils/time' // v0.6 R — one clock, the store's zone
 
-const UNLOCK_KEY = 'maison.unlock'
+const UNLOCK_KEY = 'awanz.unlock'
 
 interface SessionState {
   boutique: Boutique | null
@@ -94,7 +94,7 @@ export const useSessionStore = defineStore('session', {
       if (!a) return false
       const hash = await sha256Hex(pin)
       let ok: boolean | null = null
-      const offline = (typeof navigator !== 'undefined' && !navigator.onLine) || (typeof window !== 'undefined' && window.__maisonOffline)
+      const offline = (typeof navigator !== 'undefined' && !navigator.onLine) || (typeof window !== 'undefined' && window.__awanzOffline)
       if (!offline) {
         try {
           const r = await api.verifyPin(a.name, pin)

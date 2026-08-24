@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { formatInSiteZone, parseServer, siteTimeZone, zoneLabel } from './time'
 
-const KEY = 'maison.device_id'
+const KEY = 'awanz.device_id'
 
 /** Stable per-device id (persisted in localStorage). */
 export function deviceId(): string {

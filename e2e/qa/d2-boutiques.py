@@ -40,7 +40,7 @@ for r in inv:
     if 0 <= idx < 14: spark[r["maison_boutique"]][idx] += float(r["grand_total"] or 0)
 
 # stock value via Bin
-whs = {b["name"]: b["warehouse"] for b in dq.get_list("Maison Boutique", fields=["name","warehouse"], limit=50)}
+whs = {b["name"]: b["warehouse"] for b in dq.get_list("AWANZ Store", fields=["name","warehouse"], limit=50)}
 bins = dq.get_list("Bin", filters={"warehouse":("in",[w for w in whs.values() if w])}, fields=["warehouse","stock_value"], limit=20000)
 sv = defaultdict(float)
 for b in bins: sv[b["warehouse"]] += float(b["stock_value"] or 0)
@@ -72,4 +72,4 @@ for r in rows:
         chk(b,f"spark[{i}]", round(r["sparkline"][i],2), round(spark[b][i],2))
 print(f"\n{len(issues)} discrepancies")
 for i in issues[:40]: print("  !", i)
-json.dump({"issues":issues,"t_ms":t_bt*1000,"rows":rows}, open("/home/claude/maison/e2e/qa/results-d2.json","w"), indent=1, default=str)
+json.dump({"issues":issues,"t_ms":t_bt*1000,"rows":rows}, open("/home/claude/awanz/e2e/qa/results-d2.json","w"), indent=1, default=str)

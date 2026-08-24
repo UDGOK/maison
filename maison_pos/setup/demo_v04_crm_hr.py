@@ -1,6 +1,6 @@
 """v0.4 B/C/I demo seed — called from ``maison_pos.setup.demo.seed()`` (guarded, idempotent).
 
-Creates: Employees for every demo associate (+ `Maison Associate.employee`), commission rules,
+Creates: Employees for every demo associate (+ `AWANZ Associate.employee`), commission rules,
 2 promotions (Pricing Rules), 3 coupons, 10 client profiles with wishlists / preferences,
 a few follow-ups, 5 private feedback rows, and the tier Customer Groups.
 """
@@ -15,7 +15,7 @@ from frappe.utils import add_days, getdate, now_datetime, nowdate
 
 from maison_pos.setup.install_v04_crm import ensure_tier_customer_groups, setup_v04_crm
 
-COMPANY = "Maison"
+COMPANY = "AWANZ"
 
 COMMISSION_RULES = [
 	# title, rate, boutique, role, item_group, department, priority
@@ -65,7 +65,7 @@ def _customer(name: str) -> Optional[str]:
 
 
 def _associate(boutique: str, kind: str = "Associate") -> Optional[str]:
-	return frappe.db.get_value("Maison Associate", {"boutique": boutique, "role": kind, "enabled": 1}, "name", order_by="name")
+	return frappe.db.get_value("AWANZ Associate", {"boutique": boutique, "role": kind, "enabled": 1}, "name", order_by="name")
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ def ensure_employees() -> int:
 	for designation in ("Boutique Manager", "Sales Associate", "Regional Director", "Head Office"):
 		if _exists("DocType", "Designation") and not _exists("Designation", designation):
 			frappe.get_doc({"doctype": "Designation", "designation_name": designation}).insert(ignore_permissions=True)
-	for assoc in frappe.get_all("Maison Associate", fields=["name", "user", "boutique", "role", "employee"]):
+	for assoc in frappe.get_all("AWANZ Associate", fields=["name", "user", "boutique", "role", "employee"]):
 		if assoc.employee and _exists("Employee", assoc.employee):
 			continue
 		existing = frappe.db.get_value("Employee", {"user_id": assoc.user}, "name")
@@ -106,7 +106,7 @@ def ensure_employees() -> int:
 			emp.insert()
 			existing = emp.name
 			created += 1
-		frappe.db.set_value("Maison Associate", assoc.name, "employee", existing, update_modified=False)
+		frappe.db.set_value("AWANZ Associate", assoc.name, "employee", existing, update_modified=False)
 	return created
 
 
@@ -123,7 +123,7 @@ def ensure_salary_structures() -> int:
 		return 0
 	if not _exists("Salary Component", "Basic"):
 		frappe.get_doc({"doctype": "Salary Component", "salary_component": "Basic", "salary_component_abbr": "B", "type": "Earning"}).insert(ignore_permissions=True)
-	name = "Maison Base"
+	name = "AWANZ Base"
 	if not _exists("Salary Structure", name):
 		ss = frappe.get_doc(
 			{
@@ -162,7 +162,7 @@ def ensure_salary_structures() -> int:
 			ssa.submit()
 			n += 1
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "maison demo salary structure assignment")
+			frappe.log_error(frappe.get_traceback(), "awanz demo salary structure assignment")
 	return n
 
 
@@ -172,9 +172,9 @@ def ensure_salary_structures() -> int:
 def ensure_commission_rules() -> int:
 	n = 0
 	for title, rate, boutique, role, group, dept, prio in COMMISSION_RULES:
-		if _exists("Maison Commission Rule", title):
+		if _exists("AWANZ Commission Rule", title):
 			continue
-		frappe.get_doc({"doctype": "Maison Commission Rule", "title": title, "rate_percent": rate, "boutique": boutique, "role": role, "item_group": group, "department": dept, "priority": prio, "enabled": 1}).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "AWANZ Commission Rule", "title": title, "rate_percent": rate, "boutique": boutique, "role": role, "item_group": group, "department": dept, "priority": prio, "enabled": 1}).insert(ignore_permissions=True)
 		n += 1
 	return n
 
@@ -223,11 +223,11 @@ def ensure_coupons() -> int:
 	from maison_pos.setup.demo import CUSTOMERS
 
 	for code, title, dtype, value, usage, max_uses, min_basket, group, cust_idx in COUPONS:
-		if _exists("Maison Coupon", code):
+		if _exists("AWANZ Coupon", code):
 			continue
 		frappe.get_doc(
 			{
-				"doctype": "Maison Coupon",
+				"doctype": "AWANZ Coupon",
 				"code": code,
 				"title": title,
 				"discount_type": dtype,
@@ -254,12 +254,12 @@ def ensure_profiles() -> int:
 		customer = _customer(spec["customer"])
 		if not customer:
 			continue
-		if _exists("Maison Client Profile", customer):
+		if _exists("AWANZ Client Profile", customer):
 			continue
 		boutique = spec.get("preferred_boutique")
 		doc = frappe.get_doc(
 			{
-				"doctype": "Maison Client Profile",
+				"doctype": "AWANZ Client Profile",
 				"customer": customer,
 				"preferred_boutique": boutique,
 				"preferred_associate": _associate(boutique) if boutique else None,
@@ -274,7 +274,7 @@ def ensure_profiles() -> int:
 
 
 def ensure_follow_ups() -> int:
-	if frappe.db.count("Maison Client Interaction", {"type": ("in", ("Follow-up", "Call"))}):
+	if frappe.db.count("AWANZ Client Interaction", {"type": ("in", ("Follow-up", "Call"))}):
 		return 0
 	n = 0
 	specs = [
@@ -288,10 +288,10 @@ def ensure_follow_ups() -> int:
 		customer = _customer(name)
 		if not customer:
 			continue
-		boutique = frappe.db.get_value("Maison Client Profile", customer, "preferred_boutique")
+		boutique = frappe.db.get_value("AWANZ Client Profile", customer, "preferred_boutique")
 		frappe.get_doc(
 			{
-				"doctype": "Maison Client Interaction",
+				"doctype": "AWANZ Client Interaction",
 				"customer": customer,
 				"type": kind,
 				"note": note,
@@ -311,10 +311,10 @@ def ensure_feedback() -> int:
 	"""5 feedback rows attached to the newest submitted POS invoices per boutique (skips when none)."""
 	from maison_pos.identifiers import new_receipt_token
 
-	if frappe.db.count("Maison Feedback") >= len(FEEDBACK):
+	if frappe.db.count("AWANZ Feedback") >= len(FEEDBACK):
 		return 0
 	n = 0
-	used = set(frappe.get_all("Maison Feedback", pluck="sales_invoice"))
+	used = set(frappe.get_all("AWANZ Feedback", pluck="sales_invoice"))
 	for boutique, rating, comment in FEEDBACK:
 		invs = frappe.get_all("Sales Invoice", filters={"maison_boutique": boutique, "docstatus": 1, "is_pos": 1, "is_return": 0}, fields=["name", "maison_associate", "customer", "maison_receipt_token"], order_by="posting_date desc, posting_time desc", limit=10)
 		inv = next((i for i in invs if i.name not in used), None)
@@ -325,10 +325,10 @@ def ensure_feedback() -> int:
 		used.add(inv.name)
 		frappe.get_doc(
 			{
-				"doctype": "Maison Feedback",
+				"doctype": "AWANZ Feedback",
 				"sales_invoice": inv.name,
 				"boutique": boutique,
-				"associate": inv.maison_associate if _exists("Maison Associate", inv.maison_associate or "") else None,
+				"associate": inv.maison_associate if _exists("AWANZ Associate", inv.maison_associate or "") else None,
 				"customer": inv.customer,
 				"rating": rating,
 				"comment": comment,
@@ -342,7 +342,7 @@ def ensure_feedback() -> int:
 
 def seed_v04_crm_hr() -> dict[str, Any]:
 	"""Entry point (called at the end of ``demo.seed``). Safe to re-run."""
-	if not frappe.db.exists("DocType", "Maison Client Profile"):
+	if not frappe.db.exists("DocType", "AWANZ Client Profile"):
 		return {"skipped": "v0.4 doctypes not migrated"}
 	setup_v04_crm()
 	random.seed(404)

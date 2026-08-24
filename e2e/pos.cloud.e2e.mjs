@@ -1,4 +1,4 @@
-// Maison POS end-to-end run — cloud variant (Frappe Cloud site, Administrator via session cookie).
+// AWANZ POS end-to-end run — cloud variant (Frappe Cloud site, Administrator via session cookie).
 // Run:  BASE=https://maison-demo.frappe.cloud ADMIN_SID=<sid> PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node e2e/pos.cloud.e2e.mjs
 // Env:  BASE, ASSOC_USER/ASSOC_PWD, ADMIN_PWD (ignored when ADMIN_SID set), ADMIN_SID, SHOTS_DIR (default cloud-shots)
 import { chromium } from 'playwright'
@@ -309,11 +309,11 @@ try {
     ws.on('framereceived', (f) => socketFrames.push({ in: String(f.payload).slice(0, 200) }))
     ws.on('socketerror', (e) => socketFrames.push({ err: String(e) }))
   })
-  await dpage.goto('/maison-dashboard', { waitUntil: 'networkidle' })
+  await dpage.goto('/awanz-dashboard', { waitUntil: 'networkidle' })
   await sleep(2000)
   await shot(dpage, 'dashboard-initial')
   const dashText0 = await dpage.locator('body').innerText()
-  record('dashboard opens as Administrator', dl.ok() && /MAISON/i.test(dashText0) && !/not built/i.test(dashText0), '')
+  record('dashboard opens as Administrator', dl.ok() && /AWANZ/i.test(dashText0) && !/not built/i.test(dashText0), '')
 
   // cloud extras: fonts + service worker (checked on both the POS page and the dashboard)
   const envCheck = async (pg) => pg.evaluate(async () => {
@@ -358,8 +358,8 @@ try {
   await shot(dpage, 'dashboard-after-sale')
   const invoicesAfter = (await admin.get('maison_pos.api.dashboard.live_summary')).totals.invoices
   record('dashboard updates live within 5s', !!inv4 && rs.pill === 'Synced' && seen && dt <= 5000, `${inv4} seen=${seen} after ${dt} ms; server invoices ${invoicesBefore}→${invoicesAfter}; ws: ${JSON.stringify(socketFrames.slice(0, 4))}`)
-  const rtFrames = socketFrames.filter((f) => f.in && /maison|Sales Invoice|list_update|doc_update/i.test(f.in))
-  record('dashboard receives realtime (socket.io) events', socketFrames.some((f) => f.url) && rtFrames.length > 0, `ws url ${socketFrames.find((f) => f.url)?.url}; ${socketFrames.filter((f) => f.in).length} frames in, ${rtFrames.length} maison/doc frames; sample ${JSON.stringify(rtFrames.slice(0, 2))}`)
+  const rtFrames = socketFrames.filter((f) => f.in && /awanz|Sales Invoice|list_update|doc_update/i.test(f.in))
+  record('dashboard receives realtime (socket.io) events', socketFrames.some((f) => f.url) && rtFrames.length > 0, `ws url ${socketFrames.find((f) => f.url)?.url}; ${socketFrames.filter((f) => f.in).length} frames in, ${rtFrames.length} awanz/doc frames; sample ${JSON.stringify(rtFrames.slice(0, 2))}`)
   await page.click('button:has-text("Done")')
   await dctx.close()
 } catch (e) {

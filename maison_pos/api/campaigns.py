@@ -28,9 +28,9 @@ from frappe.utils import add_days, cint, flt, getdate, nowdate
 from maison_pos.campaigns import attribution, segments, webhooks
 from maison_pos.scoping import assert_boutique_access, assert_roles, get_allowed_boutiques, is_unrestricted
 
-MANAGER_PLUS = ("Maison Manager", "Maison Regional", "Maison Head Office", "System Manager")
-HQ = ("Maison Head Office", "System Manager")
-HQ_REGIONAL = ("Maison Regional", "Maison Head Office", "System Manager")
+MANAGER_PLUS = ("AWANZ Manager", "AWANZ Regional", "AWANZ Head Office", "System Manager")
+HQ = ("AWANZ Head Office", "System Manager")
+HQ_REGIONAL = ("AWANZ Regional", "AWANZ Head Office", "System Manager")
 CAMPAIGN_FIELDS = [
 	"name", "title", "campaign_code", "channel", "status", "send_date", "content_link", "coupon", "cost",
 	"segment_tier", "segment_boutique", "segment_signal_type", "segment_item", "segment_item_group", "segment_size",
@@ -39,7 +39,7 @@ CAMPAIGN_FIELDS = [
 
 
 def _campaign_or_throw(campaign: str) -> str:
-	if not campaign or not frappe.db.exists("Maison Campaign", campaign):
+	if not campaign or not frappe.db.exists("AWANZ Campaign", campaign):
 		frappe.throw(_("Campaign {0} does not exist").format(campaign), frappe.DoesNotExistError)
 	return campaign
 
@@ -66,14 +66,14 @@ def list_campaigns(status: Optional[str] = None, channel: Optional[str] = None, 
 		filters["status"] = status
 	if channel:
 		filters["channel"] = channel
-	rows = frappe.get_all("Maison Campaign", filters=filters, fields=CAMPAIGN_FIELDS, order_by="send_date desc, modified desc", limit=min(max(cint(limit) or 100, 1), 500))
+	rows = frappe.get_all("AWANZ Campaign", filters=filters, fields=CAMPAIGN_FIELDS, order_by="send_date desc, modified desc", limit=min(max(cint(limit) or 100, 1), 500))
 	return [_row(r) for r in rows]
 
 
 @frappe.whitelist()
 def get(campaign: str) -> dict[str, Any]:
 	assert_roles(*MANAGER_PLUS)
-	doc = frappe.get_doc("Maison Campaign", _campaign_or_throw(campaign))
+	doc = frappe.get_doc("AWANZ Campaign", _campaign_or_throw(campaign))
 	out = _row({k: doc.get(k) for k in CAMPAIGN_FIELDS})
 	out["featured_items"] = [{"item_code": r.item_code, "item_name": r.item_name} for r in doc.featured_items]
 	out["notes"] = doc.notes
@@ -102,7 +102,7 @@ def performance(campaign: Optional[str] = None, from_date: Optional[str] = None,
 		filters["name"] = _campaign_or_throw(campaign)
 	if channel:
 		filters["channel"] = channel
-	campaigns = frappe.get_all("Maison Campaign", filters=filters, fields=CAMPAIGN_FIELDS, order_by="send_date desc, modified desc")
+	campaigns = frappe.get_all("AWANZ Campaign", filters=filters, fields=CAMPAIGN_FIELDS, order_by="send_date desc, modified desc")
 	if not campaigns:
 		return {"from_date": from_date, "to_date": to_date, "boutique": boutique, "campaigns": [], "totals": _totals([]), "last_run": None}
 
@@ -112,7 +112,7 @@ def performance(campaign: Optional[str] = None, from_date: Optional[str] = None,
 	if boutique:
 		attr_filters["boutique"] = boutique
 	attr = frappe.get_all(
-		"Maison Campaign Attribution",
+		"AWANZ Campaign Attribution",
 		filters=attr_filters,
 		fields=["campaign", "type", "count(name) as invoices", "sum(amount) as amount", "sum(item_level) as item_level_rows"],
 		group_by="campaign, type",
@@ -124,7 +124,7 @@ def performance(campaign: Optional[str] = None, from_date: Optional[str] = None,
 		c[key] = flt(a.amount, 2)
 		c[f"invoices_{key}"] = cint(a.invoices)
 		c["item_level_rows"] += cint(a.item_level_rows)
-	buyers = frappe.get_all("Maison Campaign Attribution", filters=attr_filters, fields=["campaign", "customer"], distinct=True) if attr else []
+	buyers = frappe.get_all("AWANZ Campaign Attribution", filters=attr_filters, fields=["campaign", "customer"], distinct=True) if attr else []
 	for b in buyers:
 		by_campaign.setdefault(b.campaign, {"direct": 0.0, "assisted": 0.0, "invoices_direct": 0, "invoices_assisted": 0, "buyers": set(), "item_level_rows": 0})["buyers"].add(b.customer)
 
@@ -142,7 +142,7 @@ def performance(campaign: Optional[str] = None, from_date: Optional[str] = None,
 		r["conversion"] = flt(r["buyers"] / cint(r.get("sends")), 4) if cint(r.get("sends")) else 0.0
 		r["revenue_per_send"] = flt(r["attributed_direct"] / cint(r.get("sends")), 2) if cint(r.get("sends")) else 0.0
 		rows.append(r)
-	last_run = frappe.db.get_value("Maison Campaign", {"last_attributed_at": ("is", "set")}, "max(last_attributed_at)")
+	last_run = frappe.db.get_value("AWANZ Campaign", {"last_attributed_at": ("is", "set")}, "max(last_attributed_at)")
 	return {"from_date": from_date, "to_date": to_date, "boutique": boutique, "campaigns": rows, "totals": _totals(rows), "last_run": last_run}
 
 
@@ -170,7 +170,7 @@ def attributed_sales(campaign: str, limit: int = 100, boutique: Optional[str] = 
 	if boutique:
 		filters["boutique"] = boutique
 	return frappe.get_all(
-		"Maison Campaign Attribution",
+		"AWANZ Campaign Attribution",
 		filters=filters,
 		fields=["name", "sales_invoice", "customer", "type", "amount", "invoice_total", "item_level", "item_codes", "posting_date", "boutique", "associate", "touch_at", "days_to_sale"],
 		order_by="posting_date desc",
@@ -185,7 +185,7 @@ def attributed_sales(campaign: str, limit: int = 100, boutique: Optional[str] = 
 def segment(campaign: str, limit: Optional[int] = None) -> dict[str, Any]:
 	assert_roles(*HQ_REGIONAL)
 	rows = segments.build_segment(_campaign_or_throw(campaign))
-	frappe.db.set_value("Maison Campaign", campaign, "segment_size", len(rows), update_modified=False)
+	frappe.db.set_value("AWANZ Campaign", campaign, "segment_size", len(rows), update_modified=False)
 	return {"campaign": campaign, "count": len(rows), "customers": rows[: cint(limit)] if limit else rows}
 
 
@@ -194,9 +194,9 @@ def export_segment(campaign: str, format: str = "csv"):  # noqa: A002
 	"""CSV download (``format=csv``) or a Frappe ``Email Group`` named after the campaign (``format=email_group``)."""
 	assert_roles(*HQ)
 	_campaign_or_throw(campaign)
-	doc = frappe.get_doc("Maison Campaign", campaign)
+	doc = frappe.get_doc("AWANZ Campaign", campaign)
 	rows = segments.build_segment(doc.as_dict())
-	frappe.db.set_value("Maison Campaign", campaign, "segment_size", len(rows), update_modified=False)
+	frappe.db.set_value("AWANZ Campaign", campaign, "segment_size", len(rows), update_modified=False)
 	if format == "email_group":
 		group_name = f"Campaign {doc.campaign_code}"
 		if not frappe.db.exists("Email Group", group_name):
@@ -245,7 +245,7 @@ def record_touch(campaign: str, customer: str, event: str = "sent", ts: Optional
 def sync_email_campaign(campaign: str) -> dict[str, Any]:
 	"""Touches from the linked Frappe *Email Campaign* (Email Queue recipients: sent / opened)."""
 	assert_roles(*HQ)
-	doc = frappe.get_doc("Maison Campaign", _campaign_or_throw(campaign))
+	doc = frappe.get_doc("AWANZ Campaign", _campaign_or_throw(campaign))
 	if not doc.email_campaign or not frappe.db.exists("DocType", "Email Queue"):
 		return {"campaign": campaign, "recorded": 0, "unmatched": []}
 	queue = frappe.get_all("Email Queue", filters={"reference_doctype": "Email Campaign", "reference_name": doc.email_campaign, "status": ("in", ("Sent", "Partially Sent"))}, fields=["name", "creation"])
@@ -257,7 +257,7 @@ def sync_email_campaign(campaign: str) -> dict[str, Any]:
 			if r.status == "Opened":
 				events.append({"event": "opened", "email": email, "campaign_ref": campaign, "external_id": q.name, "ts": q.creation, "channel": "Email"})
 	res = webhooks.ingest(events, "frappe", default_campaign=campaign)
-	frappe.db.sql("update `tabMaison Campaign Touch` set source = 'Frappe Email Campaign' where campaign = %s and source = 'Manual'", campaign)
+	frappe.db.sql("update `tabAWANZ Campaign Touch` set source = 'Frappe Email Campaign' where campaign = %s and source = 'Manual'", campaign)
 	return {"campaign": campaign, **res}
 
 
@@ -311,7 +311,7 @@ def webhook_klaviyo(campaign: Optional[str] = None) -> dict[str, Any]:
 	if not webhooks.verify_signature(secret, body, _header("Klaviyo-Signature", "X-Klaviyo-Signature"), _header("Klaviyo-Timestamp", "X-Klaviyo-Timestamp")):
 		_reject()
 	frappe.set_user("Administrator")
-	res = webhooks.ingest(webhooks.parse_klaviyo(_payload(body)), "klaviyo", default_campaign=campaign if campaign and frappe.db.exists("Maison Campaign", campaign) else None)
+	res = webhooks.ingest(webhooks.parse_klaviyo(_payload(body)), "klaviyo", default_campaign=campaign if campaign and frappe.db.exists("AWANZ Campaign", campaign) else None)
 	return {"ok": True, "provider": "klaviyo", **res}
 
 
@@ -324,5 +324,5 @@ def webhook_brevo(campaign: Optional[str] = None, token: Optional[str] = None) -
 	if not ok:
 		_reject()
 	frappe.set_user("Administrator")
-	res = webhooks.ingest(webhooks.parse_brevo(_payload(body)), "brevo", default_campaign=campaign if campaign and frappe.db.exists("Maison Campaign", campaign) else None)
+	res = webhooks.ingest(webhooks.parse_brevo(_payload(body)), "brevo", default_campaign=campaign if campaign and frappe.db.exists("AWANZ Campaign", campaign) else None)
 	return {"ok": True, "provider": "brevo", **res}

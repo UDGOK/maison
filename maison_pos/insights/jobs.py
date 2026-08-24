@@ -1,9 +1,9 @@
 """Scheduled insight jobs (hooks.scheduler_events).
 
-* ``compute_weekly``   Monday 05:00 site time — affinity cache (Maison Client Recommendation),
+* ``compute_weekly``   Monday 05:00 site time — affinity cache (AWANZ Client Recommendation),
                         client signals, rebalance suggestions.
 * ``weekly_narrative`` Monday 06:00 — narrative report for the previous Mon–Sun, e-mailed to
-                        the Maison Head Office role.
+                        the AWANZ Head Office role.
 
 Both are idempotent and can be run by hand (``bench --site X execute
 maison_pos.insights.jobs.compute_weekly``) or through ``maison_pos.api.insights.compute``.
@@ -19,7 +19,7 @@ from frappe.utils import add_days, getdate, nowdate
 
 from maison_pos.insights import affinity, client_signals, narrative, product_performance
 
-LAST_RUN_KEY = "maison_insights_last_run"
+LAST_RUN_KEY = "awanz_insights_last_run"
 
 
 def compute_weekly(commit: bool = True) -> dict[str, Any]:

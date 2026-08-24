@@ -1,6 +1,6 @@
 import { apiFor, closeBrowser, record, saveResults, log, STORE, MGR, WH, TAG } from './lib-wh.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin'), m = await apiFor(MGR), w = await apiFor(WH)
 const assoc = await apiFor({ usr: `${STORE.toLowerCase().replace(/-/g, '.')}.a1@cloudchaserz.example`, pwd: 'cloud123' })
 const w2 = await apiFor(WH)   // a second warehouse-admin session
@@ -20,7 +20,7 @@ const names = new Set(okPar.map(r => r.name)), mrs = new Set(okPar.map(r => r.ma
 record('four concurrent replenishment requests from two users all succeed with unique names',
   okPar.length === 4 && names.size === 4 && mrs.size === 4,
   `${okPar.length}/4 ok in ${Date.now() - t0} ms; requests=${[...names].join(',')}; MRs=${[...mrs].join(',')}; failures=${par.filter(p => p.status === 'rejected').map(p => String(p.reason).slice(0, 120)).join(' | ')}`)
-const stored = await a.list('Maison Replenishment Request', { name: ['in', [...names]] }, ['name', 'status', 'boutique'], 10)
+const stored = await a.list('AWANZ Replenishment Request', { name: ['in', [...names]] }, ['name', 'status', 'boutique'], 10)
 record('all four are persisted and Pending Approval (nothing lost to a race)', stored.length === 4 && stored.every(r => r.status === 'Pending Approval'),
   JSON.stringify(stored.map(r => [r.name, r.status])))
 
@@ -31,7 +31,7 @@ const both = await Promise.allSettled([
   w2.post('maison_pos.api.shipping.approve', { request: target }),
 ])
 const wins = both.filter(b => b.status === 'fulfilled')
-const shipsFor = await a.list('Maison Shipment', { replenishment_request: target }, ['name', 'status'], 10)
+const shipsFor = await a.list('AWANZ Shipment', { replenishment_request: target }, ['name', 'status'], 10)
 made.shipments.push(...shipsFor.map(s => s.name))
 record('two admins approving the same request at once produce exactly ONE shipment',
   shipsFor.length === 1, `${wins.length}/2 calls succeeded; shipments for ${target}: ${JSON.stringify(shipsFor.map(s => s.name))}; loser said "${both.filter(b => b.status === 'rejected').map(b => String(b.reason).slice(0, 140)).join('')}"`)
@@ -83,19 +83,19 @@ const tR = Date.now()
 const rBig = await w.post('maison_pos.api.shipping.rates', { shipment: BIG })
 record('rates still quote for a 50-line / multi-carton consignment', rBig.rates.length > 0,
   `${rBig.rates.length} rates, cheapest ${rBig.selected.carrier} ${rBig.selected.service} $${rBig.selected.amount} in ${Date.now() - tR} ms; parcels=${JSON.stringify(rBig.parcels)}`)
-const cachedBig = (await a.doc('Maison Shipment', BIG)).rate_options
+const cachedBig = (await a.doc('AWANZ Shipment', BIG)).rate_options
 record('the quote is cached on the shipment (rate_options) when rates is called as the UI does (POST)',
   String(cachedBig || '').includes('provider_rate_id'), `rate_options length=${String(cachedBig || '').length}`)
 const tW = Date.now()
 const wallBig = await w.get('maison_pos.api.shipping.wall')
 record('the wall payload still builds with the big consignment on it', wallBig.columns.to_pick.some(c => c.name === BIG),
   `wall built in ${Date.now() - tW} ms; counts=${JSON.stringify(wallBig.counts)}`)
-const pl2 = await a.ctx.request.get(`/printview?doctype=Maison%20Shipment&name=${BIG}&format=Maison%20Packing%20List&no_letterhead=1`)
+const pl2 = await a.ctx.request.get(`/printview?doctype=AWANZ%20Shipment&name=${BIG}&format=AWANZ%20Packing%20List&no_letterhead=1`)
 const plTxt = await pl2.text()
 record('the packing list print format renders 50 lines with barcodes', pl2.ok() && (plTxt.match(/data:image\/svg\+xml/g) || []).length >= 50,
   `${pl2.status()} len=${plTxt.length}, ${(plTxt.match(/data:image\/svg\+xml/g) || []).length} inline barcode/QR SVGs`)
 
-writeFileSync('/home/claude/maison/e2e/qa/state.json', JSON.stringify({ ...S, edge: made, BIG }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/state.json', JSON.stringify({ ...S, edge: made, BIG }, null, 1))
 log('EDGE ' + JSON.stringify({ ...made, BIG }))
 await Promise.all([m.dispose(), w.dispose(), w2.dispose(), assoc.dispose()])
 saveResults('results-w9.json')

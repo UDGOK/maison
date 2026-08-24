@@ -6,7 +6,7 @@ const SID=fs.readFileSync('/tmp/ccsid','utf8').trim()
 const browser=await chromium.launch({headless:true})
 const c=await browser.newContext({baseURL:BASE,storageState:{cookies:[{name:'sid',value:SID,domain:HOST,path:'/',expires:-1,httpOnly:true,secure:true,sameSite:'Lax'}],origins:[]},viewport:{width:1920,height:1080}})
 await installBridge(c); const page=await c.newPage()
-await page.goto('/maison-dashboard',{waitUntil:'domcontentloaded'})
+await page.goto('/awanz-dashboard',{waitUntil:'domcontentloaded'})
 await page.waitForTimeout(3500)
 const ctx=await page.evaluate(()=>{
   function parse(x){const m=(x||'').match(/rgba?\(([^)]+)\)/);if(!m)return null;const p=m[1].split(',').map(Number);return {r:p[0],g:p[1],b:p[2],a:p[3]===undefined?1:p[3]}}

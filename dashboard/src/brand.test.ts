@@ -1,9 +1,9 @@
 /**
  * v0.6 D1 — the Command dashboard must render the tenant's brand tokens, never a hard-coded
- * "Maison" / "Boutique(s)".
+ * "AWANZ" / "Boutique(s)".
  *
- * The Jinja shell already injects `window.maison_brand` (maison_pos/www/maison-dashboard.html),
- * but the SPA ignored it: the top bar read `Maison · Today · All Boutiques` on a CloudChaserz
+ * The Jinja shell already injects `window.awanz_brand` (maison_pos/www/awanz-dashboard.html),
+ * but the SPA ignored it: the top bar read `AWANZ · Today · All Boutiques` on a CloudChaserz
  * tenant whose `store_noun` is "Store".
  *
  * Two complementary checks, both with the tokens set to a *third* vocabulary ("Cloudchaserz",
@@ -16,7 +16,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest'
 
-const BRANDED = /maison|boutique/i
+const BRANDED = /awanz|boutique/i
 
 const TOKENS = {
   brand_name: 'Cloudchaserz',
@@ -37,7 +37,7 @@ beforeAll(() => {
     history: { replaceState: () => {} },
     setInterval: () => 0,
     clearInterval: () => {},
-    maison_brand: TOKENS,
+    awanz_brand: TOKENS,
   }
   // `@vue/runtime-dom` touches `document.createElement` at import time even though nothing is
   // mounted; `renderToString` itself never uses the DOM.

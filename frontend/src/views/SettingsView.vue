@@ -43,7 +43,7 @@ async function testReaderPrint() {
   }
 }
 onMounted(() => {
-  if (sync.browserOnline && !window.__maisonOffline) void inventory.refresh()
+  if (sync.browserOnline && !window.__awanzOffline) void inventory.refresh()
 })
 
 // ---- client recognition (v0.3)
@@ -79,7 +79,7 @@ const imagesMode = computed({
 const saved = ref(false)
 const refreshing = ref(false)
 const testResult = ref('')
-const mockOffline = ref(!!window.__maisonOffline)
+const mockOffline = ref(!!window.__awanzOffline)
 const hasStripeKey = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 async function save() {
@@ -125,7 +125,7 @@ async function testPrint() {
   }
 }
 function toggleMockOffline() {
-  window.__maisonOffline = mockOffline.value
+  window.__awanzOffline = mockOffline.value
   void sync.heartbeat()
   if (!mockOffline.value) void sync.replay()
 }
@@ -195,7 +195,7 @@ async function resetDevice() {
           </div>
           <div v-if="readerTest" class="muted small">{{ readerTest }}</div>
           <img v-if="printer.lastReaderPreview" :src="printer.lastReaderPreview" alt="Reader print preview" class="reader-preview" />
-          <div class="muted small">Verifone V660p prints 384-px receipts itself; the S710 has no printer and falls back to ePOS / browser. Readers are registered on the boutique (desk → Maison Boutique → Readers). {{ hasStripeKey ? 'Live Stripe Terminal.' : 'Simulated reader (no Stripe key).' }}</div>
+          <div class="muted small">Verifone V660p prints 384-px receipts itself; the S710 has no printer and falls back to ePOS / browser. Readers are registered on the boutique (desk → AWANZ Store → Readers). {{ hasStripeKey ? 'Live Stripe Terminal.' : 'Simulated reader (no Stripe key).' }}</div>
         </div>
 
         <div class="card block">

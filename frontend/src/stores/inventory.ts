@@ -66,7 +66,7 @@ export const useInventoryStore = defineStore('inventory', {
       alert.material_request = res.material_request
       return res
     },
-    // --- v0.6 O — one-tap "Request from warehouse" (Maison Replenishment Request + draft Material Request) ---
+    // --- v0.6 O — one-tap "Request from warehouse" (AWANZ Replenishment Request + draft Material Request) ---
     async requestFromWarehouse(alert: StockAlert, qty: number) {
       const { warehouseApi } = await import('@/api/warehouse')
       const session = useSessionStore()

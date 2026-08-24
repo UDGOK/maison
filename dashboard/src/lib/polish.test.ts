@@ -48,7 +48,7 @@ describe('storeShortName', () => {
   it('keeps the word that identifies the row', () => {
     expect(storeShortName('CloudChaserz Montrose', 'CloudChaserz')).toBe('Montrose')
     expect(storeShortName('CloudChaserz Broken Arrow', 'CloudChaserz')).toBe('Broken Arrow')
-    expect(storeShortName('Maison Chicago Oak Street', 'Maison')).toBe('Chicago Oak Street')
+    expect(storeShortName('AWANZ Chicago Oak Street', 'AWANZ')).toBe('Chicago Oak Street')
   })
   it('leaves anything else alone', () => {
     expect(storeShortName('Montrose', 'CloudChaserz')).toBe('Montrose')

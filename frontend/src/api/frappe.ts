@@ -4,17 +4,17 @@
  * into the page as `window.csrf_token` (see maison_pos/www/pos.py).
  */
 import { humanizeServerMessage, SESSION_EXPIRED_MESSAGE } from '@/utils/text' // v0.8 POS D5 / D9
-import { ApiError, type Customer, type MaisonApi } from './types'
+import { ApiError, type Customer, type AwanzApi } from './types'
 
 declare global {
   interface Window {
     csrf_token?: string
-    __maisonOffline?: boolean
+    __awanzOffline?: boolean
   }
 }
 
 const BASE = '/api/method/maison_pos.api.'
-const VERIFY_PIN = 'maison_pos.maison_pos.doctype.maison_associate.maison_associate.verify_pin'
+const VERIFY_PIN = 'maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.verify_pin'
 
 function csrf(): string {
   return (typeof window !== 'undefined' && window.csrf_token) || ''
@@ -115,7 +115,7 @@ async function upload<T>(method: string, fields: Record<string, string>, file: B
   return (body?.message ?? body) as T
 }
 
-export const frappeApi: MaisonApi = {
+export const frappeApi: AwanzApi = {
   catalog: {
     bootstrap: (boutique) => call('catalog.bootstrap', { boutique }, { get: true }),
     delta: (boutique, since) => call('catalog.delta', { boutique, since }, { get: true }),

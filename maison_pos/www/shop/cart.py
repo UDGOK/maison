@@ -11,7 +11,7 @@ sitemap = 0
 
 
 def get_context(context):
-	base_context(context, nav="cart", title="Your bag — Maison")
+	base_context(context, nav="cart", title="Your bag — AWANZ")
 	context.cart = None
 	if not context.enabled:
 		return

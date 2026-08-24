@@ -60,7 +60,7 @@ try {
   record('5.2 under-21 DOB is refused and the item is not added', /Under 21|refused/i.test(blockedTxt) && linesAfterUnder === 1,
     `sheet="${blockedTxt.slice(0, 220)}" lines=${linesAfterUnder}`)
   await shot(page, 'age-under21')
-  const chkU = (await admin.list('Maison Age Check', { boutique: L.STORE }, ['name', 'outcome', 'method', 'age_years', 'dob_year', 'initials', 'id_expired', 'sales_invoice'], 3))[0]
+  const chkU = (await admin.list('AWANZ Age Check', { boutique: L.STORE }, ['name', 'outcome', 'method', 'age_years', 'dob_year', 'initials', 'id_expired', 'sales_invoice'], 3))[0]
   record('5.2b the refusal is audited (masked) server-side', chkU?.outcome === 'Underage', JSON.stringify(chkU))
 
   // ---- 5.3 expired ID refused (valid age, expiry in the past)
@@ -74,7 +74,7 @@ try {
   const expTxt = (await page.locator('[data-testid=age-gate]').innerText().catch(() => '')).replace(/\s+/g, ' ')
   record('5.3 expired ID is refused', /expired/i.test(expTxt) && (await lineCount()) === 1, `sheet="${expTxt.slice(0, 200)}" lines=${await lineCount()}`)
   await shot(page, 'age-expired')
-  const chkE = (await admin.list('Maison Age Check', { boutique: L.STORE }, ['name', 'outcome', 'id_expired', 'age_years'], 2))[0]
+  const chkE = (await admin.list('AWANZ Age Check', { boutique: L.STORE }, ['name', 'outcome', 'id_expired', 'age_years'], 2))[0]
   record('5.3b expired outcome audited', chkE?.outcome === 'Expired' && Number(chkE?.id_expired) === 1, JSON.stringify(chkE))
 
   // ---- 5.3c expired ID by SCAN
@@ -95,7 +95,7 @@ try {
   const noticeTxt = (await page.locator('.notice-stack, .notice').innerText().catch(() => '')).replace(/\s+/g, ' ')
   record('5.8 "No ID" declines: parked item dropped, decline logged', (await gateOpen()) === 0 && (await lineCount()) === 1,
     `gate closed=${(await gateOpen()) === 0} lines=${await lineCount()} notice="${noticeTxt.slice(0, 140)}"`)
-  const chkD = (await admin.list('Maison Age Check', { boutique: L.STORE }, ['name', 'outcome', 'reason'], 2))[0]
+  const chkD = (await admin.list('AWANZ Age Check', { boutique: L.STORE }, ['name', 'outcome', 'reason'], 2))[0]
   record('5.8b decline audited', chkD?.outcome === 'Declined', JSON.stringify(chkD))
   await page.evaluate(() => document.querySelectorAll('.notice .notice-btn').forEach((b) => b.click()))
 
@@ -123,7 +123,7 @@ try {
   const full = inv ? await admin.value('Sales Invoice', inv.name, ['maison_age_verified', 'maison_age_method', 'maison_age_dob_year_ok', 'maison_age_check', 'maison_age_checked_by', 'maison_age_checked_at']) : {}
   record('5.7 the age check is stored on the invoice', Number(full.maison_age_verified) === 1 && full.maison_age_method === 'Manual' && !!full.maison_age_check,
     `${inv?.name}: ${JSON.stringify(full)}`)
-  const linked = full.maison_age_check ? await admin.value('Maison Age Check', full.maison_age_check, ['sales_invoice', 'outcome', 'method', 'age_years', 'dob_year', 'initials', 'issuer', 'associate']) : {}
+  const linked = full.maison_age_check ? await admin.value('AWANZ Age Check', full.maison_age_check, ['sales_invoice', 'outcome', 'method', 'age_years', 'dob_year', 'initials', 'issuer', 'associate']) : {}
   record('5.7b the audit row is linked back to the invoice and stores only masked fields',
     linked.sales_invoice === inv?.name && linked.outcome === 'Verified', JSON.stringify(linked))
   await shot(page, 'age-sale-receipt')

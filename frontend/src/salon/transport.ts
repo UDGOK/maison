@@ -3,14 +3,14 @@
  *
  * Frappe's socket.io server only delivers to rooms it manages; `maison_pos.api.salon` publishes
  * `salon_state` / `salon_message` to the session *document* room, so each side joins it with
- * `doc_subscribe("Maison Salon Session", <token>)` (Guest may read exactly that one document).
+ * `doc_subscribe("AWANZ Salon Session", <token>)` (Guest may read exactly that one document).
  * When the socket is unavailable (dev server, proxies, LAN quirks) the caller keeps polling every
  * `POLL_MS`; the socket only makes it instant.
  */
 import type { SalonMessage, SalonState } from '@/api/salon'
 
 export const POLL_MS = 2000
-const DOCTYPE = 'Maison Salon Session'
+const DOCTYPE = 'AWANZ Salon Session'
 
 export interface SalonRealtimeHandlers {
   onState?: (s: SalonState) => void
@@ -26,7 +26,7 @@ declare global {
   interface Window {
     dev_server?: number | boolean
     socketio_port?: number
-    maison_salon?: boolean
+    awanz_salon?: boolean
     frappe?: { boot?: { sitename?: string } }
   }
 }
@@ -77,7 +77,7 @@ function connectMock(token: string | null, h: SalonRealtimeHandlers): Unsubscrib
   let lastInbox = -1
   const read = () => {
     try {
-      const raw = localStorage.getItem('maison.mock.salon')
+      const raw = localStorage.getItem('awanz.mock.salon')
       if (!raw) return
       const srv = JSON.parse(raw)
       const sess = token ? srv.sessions?.[token] : null
@@ -101,13 +101,13 @@ function connectMock(token: string | null, h: SalonRealtimeHandlers): Unsubscrib
     }
   }
   const onStorage = (e: StorageEvent) => {
-    if (e.key === 'maison.mock.salon') read()
+    if (e.key === 'awanz.mock.salon') read()
   }
   window.addEventListener('storage', onStorage)
-  window.addEventListener('maison:salon-mock', read)
+  window.addEventListener('awanz:salon-mock', read)
   // prime the cursors without replaying history
   try {
-    const sess = token ? JSON.parse(localStorage.getItem('maison.mock.salon') || '{}').sessions?.[token] : null
+    const sess = token ? JSON.parse(localStorage.getItem('awanz.mock.salon') || '{}').sessions?.[token] : null
     if (sess) {
       lastSeq = sess.seq
       lastInbox = sess.inbox_seq
@@ -118,6 +118,6 @@ function connectMock(token: string | null, h: SalonRealtimeHandlers): Unsubscrib
   h.onConnection?.(true)
   return () => {
     window.removeEventListener('storage', onStorage)
-    window.removeEventListener('maison:salon-mock', read)
+    window.removeEventListener('awanz:salon-mock', read)
   }
 }

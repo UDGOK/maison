@@ -1,7 +1,7 @@
 import { launch, check, save, shot, money, BASE } from './lib-dash.mjs'
 const { browser, page, console_ } = await launch()
 const t0 = Date.now()
-await page.goto(`${BASE}/maison-dashboard`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${BASE}/awanz-dashboard`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('[data-testid="live-cards"] .bcard', { timeout: 45000 })
 const tLoad = Date.now() - t0
 check('Live tab loads', true, `${tLoad} ms to first store card`)
@@ -14,8 +14,8 @@ const bodyText = await page.evaluate(() => document.body.innerText)
 check('page title is CloudChaserz-branded', /CLOUDCHASERZ/i.test(title), title)
 const bad = ['Frappe', 'ERPNext', 'frappe', 'erpnext'].filter((w) => bodyText.includes(w))
 check('no "Frappe"/"ERPNext" visible on Live', bad.length === 0, bad.length ? `found: ${bad.join(', ')}` : 'none')
-const maisonHits = (bodyText.match(/Maison/g) || []).length
-check('brand wordmark not "Maison"', !/^\s*Maison/m.test(bodyText.split('\n')[0]), `first line: ${bodyText.split('\n').slice(0,3).join(' | ')}`)
+const awanzHits = (bodyText.match(/AWANZ/g) || []).length
+check('brand wordmark not "AWANZ"', !/^\s*AWANZ/m.test(bodyText.split('\n')[0]), `first line: ${bodyText.split('\n').slice(0,3).join(' | ')}`)
 const wordmark = await page.locator('.wordmark').first().textContent().catch(() => null)
 const scope = await page.locator('.top').first().innerText().catch(() => '')
 check('TopBar wordmark = CLOUDCHASERZ', /CLOUDCHASERZ/i.test(wordmark || ''), `wordmark="${wordmark}" topbar="${scope.replace(/\n/g,' | ').slice(0,200)}"`)

@@ -5,8 +5,8 @@
  * Only consented clients ever reach either side: the server filters Active consents,
  * and the local cache is populated exclusively from `recognition.templates`.
  */
-import type { MaisonApi, RecognitionMatch, TemplatesResult } from '@/api/types'
-import type { FaceTemplateRow, MaisonDB } from '@/db'
+import type { AwanzApi, RecognitionMatch, TemplatesResult } from '@/api/types'
+import type { FaceTemplateRow, AwanzDB } from '@/db'
 import { bestMatch, effectiveThreshold, isMatch, reconcile } from './math'
 
 export interface MatchOutcome {
@@ -23,7 +23,7 @@ export interface MatchOutcome {
 }
 
 export class TemplateCache {
-  constructor(private db: MaisonDB) {}
+  constructor(private db: AwanzDB) {}
 
   async all(model?: string): Promise<FaceTemplateRow[]> {
     const rows = await this.db.face_templates.toArray()
@@ -73,8 +73,8 @@ export class TemplateCache {
 }
 
 export interface MatcherDeps {
-  db: MaisonDB
-  api: MaisonApi
+  db: AwanzDB
+  api: AwanzApi
   /** reachable server (sync store) */
   online: () => boolean
 }

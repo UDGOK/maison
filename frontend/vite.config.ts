@@ -16,7 +16,7 @@ const OUT_DIR = '../maison_pos/public/pos'
  */
 function absolutePrecacheUrls() {
   return {
-    name: 'maison:absolute-precache-urls',
+    name: 'awanz:absolute-precache-urls',
     closeBundle: {
       sequential: true as const,
       order: 'post' as const,
@@ -46,9 +46,9 @@ export default defineConfig(({ command }) => ({
       scope: '/pos/',
       includeManifestIcons: false, // icons are picked up by globPatterns (with the absolute prefix)
       manifest: {
-        name: 'Maison POS',
-        short_name: 'Maison',
-        description: 'Maison boutique point of sale',
+        name: 'AWANZ POS',
+        short_name: 'AWANZ',
+        description: 'AWANZ boutique point of sale',
         start_url: '/pos/',
         scope: '/pos/',
         display: 'standalone',
@@ -67,7 +67,7 @@ export default defineConfig(({ command }) => ({
         // must not rely on its own URL: bundle workbox into sw.js and make precache URLs absolute.
         inlineWorkboxRuntime: true,
         modifyURLPrefix: { '': ASSET_BASE },
-        // Navigations are handled by the NetworkFirst "maison-shell" route below (the shell is
+        // Navigations are handled by the NetworkFirst "awanz-shell" route below (the shell is
         // rendered by www/pos.py with the CSRF token, so it must come from the network when
         // possible). navigateFallback stays off; the precached index.html is the last resort.
         navigateFallback: null,
@@ -85,7 +85,7 @@ export default defineConfig(({ command }) => ({
               request.mode === 'navigate' && url.origin === self.location.origin && /^\/pos(\/|$)/.test(url.pathname),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'maison-shell',
+              cacheName: 'awanz-shell',
               networkTimeoutSeconds: 6,
               plugins: [
                 {
@@ -105,7 +105,7 @@ export default defineConfig(({ command }) => ({
             handler: 'NetworkFirst',
             method: 'GET',
             options: {
-              cacheName: 'maison-catalog',
+              cacheName: 'awanz-catalog',
               networkTimeoutSeconds: 8,
               expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 7 }
             }
@@ -118,7 +118,7 @@ export default defineConfig(({ command }) => ({
           {
             urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
             handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'maison-fonts', expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 } }
+            options: { cacheName: 'awanz-fonts', expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 } }
           }
         ]
       },

@@ -6,7 +6,7 @@ from collections import defaultdict
 import dq
 
 DAY="2026-08-23"; B="HOU-MTR"
-rep = dq.call("frappe.desk.query_report.run", {"report_name":"Maison Sales Tax Summary",
+rep = dq.call("frappe.desk.query_report.run", {"report_name":"AWANZ Sales Tax Summary",
       "filters": json.dumps({"from_date":DAY,"to_date":DAY,"boutique":B}), "ignore_prepared_report":1})["message"]
 row = rep["result"][0]
 print("REPORT row:", json.dumps(row, indent=1))
@@ -63,4 +63,4 @@ print(f"  live_summary net for {B} should equal {gt:.2f}")
 tmpls = sorted({r["taxes_and_charges"] for r in inv})
 print(f"  distinct tax templates on today's {B} invoices: {tmpls}")
 json.dump({"report_row":row,"hand":calc,"mismatch_fields":bad,"booked_tax":round(booked_s+booked_r,2)},
-          open("/home/claude/maison/e2e/qa/results-d5.json","w"), indent=1, default=str)
+          open("/home/claude/awanz/e2e/qa/results-d5.json","w"), indent=1, default=str)

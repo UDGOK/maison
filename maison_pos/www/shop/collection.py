@@ -20,7 +20,7 @@ def get_context(context):
 	q = args.get("q") or None
 	# --- v0.8 QA A4 — the listing pages instead of silently stopping at the first 96 ---
 	start = max(0, cint(args.get("start")))
-	base_context(context, nav="collection", title=f"{group or 'All pieces'} — Maison")
+	base_context(context, nav="collection", title=f"{group or 'All pieces'} — AWANZ")
 	context.mw_group = group
 	context.mode = mode
 	context.q = q

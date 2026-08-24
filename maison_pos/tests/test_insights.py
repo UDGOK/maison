@@ -175,8 +175,8 @@ class TestNarrativeTemplate(FrappeTestCase):
 			"period": {"from": "2026-08-10", "to": "2026-08-16", "days": 7},
 			"chain": {"net": 250_000, "prev_net": 200_000, "change_pct": 25.0, "invoices": 40, "avg_ticket": 6_250, "card_share": 0.82, "returns": 1, "returns_value": 1_200},
 			"boutiques": [
-				{"boutique": "NYC-5AV", "name": "Maison Fifth Avenue", "net": 150_000, "invoices": 22, "change_pct": 40.0},
-				{"boutique": "CHI-OAK", "name": "Maison Oak Street", "net": 100_000, "invoices": 18, "change_pct": -10.0},
+				{"boutique": "NYC-5AV", "name": "AWANZ Fifth Avenue", "net": 150_000, "invoices": 22, "change_pct": 40.0},
+				{"boutique": "CHI-OAK", "name": "AWANZ Oak Street", "net": 100_000, "invoices": 18, "change_pct": -10.0},
 			],
 			"top_items": [{"item_name": "Meridian Automatic 40mm Steel", "units": 3, "revenue": 20_700}],
 			"client_signals": {"Overdue visit": 4, "Birthday": 1},
@@ -186,7 +186,7 @@ class TestNarrativeTemplate(FrappeTestCase):
 		text = narrative.template_narrative(numbers)
 		self.assertIn("250,000", text)
 		self.assertIn("up strongly (+25%)", text)
-		self.assertIn("Maison Fifth Avenue led the week", text)
+		self.assertIn("AWANZ Fifth Avenue led the week", text)
 		self.assertIn("down -10%", text)
 		self.assertIn("Meridian Automatic", text)
 		self.assertIn("5 clients to contact", text)
@@ -223,7 +223,7 @@ class InsightsTestCase(FrappeTestCase):
 
 	def setUp(self):
 		frappe.set_user("Administrator")
-		frappe.local._maison_affinity = None
+		frappe.local._awanz_affinity = None
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
@@ -232,7 +232,7 @@ class InsightsTestCase(FrappeTestCase):
 		"""Back-dated opening stock so back-dated test sales never drive a bin negative."""
 		from maison_pos.setup.demo import _stock_entry_doc
 
-		warehouse = frappe.db.get_value("Maison Boutique", boutique, "warehouse")
+		warehouse = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 		row = {"item_code": item_code, "qty": qty, "t_warehouse": warehouse, "basic_rate": 100}
 		if serial:
 			row.update({"use_serial_batch_fields": 1, "serial_no": serial})
@@ -325,7 +325,7 @@ class TestRecommendations(InsightsTestCase):
 		self._sell(customer, [{"item_code": "TP-001", "qty": 1, "rate": 6900, "serial_no": first_serial("TP-001", "NYC-5AV")}])
 		res = affinity.compute_client_recommendations(n=3)
 		self.assertGreater(res["recommendations"], 0)
-		rows = frappe.get_all("Maison Client Recommendation", filters={"customer": customer}, fields=["item_code", "rank"], order_by="rank")
+		rows = frappe.get_all("AWANZ Client Recommendation", filters={"customer": customer}, fields=["item_code", "rank"], order_by="rank")
 		self.assertTrue(rows)
 		self.assertNotIn("TP-001", [r.item_code for r in rows])
 		self.assertEqual(rows[0].item_code, "AC-010")
@@ -348,7 +348,7 @@ class TestSignalsAndJobs(InsightsTestCase):
 		self.assertEqual(s["preferred_department"], "Accessories")
 		res = client_signals.compute_client_signals()
 		self.assertGreaterEqual(res["signals"], 1)
-		row = frappe.get_value("Maison Client Signal", {"customer": customer}, ["signal_type", "boutique", "churn_risk", "status"], as_dict=True)
+		row = frappe.get_value("AWANZ Client Signal", {"customer": customer}, ["signal_type", "boutique", "churn_risk", "status"], as_dict=True)
 		self.assertIsNotNone(row)
 		self.assertEqual(row.signal_type, "Overdue visit")
 		self.assertEqual(row.boutique, "CHI-OAK")
@@ -368,10 +368,10 @@ class TestSignalsAndJobs(InsightsTestCase):
 		frappe.set_user(CHI_MANAGER)
 		name = mine["signals"][0].name if mine["signals"][0].customer == customer else next(r.name for r in mine["signals"] if r.customer == customer)
 		api.mark_signal(name, "Contacted", note="Called about the new collar")
-		self.assertEqual(frappe.db.get_value("Maison Client Signal", name, "contacted_by"), CHI_MANAGER)
+		self.assertEqual(frappe.db.get_value("AWANZ Client Signal", name, "contacted_by"), CHI_MANAGER)
 		frappe.set_user("Administrator")
 		client_signals.compute_client_signals()
-		self.assertFalse(frappe.db.exists("Maison Client Signal", {"customer": customer, "status": "Open"}))
+		self.assertFalse(frappe.db.exists("AWANZ Client Signal", {"customer": customer, "status": "Open"}))
 
 	def test_compute_and_narrative_report(self):
 		self._sell("Isabella Marchetti", [{"item_code": "AC-008", "qty": 1, "rate": 690}], days_ago=3)
@@ -381,7 +381,7 @@ class TestSignalsAndJobs(InsightsTestCase):
 		self.assertIn("signals", out)
 		self.assertIn("rebalance", out)
 		self.assertEqual(out["narrative"]["generator"], "Template")
-		doc = frappe.get_doc("Maison Insight Report", out["narrative"]["report"])
+		doc = frappe.get_doc("AWANZ Insight Report", out["narrative"]["report"])
 		self.assertIn("the chain took", doc.narrative)
 		self.assertTrue(doc.numbers)
 		latest = api.narrative()
@@ -397,8 +397,8 @@ class TestSignalsAndJobs(InsightsTestCase):
 class TestRebalance(InsightsTestCase):
 	def test_performance_and_one_click_transfer(self):
 		# NYC sells lots of AC-012 (runs low), CHI sells none: expect CHI -> NYC
-		nyc_wh = frappe.db.get_value("Maison Boutique", "NYC-5AV", "warehouse")
-		chi_wh = frappe.db.get_value("Maison Boutique", "CHI-OAK", "warehouse")
+		nyc_wh = frappe.db.get_value("AWANZ Store", "NYC-5AV", "warehouse")
+		chi_wh = frappe.db.get_value("AWANZ Store", "CHI-OAK", "warehouse")
 		self._receive("AC-012", "NYC-5AV", 40)
 		self._receive("AC-012", "CHI-OAK", 120)  # Chicago sits on a pile it will not sell for months
 		start_nyc = flt(frappe.db.get_value("Bin", {"item_code": "AC-012", "warehouse": nyc_wh}, "actual_qty"))
@@ -428,9 +428,9 @@ class TestRebalance(InsightsTestCase):
 
 		res = perf.compute_rebalance_suggestions(90)
 		self.assertGreater(res["suggestions"], 0)
-		name = frappe.db.get_value("Maison Rebalance Suggestion", {"item_code": "AC-012", "to_boutique": "NYC-5AV", "status": "Open"}, "name")
+		name = frappe.db.get_value("AWANZ Rebalance Suggestion", {"item_code": "AC-012", "to_boutique": "NYC-5AV", "status": "Open"}, "name")
 		self.assertTrue(name)
-		sug = frappe.get_doc("Maison Rebalance Suggestion", name)
+		sug = frappe.get_doc("AWANZ Rebalance Suggestion", name)
 
 		# associates cannot, a manager of an unrelated boutique cannot, the destination manager can
 		frappe.set_user(NYC_ASSOCIATE)
@@ -445,7 +445,7 @@ class TestRebalance(InsightsTestCase):
 		frappe.set_user(NYC_MANAGER)
 		listed = api.rebalance_suggestions()
 		self.assertTrue(any(s.name == name and s.can_transfer for s in listed["suggestions"]))
-		from_wh = chi_wh if sug.from_boutique == "CHI-OAK" else frappe.db.get_value("Maison Boutique", "MIA-DD", "warehouse")
+		from_wh = chi_wh if sug.from_boutique == "CHI-OAK" else frappe.db.get_value("AWANZ Store", "MIA-DD", "warehouse")
 		before_from = flt(frappe.db.get_value("Bin", {"item_code": "AC-012", "warehouse": from_wh}, "actual_qty"))
 		before_to = flt(frappe.db.get_value("Bin", {"item_code": "AC-012", "warehouse": nyc_wh}, "actual_qty"))
 		out = api.create_transfer(name)
@@ -455,7 +455,7 @@ class TestRebalance(InsightsTestCase):
 		self.assertEqual(se.purpose, "Material Transfer")
 		self.assertEqual(flt(frappe.db.get_value("Bin", {"item_code": "AC-012", "warehouse": from_wh}, "actual_qty")), before_from - sug.qty)
 		self.assertEqual(flt(frappe.db.get_value("Bin", {"item_code": "AC-012", "warehouse": nyc_wh}, "actual_qty")), before_to + sug.qty)
-		self.assertEqual(frappe.db.get_value("Maison Rebalance Suggestion", name, "status"), "Transferred")
+		self.assertEqual(frappe.db.get_value("AWANZ Rebalance Suggestion", name, "status"), "Transferred")
 		with self.assertRaises(frappe.ValidationError):
 			api.create_transfer(name)  # already transferred
 
@@ -468,7 +468,7 @@ class TestRebalance(InsightsTestCase):
 		self.assertTrue(sn)
 		sug = frappe.get_doc(
 			{
-				"doctype": "Maison Rebalance Suggestion",
+				"doctype": "AWANZ Rebalance Suggestion",
 				"item_code": "TP-005",
 				"item_name": "Corsaire Chronograph Titanium",
 				"has_serial_no": 1,
@@ -483,12 +483,12 @@ class TestRebalance(InsightsTestCase):
 		frappe.set_user(HQ)
 		out = api.create_transfer(sug.name)
 		self.assertEqual(len(out["serial_nos"]), 1)
-		nyc_wh = frappe.db.get_value("Maison Boutique", "NYC-5AV", "warehouse")
+		nyc_wh = frappe.db.get_value("AWANZ Store", "NYC-5AV", "warehouse")
 		self.assertEqual(frappe.db.get_value("Serial No", out["serial_nos"][0], "warehouse"), nyc_wh)
 
 	def test_dismiss(self):
 		# (a dismissed pair is remembered by the weekly job — keep this one distinct from the transfer test)
-		sug = frappe.get_doc({"doctype": "Maison Rebalance Suggestion", "item_code": "AC-011", "item_name": "Travel Jewellery Case", "from_boutique": "MIA-DD", "to_boutique": "CHI-OAK", "qty": 2, "value": 760, "status": "Open", "reason": "test"}).insert()
+		sug = frappe.get_doc({"doctype": "AWANZ Rebalance Suggestion", "item_code": "AC-011", "item_name": "Travel Jewellery Case", "from_boutique": "MIA-DD", "to_boutique": "CHI-OAK", "qty": 2, "value": 760, "status": "Open", "reason": "test"}).insert()
 		frappe.set_user(CHI_MANAGER)
 		self.assertEqual(api.dismiss_suggestion(sug.name, "keeping for the trunk show")["status"], "Dismissed")
-		self.assertIn("trunk show", frappe.db.get_value("Maison Rebalance Suggestion", sug.name, "reason"))
+		self.assertIn("trunk show", frappe.db.get_value("AWANZ Rebalance Suggestion", sug.name, "reason"))

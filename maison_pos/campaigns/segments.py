@@ -46,7 +46,7 @@ def customer_tiers(customers: Optional[list[str]] = None) -> dict[str, Optional[
 			if flt(r.spent) >= min_spent:
 				tier = name
 		tiers[r.customer] = tier
-	for r in frappe.get_all("Maison Client Profile", filters={"vip_tier_override": ("is", "set")}, fields=["name", "vip_tier_override"]):
+	for r in frappe.get_all("AWANZ Client Profile", filters={"vip_tier_override": ("is", "set")}, fields=["name", "vip_tier_override"]):
 		if customers is None or r.name in customers:
 			tiers[r.name] = r.vip_tier_override
 	return tiers
@@ -65,7 +65,7 @@ def last_boutique_map() -> dict[str, str]:
 
 def build_segment(campaign: Any, limit: Optional[int] = None) -> list[dict[str, Any]]:
 	"""Customers matching the campaign's audience definition (see module doc)."""
-	c = campaign if isinstance(campaign, dict) else frappe.get_doc("Maison Campaign", campaign).as_dict()
+	c = campaign if isinstance(campaign, dict) else frappe.get_doc("AWANZ Campaign", campaign).as_dict()
 	walk_ins = _walk_ins()
 	candidates: Optional[set[str]] = None
 
@@ -92,9 +92,9 @@ def build_segment(campaign: Any, limit: Optional[int] = None) -> list[dict[str, 
 			)
 		)
 	if c.get("segment_signal_type"):
-		narrow(set(frappe.get_all("Maison Client Signal", filters={"signal_type": c["segment_signal_type"], "status": "Open"}, pluck="customer")))
+		narrow(set(frappe.get_all("AWANZ Client Signal", filters={"signal_type": c["segment_signal_type"], "status": "Open"}, pluck="customer")))
 	if c.get("segment_boutique"):
-		preferred = set(frappe.get_all("Maison Client Profile", filters={"preferred_boutique": c["segment_boutique"]}, pluck="name"))
+		preferred = set(frappe.get_all("AWANZ Client Profile", filters={"preferred_boutique": c["segment_boutique"]}, pluck="name"))
 		last = {cust for cust, b in last_boutique_map().items() if b == c["segment_boutique"]}
 		narrow(preferred | last)
 	if c.get("segment_tier"):
@@ -109,7 +109,7 @@ def build_segment(campaign: Any, limit: Optional[int] = None) -> list[dict[str, 
 	rows = [r for r in rows if r.name not in walk_ins]
 
 	opt_out_field = CHANNEL_OPT_OUT.get(c.get("channel") or "Email", "do_not_email")
-	profiles = {p.name: p for p in frappe.get_all("Maison Client Profile", filters={"name": ("in", [r.name for r in rows])}, fields=["name", "preferred_boutique", "preferred_associate", opt_out_field])} if rows else {}
+	profiles = {p.name: p for p in frappe.get_all("AWANZ Client Profile", filters={"name": ("in", [r.name for r in rows])}, fields=["name", "preferred_boutique", "preferred_associate", opt_out_field])} if rows else {}
 	tiers = customer_tiers([r.name for r in rows]) if rows else {}
 	last = last_boutique_map()
 	out = []

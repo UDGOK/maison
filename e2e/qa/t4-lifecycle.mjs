@@ -1,6 +1,6 @@
 import { apiFor, closeBrowser, record, saveResults, log, STORE, MGR, WH, TAG } from './lib-wh.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin'), m = await apiFor(MGR), w = await apiFor(WH)
 const HQ = 'HOU-WH - CCZ', SWH = `${STORE} - CCZ`, TR = `${STORE} In Transit - CCZ`
 const bin = async (item, wh) => Number((await a.list('Bin', { item_code: item, warehouse: wh }, ['actual_qty']))[0]?.actual_qty || 0)
@@ -83,7 +83,7 @@ record('Stock Ledger: one -10 in transit and one +10 at the store',
   sleRecv.length === 2 && sleRecv.some(r => r.warehouse === TR && Number(r.actual_qty) === -10) && sleRecv.some(r => r.warehouse === SWH && Number(r.actual_qty) === 10),
   JSON.stringify(sleRecv))
 record('no discrepancy is raised on a clean receipt', (recv.discrepancies || []).length === 0, JSON.stringify(recv.discrepancies))
-record('the replenishment request is closed out as Approved/complete', true, JSON.stringify(await a.value('Maison Replenishment Request', S.R1, ['status', 'shipment'])))
+record('the replenishment request is closed out as Approved/complete', true, JSON.stringify(await a.value('AWANZ Replenishment Request', S.R1, ['status', 'shipment'])))
 
 // ---- 4.8 receiving twice
 const again = await m.tryPost('maison_pos.api.inventory.receive_shipment', { shipment: S1, final: 1 })
@@ -114,10 +114,10 @@ const cancelShipped = await w.tryPost('maison_pos.api.shipping.mark', { shipment
 record('a shipped/received consignment cannot be cancelled', !cancelShipped.ok, `${cancelShipped.status} ${String(cancelShipped.exc).slice(0, 160)}`)
 const afterCancelWall = await w.get('maison_pos.api.shipping.wall')
 record('the cancelled shipment leaves the wall columns', !Object.values(afterCancelWall.columns).flat().some(c => c.name === S5), JSON.stringify(afterCancelWall.counts))
-const reqOfS5 = await a.value('Maison Replenishment Request', S.R5, ['status'])
+const reqOfS5 = await a.value('AWANZ Replenishment Request', S.R5, ['status'])
 record('OBSERVATION: cancelling the shipment leaves its replenishment request "Approved"', true, `${S.R5} status=${reqOfS5.status} (no re-open / no notification to the store)`, 'observation')
 
-writeFileSync('/home/claude/maison/e2e/qa/state.json', JSON.stringify({ ...S, S1done: true }, null, 1))
+writeFileSync('/home/claude/awanz/e2e/qa/state.json', JSON.stringify({ ...S, S1done: true }, null, 1))
 await Promise.all([m.dispose(), w.dispose()])
 saveResults('results-w4.json')
 await a.dispose(); await closeBrowser()

@@ -151,7 +151,7 @@ class SimulatedProvider(BaseProvider):
 		"""A plausible timeline: label → accepted after 2 h → in transit → out for delivery → delivered after ``days``.
 
 		v0.8 QA W-N4: ``shipped_at`` comes from the site clock (``api/shipping._track_doc`` passes
-		``Maison Shipment.shipped_at`` / ``label_at``, both site-local), so "now" has to be the
+		``AWANZ Shipment.shipped_at`` / ``label_at``, both site-local), so "now" has to be the
 		site clock too. With ``datetime.utcnow()`` the timeline ran the UTC offset ahead and a
 		label bought seconds ago already reported "Accepted at origin facility".
 		"""

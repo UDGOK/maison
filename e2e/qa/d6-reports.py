@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""D6 — run every Maison Script Report with several filter combinations."""
+"""D6 — run every AWANZ Script Report with several filter combinations."""
 import json, time
 import dq
 
-REPORTS = ["Maison Sales Tax Summary","Maison Daily Sales","Maison Sales by Item","Maison Sales by Associate",
-           "Maison Hourly Sales Heatmap","Maison Client Purchases","Maison Serial Ledger","Maison Returns",
-           "Maison Commission Statement","Maison Promotion Performance","Maison Campaign Performance"]
+REPORTS = ["AWANZ Sales Tax Summary","AWANZ Daily Sales","AWANZ Sales by Item","AWANZ Sales by Associate",
+           "AWANZ Hourly Sales Heatmap","AWANZ Client Purchases","AWANZ Serial Ledger","AWANZ Returns",
+           "AWANZ Commission Statement","AWANZ Promotion Performance","AWANZ Campaign Performance"]
 COMBOS = [
   ("today",            {"from_date":"2026-08-23","to_date":"2026-08-23"}),
   ("MTD all stores",   {"from_date":"2026-08-01","to_date":"2026-08-23"}),
@@ -33,7 +33,7 @@ for rep in REPORTS:
             res.append(dict(report=rep,combo=label,status="OK",rows=nrow,cols=len(cols),ms=round(ms),
                             first=rows[0] if rows else None, chart=bool(m.get("chart")), summary=bool(m.get("report_summary"))))
             print(f"OK  {rep:32} {label:16} {round(ms):5} ms  rows={nrow:5} cols={len(cols):2} chart={'y' if m.get('chart') else 'n'}")
-json.dump(res, open("/home/claude/maison/e2e/qa/results-d6.json","w"), indent=1, default=str)
+json.dump(res, open("/home/claude/awanz/e2e/qa/results-d6.json","w"), indent=1, default=str)
 errs=[r for r in res if r["status"]=="ERROR"]
 print(f"\n{len(res)} runs, {len(errs)} errors")
 for e in errs: print("  !", e["report"], e["combo"], e["detail"][:200])

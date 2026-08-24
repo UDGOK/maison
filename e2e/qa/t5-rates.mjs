@@ -1,6 +1,6 @@
 import { apiFor, closeBrowser, record, saveResults, log, sleep, STORE, MGR, WH, TAG, BASE } from './lib-wh.mjs'
 import { readFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin'), m = await apiFor(MGR), w = await apiFor(WH)
 const S2 = S.S2
 
@@ -28,7 +28,7 @@ record('the "fastest" toggle selects the quickest service (ties broken by price)
   `fastest=${qf.selected.carrier} ${qf.selected.service} $${qf.selected.amount} ${qf.selected.days}d; cheapest is still ${qf.cheapest === q.cheapest ? 'reported' : 'MISSING'} ($${q.selected.amount})`)
 record('cheapest and fastest are different services here (the toggle actually changes something)',
   qf.fastest !== q.cheapest, `cheapest=${q.selected.carrier} ${q.selected.service}, fastest=${qf.selected.carrier} ${qf.selected.service}`)
-const cached = await a.value('Maison Shipment', S2, ['rate_options'])
+const cached = await a.value('AWANZ Shipment', S2, ['rate_options'])
 record('the quote is cached on the shipment so the desk shows what it was quoted', String(cached.rate_options || '').includes('provider_rate_id'),
   `rate_options length=${String(cached.rate_options || '').length}`)
 
@@ -76,7 +76,7 @@ for (let i = 0; i < 30; i++) {
   const now = (await a.list('Scheduled Job Log', { scheduled_job_type: 'shipping.refresh_tracking' }, ['name', 'status'], 1, 'creation desc'))[0]
   if (now && now.name !== before) { jobStatus = now.status; break }
 }
-const after = await a.value('Maison Shipment', S2, ['tracking_status', 'tracking_updated_at', 'tracking_url'])
+const after = await a.value('AWANZ Shipment', S2, ['tracking_status', 'tracking_updated_at', 'tracking_url'])
 record('shipping.refresh_tracking (hourly job) runs and stamps the shipment', jobStatus === 'Complete' && !!after.tracking_updated_at,
   `job=${jobStatus}; tracking_status=${after.tracking_status} updated_at=${after.tracking_updated_at}`)
 const noTrack = await w.get('maison_pos.api.shipping.track', { shipment: S.S5 })

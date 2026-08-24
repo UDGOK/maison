@@ -1,12 +1,12 @@
 /**
- * v0.5 K — Maison Salon (client-facing screen) API: `maison_pos.api.salon.*`.
+ * v0.5 K — AWANZ Salon (client-facing screen) API: `maison_pos.api.salon.*`.
  *
  * Two callers share the contract:
  *   - the POS (authenticated associate): `pairing_code`, `pos_status`, `pos_poll`, `publish`, `pending_consent`, `unpair_pos`;
  *   - the Salon device (a **guest** holding the session token): `pair`, `state`, `identify`, `signup`, `consent`,
  *     `consent_decline`, `ask`, `feedback`, `invite`, `email_receipt`, `preferences`, `unpair`.
  *
- * The mock (VITE_MOCK=1) keeps the "server" in `localStorage` (`maison.mock.salon`) so a real `/salon` tab — or the
+ * The mock (VITE_MOCK=1) keeps the "server" in `localStorage` (`awanz.mock.salon`) so a real `/salon` tab — or the
  * dev "virtual salon" iframe in Settings — shares state with the POS tab through `storage` events.
  */
 import { ApiError, type Customer } from './types'
@@ -316,8 +316,8 @@ export const frappeSalon: SalonApi = {
 // ---------------------------------------------------------------------------------------------
 // Mock (VITE_MOCK=1) — the "server" lives in localStorage so several windows share it
 // ---------------------------------------------------------------------------------------------
-export const MOCK_LS = 'maison.mock.salon'
-export const MOCK_EVENT = 'maison:salon-mock'
+export const MOCK_LS = 'awanz.mock.salon'
+export const MOCK_EVENT = 'awanz:salon-mock'
 export const PAIR_TTL_MS = 10 * 60 * 1000
 export const SESSION_HOURS = 12
 
@@ -341,9 +341,9 @@ interface MockServer {
 }
 
 const MOCK_BOUTIQUES: Record<string, { boutique_name: string; city: string }> = {
-  'CHI-OAK': { boutique_name: 'Maison Oak Street', city: 'Chicago, IL 60611' },
-  'NYC-MAD': { boutique_name: 'Maison Madison Avenue', city: 'New York, NY 10065' },
-  'LA-RODEO': { boutique_name: 'Maison Rodeo Drive', city: 'Beverly Hills, CA 90210' }
+  'CHI-OAK': { boutique_name: 'AWANZ Oak Street', city: 'Chicago, IL 60611' },
+  'NYC-MAD': { boutique_name: 'AWANZ Madison Avenue', city: 'New York, NY 10065' },
+  'LA-RODEO': { boutique_name: 'AWANZ Rodeo Drive', city: 'Beverly Hills, CA 90210' }
 }
 
 export const MOCK_PLAYLIST: PlaylistPiece[] = [
@@ -385,7 +385,7 @@ function delay() {
 }
 async function guard() {
   await delay()
-  if (typeof window !== 'undefined' && window.__maisonOffline) throw new ApiError('Failed to fetch', 'NETWORK', 0)
+  if (typeof window !== 'undefined' && window.__awanzOffline) throw new ApiError('Failed to fetch', 'NETWORK', 0)
 }
 
 function allCustomers(s: MockServer): Customer[] {
@@ -393,7 +393,7 @@ function allCustomers(s: MockServer): Customer[] {
   // `client_attached` carries the full summary so the POS can attach without a lookup)
   let extra: Customer[] = []
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('maison.mock.state') : null
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('awanz.mock.state') : null
     if (raw) extra = ((JSON.parse(raw).customers as Customer[]) || []).filter((c) => !CUSTOMERS.some((x) => x.name === c.name))
   } catch {
     /* ignore */
@@ -623,7 +623,7 @@ export const mockSalon: SalonApi = {
       s.customers.push(c)
     }
     s.profiles[c.name] = { ...(s.profiles[c.name] || {}), do_not_email: args.marketing_email ? 0 : 1, do_not_sms: args.marketing_sms ? 0 : 1, birthday: args.birthday || (s.profiles[c.name] || {}).birthday }
-    s.interactions.push({ customer: c.name, type: 'Visit', note: created ? `Joined Maison from the Salon at ${sess.boutique}` : 'Salon sign-up linked existing client', ts: new Date().toISOString(), boutique: sess.boutique })
+    s.interactions.push({ customer: c.name, type: 'Visit', note: created ? `Joined AWANZ from the Salon at ${sess.boutique}` : 'Salon sign-up linked existing client', ts: new Date().toISOString(), boutique: sess.boutique })
     const r = attach(s, sess, c, 'signup', created)
     return { ...r, face_recognition_enabled: mockSettings(sess.boutique).face_recognition_enabled }
   },

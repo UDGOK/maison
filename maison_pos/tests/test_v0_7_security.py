@@ -117,11 +117,11 @@ class SecurityHTTPCase(FrappeTestCase):
 		ensure_demo_data()
 		frappe.set_user("Administrator")
 		frappe.db.commit()
-		cls.manager_a = frappe.db.get_value("Maison Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "name")
-		floor_a = sorted(frappe.get_all("Maison Associate", filters={"boutique": STORE_A, "role": "Associate", "enabled": 1}, pluck="name"))
+		cls.manager_a = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "name")
+		floor_a = sorted(frappe.get_all("AWANZ Associate", filters={"boutique": STORE_A, "role": "Associate", "enabled": 1}, pluck="name"))
 		cls.assoc_a, cls.assoc_a2 = floor_a[0], floor_a[1]
-		cls.manager_b = frappe.db.get_value("Maison Associate", {"boutique": STORE_B, "role": "Manager", "enabled": 1}, "name")
-		cls.assoc_b = frappe.db.get_value("Maison Associate", {"boutique": STORE_B, "role": "Associate", "enabled": 1}, "name")
+		cls.manager_b = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_B, "role": "Manager", "enabled": 1}, "name")
+		cls.assoc_b = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_B, "role": "Associate", "enabled": 1}, "name")
 		# the unlock tests need a known PIN and the web workers read committed data, so set it
 		# here rather than trusting whatever the shared bench left behind
 		set_pin(cls.assoc_a, PIN_A)
@@ -131,7 +131,7 @@ class SecurityHTTPCase(FrappeTestCase):
 		super().setUp()
 		frappe.set_user("Administrator")
 		# the limiter is shared with the web workers through redis; start every test at zero
-		frappe.cache().delete_keys("maison_rl")
+		frappe.cache().delete_keys("awanz_rl")
 
 	def refresh(self) -> None:
 		"""End this connection's read snapshot so the web worker's committed writes are visible.
@@ -146,20 +146,20 @@ class SecurityHTTPCase(FrappeTestCase):
 
 
 # ---------------------------------------------------------------------------
-# S1 + S5 — privilege escalation through `Maison Associate`
+# S1 + S5 — privilege escalation through `AWANZ Associate`
 # ---------------------------------------------------------------------------
 class TestEscalationHTTP(SecurityHTTPCase):
 	def test_manager_cannot_promote_themselves_to_head_office(self):
 		"""S1: the audit's exact call — `set_value` on their own row, then read another store."""
 		mgr = self.client(self.manager_a)
-		before = frappe.db.get_value("Maison Associate", self.manager_a, "role")
-		r = mgr.post("frappe.client.set_value", doctype="Maison Associate", name=self.manager_a, fieldname="role", value="HeadOffice")
+		before = frappe.db.get_value("AWANZ Associate", self.manager_a, "role")
+		r = mgr.post("frappe.client.set_value", doctype="AWANZ Associate", name=self.manager_a, fieldname="role", value="HeadOffice")
 		self.assertEqual(r.status_code, 403, r.text[:300])
 		self.refresh()
-		self.assertEqual(frappe.db.get_value("Maison Associate", self.manager_a, "role"), before)
+		self.assertEqual(frappe.db.get_value("AWANZ Associate", self.manager_a, "role"), before)
 		self.assertFalse(
-			frappe.db.exists("Has Role", {"parent": self.manager_a, "role": "Maison Head Office", "parenttype": "User"}),
-			"the role sync granted Maison Head Office",
+			frappe.db.exists("Has Role", {"parent": self.manager_a, "role": "AWANZ Head Office", "parenttype": "User"}),
+			"the role sync granted AWANZ Head Office",
 		)
 		# the proof the audit used: another store's catalogue is still closed
 		self.assertEqual(mgr.get("maison_pos.api.catalog.bootstrap", boutique=STORE_B).status_code, 403)
@@ -167,54 +167,54 @@ class TestEscalationHTTP(SecurityHTTPCase):
 	def test_manager_cannot_move_their_own_record_to_another_store(self):
 		"""S5: `boutique` is what every scoped query keys on, so it is not self-service."""
 		mgr = self.client(self.manager_a)
-		r = mgr.post("frappe.client.set_value", doctype="Maison Associate", name=self.manager_a, fieldname="boutique", value=STORE_B)
+		r = mgr.post("frappe.client.set_value", doctype="AWANZ Associate", name=self.manager_a, fieldname="boutique", value=STORE_B)
 		self.assertEqual(r.status_code, 403, r.text[:300])
 		self.refresh()
-		self.assertEqual(frappe.db.get_value("Maison Associate", self.manager_a, "boutique"), STORE_A)
+		self.assertEqual(frappe.db.get_value("AWANZ Associate", self.manager_a, "boutique"), STORE_A)
 		r = mgr.post(
 			"frappe.client.set_value",
-			doctype="Maison Associate",
+			doctype="AWANZ Associate",
 			name=self.manager_a,
 			fieldname="user",
-			value=frappe.db.get_value("Maison Associate", self.assoc_a, "user"),
+			value=frappe.db.get_value("AWANZ Associate", self.assoc_a, "user"),
 		)
 		self.assertEqual(r.status_code, 403, r.text[:300])
 
 	def test_manager_cannot_promote_their_own_staff(self):
 		"""S5: `role = Manager` on an own-store associate used to grant the Frappe role."""
 		mgr = self.client(self.manager_a)
-		r = mgr.post("frappe.client.set_value", doctype="Maison Associate", name=self.assoc_a, fieldname="role", value="Manager")
+		r = mgr.post("frappe.client.set_value", doctype="AWANZ Associate", name=self.assoc_a, fieldname="role", value="Manager")
 		self.assertEqual(r.status_code, 403, r.text[:300])
 		self.refresh()
-		self.assertEqual(frappe.db.get_value("Maison Associate", self.assoc_a, "role"), "Associate")
-		user = frappe.db.get_value("Maison Associate", self.assoc_a, "user")
-		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Manager", "parenttype": "User"}))
+		self.assertEqual(frappe.db.get_value("AWANZ Associate", self.assoc_a, "role"), "Associate")
+		user = frappe.db.get_value("AWANZ Associate", self.assoc_a, "user")
+		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Manager", "parenttype": "User"}))
 
 	def test_manager_cannot_touch_another_stores_associate(self):
 		mgr = self.client(self.manager_a)
-		r = mgr.post("frappe.client.set_value", doctype="Maison Associate", name=self.assoc_b, fieldname="enabled", value=0)
+		r = mgr.post("frappe.client.set_value", doctype="AWANZ Associate", name=self.assoc_b, fieldname="enabled", value=0)
 		self.assertEqual(r.status_code, 403, r.text[:300])
 		self.refresh()
-		self.assertEqual(frappe.db.get_value("Maison Associate", self.assoc_b, "enabled"), 1)
+		self.assertEqual(frappe.db.get_value("AWANZ Associate", self.assoc_b, "enabled"), 1)
 		r = mgr.post(
 			"frappe.client.insert",
-			doc={"doctype": "Maison Associate", "user": "Administrator", "boutique": STORE_B, "role": "HeadOffice"},
+			doc={"doctype": "AWANZ Associate", "user": "Administrator", "boutique": STORE_B, "role": "HeadOffice"},
 		)
 		self.assertEqual(r.status_code, 403, r.text[:300])
 
 	def test_manager_still_runs_their_own_shop_floor(self):
 		"""The fix must not cost a manager the job: own store, Associate level, still works."""
 		mgr = self.client(self.manager_a)
-		r = mgr.post("maison_pos.maison_pos.doctype.maison_associate.maison_associate.upsert", user=frappe.db.get_value("Maison Associate", self.assoc_a2, "user"), boutique=STORE_A, role="Associate", enabled=1)
+		r = mgr.post("maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.upsert", user=frappe.db.get_value("AWANZ Associate", self.assoc_a2, "user"), boutique=STORE_A, role="Associate", enabled=1)
 		self.assertEqual(r.status_code, 200, r.text[:300])
 		self.assertEqual(message(r)["boutique"], STORE_A)
 		# …including a PIN reset for their own staff
-		r = mgr.post("maison_pos.maison_pos.doctype.maison_associate.maison_associate.reset_pin", associate=self.assoc_a2, pin="4321")
+		r = mgr.post("maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.reset_pin", associate=self.assoc_a2, pin="4321")
 		self.assertEqual(r.status_code, 200, r.text[:300])
-		r = mgr.post("maison_pos.maison_pos.doctype.maison_associate.maison_associate.verify_pin", associate=self.assoc_a2, pin="4321")
+		r = mgr.post("maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.verify_pin", associate=self.assoc_a2, pin="4321")
 		self.assertTrue(message(r)["ok"])
 		# but not for somebody else's staff
-		r = mgr.post("maison_pos.maison_pos.doctype.maison_associate.maison_associate.reset_pin", associate=self.assoc_b, pin="4321")
+		r = mgr.post("maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.reset_pin", associate=self.assoc_b, pin="4321")
 		self.assertEqual(r.status_code, 403, r.text[:300])
 		frappe.db.rollback()
 
@@ -240,7 +240,7 @@ class TestPinHashHTTP(SecurityHTTPCase):
 	def test_associate_cannot_list_pin_hashes_or_other_stores(self):
 		"""S2: the audit's call returned 37 rows across 13 stores, every one with its hash."""
 		a = self.client(self.assoc_a)
-		r = a.get("frappe.client.get_list", doctype="Maison Associate", fields=self.FIELDS, limit_page_length=500)
+		r = a.get("frappe.client.get_list", doctype="AWANZ Associate", fields=self.FIELDS, limit_page_length=500)
 		self.assertEqual(r.status_code, 200, r.text[:300])
 		rows = message(r)
 		self.assertTrue(rows, "an associate must still see their own shop floor")
@@ -248,7 +248,7 @@ class TestPinHashHTTP(SecurityHTTPCase):
 		for row in rows:
 			self.assertNotIn("pin_hash", row)
 		# the same through /api/resource
-		r = a.resource("Maison Associate", fields=self.FIELDS, limit_page_length=500)
+		r = a.resource("AWANZ Associate", fields=self.FIELDS, limit_page_length=500)
 		self.assertEqual(r.status_code, 200, r.text[:300])
 		for row in r.json()["data"]:
 			self.assertNotIn("pin_hash", row)
@@ -256,21 +256,21 @@ class TestPinHashHTTP(SecurityHTTPCase):
 
 	def test_single_document_read_carries_no_hash_and_stops_at_the_store_line(self):
 		a = self.client(self.assoc_a)
-		r = a.get("frappe.client.get", doctype="Maison Associate", name=self.assoc_a)
+		r = a.get("frappe.client.get", doctype="AWANZ Associate", name=self.assoc_a)
 		self.assertEqual(r.status_code, 200, r.text[:300])
 		doc = message(r)
 		self.assertFalse(doc.get("pin_hash"), f"pin_hash leaked: {doc.get('pin_hash')!r}")
 		self.assertFalse(doc.get("pin_set_on"))
 		# another store's associate is not readable at all any more
-		self.assertEqual(a.get("frappe.client.get", doctype="Maison Associate", name=self.assoc_b).status_code, 403)
-		self.assertEqual(a.resource(f"Maison Associate/{self.assoc_b}").status_code, 403)
+		self.assertEqual(a.get("frappe.client.get", doctype="AWANZ Associate", name=self.assoc_b).status_code, 403)
+		self.assertEqual(a.resource(f"AWANZ Associate/{self.assoc_b}").status_code, 403)
 
 	def test_the_hash_cannot_be_guessed_through_a_filter(self):
 		"""Frappe does not permlevel-gate *filters*, so the hash must not be in the table at all."""
 		a = self.client(self.assoc_a)
 		r = a.get(
 			"frappe.client.get_list",
-			doctype="Maison Associate",
+			doctype="AWANZ Associate",
 			filters=json.dumps([["pin_hash", "like", "pbkdf2_sha256%"]]),
 			fields='["name"]',
 			limit_page_length=500,
@@ -278,7 +278,7 @@ class TestPinHashHTTP(SecurityHTTPCase):
 		self.assertEqual(r.status_code, 200, r.text[:300])
 		self.assertEqual(message(r), [], "a `like` filter on pin_hash is still an oracle")
 		self.assertTrue(
-			frappe.db.get_value("Maison Associate", self.assoc_a, "pin_hash") in (None, "") or set(frappe.db.get_value("Maison Associate", self.assoc_a, "pin_hash")) == {"*"},
+			frappe.db.get_value("AWANZ Associate", self.assoc_a, "pin_hash") in (None, "") or set(frappe.db.get_value("AWANZ Associate", self.assoc_a, "pin_hash")) == {"*"},
 			"the doctype column still holds the real hash",
 		)
 
@@ -290,10 +290,10 @@ class TestPinHashHTTP(SecurityHTTPCase):
 		names = [row["name"] for row in message(r)]
 		self.assertIn(self.assoc_a, names)
 		self.assertNotIn(self.assoc_b, names)
-		r = a.post("maison_pos.maison_pos.doctype.maison_associate.maison_associate.verify_pin", associate=self.assoc_a, pin=PIN_A)
+		r = a.post("maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.verify_pin", associate=self.assoc_a, pin=PIN_A)
 		self.assertEqual(r.status_code, 200, r.text[:300])
 		self.assertTrue(message(r)["ok"])
-		r = a.post("maison_pos.maison_pos.doctype.maison_associate.maison_associate.verify_pin", associate=self.assoc_a, pin="0000")
+		r = a.post("maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate.verify_pin", associate=self.assoc_a, pin="0000")
 		self.assertFalse(message(r)["ok"])
 		# and the bootstrap the POS actually calls still carries the shop floor
 		r = a.get("maison_pos.api.catalog.bootstrap", boutique=STORE_A)
@@ -303,7 +303,7 @@ class TestPinHashHTTP(SecurityHTTPCase):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
-		frappe.db.set_value("Maison Associate", self.assoc_a, "failed_pin_attempts", 0, update_modified=False)
+		frappe.db.set_value("AWANZ Associate", self.assoc_a, "failed_pin_attempts", 0, update_modified=False)
 		frappe.db.commit()
 		super().tearDown()
 
@@ -427,10 +427,10 @@ class TestClientBookHTTP(SecurityHTTPCase):
 		super().setUpClass()
 		frappe.set_user("Administrator")
 		cls.foreign = _ensure_customer(f"{TAG}Elsewhere Client", FOREIGN_EMAIL, "+1 312 555 0999")
-		if frappe.db.exists("DocType", "Maison Client Profile"):
-			if not frappe.db.exists("Maison Client Profile", cls.foreign):
-				frappe.get_doc({"doctype": "Maison Client Profile", "customer": cls.foreign}).insert(ignore_permissions=True)
-			frappe.db.set_value("Maison Client Profile", cls.foreign, "preferred_boutique", STORE_B, update_modified=False)
+		if frappe.db.exists("DocType", "AWANZ Client Profile"):
+			if not frappe.db.exists("AWANZ Client Profile", cls.foreign):
+				frappe.get_doc({"doctype": "AWANZ Client Profile", "customer": cls.foreign}).insert(ignore_permissions=True)
+			frappe.db.set_value("AWANZ Client Profile", cls.foreign, "preferred_boutique", STORE_B, update_modified=False)
 		frappe.db.commit()
 
 	@classmethod
@@ -489,8 +489,8 @@ class TestSecurityUnits(FrappeTestCase):
 		super().setUpClass()
 		ensure_demo_data()
 		frappe.set_user("Administrator")
-		cls.manager_a = frappe.db.get_value("Maison Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "name")
-		cls.assoc_a = frappe.db.get_value("Maison Associate", {"boutique": STORE_A, "role": "Associate", "enabled": 1}, "name", order_by="name")
+		cls.manager_a = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_A, "role": "Manager", "enabled": 1}, "name")
+		cls.assoc_a = frappe.db.get_value("AWANZ Associate", {"boutique": STORE_A, "role": "Associate", "enabled": 1}, "name", order_by="name")
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
@@ -500,33 +500,33 @@ class TestSecurityUnits(FrappeTestCase):
 	def test_role_sync_refuses_to_grant_a_rank_above_the_grantor(self):
 		"""Even a server path that ignores permissions cannot hand out Head Office."""
 		frappe.set_user(self.manager_a)
-		doc = frappe.get_doc("Maison Associate", self.assoc_a)
+		doc = frappe.get_doc("AWANZ Associate", self.assoc_a)
 		doc.role = "HeadOffice"
 		with self.assertRaises(frappe.PermissionError):
 			doc.save(ignore_permissions=True)
 		frappe.db.rollback()
-		user = frappe.db.get_value("Maison Associate", self.assoc_a, "user")
-		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Head Office", "parenttype": "User"}))
+		user = frappe.db.get_value("AWANZ Associate", self.assoc_a, "user")
+		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Head Office", "parenttype": "User"}))
 
 	def test_a_demotion_takes_the_frappe_role_back(self):
-		"""The sync used to be add-only: a demoted manager kept `Maison Manager` for ever."""
+		"""The sync used to be add-only: a demoted manager kept `AWANZ Manager` for ever."""
 		frappe.set_user("Administrator")
-		doc = frappe.get_doc("Maison Associate", self.assoc_a)
+		doc = frappe.get_doc("AWANZ Associate", self.assoc_a)
 		user = doc.user
 		doc.role = "Manager"
 		doc.save(ignore_permissions=True)
-		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Manager", "parenttype": "User"}))
+		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Manager", "parenttype": "User"}))
 		doc.reload()
 		doc.role = "Associate"
 		doc.save(ignore_permissions=True)
-		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Manager", "parenttype": "User"}))
-		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Associate", "parenttype": "User"}))
+		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Manager", "parenttype": "User"}))
+		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Associate", "parenttype": "User"}))
 		frappe.db.rollback()
 
 	def test_the_validate_guard_rejects_a_privileged_change_on_its_own(self):
 		"""Third line of defence: no permlevel, no hook — just the controller."""
 		frappe.set_user(self.manager_a)
-		doc = frappe.get_doc("Maison Associate", self.assoc_a)
+		doc = frappe.get_doc("AWANZ Associate", self.assoc_a)
 		doc.load_doc_before_save()
 		doc.boutique = STORE_B
 		with self.assertRaises(frappe.PermissionError):
@@ -539,7 +539,7 @@ class TestSecurityUnits(FrappeTestCase):
 
 	# --- S1: the manager's own staff API --------------------------------
 	def test_manager_upsert_is_bounded_to_their_own_store_and_level(self):
-		from maison_pos.maison_pos.doctype.maison_associate.maison_associate import upsert
+		from maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate import upsert
 
 		frappe.set_user("Administrator")
 		email = f"qa.v07.newhire.{frappe.generate_hash(length=6)}@example.test"
@@ -550,8 +550,8 @@ class TestSecurityUnits(FrappeTestCase):
 		created = upsert(user=email, boutique=STORE_A, role="Associate", pin="4455")
 		self.assertEqual(created["boutique"], STORE_A)
 		self.assertEqual(created["role"], "Associate")
-		self.assertTrue(frappe.db.exists("Has Role", {"parent": email, "role": "Maison Associate", "parenttype": "User"}))
-		self.assertFalse(frappe.db.exists("Has Role", {"parent": email, "role": "Maison Manager", "parenttype": "User"}))
+		self.assertTrue(frappe.db.exists("Has Role", {"parent": email, "role": "AWANZ Associate", "parenttype": "User"}))
+		self.assertFalse(frappe.db.exists("Has Role", {"parent": email, "role": "AWANZ Manager", "parenttype": "User"}))
 		with self.assertRaises(frappe.PermissionError):
 			upsert(user=email, boutique=STORE_A, role="Manager")
 		with self.assertRaises(frappe.PermissionError):
@@ -563,26 +563,26 @@ class TestSecurityUnits(FrappeTestCase):
 
 	# --- S2: the PIN itself ---------------------------------------------
 	def test_the_pin_hash_lives_outside_the_doctype_table(self):
-		from maison_pos.maison_pos.doctype.maison_associate.maison_associate import PBKDF2_ITERATIONS, hash_pin, is_dummy
+		from maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate import PBKDF2_ITERATIONS, hash_pin, is_dummy
 
 		frappe.set_user("Administrator")
-		doc = frappe.get_doc("Maison Associate", self.assoc_a)
+		doc = frappe.get_doc("AWANZ Associate", self.assoc_a)
 		doc.set_pin("2580")
-		column = frappe.db.get_value("Maison Associate", self.assoc_a, "pin_hash")
+		column = frappe.db.get_value("AWANZ Associate", self.assoc_a, "pin_hash")
 		self.assertTrue(is_dummy(column), f"the hash is still in the column: {column!r}")
-		real = frappe.get_doc("Maison Associate", self.assoc_a).get_pin_hash()
+		real = frappe.get_doc("AWANZ Associate", self.assoc_a).get_pin_hash()
 		self.assertTrue(real.startswith("pbkdf2_sha256$"))
 		self.assertEqual(int(real.split("$")[1]), PBKDF2_ITERATIONS)
 		self.assertNotEqual(hash_pin("2580"), real, "the salt is not random")
 		frappe.db.rollback()
 
 	def test_a_legacy_hash_still_verifies_and_is_upgraded(self):
-		from maison_pos.maison_pos.doctype.maison_associate.maison_associate import PBKDF2_ITERATIONS, hash_pin
+		from maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate import PBKDF2_ITERATIONS, hash_pin
 
 		frappe.set_user("Administrator")
 		legacy = hash_pin("2580", iterations=1000)
-		frappe.db.set_value("Maison Associate", self.assoc_a, "pin_hash", legacy, update_modified=False)
-		doc = frappe.get_doc("Maison Associate", self.assoc_a)
+		frappe.db.set_value("AWANZ Associate", self.assoc_a, "pin_hash", legacy, update_modified=False)
+		doc = frappe.get_doc("AWANZ Associate", self.assoc_a)
 		self.assertTrue(doc.verify_pin("2580"))
 		doc.reload()
 		self.assertEqual(int((doc.get_pin_hash() or "$0$").split("$")[1]), PBKDF2_ITERATIONS)
@@ -590,13 +590,13 @@ class TestSecurityUnits(FrappeTestCase):
 
 	def test_pin_lockout_after_five_failures(self):
 		frappe.set_user("Administrator")
-		doc = frappe.get_doc("Maison Associate", self.assoc_a)
+		doc = frappe.get_doc("AWANZ Associate", self.assoc_a)
 		for _ in range(5):
 			self.assertFalse(doc.verify_pin("0000"))
 			doc.reload()
 		with self.assertRaises(frappe.AuthenticationError):
 			doc.verify_pin("2580")
-		frappe.db.set_value("Maison Associate", self.assoc_a, "failed_pin_attempts", 0, update_modified=False)
+		frappe.db.set_value("AWANZ Associate", self.assoc_a, "failed_pin_attempts", 0, update_modified=False)
 		frappe.db.rollback()
 
 	# --- S4: which address the limiter counts ---------------------------
@@ -630,7 +630,7 @@ class TestSecurityUnits(FrappeTestCase):
 	def test_the_limiter_counts_and_then_refuses(self):
 		from maison_pos.ratelimit import guard
 
-		frappe.cache().delete_keys("maison_rl")
+		frappe.cache().delete_keys("awanz_rl")
 		with _fake_request({"X-Forwarded-For": "81.2.69.150"}):
 			for _ in range(3):
 				guard("unit.test", 3, 60, global_limit=100)
@@ -643,7 +643,7 @@ class TestSecurityUnits(FrappeTestCase):
 		with _fake_request({"X-Forwarded-For": "81.2.69.152"}):
 			with self.assertRaises(frappe.RateLimitExceededError):
 				guard("unit.test", 3, 60, global_limit=4)
-		frappe.cache().delete_keys("maison_rl")
+		frappe.cache().delete_keys("awanz_rl")
 
 	# --- S6: the audit trail --------------------------------------------
 	def test_a_cross_store_client_lookup_is_written_to_the_security_log(self):
@@ -660,27 +660,27 @@ class TestSecurityUnits(FrappeTestCase):
 
 	# --- the migration patch ---------------------------------------------
 	def test_the_patch_moves_a_legacy_hash_and_takes_back_a_stolen_role(self):
-		from maison_pos.maison_pos.doctype.maison_associate.maison_associate import hash_pin
+		from maison_pos.awanz_pos.doctype.awanz_associate.awanz_associate import hash_pin
 		from maison_pos.patches.v0_7.associate_hardening import migrate_pin_hashes, repair_role_grants
 
 		frappe.set_user("Administrator")
 		legacy = hash_pin("2580", iterations=1000)
-		frappe.db.set_value("Maison Associate", self.assoc_a, "pin_hash", legacy, update_modified=False)
-		user = frappe.db.get_value("Maison Associate", self.assoc_a, "user")
+		frappe.db.set_value("AWANZ Associate", self.assoc_a, "pin_hash", legacy, update_modified=False)
+		user = frappe.db.get_value("AWANZ Associate", self.assoc_a, "user")
 		stolen = frappe.get_doc("User", user)
-		stolen.append("roles", {"role": "Maison Head Office"})
+		stolen.append("roles", {"role": "AWANZ Head Office"})
 		stolen.flags.ignore_permissions = True
 		stolen.save()
-		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Head Office", "parenttype": "User"}))
+		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Head Office", "parenttype": "User"}))
 
 		self.assertGreaterEqual(migrate_pin_hashes(), 1)
-		column = frappe.db.get_value("Maison Associate", self.assoc_a, "pin_hash")
+		column = frappe.db.get_value("AWANZ Associate", self.assoc_a, "pin_hash")
 		self.assertEqual(set(column), {"*"})
-		self.assertEqual(frappe.get_doc("Maison Associate", self.assoc_a).get_pin_hash(), legacy)
+		self.assertEqual(frappe.get_doc("AWANZ Associate", self.assoc_a).get_pin_hash(), legacy)
 
 		repair_role_grants()
-		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Head Office", "parenttype": "User"}))
-		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "Maison Associate", "parenttype": "User"}))
+		self.assertFalse(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Head Office", "parenttype": "User"}))
+		self.assertTrue(frappe.db.exists("Has Role", {"parent": user, "role": "AWANZ Associate", "parenttype": "User"}))
 		frappe.db.rollback()
 
 
@@ -688,9 +688,9 @@ class TestSecurityUnits(FrappeTestCase):
 # helpers
 # ---------------------------------------------------------------------------
 def set_pin(associate: str, pin: str) -> None:
-	doc = frappe.get_doc("Maison Associate", associate)
+	doc = frappe.get_doc("AWANZ Associate", associate)
 	doc.set_pin(pin)
-	frappe.db.set_value("Maison Associate", associate, "failed_pin_attempts", 0, update_modified=False)
+	frappe.db.set_value("AWANZ Associate", associate, "failed_pin_attempts", 0, update_modified=False)
 
 
 def _ensure_customer(customer_name: str, email: str, phone: str) -> str:
@@ -724,7 +724,7 @@ def _purge_test_customers() -> None:
 		names = set(frappe.get_all("Customer", filters={"customer_name": ("like", f"{TAG}%")}, pluck="name"))
 		names |= set(frappe.get_all("Customer", filters={"email_id": ("like", "qa.v07.%@example.test")}, pluck="name"))
 		for name in names:
-			for linked in ("Maison Client Profile", "Maison Campaign Touch", "Maison Client Interaction"):
+			for linked in ("AWANZ Client Profile", "AWANZ Campaign Touch", "AWANZ Client Interaction"):
 				if frappe.db.exists("DocType", linked):
 					frappe.db.delete(linked, {"customer": name})
 			# contacts + addresses are ERPNext's own `Customer.on_trash` job — deleting the Contact
@@ -746,7 +746,7 @@ def _security_log_tail(lines: int = 40) -> str:
 			handler.flush()
 		except Exception:  # pragma: no cover
 			pass
-	path = os.path.join(frappe.utils.get_bench_path(), "logs", "maison_security.log")
+	path = os.path.join(frappe.utils.get_bench_path(), "logs", "awanz_security.log")
 	if not os.path.exists(path):
 		return ""
 	with open(path, encoding="utf-8") as f:

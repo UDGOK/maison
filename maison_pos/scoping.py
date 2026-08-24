@@ -2,10 +2,10 @@
 
 Rules (see SPEC "Store model"):
 
-* ``System Manager``, ``Administrator``, ``Maison Head Office`` and ``Maison Regional``
+* ``System Manager``, ``Administrator``, ``AWANZ Head Office`` and ``AWANZ Regional``
   are unrestricted.
-* ``Maison Manager`` / ``Maison Associate`` may only act on the boutique their
-  ``Maison Associate`` record points to.
+* ``AWANZ Manager`` / ``AWANZ Associate`` may only act on the boutique their
+  ``AWANZ Associate`` record points to.
 """
 
 from __future__ import annotations
@@ -15,23 +15,23 @@ from typing import Optional
 import frappe
 from frappe import _
 
-UNRESTRICTED_ROLES = frozenset({"Administrator", "System Manager", "Maison Head Office", "Maison Regional"})
-SCOPED_ROLES = frozenset({"Maison Manager", "Maison Associate"})
-ALL_MAISON_ROLES = ("Maison Associate", "Maison Manager", "Maison Regional", "Maison Head Office")
-APPROVER_ROLES = frozenset({"Administrator", "System Manager", "Maison Head Office", "Maison Regional"})
+UNRESTRICTED_ROLES = frozenset({"Administrator", "System Manager", "AWANZ Head Office", "AWANZ Regional"})
+SCOPED_ROLES = frozenset({"AWANZ Manager", "AWANZ Associate"})
+ALL_AWANZ_ROLES = ("AWANZ Associate", "AWANZ Manager", "AWANZ Regional", "AWANZ Head Office")
+APPROVER_ROLES = frozenset({"Administrator", "System Manager", "AWANZ Head Office", "AWANZ Regional"})
 
 # --- v0.7 S1/S5 — the fields that decide *who someone is* on this chain ---------------------
 #: changing any of these grants access: ``role`` drives the Frappe role sync, ``boutique`` moves
 #: the user's whole data scope to another store, ``user`` re-points the record at somebody else.
 PRIVILEGED_ASSOCIATE_FIELDS = ("user", "boutique", "role")
-#: ``Maison Associate.role`` → seniority. A caller may never grant a rank above their own.
+#: ``AWANZ Associate.role`` → seniority. A caller may never grant a rank above their own.
 ASSOCIATE_ROLE_RANK = {"Associate": 1, "Manager": 2, "Regional": 3, "HeadOffice": 4}
 #: Frappe role → the same seniority, for the ``_sync_user_role`` guard
 FRAPPE_ROLE_RANK = {
-	"Maison Associate": 1,
-	"Maison Manager": 2,
-	"Maison Regional": 3,
-	"Maison Head Office": 4,
+	"AWANZ Associate": 1,
+	"AWANZ Manager": 2,
+	"AWANZ Regional": 3,
+	"AWANZ Head Office": 4,
 	"System Manager": 4,
 	"Administrator": 4,
 }
@@ -50,10 +50,10 @@ def is_unrestricted(user: Optional[str] = None) -> bool:
 
 
 def get_associate(user: Optional[str] = None) -> Optional[dict]:
-	"""Return the enabled ``Maison Associate`` row for *user* (or ``None``)."""
+	"""Return the enabled ``AWANZ Associate`` row for *user* (or ``None``)."""
 	user = _user(user)
 	rows = frappe.get_all(
-		"Maison Associate",
+		"AWANZ Associate",
 		filters={"user": user, "enabled": 1},
 		fields=["name", "user", "boutique", "role", "full_name"],
 		limit=1,
@@ -76,7 +76,7 @@ def get_allowed_boutiques(user: Optional[str] = None) -> list[str]:
 	:func:`get_retail_boutiques` instead (v0.6 defect D4).
 	"""
 	if is_unrestricted(user):
-		return frappe.get_all("Maison Boutique", filters={"enabled": 1}, pluck="name", order_by="name")
+		return frappe.get_all("AWANZ Store", filters={"enabled": 1}, pluck="name", order_by="name")
 	boutique = get_user_boutique(user)
 	return [boutique] if boutique else []
 
@@ -89,7 +89,7 @@ def _meta_has(doctype: str, fieldname: str) -> bool:
 
 
 def warehouse_boutiques() -> set[str]:
-	"""Codes of the ``Maison Boutique`` rows that are warehouses, not shops.
+	"""Codes of the ``AWANZ Store`` rows that are warehouses, not shops.
 
 	Mirrors ``maison_pos.api.rewards`` (the only place that got this right in v0.6): a row counts
 	as a warehouse when ``is_warehouse = 1`` **or** ``boutique_type = "Warehouse"``. Both fields
@@ -97,8 +97,8 @@ def warehouse_boutiques() -> set[str]:
 	"""
 	names: set[str] = set()
 	for field, value in (("is_warehouse", 1), ("boutique_type", "Warehouse")):
-		if _meta_has("Maison Boutique", field):
-			names.update(frappe.get_all("Maison Boutique", filters={field: value}, pluck="name"))
+		if _meta_has("AWANZ Store", field):
+			names.update(frappe.get_all("AWANZ Store", filters={field: value}, pluck="name"))
 	return names
 
 
@@ -126,7 +126,7 @@ def assert_boutique_access(boutique: Optional[str], user: Optional[str] = None) 
 	if is_unrestricted(user):
 		if not boutique:
 			frappe.throw(_("Boutique is required"), frappe.ValidationError)
-		if not frappe.db.exists("Maison Boutique", boutique):
+		if not frappe.db.exists("AWANZ Store", boutique):
 			frappe.throw(_("Boutique {0} does not exist").format(boutique), frappe.DoesNotExistError)
 		return boutique
 
@@ -155,7 +155,7 @@ def is_manager_or_above(user: Optional[str] = None) -> bool:
 	if user == "Administrator":
 		return True
 	roles = set(frappe.get_roles(user))
-	return bool(roles & (UNRESTRICTED_ROLES | {"Maison Manager"}))
+	return bool(roles & (UNRESTRICTED_ROLES | {"AWANZ Manager"}))
 
 
 # ---------------------------------------------------------------------------
@@ -174,9 +174,9 @@ def is_store_scoped(user: Optional[str] = None) -> bool:
 	"""True when *user* is a store user whose lists must be narrowed to their own store.
 
 	Head Office / Regional / System Manager / Administrator are unrestricted, and so is anybody
-	who holds no Maison store role at all (a portal shopper, an accountant, a plain Stock User):
-	their access is whatever core Frappe permissions say. Only ``Maison Manager`` /
-	``Maison Associate`` are pinned to ``Maison Associate.boutique``.
+	who holds no AWANZ store role at all (a portal shopper, an accountant, a plain Stock User):
+	their access is whatever core Frappe permissions say. Only ``AWANZ Manager`` /
+	``AWANZ Associate`` are pinned to ``AWANZ Associate.boutique``.
 	"""
 	if is_unrestricted(user):
 		return False
@@ -204,15 +204,15 @@ def _own_boutique_condition(doctype: str, field: str, user: Optional[str], allow
 
 
 def price_change_request_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Price Change Request", user)
+	return _boutique_condition("AWANZ Price Change Request", user)
 
 
 def heartbeat_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Device Heartbeat", user)
+	return _boutique_condition("AWANZ Device Heartbeat", user)
 
 
 def sync_log_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Sync Log", user)
+	return _boutique_condition("AWANZ Sync Log", user)
 
 
 def price_change_request_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
@@ -222,11 +222,11 @@ def price_change_request_has_permission(doc, ptype: str = "read", user: Optional
 
 
 def biometric_consent_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Biometric Consent", user)
+	return _boutique_condition("AWANZ Biometric Consent", user)
 
 
 def recognition_event_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Recognition Event", user)
+	return _boutique_condition("AWANZ Recognition Event", user)
 
 
 # v0.4 B/C/I
@@ -237,64 +237,64 @@ def client_interaction_query(user: Optional[str] = None) -> str:
 	if not boutique:
 		return "1=0"
 	b = frappe.db.escape(boutique)
-	return f"(`tabMaison Client Interaction`.`boutique` = {b} or `tabMaison Client Interaction`.`boutique` is null or `tabMaison Client Interaction`.`boutique` = '')"
+	return f"(`tabAWANZ Client Interaction`.`boutique` = {b} or `tabAWANZ Client Interaction`.`boutique` is null or `tabAWANZ Client Interaction`.`boutique` = '')"
 
 
 def commission_entry_query(user: Optional[str] = None) -> str:
 	if is_unrestricted(user):
 		return ""
 	if is_manager_or_above(user):
-		return _boutique_condition("Maison Commission Entry", user)
+		return _boutique_condition("AWANZ Commission Entry", user)
 	assoc = get_associate(user)
-	return f"`tabMaison Commission Entry`.`associate` = {frappe.db.escape(assoc['name'])}" if assoc else "1=0"
+	return f"`tabAWANZ Commission Entry`.`associate` = {frappe.db.escape(assoc['name'])}" if assoc else "1=0"
 
 
 def shift_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Shift", user)
+	return _boutique_condition("AWANZ Shift", user)
 
 
 def feedback_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Feedback", user)
+	return _boutique_condition("AWANZ Feedback", user)
 
 
 def coupon_redemption_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Coupon Redemption", user)
+	return _boutique_condition("AWANZ Coupon Redemption", user)
 
 
 # v0.4 D — inventory
 def stock_alert_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Stock Alert", user)
+	return _boutique_condition("AWANZ Stock Alert", user)
 
 
 def cycle_count_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Cycle Count", user)
+	return _boutique_condition("AWANZ Cycle Count", user)
 
 
 # --- v0.4 H insights ---
 def client_signal_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Client Signal", user)
+	return _boutique_condition("AWANZ Client Signal", user)
 
 
 def client_recommendation_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Client Recommendation", user)
+	return _boutique_condition("AWANZ Client Recommendation", user)
 # --- end v0.4 H ---
 
 
 # --- v0.5 M campaigns ---
 def campaign_attribution_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Campaign Attribution", user)
+	return _boutique_condition("AWANZ Campaign Attribution", user)
 # --- end v0.5 M ---
 
 
 # ---------------------------------------------------------------------------
-# v0.5 K — Maison Salon Session
+# v0.5 K — AWANZ Salon Session
 # ---------------------------------------------------------------------------
 def salon_session_query(user: Optional[str] = None) -> str:
 	"""Guests never list sessions (the token is the secret); scoped roles see their boutique."""
 	user = _user(user)
 	if user == "Guest":
 		return "1=0"
-	return _boutique_condition("Maison Salon Session", user)
+	return _boutique_condition("AWANZ Salon Session", user)
 
 
 def salon_session_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
@@ -311,7 +311,7 @@ def salon_session_has_permission(doc, ptype: str = "read", user: Optional[str] =
 # ---------------------------------------------------------------------------
 # v0.6 O/P — store-manager hardening + warehouse admin
 # ---------------------------------------------------------------------------
-WAREHOUSE_ADMIN_ROLE = "Maison Warehouse Admin"
+WAREHOUSE_ADMIN_ROLE = "AWANZ Warehouse Admin"
 
 
 def is_warehouse_admin(user: Optional[str] = None) -> bool:
@@ -337,11 +337,11 @@ def assert_supply_admin(user: Optional[str] = None) -> None:
 
 def assert_can_sell(boutique: Optional[str], user: Optional[str] = None) -> str:
 	"""Selling = store scoping **plus**: the boutique must be a store (not the warehouse row) and
-	a user whose only Maison role is Warehouse Admin may not sell at all."""
+	a user whose only AWANZ role is Warehouse Admin may not sell at all."""
 	user = _user(user)
 	boutique = assert_boutique_access(boutique, user)
 	roles = set(frappe.get_roles(user))
-	if user != "Administrator" and WAREHOUSE_ADMIN_ROLE in roles and not roles & (set(ALL_MAISON_ROLES) | {"System Manager"}):
+	if user != "Administrator" and WAREHOUSE_ADMIN_ROLE in roles and not roles & (set(ALL_AWANZ_ROLES) | {"System Manager"}):
 		frappe.throw(_("Warehouse admins cannot sell"), frappe.PermissionError)
 	try:
 		from maison_pos.shipping import is_warehouse_boutique
@@ -357,10 +357,10 @@ def _store_warehouses(user: Optional[str]) -> list[str]:
 	boutique = get_user_boutique(user)
 	if not boutique:
 		return []
-	row = frappe.db.get_value("Maison Boutique", boutique, ["warehouse", "damaged_warehouse"], as_dict=True) or {}
+	row = frappe.db.get_value("AWANZ Store", boutique, ["warehouse", "damaged_warehouse"], as_dict=True) or {}
 	names = [w for w in (row.get("warehouse"), row.get("damaged_warehouse")) if w]
 	try:
-		transit = frappe.db.get_value("Maison Boutique", boutique, "transit_warehouse")
+		transit = frappe.db.get_value("AWANZ Store", boutique, "transit_warehouse")
 		if transit:
 			names.append(transit)
 	except Exception:
@@ -375,15 +375,15 @@ def _supply_condition(doctype: str, user: Optional[str]) -> str:
 
 
 def replenishment_request_query(user: Optional[str] = None) -> str:
-	return _supply_condition("Maison Replenishment Request", user)
+	return _supply_condition("AWANZ Replenishment Request", user)
 
 
 def shipment_query(user: Optional[str] = None) -> str:
-	return _supply_condition("Maison Shipment", user)
+	return _supply_condition("AWANZ Shipment", user)
 
 
 def receiving_discrepancy_query(user: Optional[str] = None) -> str:
-	return _supply_condition("Maison Receiving Discrepancy", user)
+	return _supply_condition("AWANZ Receiving Discrepancy", user)
 
 
 def _supply_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
@@ -467,11 +467,11 @@ def purchase_order_has_permission(doc, ptype: str = "read", user: Optional[str] 
 
 # --- v0.6 N/Q — age checks / giveaway entries: managers + associates see their own store only ---
 def age_check_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Age Check", user)
+	return _boutique_condition("AWANZ Age Check", user)
 
 
 def giveaway_entry_query(user: Optional[str] = None) -> str:
-	return _boutique_condition("Maison Giveaway Entry", user)
+	return _boutique_condition("AWANZ Giveaway Entry", user)
 # --- end v0.6 N/Q ---
 
 
@@ -521,9 +521,9 @@ def delivery_note_has_permission(doc, ptype: str = "read", user: Optional[str] =
 
 
 # ---------------------------------------------------------------------------
-# v0.7 S1 / S2 / S5 — Maison Associate is the credential store of this chain
+# v0.7 S1 / S2 / S5 — AWANZ Associate is the credential store of this chain
 #
-# Before v0.7 every Maison role could list **every** associate of **every** store through the
+# Before v0.7 every AWANZ role could list **every** associate of **every** store through the
 # generic REST surface, PIN hashes included, and a store manager could ``set_value`` their own
 # ``role`` to ``HeadOffice`` (the ``on_update`` role sync then granted the matching Frappe role
 # with ``ignore_permissions``). Three independent fixes: the secret fields moved out of reach
@@ -537,7 +537,7 @@ def associate_query(user: Optional[str] = None) -> str:
 	boutique = get_user_boutique(user)
 	if not boutique:
 		return "1=0"
-	return f"`tabMaison Associate`.`boutique` = {frappe.db.escape(boutique)}"
+	return f"`tabAWANZ Associate`.`boutique` = {frappe.db.escape(boutique)}"
 
 
 def associate_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
@@ -564,8 +564,8 @@ def associate_has_permission(doc, ptype: str = "read", user: Optional[str] = Non
 	if (get("role") or "Associate") != "Associate":
 		return False
 	name = get("name")
-	if name and frappe.db.exists("Maison Associate", name):
-		before = frappe.db.get_value("Maison Associate", name, list(PRIVILEGED_ASSOCIATE_FIELDS), as_dict=True) or {}
+	if name and frappe.db.exists("AWANZ Associate", name):
+		before = frappe.db.get_value("AWANZ Associate", name, list(PRIVILEGED_ASSOCIATE_FIELDS), as_dict=True) or {}
 		for field in PRIVILEGED_ASSOCIATE_FIELDS:
 			if (get(field) or None) != (before.get(field) or None):
 				return False
@@ -573,7 +573,7 @@ def associate_has_permission(doc, ptype: str = "read", user: Optional[str] = Non
 
 
 def max_grantable_rank(user: Optional[str] = None) -> int:
-	"""The highest ``Maison Associate.role`` rank *user* may hand out (0 = none at all)."""
+	"""The highest ``AWANZ Associate.role`` rank *user* may hand out (0 = none at all)."""
 	user = _user(user)
 	if user == "Administrator":
 		return max(ASSOCIATE_ROLE_RANK.values())
@@ -595,15 +595,15 @@ def _customer_store_link_conditions(boutique: str) -> list[str]:
 	b = frappe.db.escape(boutique)
 	conditions = [
 		f"`tabCustomer`.`name` in (select `customer` from `tabSales Invoice` where `maison_boutique` = {b} and `customer` is not null)",
-		f"`tabCustomer`.`owner` in (select `user` from `tabMaison Associate` where `boutique` = {b} and `user` is not null)",
+		f"`tabCustomer`.`owner` in (select `user` from `tabAWANZ Associate` where `boutique` = {b} and `user` is not null)",
 	]
 	if _meta_has("Sales Order", "maison_boutique"):
 		conditions.append(
 			f"`tabCustomer`.`name` in (select `customer` from `tabSales Order` where `maison_boutique` = {b} and `customer` is not null)"
 		)
-	if _meta_has("Maison Client Profile", "preferred_boutique"):
+	if _meta_has("AWANZ Client Profile", "preferred_boutique"):
 		conditions.append(
-			f"`tabCustomer`.`name` in (select `name` from `tabMaison Client Profile` where `preferred_boutique` = {b})"
+			f"`tabCustomer`.`name` in (select `name` from `tabAWANZ Client Profile` where `preferred_boutique` = {b})"
 		)
 	return conditions
 

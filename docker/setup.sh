@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Maison POS — one-shot Docker bring-up.
+# AWANZ POS — one-shot Docker bring-up.
 #
 #   ./docker/setup.sh            # official frappe/erpnext:v15 image, maison_pos installed at runtime
 #   ./docker/setup.sh --build    # build custom image from docker/Containerfile (maison_pos baked in)
@@ -27,7 +27,7 @@ BUILD=0
 [[ "${1:-}" == "--build" ]] && BUILD=1
 
 if [[ $BUILD -eq 1 ]]; then
-  export IMAGE="maison/erpnext" VERSION="v15"
+  export IMAGE="awanz/erpnext" VERSION="v15"
   echo ">> Building custom image $IMAGE:$VERSION (this takes 10-20 min the first time)"
   docker build -f "$HERE/Containerfile" -t "$IMAGE:$VERSION" "$REPO_ROOT"
 else

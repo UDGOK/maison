@@ -1,5 +1,5 @@
 import sys, time, json
-sys.path.insert(0, "/home/claude/maison/e2e/qa")
+sys.path.insert(0, "/home/claude/awanz/e2e/qa")
 from harness import sess, summ, BASE
 
 g = sess("guest")

@@ -1,6 +1,6 @@
 import { apiFor, pageAs, closeBrowser, record, saveResults, log, sleep, shot, STORE, MGR, WH, TAG } from './lib-wh.mjs'
 import { readFileSync } from 'node:fs'
-const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const S = JSON.parse(readFileSync('/home/claude/awanz/e2e/qa/state.json', 'utf8'))
 const a = await apiFor('admin')
 
 // =============== warehouse desk: every tab + the age column
@@ -14,7 +14,7 @@ const rows = await desk.$$eval('[data-testid^=req-]', (es) => es.map((e) => {
   const td = [...e.querySelectorAll('td')].map(t => t.innerText.replace(/\s+/g, ' ').trim())
   return { name: e.getAttribute('data-testid').replace('req-', ''), stamp: td[0], waiting: td[5], tierClass: e.querySelectorAll('td')[5]?.className }
 }))
-const freshName = (await a.list('Maison Replenishment Request', { boutique: STORE, status: 'Pending Approval' }, ['name', 'requested_at'], 20, 'requested_at desc'))[0]
+const freshName = (await a.list('AWANZ Replenishment Request', { boutique: STORE, status: 'Pending Approval' }, ['name', 'requested_at'], 20, 'requested_at desc'))[0]
 const row = rows.find(r => r.name === freshName.name)
 const serverAge = await a.get('maison_pos.api.shipping.wall').then(w => w.columns.pending_approval.find(c => c.name === freshName.name)?.age_seconds)
 const browserTz = await desk.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -67,7 +67,7 @@ await desk.keyboard.press('Escape').catch(() => {})
 // =============== POS cycle count screen
 const { ctx: pctx, page: pos } = await pageAs(MGR, { viewport: { width: 1366, height: 1024 }, tag: 'pos' })
 await pos.goto('/pos/unlock', { waitUntil: 'domcontentloaded' })
-await pos.evaluate(() => localStorage.setItem('maisonE2E', '1'))
+await pos.evaluate(() => localStorage.setItem('awanzE2E', '1'))
 await pos.goto('/pos', { waitUntil: 'domcontentloaded' })
 await pos.waitForSelector('.unlock select.input', { timeout: 45000 })
 await pos.selectOption('.unlock select.input >> nth=0', STORE)

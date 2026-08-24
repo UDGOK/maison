@@ -84,9 +84,9 @@ def create_payment_intent(
 		currency=currency.lower(),
 		payment_method_types=["card_present"],
 		capture_method="manual",
-		description=description or f"Maison {boutique or ''} {offline_uuid}",
+		description=description or f"AWANZ {boutique or ''} {offline_uuid}",
 		metadata=metadata,
-		idempotency_key=f"maison-pi-{offline_uuid}",
+		idempotency_key=f"awanz-pi-{offline_uuid}",
 	)
 	return {
 		"id": intent.id,
@@ -177,7 +177,7 @@ def refund(payment_intent_id: str, amount_minor: int, *, reason: Optional[str] =
 		return {"id": _sim_id("re"), "payment_intent": payment_intent_id, "amount": amount_minor, "status": "succeeded", "simulated": True}
 	params: dict[str, Any] = {"payment_intent": payment_intent_id, "amount": amount_minor, "reason": "requested_by_customer"}
 	if reason:
-		params["metadata"] = {"maison_reason": reason[:200]}
+		params["metadata"] = {"awanz_reason": reason[:200]}
 	if idempotency_key:
 		params["idempotency_key"] = idempotency_key
 	r = _client().Refund.create(**params)

@@ -124,14 +124,14 @@ describe('auto-print hook', () => {
     expect(printJobsFor({ event: 'label', shipment: 'MSH-9', label_url: '/shipping-label/1', ts: '' }, s, packingListUrl)[0].kind).toBe('label')
     expect(printJobsFor({ event: 'approved', shipment: 'MSH-9', ts: '' }, { ...s, auto_print_packing_list: false }, packingListUrl)).toEqual([])
     expect(printJobsFor({ event: 'shipped', shipment: 'MSH-9', ts: '' }, s, packingListUrl)).toEqual([])
-    expect(packingListUrl('MSH-00012')).toContain('format=Maison%20Packing%20List')
+    expect(packingListUrl('MSH-00012')).toContain('format=AWANZ%20Packing%20List')
   })
-  it('records every job on window.__maisonLastWallPrint (dry run in jsdom)', async () => {
-    window.__maisonWallPrintDry = true
+  it('records every job on window.__awanzLastWallPrint (dry run in jsdom)', async () => {
+    window.__awanzWallPrintDry = true
     const job = await printDocument('packing_list', packingListUrl('MSH-7'), 'MSH-7')
     expect(job.via).toBe('dry')
-    expect(window.__maisonLastWallPrint).toMatchObject({ kind: 'packing_list', shipment: 'MSH-7' })
-    expect(window.__maisonWallPrints!.length).toBeGreaterThan(0)
+    expect(window.__awanzLastWallPrint).toMatchObject({ kind: 'packing_list', shipment: 'MSH-7' })
+    expect(window.__awanzWallPrints!.length).toBeGreaterThan(0)
   })
 })
 
