@@ -256,13 +256,16 @@ def ensure_website_items() -> int:
 # demo shopper + sample orders
 # ---------------------------------------------------------------------------
 def ensure_web_user() -> str:
+	# v0.8 QA A1 — the shopper's name comes from the Customer this profile links, so the
+	# CloudChaserz seed does not sign in as the jewellery tenant's client
+	first, _, last = str(WEB_USER_CUSTOMER).partition(" ")
 	if not frappe.db.exists("User", WEB_USER):
 		user = frappe.get_doc(
 			{
 				"doctype": "User",
 				"email": WEB_USER,
-				"first_name": "Isabella",
-				"last_name": "Marchetti",
+				"first_name": first or "Web",
+				"last_name": last or "Shopper",
 				"send_welcome_email": 0,
 				"user_type": "Website User",
 				"new_password": DEMO_PASSWORD,
@@ -277,8 +280,11 @@ def ensure_web_user() -> str:
 		user.append("roles", {"role": "Customer"})
 		user.flags.ignore_permissions = True
 		user.save()
-	if frappe.db.exists("Portal Settings") and frappe.db.get_single_value("Portal Settings", "default_role") != "Customer":
-		frappe.db.set_single_value("Portal Settings", "default_role", "Customer")
+	# v0.8 QA A1 — portal sign-up + default role live in the webshop glue now, so a site that
+	# never runs a demo seed (and the CloudChaserz one) gets them too
+	from maison_pos.webshop.setup import ensure_portal_signup
+
+	ensure_portal_signup()
 	if frappe.db.exists("Customer", WEB_USER_CUSTOMER):
 		contact = frappe.db.get_value("Contact", {"user": WEB_USER}, "name")
 		if not contact:
@@ -291,8 +297,8 @@ def ensure_web_user() -> str:
 				doc = frappe.get_doc(
 					{
 						"doctype": "Contact",
-						"first_name": "Isabella",
-						"last_name": "Marchetti",
+						"first_name": first or "Web",
+						"last_name": last or "Shopper",
 						"user": WEB_USER,
 						"email_ids": [{"email_id": WEB_USER, "is_primary": 1}],
 						"links": [{"link_doctype": "Customer", "link_name": WEB_USER_CUSTOMER}],

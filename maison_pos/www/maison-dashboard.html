@@ -2,6 +2,10 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{#- v0.8 QA U3: the framework navbar was hidden with CSS but still rendered, leaving an
+    "Toggle navigation" button in the accessibility tree at 1.07:1. Render nothing instead. -#}
+{%- block navbar -%}{%- endblock -%}
+
 {%- block head_include -%}
 <meta name="color-scheme" content="dark">
 <style>

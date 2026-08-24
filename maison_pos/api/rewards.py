@@ -356,12 +356,186 @@ def on_invoice_cancel(doc, method: Optional[str] = None) -> None:
 		frappe.db.set_value("Maison Giveaway Entry", name, "reversed", 1, update_modified=False)
 
 
+def rebase_points_after_return(invoice: str) -> None:
+	"""--- v0.8 POS D12 — re-price a partly returned sale's points on the **net** amount ---
+
+	Points are earned on the net amount ("$1 = 1 point on what you spend on goods"), which is why
+	``rebase_points_on_net`` corrects ERPNext's tax-inclusive accrual when a sale is submitted.
+
+	A return sends ERPNext back to its own base: ``make_loyalty_point_entry`` deletes the entry and
+	rebuilds it on ``grand_total - returned_grand_total`` — tax included on both sides. A $17.30
+	sale (net $15.98 -> 15 pts) with $7.57 returned came back as ``17.30 - 7.57 = 9.73`` -> **9**
+	points, where the $8.99 item left in the client's hands earns **8** when bought on its own.
+	Re-price the rebuilt entry on the net basis so a partial return leaves exactly the points the
+	remaining goods would have earned.
+	"""
+	if not frappe.db.exists("Sales Invoice", invoice):
+		return
+	doc = frappe.get_doc("Sales Invoice", invoice)
+	program = doc.get("loyalty_program")
+	if not program or doc.get("is_return") or is_walk_in(doc.customer):
+		return
+	entry = frappe.db.get_value(
+		"Loyalty Point Entry",
+		{"invoice": doc.name, "invoice_type": doc.doctype, "redeem_against": ("is", "not set"), "loyalty_points": (">", 0)},
+		["name", "loyalty_points"],
+		as_dict=True,
+	)
+	if not entry:
+		return  # fully returned (ERPNext leaves nothing to correct)
+	# --- v0.8 QA B3 — leave an accrual that has already been redeemed against alone ---
+	# Shrinking it would leave the entry with more redeemed against it than it holds, which
+	# ERPNext's own `apply_loyalty_points` mis-handles (a negative "available" turns into a
+	# *positive* entry on the next redemption). Those sales are settled by `claw_back_points`.
+	if frappe.db.exists("Loyalty Point Entry", {"redeem_against": entry.name}):
+		return
+	# --- end v0.8 QA B3 ---
+	returned_net = abs(
+		flt(
+			frappe.db.get_value(
+				"Sales Invoice",
+				{"return_against": doc.name, "docstatus": 1},
+				"sum(net_total)",
+			)
+		)
+	)
+	collection = flt(frappe.db.get_value("Loyalty Program Collection", {"parent": program}, "collection_factor")) or 1.0
+	eligible = flt(doc.net_total) - flt(doc.get("loyalty_amount")) - returned_net
+	points = cint(max(0.0, eligible) / collection)
+	if points == cint(entry.loyalty_points):
+		return
+	frappe.db.set_value(
+		"Loyalty Point Entry",
+		entry.name,
+		{"loyalty_points": points, "purchase_amount": max(0.0, eligible)},
+		update_modified=False,
+	)
+
+
+# --- v0.8 QA B3 — a sale whose points have been spent must still be returnable ------------------
+#
+# ERPNext rebuilds the original sale's accrual when a credit note is submitted
+# (`Sales Invoice.on_submit` -> `delete_loyalty_point_entry`) and refuses outright while any
+# redemption row points at that accrual:
+#
+#   "Sales Invoice can't be cancelled since the Loyalty Points earned has been redeemed.
+#    First cancel the Sales Invoice No ACC-SINV-…"
+#
+# The counter could not refund the client at all, and the message named an unrelated later sale.
+# `api/returns.py` therefore takes the points itself for those sales: the credit note is submitted
+# with no `loyalty_program` (which is the flag ERPNext's branch reads), and the points the
+# returned goods earned are clawed back here as ordinary negative entries against the client's
+# live balance — FIFO by expiry, exactly like a redemption, so no entry is ever left with more
+# redeemed against it than it holds and the balance can never go negative.
+# ------------------------------------------------------------------------------------------------
+def accrual_entry(invoice: str) -> Optional[dict[str, Any]]:
+	"""The positive Loyalty Point Entry a sale earned (``redeem_against`` is NULL on an accrual)."""
+	return frappe.db.get_value(
+		"Loyalty Point Entry",
+		{"invoice": invoice, "invoice_type": "Sales Invoice", "redeem_against": ("is", "not set"), "loyalty_points": (">", 0)},
+		["name", "loyalty_points", "customer", "loyalty_program", "company", "expiry_date", "posting_date"],
+		as_dict=True,
+	)
+
+
+def redemptions_against_sale(invoice: str) -> list[dict[str, Any]]:
+	"""Later invoices that have already spent the points *invoice* earned."""
+	earned = frappe.get_all("Loyalty Point Entry", filters={"invoice": invoice, "invoice_type": "Sales Invoice"}, pluck="name")
+	if not earned:
+		return []
+	return frappe.get_all(
+		"Loyalty Point Entry",
+		filters={"redeem_against": ("in", earned), "loyalty_points": ("<", 0)},
+		fields=["name", "invoice", "loyalty_points"],
+	)
+
+
+def collection_factor(program: str) -> float:
+	return flt(frappe.db.get_value("Loyalty Program Collection", {"parent": program}, "collection_factor")) or 1.0
+
+
+def points_for_amount(program: str, amount: float) -> int:
+	"""Points the programme grants for *amount* of net spend ("$1 = 1 point" by default)."""
+	return cint(max(0.0, flt(amount)) / collection_factor(program))
+
+
+def available_points(customer: str, program: str, company: Optional[str] = None) -> float:
+	"""Live balance (ERPNext's own sum: accruals minus redemptions, unexpired)."""
+	return points_balance(customer, program, company)
+
+
+def claw_back_points(customer: str, program: str, company: str, points: int, invoice: Optional[str] = None, posting_date: Any = None) -> dict[str, Any]:
+	"""Take *points* off the client's balance, oldest entry first. Never goes below zero.
+
+	Returns ``{"clawed_back": n, "shortfall": n, "entries": [name]}`` — a shortfall means the
+	client had already spent the points the returned goods earned, so there was nothing left to
+	take back (the return still happens; the associate is told).
+	"""
+	from erpnext.accounts.doctype.loyalty_point_entry.loyalty_point_entry import get_loyalty_point_entries, get_redemption_details
+
+	points = cint(points)
+	out: dict[str, Any] = {"clawed_back": 0, "shortfall": max(0, points), "entries": []}
+	if points <= 0:
+		out["shortfall"] = 0
+		return out
+	posting_date = posting_date or nowdate()
+	entries = get_loyalty_point_entries(customer, program, company, posting_date)
+	redeemed = get_redemption_details(customer, program, company)
+	remaining = points
+	for entry in entries:
+		usable = cint(entry.loyalty_points) + cint(redeemed.get(entry.name) or 0)  # redemptions are negative
+		if usable <= 0:
+			continue
+		take = min(usable, remaining)
+		doc = frappe.get_doc(
+			{
+				"doctype": "Loyalty Point Entry",
+				"company": company,
+				"loyalty_program": program,
+				"loyalty_program_tier": entry.loyalty_program_tier,
+				"customer": customer,
+				"invoice_type": "Sales Invoice",
+				"invoice": invoice,
+				"redeem_against": entry.name,
+				"loyalty_points": -take,
+				"purchase_amount": 0,
+				"expiry_date": entry.expiry_date,
+				"posting_date": posting_date,
+			}
+		)
+		doc.flags.ignore_permissions = 1
+		doc.insert()
+		out["entries"].append(doc.name)
+		remaining -= take
+		if remaining <= 0:
+			break
+	out["clawed_back"] = points - remaining
+	out["shortfall"] = max(0, remaining)
+	return out
+# --- end v0.8 QA B3 ---
+
+
 def on_return_submit(doc, method: Optional[str] = None) -> None:
 	"""A credit note reverses the entries of the original sale (points are reversed by ERPNext)."""
 	if not doc.get("is_return") or not doc.get("return_against"):
 		return
 	for name in frappe.get_all("Maison Giveaway Entry", {"sales_invoice": doc.return_against, "reversed": 0}, pluck="name"):
 		frappe.db.set_value("Maison Giveaway Entry", name, "reversed", 1, update_modified=False)
+	# v0.8 POS D12 — ERPNext has just rebuilt the original's accrual on a tax-inclusive base
+	try:
+		rebase_points_after_return(doc.return_against)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison loyalty return rebase")
+
+
+def on_return_cancel(doc, method: Optional[str] = None) -> None:
+	"""v0.8 POS D12 — undoing a return puts the points back on the same net basis."""
+	if not doc.get("is_return") or not doc.get("return_against"):
+		return
+	try:
+		rebase_points_after_return(doc.return_against)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison loyalty return rebase (cancel)")
 
 
 def is_walk_in(customer: Optional[str] = None, customer_name: Optional[str] = None) -> bool:
@@ -658,7 +832,9 @@ def new_arrivals_campaign(today: Any = None) -> dict[str, Any]:
 @frappe.whitelist(allow_guest=True)
 def program() -> dict[str, Any]:
 	"""Copy + tiers for ``/rewards`` and the Salon "Join" screen (no PII)."""
+	from maison_pos.ratelimit import guard
 
+	guard("rewards.program", 60, 60, global_limit=1200)
 	brand = get_brand()
 	settings = get_rewards_settings()
 	lp = default_program()
@@ -682,9 +858,63 @@ def program() -> dict[str, Any]:
 	}
 
 
+#: v0.7 S3 — the *only* thing an anonymous sign-up ever hears back. Identical whether the
+#: e-mail / phone was already on file or not, so the form is not an oracle for membership.
+SIGNUP_ACK = "Thank you — check your e-mail, or ask for your card next time you are in store."
+
+
+def _signup_is_staff() -> bool:
+	"""True for a signed-in member of staff (they may knowingly link an existing client)."""
+	if frappe.session.user in ("Guest", None):
+		return False
+	from maison_pos.scoping import ALL_MAISON_ROLES
+
+	return bool(set(ALL_MAISON_ROLES + ("System Manager",)) & set(frappe.get_roles()))
+
+
+def _enrol(customer: str, birthday: Optional[str], consent_email: Any, consent_sms: Any, boutique: Optional[str]) -> None:
+	"""Attach the loyalty programme + marketing preferences to a **new** client."""
+	lp = default_program()
+	if lp and not frappe.db.get_value("Customer", customer, "loyalty_program"):
+		frappe.db.set_value("Customer", customer, "loyalty_program", lp["name"], update_modified=False)
+	if not frappe.db.exists("DocType", "Maison Client Profile"):
+		return
+	if not frappe.db.exists("Maison Client Profile", customer):
+		frappe.get_doc({"doctype": "Maison Client Profile", "customer": customer}).insert(ignore_permissions=True)
+	values: dict[str, Any] = {"do_not_email": 0 if cint(consent_email) else 1, "do_not_sms": 0 if cint(consent_sms) else 1}
+	if birthday:
+		try:
+			values["birthday"] = getdate(birthday)
+		except Exception:
+			pass
+	if boutique and frappe.db.exists("Maison Boutique", boutique):
+		values["preferred_boutique"] = boutique
+	frappe.db.set_value("Maison Client Profile", customer, values, update_modified=False)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def signup(name: str, phone: Optional[str] = None, email: Optional[str] = None, birthday: Optional[str] = None, consent_email: int = 0, consent_sms: int = 0, consent: int = 0, boutique: Optional[str] = None) -> dict[str, Any]:
-	"""Public sign-up form (``/rewards#join``): creates / links the Customer, enrols it in the program."""
+	"""Public sign-up form (``/rewards#join``).
+
+	v0.7 S3 — this used to elevate to ``Administrator`` and call ``customers.upsert``, which
+	*matches an existing Customer by e-mail or phone and overwrites it*. Anyone who knew a
+	client's e-mail could therefore rewrite their name, phone and marketing consent, and the
+	response handed back the victim's client number. An anonymous caller now:
+
+	* never writes to a Customer that already exists — not one field;
+	* never learns whether the address was on file: the acknowledgement is byte-identical either
+	  way and carries no client number.
+
+	A **signed-in member of staff** still gets the linking behaviour (and the client number) —
+	they are looking at the person in front of them, and it is logged.
+	"""
+	from maison_pos.api.recognition import find_customer, find_or_create_customer, validate_contact
+	from maison_pos.audit import log as audit_log
+	from maison_pos.ratelimit import guard
+
+	# v0.7 S4 — `frappe.rate_limit = None` was not a rate limit; this is one.
+	guard("rewards.signup", 5, 600, global_limit=120, global_seconds=600)
+
 	name = (name or "").strip()
 	if not name:
 		frappe.throw(_("Name is required"), frappe.ValidationError)
@@ -692,29 +922,34 @@ def signup(name: str, phone: Optional[str] = None, email: Optional[str] = None, 
 		frappe.throw(_("Phone or e-mail is required"), frappe.ValidationError)
 	if not cint(consent) and not (cint(consent_email) or cint(consent_sms)):
 		frappe.throw(_("Please accept the program terms"), frappe.ValidationError)
-	frappe.rate_limit = None
+
+	staff = _signup_is_staff()
+	program_name = get_rewards_settings()["rewards_program_name"]
+	if not staff:
+		# validate the shape first: a malformed address must fail identically whether or not it
+		# happens to belong to somebody
+		phone, email = validate_contact(phone, email)
+		existing = find_customer(phone, email)
+		if existing:
+			# already a member (or already a client): touch nothing, reveal nothing
+			audit_log("rewards.signup.existing_client", customer=existing, boutique=boutique)
+			return {"ok": True, "message": _(SIGNUP_ACK), "program_name": program_name}
+		customer, created = find_or_create_customer(phone, email, name)
+		if created:
+			_enrol(customer, birthday, consent_email, consent_sms, boutique)
+		return {"ok": True, "message": _(SIGNUP_ACK), "program_name": program_name}
+
+	# staff-assisted sign-up: linking an existing client is the point, so it stays available
 	from maison_pos.api.customers import upsert
 
-	frappe.set_user("Administrator")
-	try:
-		res = upsert({"customer_name": name, "mobile_no": phone, "email_id": email})
-		customer = res["name"] if isinstance(res, dict) else res
-		lp = default_program()
-		if lp and not frappe.db.get_value("Customer", customer, "loyalty_program"):
-			frappe.db.set_value("Customer", customer, "loyalty_program", lp["name"], update_modified=False)
-		if frappe.db.exists("DocType", "Maison Client Profile"):
-			if not frappe.db.exists("Maison Client Profile", customer):
-				frappe.get_doc({"doctype": "Maison Client Profile", "customer": customer}).insert(ignore_permissions=True)
-			values: dict[str, Any] = {"do_not_email": 0 if cint(consent_email) else 1, "do_not_sms": 0 if cint(consent_sms) else 1}
-			if birthday:
-				try:
-					values["birthday"] = getdate(birthday)
-				except Exception:
-					pass
-			if boutique and frappe.db.exists("Maison Boutique", boutique):
-				values["preferred_boutique"] = boutique
-			frappe.db.set_value("Maison Client Profile", customer, values, update_modified=False)
-		client_number = frappe.db.get_value("Customer", customer, "maison_client_number")
-	finally:
-		frappe.set_user("Guest")
-	return {"ok": True, "customer_name": name, "client_number": client_number, "program_name": get_rewards_settings()["rewards_program_name"]}
+	res = upsert({"customer_name": name, "mobile_no": phone, "email_id": email})
+	customer = res["name"] if isinstance(res, dict) else res
+	_enrol(customer, birthday, consent_email, consent_sms, boutique)
+	audit_log("rewards.signup.staff", customer=customer, boutique=boutique)
+	return {
+		"ok": True,
+		"customer_name": name,
+		"client_number": frappe.db.get_value("Customer", customer, "maison_client_number"),
+		"program_name": program_name,
+		"message": _(SIGNUP_ACK),
+	}

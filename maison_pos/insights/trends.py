@@ -114,7 +114,13 @@ def rank_rows(rows: list[dict[str, Any]]) -> None:
 	for r in rows:
 		groups[(r["boutique"], r["period"])].append(r)
 	for group in groups.values():
-		total_net = sum(max(0.0, flt(r["net"])) for r in group)
+		# --- v0.8 QA D-9 — `share_pct` and the store total beside it must reconcile ---
+		# The denominator clamped return-only items to zero while `dashboard.top_products` prints
+		# `boutique_net = sum(net)` including them as the column header, so the #1 item at HOU-MTR
+		# showed 44 % of a header that read "1,721 net" when 792.39 / 1,720.79 is 46 %. Same sum on
+		# both sides now; a group that nets to zero or less has no meaningful share.
+		total_net = sum(flt(r["net"]) for r in group)
+		# --- end v0.8 QA D-9 ---
 		for i, r in enumerate(sorted(group, key=lambda r: (-flt(r["net"]), -flt(r["units"]), r["item_code"])), start=1):
 			r["rank"] = i
 			r["share_pct"] = round(flt(r["net"]) / total_net * 100.0, 2) if total_net > 0 else 0.0
@@ -280,10 +286,19 @@ def compute_trends(commit: bool = True, today: Any = None) -> dict[str, Any]:
 	if values:
 		frappe.db.bulk_insert("Maison Product Trend", FIELDS, values, chunk_size=2000)
 	out = {"rows": len(rows), "items": len(codes), "boutiques": len(boutiques), "seconds": round(time.time() - started, 2), "computed_at": str(now)}
-	frappe.db.set_default(LAST_RUN_KEY, frappe.as_json(out))
-	clear_cache()
+	# --- v0.8 QA D-13 — commit before touching any cache ---
+	# The stamp was written and the caches cleared *before* the commit, so a concurrent read
+	# between the two repopulated the defaults cache with the pre-commit value and the Products
+	# tab's "Data as of" stamp then read a full 15-minute cycle stale. Nothing is cached again
+	# until the rows and the stamp are both durable.
 	if commit and not frappe.flags.in_test:
 		frappe.db.commit()
+	frappe.db.set_default(LAST_RUN_KEY, frappe.as_json(out))
+	if commit and not frappe.flags.in_test:
+		frappe.db.commit()
+	frappe.defaults.clear_defaults_cache()
+	clear_cache()
+	# --- end v0.8 QA D-13 ---
 	return out
 
 

@@ -449,12 +449,18 @@ def employee_performance(boutique: Optional[str] = None, from_date: Optional[str
 	for inv in invoices:
 		if inv.is_return and seller_of.get(inv.return_against):
 			inv.maison_associate = seller_of[inv.return_against]
-		bt = boutique_totals.setdefault(inv.maison_boutique or "", {"sales": 0.0, "tickets": 0})
+		# --- v0.8 QA D-2 — one basis on both sides of `avg_ticket_vs_boutique` ---
+		# The associate's `avg_ticket` is `gross_sales / tickets` (returns excluded from both), but
+		# the store's average divided a *net-of-returns* numerator by the same sales-only ticket
+		# count, so every ratio was inflated — by 5.0 % at HOU-MTR over 30 days, enough to report
+		# the top associate as above the store average when he was below it.
+		bt = boutique_totals.setdefault(inv.maison_boutique or "", {"sales": 0.0, "returns": 0.0, "tickets": 0})
 		if inv.is_return:
-			bt["sales"] += flt(inv.base_net_total)
+			bt["returns"] += abs(flt(inv.base_net_total))
 		else:
 			bt["sales"] += flt(inv.base_net_total)
 			bt["tickets"] += 1
+		# --- end v0.8 QA D-2 ---
 		if not inv.maison_associate:
 			continue
 		s = stats.setdefault(
@@ -476,8 +482,10 @@ def employee_performance(boutique: Optional[str] = None, from_date: Optional[str
 	for name, s in stats.items():
 		s["associate_name"] = frappe.db.get_value("Maison Associate", name, "full_name")
 		s["avg_ticket"] = flt(s["gross_sales"] / s["tickets"], 2) if s["tickets"] else 0.0
-		bt = boutique_totals.get(s["boutique"] or "", {"sales": 0.0, "tickets": 0})
+		bt = boutique_totals.get(s["boutique"] or "", {"sales": 0.0, "returns": 0.0, "tickets": 0})
+		# same basis as `avg_ticket` above: sales only, returns excluded (v0.8 QA D-2)
 		s["boutique_avg_ticket"] = flt(bt["sales"] / bt["tickets"], 2) if bt["tickets"] else 0.0
+		s["avg_ticket_basis"] = "sale (net of tax, returns excluded)"
 		s["avg_ticket_vs_boutique"] = flt(s["avg_ticket"] / s["boutique_avg_ticket"], 3) if s["boutique_avg_ticket"] else None
 		s["conversion"] = flt(s["with_client"] / s["tickets"], 3) if s["tickets"] else 0.0
 		s["clients_identified_per_sale"] = s["conversion"]

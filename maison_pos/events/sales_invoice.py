@@ -98,8 +98,46 @@ def on_submit(doc, method: str | None = None) -> None:
 	publish_sale(doc, "maison_sale")
 
 
+def unlink_exchange_pair(doc, method: str | None = None) -> None:
+	"""v0.8 POS D8 — release the exchange link so an exchanged pair can be cancelled.
+
+	An exchange books a credit note and a new sale together, and the credit note carries a
+	``maison_exchange_invoice`` Link to the new sale. Frappe refuses to cancel a document that a
+	*submitted* document still links to (``LinkExistsError``), so the new sale could never be
+	cancelled while its credit note stood — and before v0.8 the link was written in **both**
+	directions, which deadlocked the pair completely (QA left six invoices stuck this way).
+
+	This runs in ``on_cancel``, which frappe calls **before** ``check_no_back_links_exist``
+	(``frappe/model/document.py::run_post_save_methods``), so clearing the pointer here is what
+	lets the cancel through. The pair is not lost: it stays in the invoice notes, in the Comment
+	the exchange writes on the original sale, and in the Comment added here.
+	"""
+	partners = frappe.get_all(
+		"Sales Invoice",
+		filters={"maison_exchange_invoice": doc.name, "docstatus": 1, "name": ("!=", doc.name)},
+		pluck="name",
+	)
+	for partner in partners:
+		frappe.db.set_value("Sales Invoice", partner, "maison_exchange_invoice", None, update_modified=False)
+		frappe.get_doc(
+			{
+				"doctype": "Comment",
+				"comment_type": "Info",
+				"reference_doctype": "Sales Invoice",
+				"reference_name": partner,
+				"content": _("Exchange link to {0} released: {0} was cancelled.").format(doc.name),
+			}
+		).insert(ignore_permissions=True)
+
+
 def on_cancel(doc, method: str | None = None) -> None:
 	"""Publish the cancellation so dashboard totals re-aggregate."""
+	# v0.8 POS D8 — runs for every Sales Invoice, POS or not: a credit note refunded to store
+	# credit is not `is_pos` but can still be half of an exchange.
+	try:
+		unlink_exchange_pair(doc, method)
+	except Exception:  # pragma: no cover — never block a cancellation on bookkeeping
+		frappe.log_error(frappe.get_traceback(), "maison exchange unlink")
 	if not doc.get("is_pos"):
 		return
 	publish_sale(doc, "maison_sale_cancelled")

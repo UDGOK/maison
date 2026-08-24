@@ -3,7 +3,7 @@
     {
       "step": "manager uploads item image via catalog.upload_item_image",
       "ok": true,
-      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"http://maison.localhost:8000/files/AC-012-e7e42d.png\",\"file_url\":\"/files/AC-012-e7e42d.png\",\"file_name\":\"AC-012-0a8175.png\"}"
+      "detail": "200 {\"item_code\":\"AC-012\",\"image\":\"http://maison.localhost:8000/files/AC-012-e7e42d.png\",\"file_url\":\"/files/AC-012-e7e42d.png\",\"file_name\":\"AC-012-079cc4.png\"}"
     },
     {
       "step": "uploaded image URL is served",
@@ -13,12 +13,12 @@
     {
       "step": "bootstrap has settings/barcodes/images",
       "ok": true,
-      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"http://maison.localhost:8000\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0,\"face_recognition_global\":0,\"recognition_model\":\"face-api/faceRecognitionNet@1\",\"match_threshold\":0.6,\"match_distance_threshold\":0.6,\"biometric_retention_months\":36,\"recognition_offline_cache\":1,\"consent_text\":\"I agree that Maison may create and store a mathematical template of my facial features (a \\\"face template\\\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.\",\"consent_text_version\":\"2026-08-1\",\"return_window_days\":30,\"exchange_window_days\":60,\"returns_manager_threshold\":2500,\"low_stock_digest_enabled\":1,\"low_stock_notify_regional\":0,\"brand\":{\"brand_name\":\"Maison\",\"product_name\":\"Maison POS\",\"tagline\":\"Fine jewellery & timepieces\",\"wordmark_text\":\"MAISON\",\"sub_mark\":\"POS\",\"legal_name\":\"Maison Jewelers\",\"support_email\":\"concierge@maison.example\",\"brand_website\":\"https://maison.example\",\"vertical\":\"Jewellery\",\"store_noun\":\"Boutique\",\"brand_logo\":null,\"head_office_boutique\":null,\"main_warehouse\":null,\"rewards_program_name\":\"Maison Collectors\"},\"vertical\":\"Jewellery\",\"attribute_fields\":[\"maison_metal\",\"maison_carat\",\"maison_stones\",\"maison_certificate_no\",\"maison_appraisal_value\"],\"age_verification_required\":1,\"minimum_age\":21,\"id_scan_enabled\":1,\"webshop_age_restricted_sales\":0,\"rewards_program_name\":\"Maison Collectors\",\"reward_allow_stacking\":0,\"birthday_coupon_enabled\":1,\"birthday_coupon_type\":\"Percent\",\"birthday_coupon_value\":15,\"birthday_coupon_lead_days\":7,\"birthday_coupon_valid_days\":30,\"new_arrivals_days\":14,\"giveaway_entries_per_amount\":25} ean=2004103867421→BR-006 serial=TP-007-CHI-E7I472 image=http://maison.localhost:8000/files/AC-012-e7e42d.png"
+      "detail": "settings={\"show_product_images\":0,\"show_product_images_default\":0,\"scan_enabled\":1,\"receipt_qr_enabled\":1,\"receipt_qr_base_url\":\"http://maison.localhost:8000\",\"loyalty_lookup_enabled\":1,\"face_recognition_enabled\":0,\"face_recognition_global\":0,\"recognition_model\":\"face-api/faceRecognitionNet@1\",\"match_threshold\":0.6,\"match_distance_threshold\":0.6,\"biometric_retention_months\":36,\"recognition_offline_cache\":1,\"consent_text\":\"I agree that Maison may create and store a mathematical template of my facial features (a \\\"face template\\\") so that this boutique can recognise me and offer personalised service when I visit. No photograph or video of my face is kept; only the template. Maison will not sell, lease or trade my face template, will not use it for any purpose other than identifying me as a client, and will permanently destroy it when I withdraw my consent, when I have not visited a Maison boutique for 36 months, or sooner if required by law — whichever comes first. I may withdraw this consent at any time by asking any boutique manager or by writing to privacy@maison.example. Maison's Biometric Data Retention and Destruction Policy is available at every boutique and on maison.example/privacy/biometrics.\",\"consent_text_version\":\"2026-08-1\",\"return_window_days\":30,\"exchange_window_days\":60,\"returns_manager_threshold\":2500,\"low_stock_digest_enabled\":1,\"low_stock_notify_regional\":0,\"brand\":{\"brand_name\":\"Maison\",\"product_name\":\"Maison POS\",\"tagline\":\"Fine jewellery & timepieces\",\"wordmark_text\":\"MAISON\",\"sub_mark\":\"POS\",\"legal_name\":\"Maison Jewelers\",\"support_email\":\"concierge@maison.example\",\"brand_website\":\"https://maison.example\",\"vertical\":\"Jewellery\",\"store_noun\":\"Boutique\",\"developer_name\":\"Futonix\",\"developer_website\":\"https://futonix.com\",\"brand_logo\":null,\"head_office_boutique\":null,\"main_warehouse\":null,\"rewards_program_name\":\"Maison Collectors\"},\"vertical\":\"Jewellery\",\"attribute_fields\":[\"maison_metal\",\"maison_carat\",\"maison_stones\",\"maison_certificate_no\",\"maison_appraisal_value\"],\"age_verification_required\":1,\"minimum_age\":21,\"id_scan_enabled\":1,\"webshop_age_restricted_sales\":0,\"rewards_program_name\":\"Maison Collectors\",\"reward_allow_stacking\":0,\"birthday_coupon_enabled\":1,\"birthday_coupon_type\":\"Percent\",\"birthday_coupon_value\":15,\"birthday_coupon_lead_days\":7,\"birthday_coupon_valid_days\":30,\"new_arrivals_days\":14,\"giveaway_entries_per_amount\":25} ean=2004103867421→BR-006 serial=TP-005-CHI-E2E74B20 image=http://maison.localhost:8000/files/AC-012-e7e42d.png"
     },
     {
       "step": "customers.search rows carry client_number / loyalty_points / points_value / tier",
       "ok": true,
-      "detail": "Mei-Lin Chen MC528952 pts=1727240 value=1727240 tier=Patron"
+      "detail": "Mei-Lin Chen MC528952 pts=3595284 value=3595284 tier=Patron"
     },
     {
       "step": "associate login",
@@ -43,27 +43,27 @@
     {
       "step": "wedge scan serial adds that exact serial",
       "ok": true,
-      "detail": "TP-007-CHI-E7I472 (Atelier Tourbillon Platinum); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Atelier Tourbillon PlatinumTP-007-CHI-E7I472$185,000.00×"
+      "detail": "TP-005-CHI-E2E74B20 (Corsaire Chronograph Titanium); basket: Classic Wedding Band 2mm Platinum1 × $1,950.00$1,950.00−1+ | Corsaire Chronograph TitaniumTP-005-CHI-E2E74B20$12,800.00×"
     },
     {
       "step": "client № keypad lookup attaches client with points",
       "ok": true,
-      "detail": "Mei-Lin ChenPatronClient №MC528952Points 1,727,240 ($1,727,240.00)Last visit Aug 23, 2026 Redeem points up to 206,004DetachSuggested for this client…"
+      "detail": "Mei-Lin ChenPatronClient №MC528952Points 3,595,284 ($3,595,284.00)Last visit Aug 22, 2026 Redeem points up to 16,154DetachSuggested for this client…"
     },
     {
       "step": "receipt screen shows QR and receipt link",
       "ok": true,
-      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=http://maison.localhost:8000/r/k00TnnXhYVfKVTWM"
+      "detail": "Synced qr=data:image/png;base64,iVBORw0K link=http://maison.localhost:8000/r/uPouhxjbc6shR51R"
     },
     {
       "step": "GET /r/<token> as guest returns 200 with boutique name",
       "ok": true,
-      "detail": "200 len=342452"
+      "detail": "200 len=342711"
     },
     {
       "step": "guest sales.receipt JSON has boutique, lines, totals and no PII",
       "ok": true,
-      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••952\",\"tier\":\"Patron\",\"points_earned\":124568,\"points_balance\":1851808,\"next_reward\":null,\"giveaway_entries\":10,\"giveaway\":{\"name\":\"GIVE-2026-00019\",\"title\":\"Geek Bar Pulse X giveaway\",\"end_date\":\"2026-09-21\",\"prize\":\"A Geek Bar Pulse X 25K in the flavor of your choice\",\"my_entries\":120},\"reward_tier\":null}"
+      "detail": "200 client={\"present\":true,\"client_number_masked\":\"MC•••952\",\"tier\":\"Patron\",\"points_earned\":9768,\"points_balance\":3605052,\"next_reward\":null,\"giveaway_entries\":10,\"giveaway\":{\"name\":\"GIVE-2026-00019\",\"title\":\"Geek Bar Pulse X giveaway\",\"end_date\":\"2026-09-21\",\"prize\":\"A Geek Bar Pulse X 25K in the flavor of your choice\",\"my_entries\":280},\"reward_tier\":null}"
     },
     {
       "step": "GET /r/<bad token> is 404",
@@ -93,7 +93,7 @@
     {
       "step": "iPhone: cash pay → receipt synced with QR + link",
       "ok": true,
-      "detail": "Synced link=http://maison.localhost:8000/r/ZXLHJb0hXcnp6whJ"
+      "detail": "Synced link=http://maison.localhost:8000/r/lvMYe9Uyv26x9_aT"
     },
     {
       "step": "iPhone: receipt screen has no horizontal overflow",

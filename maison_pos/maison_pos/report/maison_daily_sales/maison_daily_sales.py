@@ -40,7 +40,7 @@ def execute(filters=None):
 
 	def bucket(date, boutique):
 		key = (str(date), boutique or "")
-		return agg.setdefault(key, {"date": date, "boutique": boutique, "boutique_name": names.get(boutique, boutique), "tickets": 0, "returns": 0, "units": 0.0, "gross": 0.0, "discounts": 0.0, "returns_value": 0.0, "net": 0.0, "tax": 0.0, "total": 0.0, "cash": 0.0, "card": 0.0, "other": 0.0, "_sale_units": 0.0})
+		return agg.setdefault(key, {"date": date, "boutique": boutique, "boutique_name": names.get(boutique, boutique), "tickets": 0, "returns": 0, "units": 0.0, "gross": 0.0, "discounts": 0.0, "returns_value": 0.0, "net": 0.0, "tax": 0.0, "total": 0.0, "cash": 0.0, "card": 0.0, "other": 0.0, "sales_total": 0.0, "_sale_units": 0.0})
 
 	for inv in invoice_rows(f):
 		b = bucket(inv.posting_date, inv.boutique)
@@ -51,6 +51,7 @@ def execute(filters=None):
 			b["tickets"] += 1
 			b["gross"] += flt(inv.total)
 			b["discounts"] += flt(inv.discount_amount)
+			b["sales_total"] += flt(inv.rounded_total or inv.grand_total)  # v0.8 QA D-4
 		b["net"] += flt(inv.net_total)
 		b["tax"] += flt(inv.tax)
 		b["total"] += flt(inv.rounded_total or inv.grand_total)
@@ -77,10 +78,11 @@ def execute(filters=None):
 	data = []
 	for key in sorted(agg):
 		b = agg[key]
-		b["avg_ticket"] = round(b["total"] / b["tickets"], 2) if b["tickets"] else 0.0
+		# v0.8 QA D-4 — the average *sale*: sales only on both sides (was net-of-returns / sales)
+		b["avg_ticket"] = round(b["sales_total"] / b["tickets"], 2) if b["tickets"] else 0.0
 		b["items_per_ticket"] = round(b["_sale_units"] / b["tickets"], 2) if b["tickets"] else 0.0
 		del b["_sale_units"]
-		for k in ("gross", "discounts", "returns_value", "net", "tax", "total", "cash", "card", "other"):
+		for k in ("gross", "discounts", "returns_value", "net", "tax", "total", "cash", "card", "other", "sales_total"):
 			b[k] = round(b[k], 2)
 		data.append(b)
 	return get_columns(), data

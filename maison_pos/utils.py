@@ -296,6 +296,10 @@ def receipt_payload(doc) -> dict[str, Any]:
 			}
 		)
 	payments = []
+	# v0.8 POS D11 — a cash row now carries what was *tendered*; the receipt shows the tender, the
+	# change handed back and the amount that actually paid for the sale, so the rows still add up
+	# to the total. Only one cash row can carry change (ERPNext keeps it on the invoice header).
+	change_left = flt(doc.get("change_amount"))
 	for p in doc.payments:
 		if not flt(p.amount):
 			continue
@@ -304,6 +308,12 @@ def receipt_payload(doc) -> dict[str, Any]:
 			entry["card_brand"] = doc.get("maison_card_brand")
 			entry["last4"] = doc.get("maison_card_last4")
 			entry["approval_code"] = doc.get("maison_approval_code")
+		elif change_left:
+			given = min(change_left, flt(p.amount))
+			change_left = flt(change_left - given)
+			entry["tendered"] = flt(p.amount)
+			entry["change"] = given
+			entry["amount"] = flt(flt(p.amount) - given, 2)
 		payments.append(entry)
 	client_number = ctx["client_number"]
 	return {

@@ -59,8 +59,11 @@ describe('totals and rows', () => {
     { boutique: 'B', name: 'Beta', net: 300, cash: 0, card: 300, invoices: 1, status: 'online', last_seen: null },
   ]
   it('computes totals and avg ticket', () => {
-    expect(computeTotals(rows)).toEqual({ net: 400, cash: 40, card: 360, invoices: 3, avg_ticket: 400 / 3 })
+    // v0.8 QA D-4: `avg_ticket` is the average *sale* — `gross` (returns excluded), not `net`
+    expect(computeTotals(rows)).toEqual({ net: 400, gross: 400, cash: 40, card: 360, invoices: 3, avg_ticket: 400 / 3 })
     expect(computeTotals([]).avg_ticket).toBe(0)
+    const withReturns = [{ ...rows[0]!, net: 60, returns_value: 40 }]
+    expect(computeTotals(withReturns).avg_ticket).toBe(50) // (60 + 40) / 2 sales, not 60 / 2
   })
   it('applies a sale to an existing row or creates one', () => {
     const s = { invoice: 'X', boutique: 'A', posting_datetime: new Date().toISOString(), items: [], net: 50, cash: 50, card: 0 }

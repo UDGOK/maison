@@ -1,0 +1,193 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "pick list lists the shipment lines with warehouse on-hand + barcode",
+   "ok": true,
+   "detail": "[{\"i\":\"KRT-001\",\"qty\":10,\"on_hand\":70,\"bin\":\"E-07-1\",\"bc\":\"2009995201711\"}]",
+   "severity": ""
+  },
+  {
+   "step": "pick list is addressed from the main warehouse to the right store",
+   "ok": true,
+   "detail": "HOU-WH - CCZ -> OK-JENKS (CloudChaserz Jenks), status=Pending",
+   "severity": ""
+  },
+  {
+   "step": "the store manager may read the pick list of their own shipment",
+   "ok": true,
+   "detail": "undefined",
+   "severity": ""
+  },
+  {
+   "step": "Pending -> Picking with a PARTIAL pick recorded",
+   "ok": true,
+   "detail": "status=Picking picked=4/10",
+   "severity": ""
+  },
+  {
+   "step": "picking posts NO stock movement (stock stays at the warehouse)",
+   "ok": true,
+   "detail": "{\"hq\":70,\"transit\":0,\"store\":2} -> {\"hq\":70,\"transit\":0,\"store\":2}",
+   "severity": ""
+  },
+  {
+   "step": "picking MORE than approved is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Picked more than approved for KRT-001",
+   "severity": ""
+  },
+  {
+   "step": "the pick can be completed to the full approved quantity",
+   "ok": true,
+   "detail": "picked=10",
+   "severity": ""
+  },
+  {
+   "step": "Picking -> Packed with parcels and a weight",
+   "ok": true,
+   "detail": "status=Packed parcels=[{\"length\":30,\"width\":22,\"height\":14,\"weight\":2.4}] total_weight=2.4 packages=1",
+   "severity": ""
+  },
+  {
+   "step": "a parcel with zero weight is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Parcel weight must be positive",
+   "severity": ""
+  },
+  {
+   "step": "packing posts NO stock movement",
+   "ok": true,
+   "detail": "{\"hq\":70,\"transit\":0,\"store\":2}",
+   "severity": ""
+  },
+  {
+   "step": "buying a label returns a tracking number + label URL and leaves the status at Packed",
+   "ok": true,
+   "detail": "simulated USPS Ground Advantage $9.85 tracking=9400119277101014222172 status=Packed tracking_status=PRE_TRANSIT",
+   "severity": ""
+  },
+  {
+   "step": "buying a label posts NO stock movement",
+   "ok": true,
+   "detail": "{\"hq\":70,\"transit\":0,\"store\":2}",
+   "severity": ""
+  },
+  {
+   "step": "Packed -> Shipped",
+   "ok": true,
+   "detail": "status=Shipped shipped_at=2026-08-23T15:23:50.789101 SE=MAT-STE-2026-00049",
+   "severity": ""
+  },
+  {
+   "step": "shipping moves the stock warehouse -> \"<store> In Transit\" (Bin)",
+   "ok": true,
+   "detail": "HQ 70->60, In Transit 0->10, OK-JENKS 2->2",
+   "severity": ""
+  },
+  {
+   "step": "Stock Ledger: one -10 at the warehouse and one +10 in transit",
+   "ok": true,
+   "detail": "[{\"item_code\":\"KRT-001\",\"warehouse\":\"HOU-WH - CCZ\",\"actual_qty\":-10,\"posting_date\":\"2026-08-23\"},{\"item_code\":\"KRT-001\",\"warehouse\":\"OK-JENKS In Transit - CCZ\",\"actual_qty\":10,\"posting_date\":\"2026-08-23\"}]",
+   "severity": ""
+  },
+  {
+   "step": "the ship Stock Entry is a submitted Material Transfer with a traceable remark",
+   "ok": true,
+   "detail": "{\"stock_entry_type\":\"Material Transfer\",\"from_warehouse\":\"HOU-WH - CCZ\",\"to_warehouse\":\"OK-JENKS In Transit - CCZ\",\"docstatus\":1,\"remarks\":\"Maison Shipment MSH-2026-00020 → OK-JENKS (in transit)\"}",
+   "severity": ""
+  },
+  {
+   "step": "shipping is refused a second time (idempotent guard)",
+   "ok": true,
+   "detail": "ship twice -> refused",
+   "severity": ""
+  },
+  {
+   "step": "the shipment appears on the store's inbound (Receive) list once shipped",
+   "ok": true,
+   "detail": "inbound=MSH-2026-00020 preparing=MSH-2026-00021/Pending,MSH-2026-00024/Pending open_requests=0",
+   "severity": ""
+  },
+  {
+   "step": "the store confirms receipt -> status Received",
+   "ok": true,
+   "detail": "status=Received by= SE=MAT-STE-2026-00050",
+   "severity": ""
+  },
+  {
+   "step": "receiving moves the stock In Transit -> store (Bin), In Transit back to 0",
+   "ok": true,
+   "detail": "HQ 70->60, In Transit 0->0, OK-JENKS 2->12",
+   "severity": ""
+  },
+  {
+   "step": "Stock Ledger: one -10 in transit and one +10 at the store",
+   "ok": true,
+   "detail": "[{\"item_code\":\"KRT-001\",\"warehouse\":\"OK-JENKS In Transit - CCZ\",\"actual_qty\":-10,\"posting_date\":\"2026-08-23\"},{\"item_code\":\"KRT-001\",\"warehouse\":\"OK-JENKS - CCZ\",\"actual_qty\":10,\"posting_date\":\"2026-08-23\"}]",
+   "severity": ""
+  },
+  {
+   "step": "no discrepancy is raised on a clean receipt",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "the replenishment request is closed out as Approved/complete",
+   "ok": true,
+   "detail": "{\"status\":\"Approved\",\"shipment\":\"MSH-2026-00020\"}",
+   "severity": ""
+  },
+  {
+   "step": "receiving the same shipment twice is refused and posts nothing",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00020 is Received, not in transit; balances {\"hq\":60,\"transit\":0,\"store\":12}",
+   "severity": ""
+  },
+  {
+   "step": "KRT-001 is back above its reorder level at the store",
+   "ok": true,
+   "detail": "OK-JENKS KRT-001 = 12 (level 3)",
+   "severity": ""
+  },
+  {
+   "step": "shipping more than the warehouse holds is refused by the stock ledger (negative stock)",
+   "ok": true,
+   "detail": "417 erpnext.stock.stock_ledger.NegativeStockError: <strong>25.0</strong> units of <a href=\"/app/Form/Item/HKA-002\" style=\"font-weight: bold;\">Item HKA-002: Starbuzz Carbine 2.0 Hookah</a> needed in <a href=\"/app/Form/Warehou; balances unchanged {\"hq\":6,\"transit\":0,\"store\":1}",
+   "severity": ""
+  },
+  {
+   "step": "the failed ship leaves the shipment in a workable state (not half-shipped)",
+   "ok": true,
+   "detail": "status=Picking stock_entry_ship=null",
+   "severity": ""
+  },
+  {
+   "step": "a shipment can be cancelled mid-flow and posts no stock",
+   "ok": true,
+   "detail": "status=Cancelled; balances {\"hq\":6,\"transit\":0,\"store\":1}",
+   "severity": ""
+  },
+  {
+   "step": "a shipped/received consignment cannot be cancelled",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: A shipped consignment cannot be cancelled — receive it at the store",
+   "severity": ""
+  },
+  {
+   "step": "the cancelled shipment leaves the wall columns",
+   "ok": true,
+   "detail": "{\"pending_approval\":0,\"to_pick\":1,\"packing\":0,\"ready\":0,\"shipped_today\":0}",
+   "severity": ""
+  },
+  {
+   "step": "OBSERVATION: cancelling the shipment leaves its replenishment request \"Approved\"",
+   "ok": true,
+   "detail": "MRR-2026-00023 status=Approved (no re-open / no notification to the store)",
+   "severity": "observation"
+  }
+ ],
+ "console": []
+}

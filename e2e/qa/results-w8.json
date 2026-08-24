@@ -1,0 +1,91 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "cycle count \"expected\" returns the store warehouse, serials and quantities",
+   "ok": true,
+   "detail": "warehouse=OK-JENKS - CCZ; 155 qty items, 0 serialised items (0 serials); as_of=2026-08-23T15:35:40.289300",
+   "severity": ""
+  },
+  {
+   "step": "another store's manager cannot read my expected counts",
+   "ok": true,
+   "detail": "cross-store expected -> refused",
+   "severity": ""
+  },
+  {
+   "step": "a count that matches the warehouse is clean and creates NO stock reconciliation",
+   "ok": true,
+   "detail": "MCC-2026-00045: clean=true diffs=0 missing=0 unexpected=0 recon=null",
+   "severity": ""
+  },
+  {
+   "step": "the count reports the variance per item (expected vs counted vs diff)",
+   "ok": true,
+   "detail": "DSP-021: expected 19 counted 17 diff -2; DSP-009: expected 24 counted 25 diff 1",
+   "severity": ""
+  },
+  {
+   "step": "a serial that was not scanned is reported as missing",
+   "ok": true,
+   "detail": "missing=[] (expected null)",
+   "severity": ""
+  },
+  {
+   "step": "a scanned serial that does not belong here is reported as unexpected",
+   "ok": true,
+   "detail": "[{\"serial_no\":\"QA2-NOT-A-REAL-SERIAL\",\"item_code\":null,\"warehouse\":null,\"status\":\"not_found\"}]",
+   "severity": ""
+  },
+  {
+   "step": "the count is stored as a Maison Cycle Count in Draft",
+   "ok": true,
+   "detail": "{\"status\":\"Draft\",\"boutique\":\"OK-JENKS\",\"warehouse\":\"OK-JENKS - CCZ\",\"expected_serials\":0,\"scanned_serials\":1,\"device_id\":\"QA2-dev\",\"stock_reconciliation\":\"MAT-RECO-2026-00001\"}",
+   "severity": ""
+  },
+  {
+   "step": "a DRAFT Stock Reconciliation is raised for the quantity variances",
+   "ok": true,
+   "detail": "MAT-RECO-2026-00001",
+   "severity": ""
+  },
+  {
+   "step": "the reconciliation is left unsubmitted so a manager has to approve it (docstatus 0)",
+   "ok": true,
+   "detail": "MAT-RECO-2026-00001 docstatus=0 purpose=Stock Reconciliation warehouse=OK-JENKS - CCZ owner=Administrator",
+   "severity": ""
+  },
+  {
+   "step": "the reconciliation carries exactly the counted quantities of the varying items",
+   "ok": true,
+   "detail": "[[\"DSP-009\",25,\"OK-JENKS - CCZ\"],[\"DSP-021\",17,\"OK-JENKS - CCZ\"]]",
+   "severity": ""
+  },
+  {
+   "step": "the reconciliation is attributed to the counting user, not to a system account",
+   "ok": false,
+   "detail": "owner=Administrator",
+   "severity": ""
+  },
+  {
+   "step": "the draft posts NO stock until it is submitted",
+   "ok": true,
+   "detail": "DSP-021 on hand still 19 (counted 17, expected 19)",
+   "severity": ""
+  },
+  {
+   "step": "the cycle count links its reconciliation for the desk review",
+   "ok": true,
+   "detail": "{\"stock_reconciliation\":\"MAT-RECO-2026-00001\"}",
+   "severity": ""
+  },
+  {
+   "step": "another store's manager cannot submit a count against my store",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: You are not permitted to act on boutique OK-JENKS",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

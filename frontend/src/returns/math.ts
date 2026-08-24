@@ -27,16 +27,26 @@ export function returnLineNet(line: ReturnLineInput): number {
   return round(Math.max(0, unit) * line.qty)
 }
 
-/** Credit for the selected lines at `taxRate` %. */
+/**
+ * Credit for the selected lines at `taxRate` %.
+ *
+ * --- v0.8 POS D1 — same shape as `utils/totals.ts::computeTotals` ---
+ * The credit note carries the same single *On Net Total* tax row as the sale, so the refund the
+ * associate reads off the screen (and hands over in cash) has to be the number ERPNext books:
+ * the rate applied **once** to the taxable net, rounded once. Rounding per line and summing was a
+ * cent out on multi-line returns.
+ * --- end v0.8 POS D1 ---
+ */
 export function computeReturnTotals(lines: ReturnLineInput[], taxRate: number): ReturnTotals {
   let net = 0
-  let tax = 0
+  let taxable = 0
   for (const l of lines) {
     if (!l.qty || l.qty <= 0) continue
     const n = returnLineNet(l)
     net = round(net + n)
-    if (l.taxable === undefined || l.taxable) tax = round(tax + round((n * taxRate) / 100))
+    if (l.taxable === undefined || l.taxable) taxable = round(taxable + n)
   }
+  const tax = round((taxable * taxRate) / 100)
   return { net, tax, total: round(net + tax) }
 }
 

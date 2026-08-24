@@ -167,17 +167,27 @@ def period_totals(frm, to, boutiques: Optional[list[str]], company: Optional[str
 		.where(cond)
 		.groupby(SI.is_return)
 	).run(as_dict=True)
-	out = {"net": 0.0, "gross": 0.0, "tax": 0.0, "tickets": 0, "returns": 0, "returns_value": 0.0}
+	# --- v0.8 QA D-7 / D-4 — one definition of "net sales", one of "avg ticket" ---
+	# "Net sales" on the Live and Stores tabs is `sum(grand_total)`, returns netted, tax included
+	# (`api/dashboard.py`). This widget reported `sum(net_total)` under the same words, so the same
+	# day showed $597.38 on one tab and $553.25 on the other — exactly the day's sales tax — with
+	# nothing to explain the gap. It follows the rest of the dashboard now; the pre-tax figure is
+	# still returned as `net_of_tax` (and the Daily Sales report prints both, labelled).
+	# `avg_ticket` is the average *sale*: sales only on both sides of the division.
+	out = {"net": 0.0, "net_of_tax": 0.0, "gross": 0.0, "tax": 0.0, "tickets": 0, "returns": 0, "returns_value": 0.0, "sales_total": 0.0}
 	for r in rows:
 		if cint(r.is_return):
 			out["returns"] = cint(r.n)
 			out["returns_value"] = abs(flt(r.gross))
 		else:
 			out["tickets"] = cint(r.n)
-		out["net"] += flt(r.net)
+			out["sales_total"] += flt(r.gross)
+		out["net"] += flt(r.gross)
+		out["net_of_tax"] += flt(r.net)
 		out["gross"] += flt(r.gross)
 		out["tax"] += flt(r.tax)
-	out["avg_ticket"] = round(out["gross"] / out["tickets"], 2) if out["tickets"] else 0.0
-	for k in ("net", "gross", "tax", "returns_value"):
+	out["avg_ticket"] = round(out["sales_total"] / out["tickets"], 2) if out["tickets"] else 0.0
+	for k in ("net", "net_of_tax", "gross", "tax", "returns_value", "sales_total"):
 		out[k] = round(out[k], 2)
 	return out
+	# --- end v0.8 QA D-7 / D-4 ---

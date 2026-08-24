@@ -1,0 +1,145 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "rate shopping returns a list of carrier options",
+   "ok": true,
+   "detail": "8 rates from provider \"simulated\" (test_mode=true)",
+   "severity": ""
+  },
+  {
+   "step": "the rate list is sorted cheapest-first",
+   "ok": true,
+   "detail": "USPS Ground Advantage $17.17/3d | UPS Ground $25.32/3d | FedEx Home Delivery $26.28/3d | USPS Priority Mail $27.33/2d | FedEx 2Day $55.97/2d | UPS 2nd Day Air $56.14/2d | USPS Priority Mail Express $74.4/1d | UPS Next Day Air Saver $102.66/1d",
+   "severity": ""
+  },
+  {
+   "step": "the cheapest rate is pre-selected by default",
+   "ok": true,
+   "detail": "selected=USPS Ground Advantage $17.17; cheapest id=sim_909b9bbd2dbb",
+   "severity": ""
+  },
+  {
+   "step": "every rate carries carrier, service, amount, transit days and a rate id",
+   "ok": true,
+   "detail": "{\"carrier\":\"USPS\",\"service\":\"Ground Advantage\",\"amount\":17.17,\"days\":3,\"provider_rate_id\":\"sim_909b9bbd2dbb\",\"provider\":\"simulated\",\"currency\":\"USD\",\"attributes\":[\"tracking\",\"zone_4\",\"16_lb\"],\"estimated_delivery\":null}",
+   "severity": ""
+  },
+  {
+   "step": "the quote echoes the ship-from and ship-to addresses used",
+   "ok": true,
+   "detail": "from Houston TX 77098 -> to Jenks, OK 74037 OK 74037",
+   "severity": ""
+  },
+  {
+   "step": "the quote echoes the parcel it priced",
+   "ok": true,
+   "detail": "[{\"length\":40,\"width\":30,\"height\":25,\"weight\":6.95}]",
+   "severity": ""
+  },
+  {
+   "step": "the \"fastest\" toggle selects the quickest service (ties broken by price)",
+   "ok": true,
+   "detail": "fastest=USPS Priority Mail Express $74.4 1d; cheapest is still reported ($17.17)",
+   "severity": ""
+  },
+  {
+   "step": "cheapest and fastest are different services here (the toggle actually changes something)",
+   "ok": true,
+   "detail": "cheapest=USPS Ground Advantage, fastest=USPS Priority Mail Express",
+   "severity": ""
+  },
+  {
+   "step": "the quote is cached on the shipment so the desk shows what it was quoted",
+   "ok": false,
+   "detail": "rate_options length=0",
+   "severity": ""
+  },
+  {
+   "step": "an unconfigured carrier account fails with a readable message (no traceback to the user)",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shippo is not configured: set `shippo_api_key` in site_config.json",
+   "severity": ""
+  },
+  {
+   "step": "an unknown provider name fails cleanly",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Unknown shipping provider 'pirateship'",
+   "severity": ""
+  },
+  {
+   "step": "buying a rate that is not in the last quote is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Rate sim_deadbeef is not in the last quote — fetch rates again",
+   "severity": ""
+  },
+  {
+   "step": "the admin can buy any quoted rate, not just the cheapest",
+   "ok": true,
+   "detail": "bought UPS 2nd Day Air $56.14 (2d) vs cheapest $17.17",
+   "severity": ""
+  },
+  {
+   "step": "the label carries a carrier-shaped tracking number and a public tracking URL",
+   "ok": true,
+   "detail": "tracking=1Z840D324033235145 url=https://www.ups.com/track?tracknum=1Z840D324033235145",
+   "severity": ""
+  },
+  {
+   "step": "the shipment stores the label URL for printing",
+   "ok": true,
+   "detail": "label_url=/shipping-label/1Z840D324033235145",
+   "severity": ""
+  },
+  {
+   "step": "the label URL resolves to a printable document",
+   "ok": true,
+   "detail": "GET /shipping-label/1Z840D324033235145 -> 200 text/html; charset=utf-8 <!doctype html> <html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <title>CloudChaserz - Label 1Z840D324033235145</title> ",
+   "severity": ""
+  },
+  {
+   "step": "OBSERVATION: buy can be called again and overwrites the label/tracking (no \"already bought\" guard)",
+   "ok": true,
+   "detail": "second buy accepted: USPS Ground Advantage tracking 9400642013041446230174 replaced 1Z840D324033235145",
+   "severity": "observation"
+  },
+  {
+   "step": "tracking can be refreshed on demand and returns carrier events",
+   "ok": true,
+   "detail": "status=TRANSIT eta=2026-08-26T15:24:59.906462 events=[\"PRE_TRANSIT\",\"TRANSIT\"]",
+   "severity": ""
+  },
+  {
+   "step": "BUG CANDIDATE: a label bought seconds ago already reports post-label carrier events",
+   "ok": true,
+   "detail": "label bought at 2026-08-23T15:24:59.906462 (site tz), track says \"TRANSIT\" / \"Accepted at origin facility\"; first event at 2026-08-23T15:24:59.906462",
+   "severity": "observation"
+  },
+  {
+   "step": "shipping.refresh_tracking (hourly job) runs and stamps the shipment",
+   "ok": true,
+   "detail": "job=Complete; tracking_status=TRANSIT updated_at=2026-08-23 15:25:02.179081",
+   "severity": ""
+  },
+  {
+   "step": "tracking a shipment with no label returns an empty result instead of an error",
+   "ok": true,
+   "detail": "{\"shipment\":\"MSH-2026-00024\",\"tracking_no\":null,\"status\":null,\"events\":[]}",
+   "severity": ""
+  },
+  {
+   "step": "the store manager may refresh tracking for their own inbound shipment",
+   "ok": true,
+   "detail": "undefined",
+   "severity": ""
+  },
+  {
+   "step": "re-quoting a shipment that has already shipped is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00021 is already Shipped",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

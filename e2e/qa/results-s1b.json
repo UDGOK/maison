@@ -1,0 +1,31 @@
+{
+  "when": "2026-08-23T21:48:14.654Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "guest /cart redirects to sign-in",
+      "ok": true,
+      "detail": "301 → /login?redirect-to=/cart",
+      "sev": ""
+    },
+    {
+      "step": "A · /shop/collection shows the whole catalogue (or paginates)",
+      "ok": false,
+      "detail": "96 of 155 published products shown, pagination controls=0",
+      "sev": "minor"
+    },
+    {
+      "step": "A · mobile 390x844: no horizontal overflow on the shop pages",
+      "ok": false,
+      "detail": "home:0 collection:0 item-buy:435 item-age:435 boutiques:0 rewards:0 account:0",
+      "sev": "minor"
+    },
+    {
+      "step": "A · mobile CTA buttons are ≥44 px tall",
+      "ok": false,
+      "detail": "[{\"t\":\"View bag\",\"h\":0}]",
+      "sev": ""
+    }
+  ],
+  "consoleLog": []
+}

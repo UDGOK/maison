@@ -1,0 +1,175 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "/warehouse-wall opens at 1920x1080 for the warehouse admin",
+   "ok": true,
+   "detail": "first paint + cards in 1318 ms",
+   "severity": ""
+  },
+  {
+   "step": "the wall renders the five kanban columns",
+   "ok": true,
+   "detail": "col-pending_approval(3) col-to_pick(1) col-packing(1) col-ready(1) col-shipped_today(1)",
+   "severity": ""
+  },
+  {
+   "step": "a Pending Approval request sits in \"Pending approval\"",
+   "ok": true,
+   "detail": "{\"key\":\"col-pending_approval\",\"count\":3,\"head\":\"Pending approval3 · 13 u\",\"cards\":[\"MRR-2026-00026\",\"MRR-2026-00025\",\"MRR-2026-00033\"]}",
+   "severity": ""
+  },
+  {
+   "step": "a Pending shipment sits in \"To pick\"",
+   "ok": true,
+   "detail": "[\"MSH-2026-00028\"]",
+   "severity": ""
+  },
+  {
+   "step": "a Packed shipment WITHOUT a label sits in \"Packing\"",
+   "ok": true,
+   "detail": "[\"MSH-2026-00030\"]",
+   "severity": ""
+  },
+  {
+   "step": "a Packed shipment WITH a label sits in \"Ready to ship\"",
+   "ok": true,
+   "detail": "[\"MSH-2026-00032\"]",
+   "severity": ""
+  },
+  {
+   "step": "a shipment shipped today sits in \"Shipped today\"",
+   "ok": true,
+   "detail": "[\"MSH-2026-00021\"]",
+   "severity": ""
+  },
+  {
+   "step": "age timer: a 5 h-old request is amber (warn tier, threshold 4 h)",
+   "ok": true,
+   "detail": "MRR-2026-00025 tier=warn age=\"5h 01m\"",
+   "severity": ""
+  },
+  {
+   "step": "age timer: a 30 h-old request is red (crit tier, threshold 24 h)",
+   "ok": true,
+   "detail": "MRR-2026-00026 tier=crit age=\"1d 6h\"",
+   "severity": ""
+  },
+  {
+   "step": "age timer: a 6 h-old shipment in To pick is amber",
+   "ok": true,
+   "detail": "MSH-2026-00028 tier=warn age=\"6h 01m\"",
+   "severity": ""
+  },
+  {
+   "step": "age timer: a fresh card is green (ok tier)",
+   "ok": true,
+   "detail": "MSH-2026-00030 tier=ok age=\"1m\"",
+   "severity": ""
+  },
+  {
+   "step": "priority flag (⚑) is shown on the Urgent card and not on a Normal one",
+   "ok": true,
+   "detail": "urgent flagged=true text=\"OK-JENKS⚑1d 6hCloudChaserz Jenks1 item4 unitsMRR-2026-00026Approve\"; normal flagged=false",
+   "severity": ""
+  },
+  {
+   "step": "the card shows the store code, item/unit counts and the document name",
+   "ok": true,
+   "detail": "\"OK-JENKS6h 01mCloudChaserz Jenks1 item2 unitsPendingMSH-2026-00028Pick\"",
+   "severity": ""
+  },
+  {
+   "step": "cards are ordered priority-first then oldest-first",
+   "ok": true,
+   "detail": "order=MRR-2026-00026 > MRR-2026-00025 > MRR-2026-00033",
+   "severity": ""
+  },
+  {
+   "step": "the wall reports its live connection and shows the SITE clock/zone",
+   "ok": true,
+   "detail": "connection=\"LIVE\" clock=\"15:29 CDT\"",
+   "severity": ""
+  },
+  {
+   "step": "/warehouse desk opens for the Maison Warehouse Admin (no permission gate)",
+   "ok": true,
+   "detail": "desk visible, no gate",
+   "severity": ""
+  },
+  {
+   "step": "the desk lists the store's pending request raised on the POS",
+   "ok": true,
+   "detail": "MRR-2026-00033 AUG 23, 2026, 15:27 OK-JENKS CLOUDCHASERZ JENKS 1 6 Normal 5h 01m PENDING APPROVAL REVIEW",
+   "severity": ""
+  },
+  {
+   "step": "approving in the desk UI with an edited quantity creates the shipment",
+   "ok": true,
+   "detail": "MSH-2026-00034 Pending; approved qty=[[\"ROL-002\",4]]",
+   "severity": ""
+  },
+  {
+   "step": "the wall picks up the approval made elsewhere (realtime / 10 s poll)",
+   "ok": true,
+   "detail": "card appeared after 7 ms; connection=\"LIVE\"",
+   "severity": ""
+  },
+  {
+   "step": "the auto-print hook fires for the packing list when a shipment is approved",
+   "ok": true,
+   "detail": "before=null after={\"kind\":\"packing_list\",\"url\":\"/printview?doctype=Maison%20Shipment&name=MSH-2026-00034&format=Maison%20Packing%20List&no_letterhead=1\",\"shipment\":\"MSH-2026-00034\",\"at\":\"2026-08-23T20:29:05.214Z\",\"via\":\"dry\"}",
+   "severity": ""
+  },
+  {
+   "step": "the packing list print format renders (store address, lines, barcodes, QR)",
+   "ok": true,
+   "detail": "200 len=14309; has QR=true; mentions Frappe/ERPNext=false",
+   "severity": ""
+  },
+  {
+   "step": "tapping the card action on the wall works (To pick -> Picking + sheet opens)",
+   "ok": true,
+   "detail": "status now Picking, shipment sheet open=true",
+   "severity": ""
+  },
+  {
+   "step": "the wall stays usable with ~60 cards per column (virtualised columns)",
+   "ok": true,
+   "detail": "[{\"key\":\"col-pending_approval\",\"count\":62,\"rendered\":8},{\"key\":\"col-to_pick\",\"count\":62,\"rendered\":9},{\"key\":\"col-packing\",\"count\":61,\"rendered\":9},{\"key\":\"col-ready\",\"count\":61,\"rendered\":9},{\"key\":\"col-shipped_today\",\"count\":61,\"rendered\":9}] — reload+render 4609 ms",
+   "severity": ""
+  },
+  {
+   "step": "no horizontal page overflow at 1920x1080 with many cards",
+   "ok": true,
+   "detail": "{\"bodyScroll\":false,\"w\":1920,\"vw\":1920}",
+   "severity": ""
+  },
+  {
+   "step": "card type stays big enough to read across a warehouse (store code >= 24 px)",
+   "ok": true,
+   "detail": "store-code font-size = 26px",
+   "severity": ""
+  },
+  {
+   "step": "the board keeps animating smoothly with many cards",
+   "ok": true,
+   "detail": "~61 fps over 1.5 s",
+   "severity": ""
+  },
+  {
+   "step": "no \"Frappe\"/\"ERPNext\" text visible on the wall",
+   "ok": true,
+   "detail": "4919 chars scanned; sample=\"CLOUDCHASERZ WAREHOUSE WALL · HOU-WH - CCZ 1 IN TRANSIT 5 RECEIVED TODAY 0 DISCREPANCIES LIVE 15:29 CDT PENDIN\"",
+   "severity": ""
+  },
+  {
+   "step": "no \"Frappe\"/\"ERPNext\" text visible on the desk",
+   "ok": true,
+   "detail": "545 chars scanned; sample=\"CLOUDCHASERZ WAREHOUSE HOU-WH - CCZ REQUESTS 2 SHIPMENTS DISCREPANCIES STOCK VENDOR POS OPEN WALL Walter Hines\"",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

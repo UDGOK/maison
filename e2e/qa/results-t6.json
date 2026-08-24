@@ -1,0 +1,97 @@
+{
+  "when": "2026-08-23T19:37:43.058Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "6.0 service worker registered and controls /pos",
+      "ok": false,
+      "detail": "{\"regs\":[{\"scope\":\"https://cloudchaserz.frappe.cloud/pos/\"}],\"controller\":null,\"caches\":{\"workbox-precache-v2-https://cloudchaserz.frappe.cloud/pos/\":59}}",
+      "sev": ""
+    },
+    {
+      "step": "6.1 the till keeps selling after the network drops",
+      "ok": true,
+      "detail": "top bar=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE OFFLINE LOCK\" lines=2",
+      "sev": ""
+    },
+    {
+      "step": "6.1b a cash sale completes offline and is queued",
+      "ok": true,
+      "detail": "pill=\"Queued offline\" total=9.51 uuid=06c12507-51c3-4738-802e-126a6c76cd4b",
+      "sev": ""
+    },
+    {
+      "step": "6.1c the offline receipt explains the missing QR instead of showing a broken link",
+      "ok": true,
+      "detail": "RECEIPT LINK Available once the sale has synced — the QR is added to the receipt automatically.",
+      "sev": ""
+    },
+    {
+      "step": "6.2 the queue lists the pending sale",
+      "ok": true,
+      "detail": "CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE OFFLINE · 1 QUEUED LOCK QUEUE 1 pending · 0 rejected · 0 synced · heartbeat 14:37 OFFLINE SY",
+      "sev": ""
+    },
+    {
+      "step": "6.3 reloading the page while offline still renders the app shell",
+      "ok": true,
+      "detail": "navErr=null; {\"url\":\"https://cloudchaserz.frappe.cloud/pos/sell\",\"title\":\"Maison POS\",\"hasApp\":true,\"unlock\":false,\"topbar\":true,\"body\":\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE OFFLINE · 1 QUEUED LOCK ALL ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS\",\"chromeErr\":false}",
+      "sev": ""
+    },
+    {
+      "step": "6.4 the queue drains once the network is back",
+      "ok": true,
+      "detail": "CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 0 rejected · 1 synced · heartbeat 14:37 ONLINE SYNC NOW STATUS",
+      "sev": ""
+    },
+    {
+      "step": "6.5 the offline sale exists server-side exactly once",
+      "ok": true,
+      "detail": "1 invoice(s) for uuid 06c12507-51c3-4738-802e-126a6c76cd4b: [{\"n\":\"ACC-SINV-2026-03055\",\"ds\":1,\"gt\":9.5}]",
+      "sev": ""
+    },
+    {
+      "step": "6.5b replaying the same offline_uuid does not create a second invoice",
+      "ok": true,
+      "detail": "replay result={\"offline_uuid\":\"06c12507-51c3-4738-802e-126a6c76cd4b\",\"status\":\"duplicate\",\"invoice_name\":\"ACC-SINV-2026-03055\",\"receipt_token\":\"oODr62-d_KA1IUU3\"}; invoices now=[{\"name\":\"ACC-SINV-2026-03055\",\"docstatus\":1}]",
+      "sev": ""
+    },
+    {
+      "step": "6.6 a stock conflict is refused and surfaces cleanly in the queue",
+      "ok": true,
+      "detail": "sold qty 41 of DEV-007 (bin had 5); server log={\"status\":\"Error\",\"error\":\"(1292, \\\"Incorrect datetime value: '2026-08-23T19:37:33.825Z' for column `_1c16a14f83a97af7`.`tabSales Invoice`.`maison_age_checked_at` at row 1\\\")\"}; invoices=[]; queue text=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE 1 SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 1 rejected · 1 synced · heartbeat 14:37 ONLINE SYNC NOW STATUS SALE TIME CLIENT TOTAL DETAIL REJECTED B657D754 1 line · Cash Aug 23, 2026, 14:37 Walk-in $2,662.51 (1292, \"Incorrect datetime value: '2026-08-23T19:37:33.825Z' for column `_1c16a14f83a97af7`.`tabS\"",
+      "sev": ""
+    },
+    {
+      "step": "6.6b the refused sale did not move stock",
+      "ok": true,
+      "detail": "bin DEV-007 before=5 after=5",
+      "sev": ""
+    },
+    {
+      "step": "6.6c queue actions offered on a rejected row",
+      "ok": null,
+      "detail": "[\"Sync now\",\"Receipt\",\"Retry\",\"Receipt\"]"
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03055"
+  ]
+}

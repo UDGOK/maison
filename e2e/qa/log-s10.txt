@@ -1,0 +1,51 @@
+(node:30496) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  C · POS Settings has a "Client display" card — Not paired
+PASS  C · the POS shows a 6-digit pairing code, its QR and a 10-minute countdown — 711524 · 10:00 · qr=1
+  shot 141-pos-salon-pairing-code.png
+  shot 142-salon-pair-1024.png
+PASS  C · the Salon pairs with the 6-digit code and lands on the ambient screen — code 711524
+PASS  C · the POS card flips to "Paired"
+PASS  C · the server holds a Paired Maison Salon Session for this POS device — e42c57d5d1… boutique=OK-BA
+FAIL  C · the ambient screen shows the brand, the hour and a curated piece — CLOUDCHASERZ · 17:29 · pieces=0
+  shot 143-salon-ambient-1024.png
+PASS  C · the first piece with no client switches the Salon to "identify" — GOOD AFTERNOON Are you a client of the house? Let us know who you are and your points and preferences follow you to the counter. PHONE OR CLIENT № E-MAIL SCAN CLIENT CARD JOIN CLOU
+  shot 144-salon-identify-1024.png
+PASS  C · the keypad masks what the client types — ••7413
+  shot 145-salon-identify-keypad.png
+FAIL  C · a client number typed on the Salon keypad identifies the client — typed 647413 (the keypad has no letters, so the MC prefix cannot be entered) → error: We could not find you — try another number, or join the house.
+PASS  C · the identify API accepts the printed client number (MC######) — bare digits → found=false; "MC647413" → found=true
+PASS  C · identify by e-mail finds the client — qa4.member.qa4a@example.com → {"customer":"QA4 Member QA4A","first_name":"QA4","customer_name":"QA4 Impostor2 QA4A","client_number_masked":"MC •• 413","phone_masked":"•••
+PASS  C · an unknown number answers "not found" with no hint — {"found":false}
+PASS  C · the client screen welcomes the client with masked contact details — "QA4" · "Client № MC •• 413 · •••• 9407 · q•••@example.com" · points=560
+PASS  C · the Salon state carries no full phone, e-mail or other client's data — state payload checked for qa4.member.qa4a@example.com / +1 918 555 9407
+  shot 146-salon-client-welcome.png
+PASS  C · the POS basket picks up the client the Salon identified — QA4 Impostor2 QA4A
+PASS  C · the basket mirror follows the POS (lines, focus piece, total) — focus="BIC Lighter — Classic" salon $88.65 vs POS $88.65
+PASS  C · the mirror shows the points this visit will earn — + 81 points with this visit
+  shot 147-salon-basket-mirror.png
+  shot 148-salon-basket-landscape.png
+PASS  C · "Ask about this piece" reaches the POS and the client profile — POS notice=true · interaction={"name":"82r08q8chv","type":"Note","note":"Client asked about BIC Lighter — Classic: QA4 QA4A: does this come in a bigge
+  shot 149-pos-salon-question.png
+PASS  C · the Salon shows the payment screen with the amount due — salon $88.65 vs POS $88.65
+  shot 150-salon-pay.png
+  shot 151-salon-approved.png
+PASS  C · the Salon shows the "approved" state before the receipt — salon view now = thankyou
+FAIL  C · the thank-you screen shows the points earned and the receipt QR — +81 · qr=0 · THANK YOU Until next time, QA4 +81 POINTS EARNED Balance 641 · Member Issuing your receipt… Scan for your receipt EMAIL MY RECEIPT TO Q•••@E
+FAIL  C · the thank-you screen shows the tier progress
+FAIL  C · the thank-you screen shows giveaway entries
+PASS  C · the thank-you screen shows no full name, phone or e-mail — THANK YOU Until next time, QA4 +81 POINTS EARNED Balance 641 · Member Issuing your receipt… Scan for your receipt EMAIL 
+  shot 152-salon-thankyou.png
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+page.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-testid=thankyou-feedback]')[22m
+
+    at /home/claude/maison/e2e/qa/s10-salon.mjs:161:18 {
+  name: 'TimeoutError'
+}
+
+Node.js v22.22.2

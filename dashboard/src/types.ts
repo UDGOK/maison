@@ -6,6 +6,10 @@ export interface Totals {
   cash: number
   card: number
   avg_ticket: number
+  /** sales only, returns excluded — what `avg_ticket` divides (v0.8 QA D-4) */
+  gross?: number
+  /** every non-cash, non-card tender: gift cards, store credit, the web tender (v0.8 QA D-12) */
+  other_tender?: number
 }
 
 export interface LastSaleSummary {
@@ -33,6 +37,12 @@ export interface BoutiqueRow {
   returns?: number
   returns_value?: number
   avg_ticket?: number
+  /** sales only (v0.8 QA D-4) */
+  gross?: number
+  /** non-cash, non-card tender (v0.8 QA D-12) */
+  other_tender?: number
+  /** net sales spread over the tickets — the old "avg ticket" (v0.8 QA D-4) */
+  net_per_ticket?: number
   conversion?: number
   last_week_net?: number
   vs_last_week_pct?: number | null
@@ -327,6 +337,8 @@ export interface PerformanceRow {
 export interface ClientsOverview {
   boutique: string | null
   tiers: string[]
+  /** tiers of the site's loyalty programme, richest first (v0.8 QA D-5) */
+  available_tiers?: string[]
   churn: ChurnRow[]
   upcoming: ChurnRow[]
   follow_ups: FollowUpRow[]

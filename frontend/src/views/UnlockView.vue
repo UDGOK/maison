@@ -146,10 +146,12 @@ async function tryUnlock() {
 }
 
 function fail() {
-  // Name the person the PIN is being checked against: every associate has their own PIN,
-  // and the commonest unlock failure is typing one associate's PIN while another is selected.
+  // v0.8 POS D6 — when the server said *why* (PIN locked after five failures, rate limited, the
+  // associate disabled), that is what the associate needs to read. The generic line below is for a
+  // plain wrong PIN, which the server answers with `ok: false` and no message.
   const who = session.associates.find((a) => a.name === selectedAssociate.value)?.full_name
-  error.value = who ? `Incorrect PIN for ${who}` : 'Incorrect PIN'
+  const reason = session.unlockError
+  error.value = reason ? (who ? `${who}: ${reason}` : reason) : who ? `Incorrect PIN for ${who}` : 'Incorrect PIN'
   shake.value = true
   pin.value = ''
   setTimeout(() => (shake.value = false), 400)

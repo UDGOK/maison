@@ -204,7 +204,10 @@ onBeforeUnmount(() => {
             <tr><th>Request</th><th>Store</th><th class="num">Items</th><th class="num">Units</th><th>Priority</th><th>Waiting</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="r in sortCards(requests.map((x) => ({ ...x, age_seconds: x.requested_at ? Math.round((now - new Date(x.requested_at).getTime()) / 1000) : 0 })))" :key="r.name" :data-testid="`req-${r.name}`">
+            <!-- v0.8 QA W-D2: the age comes from the server (`age_seconds`) and ticks locally, exactly
+                 like the Shipments tab and the wall. Parsing the zone-less `requested_at` string in the
+                 browser's zone made every fresh request amber (and the two screens disagree). -->
+            <tr v-for="r in sortCards(requests.map((x) => ({ ...x, age_seconds: liveAge(x, wh.fetchedAt, now) })))" :key="r.name" :data-testid="`req-${r.name}`">
               <td><div>{{ r.name }}</div><div class="label label-dim">{{ r.requested_at ? fmtDateTime(r.requested_at) : '' }}</div></td>
               <td><div class="display" style="font-size: 14px">{{ r.boutique }}</div><div class="label label-dim ellipsis" style="max-width: 180px">{{ r.boutique_name }}</div></td>
               <td class="num">{{ r.items }}</td>

@@ -45,6 +45,7 @@
   "stock_entry_ship",
   "stock_entry_receive",
   "stock_entry_damaged",
+  "receipt_entries",
   "column_break_stock",
   "approved_at",
   "picking_at",
@@ -283,14 +284,14 @@
   {
    "fieldname": "stock_entry_ship",
    "fieldtype": "Link",
-   "label": "Stock Entry (ship \u2192 in transit)",
+   "label": "Stock Entry (ship → in transit)",
    "options": "Stock Entry",
    "read_only": 1
   },
   {
    "fieldname": "stock_entry_receive",
    "fieldtype": "Link",
-   "label": "Stock Entry (in transit \u2192 store)",
+   "label": "Stock Entry (in transit → store)",
    "options": "Stock Entry",
    "read_only": 1
   },
@@ -300,6 +301,13 @@
    "label": "Stock Entry (damaged)",
    "options": "Stock Entry",
    "read_only": 1
+  },
+  {
+   "fieldname": "receipt_entries",
+   "fieldtype": "Small Text",
+   "label": "Stock Entries (every receipt leg)",
+   "read_only": 1,
+   "description": "Every receiving Stock Entry, newest last — a partial receipt posts one per leg (v0.8 QA W-N2)"
   },
   {
    "fieldname": "column_break_stock",

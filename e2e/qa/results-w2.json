@@ -1,0 +1,145 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "control: other v0.6 datetime fields ARE returned by get_all (isolates the *_seen drop)",
+   "ok": true,
+   "detail": "{\"name\":\"MSH-2026-00006\",\"label_at\":\"2026-08-23 13:04:37.293563\",\"tracking_updated_at\":\"2026-08-23 13:04:37.293529\",\"approved_at\":\"2026-08-23 13:04:34.480733\"}",
+   "severity": ""
+  },
+  {
+   "step": "the low-stock alert is on the manager's list to request from",
+   "ok": true,
+   "detail": "{\"name\":\"MSA-2026-00016\",\"item_code\":\"KRT-001\",\"item_name\":\"Green Maeng Da Powder 100g\",\"warehouse\":\"OK-JENKS - CCZ\",\"boutique\":\"OK-JENKS\",\"status\":\"Acknowledged\",\"qty\":2,\"reorder_level\":3,\"reorder_qty\":8,\"acknowledged_b",
+   "severity": ""
+  },
+  {
+   "step": "one-tap \"Request from warehouse\" on a low-stock alert creates a request",
+   "ok": true,
+   "detail": "MRR-2026-00018 status=Pending Approval lines=[[\"KRT-001\",8]] priority=Low stock",
+   "severity": ""
+  },
+  {
+   "step": "the one-tap quantity defaults to the alert's reorder_qty",
+   "ok": true,
+   "detail": "qty=8, alert.reorder_qty=8",
+   "severity": ""
+  },
+  {
+   "step": "a request raised from an alert is prioritised \"Low stock\"",
+   "ok": true,
+   "detail": "priority=Low stock",
+   "severity": ""
+  },
+  {
+   "step": "the request carries a draft Material Request (Material Transfer, HQ -> store)",
+   "ok": true,
+   "detail": "{\"material_request_type\":\"Material Transfer\",\"set_from_warehouse\":\"HOU-WH - CCZ\",\"set_warehouse\":\"OK-JENKS - CCZ\",\"docstatus\":0,\"status\":\"Draft\"}",
+   "severity": ""
+  },
+  {
+   "step": "the alert is linked to the Material Request and flipped to Acknowledged",
+   "ok": true,
+   "detail": "{\"status\":\"Acknowledged\",\"material_request\":\"MAT-MR-2026-00005\"}",
+   "severity": ""
+  },
+  {
+   "step": "on_hand snapshots are captured on the request line",
+   "ok": true,
+   "detail": "store=2 warehouse=70",
+   "severity": ""
+  },
+  {
+   "step": "manual multi-line request with editable quantities",
+   "ok": true,
+   "detail": "MRR-2026-00019 [[\"HKA-004\",11],[\"ROL-001\",5]] units=16",
+   "severity": ""
+  },
+  {
+   "step": "a manual request (no alert) is priority Normal",
+   "ok": true,
+   "detail": "priority=Normal",
+   "severity": ""
+  },
+  {
+   "step": "a manager requesting stock for ANOTHER store is refused",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: You are not permitted to act on boutique OK-YALE",
+   "severity": ""
+  },
+  {
+   "step": "a request with qty 0 is rejected (\"No valid lines\")",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: No valid lines",
+   "severity": ""
+  },
+  {
+   "step": "a request with a negative qty is rejected",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: No valid lines",
+   "severity": ""
+  },
+  {
+   "step": "a request for a non-existent item is rejected",
+   "ok": true,
+   "detail": "404 {\"exc_type\":\"DoesNotExistError\",\"_server_messages\":\"[\\\"{\\\\\\\"message\\\\\\\": \\\\\\\"Item NO-SUCH-ITEM does not exist\\\\\\\", \\\\\\\"title\\\\\\\": \\\\\\\"Message\\\\\\\", \\\\\\\"indicator",
+   "severity": ""
+  },
+  {
+   "step": "an empty request is rejected",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: No valid lines",
+   "severity": ""
+  },
+  {
+   "step": "the warehouse admin sees the new requests in the approval queue",
+   "ok": true,
+   "detail": "scope=all open=2; mine present: MRR-2026-00019/OK-JENKS/Normal, MRR-2026-00018/OK-JENKS/Low stock",
+   "severity": ""
+  },
+  {
+   "step": "the store manager sees their own requests on the Receive screen feed",
+   "ok": true,
+   "detail": "2 for OK-JENKS",
+   "severity": ""
+  },
+  {
+   "step": "another store's manager cannot see my store's requests",
+   "ok": true,
+   "detail": "OK-YALE manager sees 0 requests, scope=OK-YALE",
+   "severity": ""
+  },
+  {
+   "step": "another store's manager cannot open my request by name",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: You are not permitted to act on boutique OK-JENKS",
+   "severity": ""
+  },
+  {
+   "step": "the request lands in the wall's \"pending_approval\" column",
+   "ok": true,
+   "detail": "pending_approval=2 names=MRR-2026-00018,MRR-2026-00019",
+   "severity": ""
+  },
+  {
+   "step": "the wall card for a request carries an age timer",
+   "ok": true,
+   "detail": "age_seconds=1",
+   "severity": ""
+  },
+  {
+   "step": "a store manager may NOT approve their own request",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Warehouse admin role required",
+   "severity": ""
+  },
+  {
+   "step": "a store manager may NOT reject a request",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Warehouse admin role required",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

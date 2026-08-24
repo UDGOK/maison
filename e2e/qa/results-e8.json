@@ -1,0 +1,17 @@
+[
+ {
+  "name": "weekly narrative (template mode) renders on the Insights tab",
+  "ok": true,
+  "detail": "WEEKLY NARRATIVE | Week 2026-08-10 – 2026-08-16 · Template | 9,518 | NET · 228 TICKETS | ▼ 8% vs previous week |  | Week 2026-08-10 to 2026-08-16: the chain took $9,518 across 228 tickets, down -8% against $10,338 the week before. Average ticket was $42 and 62% of tender went on card. No returns were processed. |  | By boutique: CloudChaserz Montrose (HOU-MTR) $1,560 on 35 tickets, down sharply (-"
+ },
+ {
+  "name": "narrative names CloudChaserz stores (not Maison)",
+  "ok": true,
+  "detail": "none"
+ },
+ {
+  "name": "no console errors",
+  "ok": true,
+  "detail": ""
+ }
+]

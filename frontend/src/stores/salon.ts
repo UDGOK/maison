@@ -19,6 +19,7 @@ import { useCartStore } from './cart'
 import { useAgeStore } from './age' // v0.6 N
 import { useSessionStore } from './session'
 import { useCatalogStore } from './catalog'
+import { lineNet } from '@/utils/totals' // v0.8 POS D1
 import { useSyncStore } from './sync'
 import { router } from '@/router'
 
@@ -402,7 +403,7 @@ export const useSalonPosStore = defineStore('salon', {
           item_name: l.item_name,
           qty: l.qty,
           rate: l.rate,
-          amount: Math.round((l.qty * l.rate - l.discount_amount - (cart.extras[l.id] || 0)) * 100) / 100,
+          amount: lineNet(l.qty, l.rate, l.discount_amount + (cart.extras[l.id] || 0)), // v0.8 POS D1
           serial_no: l.serial_no,
           certificate_no: l.certificate_no,
           image: item?.image || null,

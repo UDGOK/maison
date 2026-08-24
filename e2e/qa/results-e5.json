@@ -1,0 +1,67 @@
+[
+ {
+  "name": "Clients tab loads",
+  "ok": true,
+  "detail": "3219 ms"
+ },
+ {
+  "name": "churn-risk list renders",
+  "ok": true,
+  "detail": "26 rows on screen, API churn=26"
+ },
+ {
+  "name": "churn row shows client / reason / LTV / store",
+  "ok": true,
+  "detail": "Zach Wolf | MEMBER | Usually visits every 1 days — last seen 76 days ago | 611 | OK-YALE | ASSIGN CALL || API[0]=Zach Wolf risk=1 ltv=610.99 OK-YALE"
+ },
+ {
+  "name": "follow-up rate card renders",
+  "ok": true,
+  "detail": "1 rows: Dante RuizHOU-MTR2 / 2100% || API=[{\"associate\":\"hou.mtr.a1@cloudchaserz.example\",\"associate_name\":\"Dante Ruiz\",\"boutique\":\"HOU-MTR\",\"assigned\":2,\"completed\":2,\"rate\":1}]"
+ },
+ {
+  "name": "upcoming dates card renders",
+  "ok": false,
+  "detail": "30 rows; API=40; first=\"Megan Miller | MEMBER | Birthday · Birthday in 16 days | 2026-08-17\""
+ },
+ {
+  "name": "recognition stats card renders",
+  "ok": false,
+  "detail": "RECOGNITION | TODAY · CONSENTED CLIENTS | ENROLLED | 0 | MATCHED TODAY | 0 | ENROLLED TODAY | 0 | DECLINED | 0 || API={\"matched_today\":0,\"enrolled_today\":0,\"nomatch_today\":0,\"declined_today\":0,\"undone_today\":0,\"enrolled_total\":0}"
+ },
+ {
+  "name": "associate performance card renders",
+  "ok": true,
+  "detail": "33 rows, API=33; first=\"Dante Ruiz | HOU-MTR | 4,286 | 103 | 45 | 53% | 0\""
+ },
+ {
+  "name": "campaign performance card renders",
+  "ok": true,
+  "detail": "1 rows; API campaigns=1; first=\"CloudChaserz launch night — new drops + giveaways | EVENT | 0 sent | 0 opened | 0\""
+ },
+ {
+  "name": "tier filter buttons present",
+  "ok": true,
+  "detail": "Patron / Collector / Connoisseur"
+ },
+ {
+  "name": "tier filter \"Patron\" narrows the churn list",
+  "ok": true,
+  "detail": "0 on screen, API=0 (unfiltered 26)"
+ },
+ {
+  "name": "\"Assign call\" creates a follow-up task",
+  "ok": true,
+  "detail": "interactions 8→9; signal.call_task=6m2m5spnbv crm_task=null assigned=ok.yale.a1@cloudchaserz.example at=2026-08-23 16:13:19.102394"
+ },
+ {
+  "name": "the follow-up is a Call, Open, with a due date and the right client",
+  "ok": true,
+  "detail": "type=Call status=Open due=2026-08-25 customer=Zach Wolf associate=ok.yale.a1@cloudchaserz.example"
+ },
+ {
+  "name": "no console errors on Clients",
+  "ok": true,
+  "detail": ""
+ }
+]

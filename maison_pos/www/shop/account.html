@@ -3,7 +3,7 @@
 <div class="mw-wrap"><div class="mw-narrow">
 	<span class="mw-label gold">{{ shop.rewards_name }}</span>
 	<h1 class="mw-display lg" style="margin:10px 0 8px">{% if signed_in %}Welcome{{ ', ' ~ shop.full_name if shop.full_name else '' }}{% else %}Your points, wherever you are{% endif %}</h1>
-	<p class="mw-muted" style="margin:0 0 28px;max-width:60ch">{{ shop.rewards_name }} rewards every purchase, in store or online. {% if not signed_in %}Sign in with your client number and the e-mail we hold for you, or <a href="/login?redirect-to=/shop/account">sign in to your {{ shop.brand_name }} account</a>.{% endif %}</p>
+	<p class="mw-muted" style="margin:0 0 28px;max-width:60ch">{{ shop.rewards_name }} rewards every purchase, in store or online. {% if not signed_in %}Sign in with your client number and the e-mail we hold for you, <a href="/login?redirect-to=/shop/account">sign in to your {{ shop.brand_name }} account</a> or <a href="/shop/register?redirect-to=/shop/account" data-testid="account-register">create one</a>.{% endif %}</p>
 
 	<div id="mw-loyalty">
 		{% if loyalty %}{% include "maison_pos/templates/webshop/loyalty_card.html" %}{% endif %}

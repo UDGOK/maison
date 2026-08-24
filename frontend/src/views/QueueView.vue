@@ -50,6 +50,13 @@ async function discard(r: QueueRow) {
         </div>
       </div>
 
+      <!-- v0.8 POS D5 — a stale session is not a rejected sale: say what is wrong and how to fix it -->
+      <div v-if="sync.sessionExpired" class="card signed-out">
+        <div class="label warn">Signed out</div>
+        <div style="margin-top: 6px">This till's session has expired. Sign in again and the queued sales will sync on their own — nothing has been lost.</div>
+        <a class="btn" style="margin-top: 12px; display: inline-block" :href="'/login?redirect-to=' + encodeURIComponent('/pos/queue')">Sign in</a>
+      </div>
+
       <div v-if="!rows.length" class="label label-dim" style="padding: 40px 0; text-align: center">Queue is empty</div>
       <table v-else class="table">
         <thead>
@@ -91,6 +98,12 @@ async function discard(r: QueueRow) {
 </template>
 
 <style scoped>
+.signed-out {
+  padding: 16px;
+  margin-bottom: 20px;
+  border-color: var(--warn, var(--line-strong));
+  max-width: 560px;
+}
 .detail {
   max-width: 360px;
   font-size: 13px;

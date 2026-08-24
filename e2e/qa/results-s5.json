@@ -1,0 +1,150 @@
+{
+  "when": "2026-08-23T22:02:29.968Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "A · web-order queue of the store lists both new orders",
+      "ok": true,
+      "detail": "3 open at OK-BA; counts={\"New\":2,\"Picking\":0,\"Ready\":1,\"Collected\":0}",
+      "sev": ""
+    },
+    {
+      "step": "A · an associate cannot read another store's web-order queue",
+      "ok": true,
+      "detail": "OK-OWA → 403 frappe.exceptions.PermissionError: You are not permitted to act on boutique OK-OWA",
+      "sev": ""
+    },
+    {
+      "step": "A · the order does not appear in another store's queue",
+      "ok": true,
+      "detail": "OK-OWA queue = 0 orders",
+      "sev": ""
+    },
+    {
+      "step": "A · POS \"Web orders\" queue shows the orders for this store",
+      "ok": true,
+      "detail": "3 rows: SAL-ORD-2026-00003,SAL-ORD-2026-00001,SAL-ORD-2026-00002",
+      "sev": ""
+    },
+    {
+      "step": "A · a fully prepaid order is flagged \"Paid online\"",
+      "ok": true,
+      "detail": "QA4 Impostor2 QA4A READY SAL-ORD-2026-00003 · 2 pieces · 5 min ago · Paid online $43.35",
+      "sev": ""
+    },
+    {
+      "step": "A · order detail shows lines, stock in this store, totals and balance",
+      "ok": true,
+      "detail": "SAL-ORD-2026-00003 · AUG 23, 2026, 16:56 QA4 IMPOSTOR2 QA4A +1 918 555 9407 · qa4.client.qa4a@cloudchaserz.example NEW PICKING READY COLLECTED PIECES TO PREPARE Aluminum 4-pc Grinder 2.5\" ACC-007 · 2 × $19.99 16 in boutique $39.98 Subtotal $39.98 Tax $3.37 Total $43.35 Paid online -$43.35 BALANCE AT COLLECTION $0.00 PI",
+      "sev": ""
+    },
+    {
+      "step": "A · Ready → \"Back to picking\" returns the order to Picking",
+      "ok": true,
+      "detail": "walked back from Ready",
+      "sev": ""
+    },
+    {
+      "step": "A · \"Start picking\" moves the order to Picking",
+      "ok": true,
+      "detail": "{\"maison_web_status\":\"Picking\"}",
+      "sev": ""
+    },
+    {
+      "step": "A · \"Mark ready\" moves the order to Ready",
+      "ok": true,
+      "detail": "{\"maison_web_status\":\"Ready\"}",
+      "sev": ""
+    },
+    {
+      "step": "A · the shopper's order page reflects \"Ready\"",
+      "ok": true,
+      "detail": "status=Ready",
+      "sev": ""
+    },
+    {
+      "step": "A · Collect loads the order into the cart and opens Pay",
+      "ok": true,
+      "detail": "CASH CARD AMOUNT DUE $0.00 Web order SAL-ORD-2026-00003 · paid online $43.35 of $43.35 2 items · QA4 Impostor2 QA4A · MC647413 TENDERED $0.00 $0.00 CHANGE $0.00 1 2 3 4 5 6 7 8 9 . 0 ← BACK COMPLETE C",
+      "sev": ""
+    },
+    {
+      "step": "A · collection completes and syncs",
+      "ok": true,
+      "detail": "pill=Synced uuid=a74881b9-6fbc-437b-9f08-e57c532512e9",
+      "sev": ""
+    },
+    {
+      "step": "A · collection creates a submitted Sales Invoice",
+      "ok": true,
+      "detail": "{\"name\":\"ACC-SINV-2026-03081\",\"grand_total\":43.35,\"net_total\":39.98,\"total_taxes_and_charges\":3.37,\"docstatus\":1,\"is_return\":0,\"customer\":\"QA4 Member QA4A\",\"maison_receipt_token\":\"eOdOPPKsgHe6Qf3M\",\"maison_boutique\":\"OK-BA\",\"rounded_total\":43.35,\"loyalty_points\":0,\"loyalty_amount\":0,\"maison_sales_order\":\"SAL-ORD-2026-00003\"}",
+      "sev": ""
+    },
+    {
+      "step": "A · the online payment is allocated as an advance on the invoice",
+      "ok": true,
+      "detail": "advances=[[\"ACC-PAY-2026-00003\",43.35]] outstanding=0 grand=43.35",
+      "sev": ""
+    },
+    {
+      "step": "A · the invoice is linked to the Sales Order",
+      "ok": true,
+      "detail": "maison_sales_order=SAL-ORD-2026-00003 item.sales_order=SAL-ORD-2026-00003",
+      "sev": ""
+    },
+    {
+      "step": "A · nothing is left outstanding on a prepaid collection",
+      "ok": true,
+      "detail": "outstanding=0",
+      "sev": ""
+    },
+    {
+      "step": "A · the Sales Order is marked Collected",
+      "ok": true,
+      "detail": "{\"maison_web_status\":\"Collected\",\"status\":\"Completed\",\"per_billed\":100}",
+      "sev": ""
+    },
+    {
+      "step": "A · points are awarded on the collection (on the net amount)",
+      "ok": true,
+      "detail": "points 0 → 39; entries=[[\"ACC-SINV-2026-03081\",39,39.98]]; invoice net=39.98 grand=43.35",
+      "sev": ""
+    },
+    {
+      "step": "A · points are earned on net, not on the taxed total",
+      "ok": true,
+      "detail": "points=39 net=39.98 grand=43.35",
+      "sev": ""
+    },
+    {
+      "step": "A · the receipt shows the rewards block",
+      "ok": true,
+      "detail": "CLOUDCHASERZ REWARDS POINTS EARNED 39 POINTS BALANCE 39 NEXT REWARD 5.00 off at 100 pts (61 to go) GIVEAWAY ENTRIES 1 · Geek Bar Pulse X giv",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "[maison] service worker registration failed TypeError: Failed to register a ServiceWorker for scope ('https://cloudchaserz.frappe.cloud/pos/') with script ('https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.pwa.service_worker'): An unknown error occurred when fetching the script."
+    }
+  ],
+  "invoice": "ACC-SINV-2026-03081",
+  "order": "SAL-ORD-2026-00003"
+}

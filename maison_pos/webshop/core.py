@@ -141,15 +141,55 @@ def availability_for_items(item_codes: list[str]) -> dict[str, list[dict[str, An
 	return {code: availability(code) for code in item_codes}
 
 
-def city_label(avail: list[dict[str, Any]]) -> str:
-	"""``"Available at: Chicago, New York"`` style label (city without state/zip)."""
-	cities = []
+# --- v0.8 QA A2 — the availability label has to fit a phone -------------------------------------
+#
+# `city_label` used to join *every* city that holds stock into one `white-space: nowrap` pill.
+# On the three-boutique jewellery tenant that is "Chicago, New York, Beverly Hills" (31 chars);
+# on an eleven-store one it became "Available at Tulsa, Broken Arrow, Jenks, Houston, Muskogee,
+# Owasso, Sapulpa" — a 730 px min-content pill that pushed the product page 435 px sideways in a
+# 390 px viewport. Past a couple of cities the useful summary is the count, and the per-store list
+# under the pill (and the `<details>` the item page now renders) is the expansion.
+# -----------------------------------------------------------------------------------------------
+MAX_CITY_LABEL_CHARS = 34
+MAX_CITIES_IN_LABEL = 3
+
+
+def availability_summary(avail: list[dict[str, Any]]) -> dict[str, Any]:
+	"""``{stores, cities, label, full}`` for the availability pill.
+
+	*label* is what fits ("Chicago, New York" or "7 stores"); *full* is always the complete city
+	list, for the expanded view / ``title``.
+	"""
+	cities: list[str] = []
+	stores = 0
 	for row in avail:
 		if flt(row["qty"]) > 0:
-			city = (row.get("city") or row["boutique_name"]).split(",")[0].strip()
-			if city not in cities:
+			stores += 1
+			city = (row.get("city") or row["boutique_name"] or "").split(",")[0].strip()
+			if city and city not in cities:
 				cities.append(city)
-	return ", ".join(cities)
+	full = ", ".join(cities)
+	if not stores:
+		label = ""
+	elif len(cities) <= MAX_CITIES_IN_LABEL and len(full) <= MAX_CITY_LABEL_CHARS:
+		label = full
+	else:
+		from maison_pos.brand import get_brand
+
+		noun = str(get_brand()["store_noun"]).lower()
+		label = f"{stores} {noun}" if stores == 1 else f"{stores} {noun}s"
+	return {"stores": stores, "cities": cities, "label": label, "full": full}
+
+
+def city_label(avail: list[dict[str, Any]]) -> str:
+	"""``"Chicago, New York"`` / ``"7 stores"`` — the short availability label (see A2 above)."""
+	return availability_summary(avail)["label"]
+
+
+def city_label_full(avail: list[dict[str, Any]]) -> str:
+	"""Every city that holds stock, always spelled out (the expansion behind the pill)."""
+	return availability_summary(avail)["full"]
+# --- end v0.8 QA A2 ---
 
 
 # ---------------------------------------------------------------------------

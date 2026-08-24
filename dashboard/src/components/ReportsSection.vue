@@ -1,4 +1,6 @@
 <script setup lang="ts">
+/* v0.8 QA D-8 — this header used to print the framework's name: it was the last such word
+   rendered anywhere in the product. The links still open the desk report; the label says so. */
 import { computed } from 'vue'
 import { reportCsvUrl, reportUrl } from '../api'
 import type { ReportLink } from '../types'
@@ -20,7 +22,7 @@ const filters = { from_date: iso(monthStart), to_date: iso(new Date()) }
   <section class="reports">
     <header class="head">
       <span class="label">Reports</span>
-      <span class="label">month to date · Frappe desk</span>
+      <span class="label">month to date · opens the full report</span>
     </header>
     <div class="groups">
       <div v-for="[group, list] in groups" :key="group" class="group">

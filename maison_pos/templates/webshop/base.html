@@ -50,7 +50,7 @@
 	<a href="/shop/boutiques">{{ shop.store_noun }}s</a>
 	<a href="/rewards">Rewards</a>
 	<a href="/cart" class="gold">Bag ({{ shop.cart_count }})</a>
-	{% if shop.signed_in %}<a href="/shop/account" class="gold">My account</a><a href="/?cmd=web_logout">Sign out</a>{% else %}<a href="/login?redirect-to=/shop/account" class="gold">Sign in</a>{% endif %}
+	{% if shop.signed_in %}<a href="/shop/account" class="gold">My account</a><a href="/?cmd=web_logout">Sign out</a>{% else %}<a href="/login?redirect-to=/shop/account" class="gold">Sign in</a><a href="/shop/register">Create account</a>{% endif %}
 </nav>
 {%- endblock -%}
 
@@ -92,7 +92,10 @@
 			</div>
 		</div>
 		<div class="legal">
-			<span>&copy; {{ shop.brand.legal_name or shop.brand_name }} &middot; Prices in USD, taxes added at the {{ shop.store_noun | lower }} of collection</span>
+			{#- v0.8 QA U1: the developer credit is on /start, the dashboard, the salon and the desk
+			    About dialog, but the whole customer-facing website carried none. Brand-driven, so
+			    clearing `developer_name` removes it everywhere at once. -#}
+			<span>&copy; {{ shop.brand.legal_name or shop.brand_name }} &middot; Prices in USD, taxes added at the {{ shop.store_noun | lower }} of collection{% if shop.brand.developer_name %} &middot; <span class="dev-credit">{{ developer_credit(shop.brand) | safe }}</span>{% endif %}</span>
 			<span>{% if shop.vertical == 'Jewellery' %}Click &amp; collect &middot; Enquire &middot; Reserve with deposit{% else %}Click &amp; collect &middot; 21+ only &middot; Age-restricted items are sold in store{% endif %}</span>
 		</div>
 	</div>

@@ -91,6 +91,10 @@ def maison_item_context(doc, context=None) -> dict:
 				"chain_qty": chain_qty,
 				"one_off": bool(item.get("has_serial_no")) and chain_qty <= 1,
 				"available_at": core.city_label(avail),
+				# --- v0.8 QA A2 — the pill shows the short label, the disclosure the full list ---
+				"available_at_full": core.city_label_full(avail),
+				"available_stores": core.availability_summary(avail)["stores"],
+				# --- end v0.8 QA A2 ---
 				"deposit": deposit,
 				"deposit_percent": flt(item.get("maison_deposit_percent")) or core.DEFAULT_DEPOSIT_PERCENT,
 				"metal": item.get("maison_metal"),

@@ -1,0 +1,45 @@
+{
+  "when": "2026-08-23T20:08:49.102Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "8.3 a sale rung up after the session expired is kept, not lost",
+      "ok": true,
+      "detail": "pill=\"Rejected\"; server invoice=[]; receipt panel=\"SALE COMPLETE $1.94 REJECTED E8D7AAC8 SERVER REJECTED THIS SALE You are not permitted to access this resource. Login to accessFunction maison_pos.api.sales.submit_batch is not whitelisted. OPEN QUEUE PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT LINK Available once the sale has synced — the QR is added to the receipt automa\"",
+      "sev": ""
+    },
+    {
+      "step": "8.3b the associate is told they are signed out, in their own words",
+      "ok": true,
+      "detail": "receipt=\"SALE COMPLETE $1.94 REJECTED E8D7AAC8 SERVER REJECTED THIS SALE You are not permitted to access this resource. Login to accessFunction maison_pos.api.sales.submit_batch is not whitelisted. OPEN QUEUE PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT\" | queue=\"QUEUE 0 pending · 1 rejected · 0 synced · heartbeat 15:08 ONLINE SYNC NOW STATUS SALE TIME CLIENT TOTAL DETAIL REJECTED E8D7AAC8 1 line · Cash Aug 23, 2026, 15:08 Walk-in $1.94 You are not permitted to access this resource. Login to accessFunction maison_pos.api.sales.submit_batc\"",
+      "sev": "medium"
+    },
+    {
+      "step": "8.3c \"Sync now\" recovers it automatically",
+      "ok": false,
+      "detail": "after Sync now: []",
+      "sev": ""
+    },
+    {
+      "step": "8.3d the per-row Retry recovers it",
+      "ok": true,
+      "detail": "[{\"name\":\"ACC-SINV-2026-03078\"}]",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03078"
+  ]
+}

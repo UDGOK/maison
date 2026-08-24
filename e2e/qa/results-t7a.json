@@ -1,0 +1,65 @@
+{
+  "when": "2026-08-23T19:42:28.861Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "7.0 setup: card sale with a client for the return tests",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03056 17.3 (Synced)",
+      "sev": ""
+    },
+    {
+      "step": "7.4 find the sale by invoice number",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03056 → lines [\"Rolling Tray — Medium Metal\",\"USB-C Cable 3ft\"]",
+      "sev": ""
+    },
+    {
+      "step": "7.5 reasons and conditions are offered per line",
+      "ok": true,
+      "detail": "reasons=[\"Change of mind\",\"Defect\",\"Sizing\",\"Gift return\",\"Other\"] conditions=[\"Sellable\",\"Damaged\"]",
+      "sev": ""
+    },
+    {
+      "step": "7.1 partial line return creates a credit note for that line only",
+      "ok": true,
+      "detail": "credit note ACC-SINV-2026-03057: {\"grand_total\":-7.57,\"is_return\":1,\"return_against\":\"ACC-SINV-2026-03056\",\"docstatus\":1,\"maison_refund_method\":\"Card\"}; expected 7.57; refund methods offered=[{\"t\":\"Original cardCard ••••\",\"disabled\":false},{\"t\":\"Cashfrom the drawer\",\"disabled\":false},{\"t\":\"Store crediton the client account\",\"disabled\":false}]",
+      "sev": ""
+    },
+    {
+      "step": "7.6 refund to the original card",
+      "ok": true,
+      "detail": "RETURNS CloudChaserz Montrose · refunds within 30 days · manager above $2,500.00 1 FIND 2 ITEMS 3 REFUND 4 DONE CREDIT NOTE ACC-SINV-2026-03057 AGAINST ACC-SINV-2026-03056 USB-C Cable 3ft × 1 · Sellable $6.99 REFUNDED · CARD $7.57 Stripe refund re_sim_6d41bbc48ce26838 (simulated) PRINT RETURN RECEIP",
+      "sev": ""
+    },
+    {
+      "step": "7.11 the return receipt prints",
+      "ok": true,
+      "detail": "reader PNG=42058; \"PRINT AGAIN Printed on Counter 1 · V660p NEW RETURN BACK TO SELL\"",
+      "sev": ""
+    },
+    {
+      "step": "7.10 the points earned on the returned line are reversed",
+      "ok": false,
+      "detail": "entries for Andre Baptiste: [{\"loyalty_points\":9,\"invoice\":\"ACC-SINV-2026-03056\",\"invoice_type\":\"Sales Invoice\"},{\"loyalty_points\":8,\"invoice\":\"ACC-SINV-2026-03052\",\"invoice_type\":\"Sales Invoice\"},{\"loyalty_points\":8,\"invoice\":\"ACC-SINV-2026-03051\",\"invoice_type\":\"Sales Invoice\"}]; earned on sale=[{\"loyalty_points\":15}]",
+      "sev": ""
+    },
+    {
+      "step": "t7a crashed",
+      "ok": false,
+      "detail": "page.waitForSelector: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.find input') to be visible\u001b[22m\n\n    at findSale (/home/claude/maison/e2e/qa/t7a-returns.mjs:38:14)\n    at async file:///home/claude/maison/e2e/qa/t7a-returns.mjs:100:3",
+      "sev": "high"
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03056",
+    "ACC-SINV-2026-03057"
+  ]
+}

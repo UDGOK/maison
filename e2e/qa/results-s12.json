@@ -1,0 +1,160 @@
+{
+  "when": "2026-08-23T22:43:01.321Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "C · client recognition is OFF globally (as shipped)",
+      "ok": true,
+      "detail": "Maison POS Settings.face_recognition_enabled=0; consent_text_version=2026-08-1; model=face-api/faceRecognitionNet@1; threshold=undefined",
+      "sev": ""
+    },
+    {
+      "step": "C · no store overrides recognition on",
+      "ok": true,
+      "detail": "[[\"HOU-WH\",\"Inherit\"],[\"OK-JENKS\",\"Inherit\"],[\"OK-YALE\",\"Inherit\"],[\"OK-ETUL\",\"Inherit\"],[\"OK-MINGO\",\"Inherit\"],[\"OK-MUS\",\"Inherit\"],[\"OK-OWA\",\"Inherit\"],[\"OK-STUL\",\"Inherit\"],[\"OK-BIX\",\"Inherit\"],[\"OK-BA\",\"Inherit\"],[\"OK-SAP\",\"Inherit\"],[\"HOU-MTR\",\"Inherit\"]]",
+      "sev": ""
+    },
+    {
+      "step": "C · the POS bootstrap reports recognition disabled for this store",
+      "ok": true,
+      "detail": "face_recognition_enabled=0 global=0",
+      "sev": ""
+    },
+    {
+      "step": "C · no client is enrolled and no face template exists",
+      "ok": true,
+      "detail": "consented=0 templates=0",
+      "sev": ""
+    },
+    {
+      "step": "C · with recognition off, enrolment is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Client recognition is not enabled for boutique OK-BA",
+      "sev": ""
+    },
+    {
+      "step": "C · with recognition off, matching is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Client recognition is not enabled for boutique OK-BA",
+      "sev": ""
+    },
+    {
+      "step": "C · a refused enrolment creates nothing",
+      "ok": false,
+      "detail": "1 customers created",
+      "sev": ""
+    },
+    {
+      "step": "C · enabling the store override leaves the global switch off",
+      "ok": true,
+      "detail": "global=0, OK-BA override=On (restored to Inherit at the end)",
+      "sev": ""
+    },
+    {
+      "step": "C · the store now reports recognition enabled while the chain stays off",
+      "ok": true,
+      "detail": "store=1 global=0",
+      "sev": ""
+    },
+    {
+      "step": "C · no biometric enrolment is possible without a consent record",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: consent.method must be one of Hold-to-agree, Signature",
+      "sev": ""
+    },
+    {
+      "step": "C · a consent captured against an outdated text version is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Consent text version 2020-01-1 is outdated; current version is 2026-08-1. Reload settings and show the ne",
+      "sev": ""
+    },
+    {
+      "step": "C · only the recorded consent methods are accepted",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: consent.method must be one of Hold-to-agree, Signature",
+      "sev": ""
+    },
+    {
+      "step": "C · none of the refused attempts created a client or a template",
+      "ok": false,
+      "detail": "",
+      "sev": ""
+    },
+    {
+      "step": "C · a consented enrolment stores the consent and the templates",
+      "ok": true,
+      "detail": "{\"customer\":\"QA4 Recog QA4A\",\"consent\":\"MBC-2026-00002\",\"templates\":3,\"created\":false}",
+      "sev": ""
+    },
+    {
+      "step": "C · the consent record snapshots the wording, method, store and device",
+      "ok": true,
+      "detail": "Active Hold-to-agree v2026-08-1 @OK-BA device=QA4-QA4A ip=set",
+      "sev": ""
+    },
+    {
+      "step": "C · templates are vectors only — no image is stored",
+      "ok": true,
+      "detail": "[{\"dims\":128,\"keys\":[]},{\"dims\":128,\"keys\":[]},{\"dims\":128,\"keys\":[]}]",
+      "sev": ""
+    },
+    {
+      "step": "C · the client screen reports the enrolment status",
+      "ok": true,
+      "detail": "{\"customer\":\"QA4 Recog QA4A\",\"customer_name\":\"QA4 Recog QA4A\",\"client_number\":\"MC856498\",\"tier\":\"Member\",\"loyalty_points\":0,\"points_value\":0,\"face_consent\":1,\"face_consent_at\":\"2026-08-23 17:43:00.543958\",\"consent\":{\"nam",
+      "sev": ""
+    },
+    {
+      "step": "C · an enrolled client is matched by their own template",
+      "ok": true,
+      "detail": "matches=1 best_distance=0 threshold=0.6",
+      "sev": ""
+    },
+    {
+      "step": "C · a face outside the threshold is not matched (no identity leaked)",
+      "ok": true,
+      "detail": "matches=0 best_distance=1.131371 threshold=0.6",
+      "sev": ""
+    },
+    {
+      "step": "C · \"No thanks\" still creates the client but stores no biometrics",
+      "ok": true,
+      "detail": "customer=QA4 Declined QA4A consent=0 templates=0",
+      "sev": ""
+    },
+    {
+      "step": "C · the decline is logged as an event",
+      "ok": true,
+      "detail": "[{\"name\":\"bakl28g8vo\",\"outcome\":\"Declined\"},{\"name\":\"4a33i7vvt6\",\"outcome\":\"Declined\"}]",
+      "sev": ""
+    },
+    {
+      "step": "C · a manager can revoke: templates purged, consent Revoked, event logged",
+      "ok": true,
+      "detail": "templates=0 consent=Revoked by=ok.ba.manager@cloudchaserz.example at=2026-08-23 17:43:01.675249 events=[\"Revoked\",\"Matched\",\"Enrolled\",\"Revoked\",\"Matched\",\"Matched\",\"Enrolled\"]",
+      "sev": ""
+    },
+    {
+      "step": "C · the revoked client is gone from the device template list",
+      "ok": true,
+      "detail": "{\"templates\":[],\"deleted\":[],\"enabled\":1,\"model\":\"face-api/faceRecognitionNet@1\",\"threshold_distance\":0.6,\"threshold\":0.6,\"version\":\"2026-08",
+      "sev": ""
+    },
+    {
+      "step": "C · the store override and the global switch are back to their original values",
+      "ok": true,
+      "detail": "OK-BA=Inherit (was Inherit) · global=0 · consented clients=0",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "created": {
+    "customers": [
+      "QA4 Recog QA4A",
+      "QA4 Declined QA4A"
+    ],
+    "consents": [
+      "MBC-2026-00002"
+    ]
+  }
+}

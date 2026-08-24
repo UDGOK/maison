@@ -3,7 +3,7 @@
  * with the session cookie (credentials: include) and the CSRF token Frappe injects
  * into the page as `window.csrf_token` (see maison_pos/www/pos.py).
  */
-import { stripHtml } from '@/utils/text'
+import { humanizeServerMessage, SESSION_EXPIRED_MESSAGE } from '@/utils/text' // v0.8 POS D5 / D9
 import { ApiError, type Customer, type MaisonApi } from './types'
 
 declare global {
@@ -57,19 +57,30 @@ async function call<T>(method: string, args: Record<string, unknown> = {}, opts:
 
   if (!res.ok) {
     // Frappe wraps errors as {exc_type, exception, _server_messages}
-    let message = `${res.status} ${res.statusText}`
+    let message = ''
     let code = `HTTP_${res.status}`
     if (body?._server_messages) {
       try {
         const msgs = JSON.parse(body._server_messages) as string[]
-        message = stripHtml(msgs.map((m) => JSON.parse(m).message).join('\n'))
+        message = humanizeServerMessage(msgs.map((m) => JSON.parse(m).message).join('\n'))
       } catch {
         /* ignore */
       }
-    } else if (body?.exception) message = stripHtml(String(body.exception).split('\n').pop()) || message
+    } else if (body?.exception) message = humanizeServerMessage(String(body.exception).split('\n').pop())
     if (body?.exc_type) code = body.exc_type
     if (res.status === 401 || res.status === 403) code = 'AUTH'
-    throw new ApiError(message, code, res.status, body)
+    // --- v0.8 POS D5 — an expired till session is not a permission failure ---
+    // Frappe's 403 for a stale `sid` reads "You are not permitted… Login to access</summary>
+    // Function maison_pos.api.sales.submit_batch is not whitelisted." — an internal path and an
+    // untrue claim. Say the one true thing instead, and code it so the queue keeps the sale.
+    if (body?.session_expired) {
+      message = SESSION_EXPIRED_MESSAGE
+      code = 'SESSION_EXPIRED'
+    } else if (!message && (res.status === 401 || res.status === 403)) {
+      message = SESSION_EXPIRED_MESSAGE
+    }
+    // --- end v0.8 POS D5 ---
+    throw new ApiError(message || `${res.status} ${res.statusText}`, code, res.status, body)
   }
   return (body?.message ?? body) as T
 }
@@ -97,7 +108,8 @@ async function upload<T>(method: string, fields: Record<string, string>, file: B
     /* ignore */
   }
   if (!res.ok) {
-    const message = body?.exception ? stripHtml(String(body.exception).split('\n').pop()) || `${res.status}` : `${res.status} ${res.statusText}`
+    // v0.8 POS D9 — same sanitising as `call`: no exception class paths in the UI
+    const message = (body?.exception ? humanizeServerMessage(String(body.exception).split('\n').pop()) : '') || `${res.status} ${res.statusText}`
     throw new ApiError(message, res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
   }
   return (body?.message ?? body) as T
@@ -119,7 +131,9 @@ export const frappeApi: MaisonApi = {
     submit_batch: (invoices) => call('sales.submit_batch', { invoices }),
     list: (boutique, date) => call('sales.list', { boutique, date }),
     void: (invoice, reason) => call('sales.void', { invoice, reason }),
-    receipt: (token) => call('sales.receipt', { token }, { get: true })
+    receipt: (token) => call('sales.receipt', { token }, { get: true }),
+    // v0.8 POS D4
+    email_receipt: (invoice_or_token, email) => call('sales.email_receipt', { invoice_or_token, email })
   },
   stripe_terminal: {
     connection_token: (boutique) => call('stripe_terminal.connection_token', { boutique }),

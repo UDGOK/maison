@@ -1,0 +1,12 @@
+{
+  "TAG": "QA4A",
+  "created": {
+    "orders": [
+      "SAL-ORD-2026-00004"
+    ],
+    "invoices": [
+      "ACC-SINV-2026-03094",
+      "ACC-SINV-2026-03095"
+    ]
+  }
+}

@@ -61,7 +61,7 @@ const currentHour = computed(() => new Date(props.now).getHours())
     <div class="stats">
       <div><span class="label">Net</span><span class="display num v">{{ fmtMoney(row.net) }}</span></div>
       <div><span class="label">Tickets</span><span class="display num v">{{ fmtInt(row.invoices) }}</span></div>
-      <div><span class="label">Avg ticket</span><span class="display num v">{{ fmtMoney(row.avg_ticket) }}</span></div>
+      <div><span class="label">Avg sale</span><span class="display num v">{{ fmtMoney(row.avg_ticket) }}</span></div>
       <div><span class="label">Returns</span><span class="display num v" :class="{ down: row.returns > 0 }">{{ fmtInt(row.returns) }}</span></div>
     </div>
     <div class="bars"><MiniBars :values="row.by_hour" :current-hour="currentHour" :height="110" /></div>

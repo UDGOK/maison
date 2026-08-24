@@ -119,7 +119,9 @@ await page.click('.views .view-tab[data-view="products"]')
 await page.waitForSelector('[data-testid="trending"] .row[data-item]', { timeout: 15000 })
 const trendRows = await page.locator('[data-testid="trending"] .row[data-item]').count()
 const meta = await page.locator('.products .toolbar .meta').textContent()
-check('Trending in stores renders from precomputed trends', trendRows >= 10 && meta?.includes('precomputed'), `${trendRows} rows · ${meta?.trim()}`)
+// v0.6 R renamed the stamp to "Data as of <site clock>" (the word "precomputed" moved to the
+// tooltip), and v0.8 QA D-13 fixed it going stale; accept either wording.
+check('Trending in stores renders from precomputed trends', trendRows >= 10 && /data as of|precomputed/i.test(meta || ''), `${trendRows} rows · ${meta?.trim()}`)
 const loadMs = Number(meta?.match(/loaded in (\d+) ms/)?.[1] ?? 9999)
 check('Products tab loads in < 300 ms', loadMs < 300, `${loadMs} ms`)
 const badges = await page.locator('[data-testid="trending"] .badge').allTextContents()

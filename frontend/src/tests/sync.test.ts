@@ -151,15 +151,73 @@ describe('QueueReplayer', () => {
 
   it('marks the batch as error (not pending) on non-transient HTTP errors', async () => {
     const api = fakeApi(async () => {
-      throw new ApiError('Not permitted', 'AUTH', 403)
+      throw new ApiError('Boutique CHI-OAK is disabled', 'ValidationError', 417)
     })
     const r = new QueueReplayer(db, api, clock)
     await r.enqueue(inv('a'), receipt)
     const out = await r.replay()
     expect(out.offline).toBe(false)
     expect(out.errors).toBe(1)
-    expect((await db.queue.get('a'))).toMatchObject({ status: 'error', error_code: 'AUTH' })
+    expect((await db.queue.get('a'))).toMatchObject({ status: 'error', error_code: 'ValidationError' })
   })
+
+  // --- v0.8 POS D5 ---------------------------------------------------------------------------
+  // A stale `sid` used to turn completed sales into permanent "Rejected" rows: `Sync now` would
+  // not re-send them and only the per-row Retry recovered them. Signing in again is all it takes.
+  it('keeps a sale queued when the till session expired, and says so without internals', async () => {
+    let calls = 0
+    const api = fakeApi(async (invoices) => {
+      calls++
+      if (calls === 1)
+        throw new ApiError('Signed out — sign in again to sync this sale.', 'SESSION_EXPIRED', 403, { session_expired: 1 })
+      return { results: invoices.map((i) => ({ offline_uuid: i.offline_uuid, status: 'ok' as const, invoice_name: 'ACC-SINV-2026-03078' })) }
+    })
+    const r = new QueueReplayer(db, api, clock)
+    await r.enqueue(inv('a'), receipt)
+
+    const out = await r.replay()
+    expect(out.authExpired).toBe(true)
+    expect(out.errors).toBe(0)
+    const row = (await db.queue.get('a'))!
+    expect(row.status).toBe('pending') // NOT 'error' — nothing is wrong with the sale
+    expect(row.error_code).toBe('SESSION_EXPIRED')
+    expect(row.error).not.toMatch(/maison_pos|whitelisted/)
+    expect(row.error).toMatch(/sign in again/i)
+
+    // once the operator has signed in again the queue drains itself
+    now += 60_000
+    const after = await r.replay()
+    expect(after.ok).toBe(1)
+    expect(after.authExpired).toBeFalsy()
+    expect((await db.queue.get('a'))).toMatchObject({ status: 'ok', invoice_name: 'ACC-SINV-2026-03078' })
+  })
+
+  it('treats a bare 401/403 on the batch endpoint the same way', async () => {
+    const api = fakeApi(async () => {
+      throw new ApiError('Signed out — sign in again to sync this sale.', 'AUTH', 401)
+    })
+    const r = new QueueReplayer(db, api, clock)
+    await r.enqueue(inv('a'), receipt)
+    const out = await r.replay()
+    expect(out.authExpired).toBe(true)
+    expect((await db.queue.get('a'))?.status).toBe('pending')
+  })
+
+  it('strips internal paths out of a rejection the server sends back per row', async () => {
+    const api = fakeApi(async (invoices) => ({
+      results: invoices.map((i) => ({
+        offline_uuid: i.offline_uuid,
+        status: 'error' as const,
+        error: 'maison_pos.api.returns.ManagerRequiredError: Manager PIN incorrect',
+        error_code: 'PERMISSION_DENIED'
+      }))
+    }))
+    const r = new QueueReplayer(db, api, clock)
+    await r.enqueue(inv('a'), receipt)
+    await r.replay()
+    expect((await db.queue.get('a'))?.error).toBe('Manager PIN incorrect')
+  })
+  // --- end v0.8 POS D5 ---
 
   it('flags rows the server silently dropped', async () => {
     const api = fakeApi(async () => ({ results: [] }))

@@ -1,0 +1,75 @@
+{
+  "when": "2026-08-23T19:55:45.671Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "2.3b an unknown barcode is refused with a clear notice and adds nothing",
+      "ok": true,
+      "detail": "lines unchanged; notice=\"Not in catalogue 2000000000001 — tap Search to look it up SEARCH CLOSE\"",
+      "sev": ""
+    },
+    {
+      "step": "4.3a a client attaches to the basket by client №",
+      "ok": true,
+      "detail": "client card = \"Andre Baptiste\"; ANDRE BAPTISTE MEMBER CLIENT № MC699911 POINTS 16 ($0.80) LAST VISIT Aug 22, 2026 Redeem 84 pts to $5 off at 100 points DETACH SUGGESTED FOR",
+      "sev": ""
+    },
+    {
+      "step": "3.4b the card brand / last-4 shown on the receipt are also stored on the invoice",
+      "ok": false,
+      "detail": "invoice ACC-SINV-2026-03072: {\"maison_terminal_ref\":\"pi_sim_054b618d8986f723\",\"maison_card_brand\":null,\"maison_card_last4\":null,\"maison_approval_code\":null}; printed receipt line = \"CARD \"",
+      "sev": "low"
+    },
+    {
+      "step": "3.4b receipt text",
+      "ok": null,
+      "detail": "CLOUDCHASERZ CLOUDCHASERZ MONTROSE 2037 W Alabama St Houston, TX 77098 (281) 974-3712 INVOICE ACC-SINV-2026-03072 DATE Aug 23, 2026, 14:55 ASSOCIATE Dante Ruiz USB-C CABLE 3FT 1 X 6.99 6.99 SUBTOTAL 6.99 TAX 8.25% 0.58 TOTAL USD 7.57 CARD VISA **** 4242 7.57 APPROVAL 54DD0D THANK YOU FOR VISITING CL"
+    },
+    {
+      "step": "3.4c the Returns screen can name the card it will refund",
+      "ok": false,
+      "detail": "refund button reads \"ORIGINAL CARD Card ••••\"",
+      "sev": "low"
+    },
+    {
+      "step": "6.6d the receipt screen shows the rejection in plain language (no raw HTML markup)",
+      "ok": true,
+      "detail": "panel text=\"SERVER REJECTED THIS SALE 32.0 units of Item ACC-003: Blazer Big Shot Torch needed in Warehouse HOU-MTR - CCZ to complete this transaction. OPEN QUEUE\"",
+      "sev": ""
+    },
+    {
+      "step": "6.6d panel html",
+      "ok": null,
+      "detail": "<div data-v-94aaccdf=\"\" class=\"label crit\">Server rejected this sale</div><div data-v-94aaccdf=\"\" style=\"margin-top: 6px;\">32.0 units of Item ACC-003: Blazer Big Shot Torch needed in Warehouse HOU-MTR - CCZ to complete this transaction.</div><button data-v-94aaccdf=\"\" class=\"btn\" style=\"margin-top: 12px;\">Open queue</button>"
+    },
+    {
+      "step": "8.3 a sale rung up after the server session expired is kept, not lost",
+      "ok": false,
+      "detail": "pill=\"Synced\"; server invoice=[{\"name\":\"ACC-SINV-2026-03073\"}]; sync log={\"status\":\"Success\",\"error\":null}; receipt panel=\"SALE COMPLETE $1.94 SYNCED ACC-SINV-2026-03073 PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT LINK https://cloudchaserz.frappe.cloud/r/9FMs7JfHGxtRC8Xv COPY LINK Printer 10.20.1.50 (TM-m30III)\"",
+      "sev": ""
+    },
+    {
+      "step": "8.3b the associate is told the session expired rather than just \"failed\"",
+      "ok": false,
+      "detail": "receipt panel=\"SALE COMPLETE $1.94 SYNCED ACC-SINV-2026-03073 PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT LINK https://cloudchaserz.frappe.cloud/r/9FMs7JfHGxtRC8Xv COPY LINK Printer 10.20.1.50 (TM-m30III)\"",
+      "sev": "low"
+    },
+    {
+      "step": "8.3c signing back in drains the sale that was stuck behind the expired session",
+      "ok": true,
+      "detail": "[{\"name\":\"ACC-SINV-2026-03073\"}]; queue=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE 1 SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 1 rejected · 2 synced · heartbeat 14:55 ONLINE SYNC NOW STATUS SALE TIME CLIENT \"",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03072",
+    "ACC-SINV-2026-03073"
+  ]
+}

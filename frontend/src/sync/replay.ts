@@ -2,7 +2,7 @@
  * FIFO queue replay with exponential backoff. Pure logic (no Pinia) so it is unit-testable
  * against fake-indexeddb and a stubbed API.
  */
-import { stripHtml } from '@/utils/text'
+import { humanizeServerMessage, isSessionExpired, SESSION_EXPIRED_MESSAGE } from '@/utils/text'
 import type { MaisonDB, QueueRow, ReceiptSnapshot } from '@/db'
 import { ApiError, type MaisonApi, type POSInvoice, type SubmitResult } from '@/api/types'
 
@@ -20,6 +20,11 @@ export interface ReplayOutcome {
   errors: number
   /** true when the network was unreachable (queue left untouched apart from backoff) */
   offline: boolean
+  /**
+   * v0.8 POS D5 — true when the till's session had expired. The rows stay *pending*: nothing is
+   * wrong with the sale, the device just needs to sign in again.
+   */
+  authExpired?: boolean
 }
 
 export class QueueReplayer {
@@ -83,17 +88,25 @@ export class QueueReplayer {
         results = (await this.api.sales.submit_batch(rows.map((r) => r.invoice))).results
       } catch (e) {
         const err = e as ApiError
-        const transient = err instanceof ApiError ? err.code === 'NETWORK' || err.status >= 500 || err.status === 0 : true
+        // --- v0.8 POS D5 — an expired session is transient, not a rejected sale ---
+        // The queue used to mark every non-network failure terminal, so a till whose session had
+        // timed out turned completed sales into permanent "Rejected" rows that `Sync now` would
+        // not re-send; only the per-row Retry recovered them. Signing in again is all that is
+        // needed, so the rows stay pending (with backoff) and the store prompts for a sign-in.
+        const authExpired = err instanceof ApiError && isSessionExpired(err)
+        const transient = authExpired || (err instanceof ApiError ? err.code === 'NETWORK' || err.status >= 500 || err.status === 0 : true)
+        // --- end v0.8 POS D5 ---
         for (const r of rows) {
           const attempts = r.attempts + 1
           await this.db.queue.update(r.offline_uuid, {
             status: transient ? 'pending' : 'error',
             next_attempt_at: this.now() + backoffMs(attempts),
-            error: stripHtml(err.message),
-            error_code: err instanceof ApiError ? err.code : 'UNKNOWN'
+            error: authExpired ? SESSION_EXPIRED_MESSAGE : humanizeServerMessage(err.message),
+            error_code: authExpired ? 'SESSION_EXPIRED' : err instanceof ApiError ? err.code : 'UNKNOWN'
           })
         }
-        out.offline = transient
+        out.offline = transient && !authExpired
+        out.authExpired = authExpired
         if (!transient) out.errors = rows.length
         return out
       }
@@ -123,7 +136,7 @@ export class QueueReplayer {
         } else {
           await this.db.queue.update(r.offline_uuid, {
             status: 'error',
-            error: stripHtml(res.error) || 'Rejected by server',
+            error: humanizeServerMessage(res.error) || 'Rejected by server',
             error_code: res.error_code || 'SERVER_ERROR'
           })
           out.errors++

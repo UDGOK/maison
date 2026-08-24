@@ -1,0 +1,53 @@
+{
+  "when": "2026-08-23T19:53:35.618Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "8.4 a second tab on the same till asks for the PIN again (till lock is per tab)",
+      "ok": true,
+      "detail": "tab 2 opened /pos/queue → https://cloudchaserz.frappe.cloud/pos/unlock?next=/queue",
+      "sev": ""
+    },
+    {
+      "step": "8.4b two tabs keep independent baskets and share one sync queue",
+      "ok": true,
+      "detail": "tab1 lines=1, tab2 lines=1; tab2 sale=ACC-SINV-2026-03070; tab1 queue=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 0 rejected · 1 synced · heartbeat 14:52 ONLINE SYNC NOW STATUS\"",
+      "sev": ""
+    },
+    {
+      "step": "8.3 a sale rung up after the server session expired is kept, not lost",
+      "ok": false,
+      "detail": "pill Sending → Synced; invoice=[{\"name\":\"ACC-SINV-2026-03071\"}]; sync log={\"status\":\"Success\",\"error\":null}; receipt panel=\"SALE COMPLETE $7.57 SYNCED ACC-SINV-2026-03071 PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT LINK https://cloudchaserz.frappe.cloud/r/gioBd-En3RZ3X5eD COPY LINK Printer 10.20.1.50 (TM-m30III)\"",
+      "sev": ""
+    },
+    {
+      "step": "8.3b the associate is told the session expired (not just a generic failure)",
+      "ok": false,
+      "detail": "receipt panel + log: SALE COMPLETE $7.57 SYNCED ACC-SINV-2026-03071 PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT LINK https://cloudchaserz.frappe.cloud/r/gioBd-En3RZ3X5eD COPY LINK Printer 10.20.1.50 (TM-m30III) | {\"status\":\"Success\",\"error\":null}",
+      "sev": "low"
+    },
+    {
+      "step": "8.3c after signing back in the queued sale syncs — nothing is lost",
+      "ok": true,
+      "detail": "[{\"name\":\"ACC-SINV-2026-03071\"}]; queue=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 0 rejected · 2 synced · heartbeat 14:52 ONLINE SYNC NOW STATUS SALE TIME CLIENT TO\"",
+      "sev": ""
+    },
+    {
+      "step": "8.7 no POS screen renders \"Frappe\" or \"ERPNext\" in visible text",
+      "ok": true,
+      "detail": "[{\"s\":\"/pos/sell\",\"hits\":[]},{\"s\":\"/pos/client\",\"hits\":[]},{\"s\":\"/pos/returns\",\"hits\":[]},{\"s\":\"/pos/web-orders\",\"hits\":[]},{\"s\":\"/pos/count\",\"hits\":[]},{\"s\":\"/pos/receive\",\"hits\":[]},{\"s\":\"/pos/queue\",\"hits\":[]},{\"s\":\"/pos/shift\",\"hits\":[]},{\"s\":\"/pos/settings\",\"hits\":[]}]",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03070",
+    "ACC-SINV-2026-03071"
+  ]
+}

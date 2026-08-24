@@ -13,6 +13,9 @@ function act(n: { id: number; action?: { action: string } }) {
   if (n.action?.action === 'search') scan.searchPending()
   else if (n.action?.action === 'queue') router.push({ name: 'queue' })
   else if (n.action?.action === 'undo-recognition') void recognition.undo()
+  // v0.8 POS D5 — the till is signed out; the queued sales replay by themselves once it is back in
+  else if (n.action?.action === 'sign-in' && typeof window !== 'undefined')
+    window.location.assign('/login?redirect-to=' + encodeURIComponent(window.location.pathname + window.location.search))
   sync.dismiss(n.id)
 }
 </script>

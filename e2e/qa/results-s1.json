@@ -1,0 +1,98 @@
+{
+ "when": "2026-08-23",
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "A \u00b7 guest catalogue API returns items + groups",
+   "ok": true,
+   "detail": "155 items, 11 groups, 28 buyable, 127 in-store-only"
+  },
+  {
+   "step": "A \u00b7 webshop_age_restricted_sales is OFF (precondition)",
+   "ok": true,
+   "detail": "webshop_age_restricted_sales=0 minimum_age=21"
+  },
+  {
+   "step": "A \u00b7 /shop home renders (hero, categories, featured)",
+   "ok": true,
+   "detail": "hero=\"Order online. Pick up in store today.\" cards=8 collection-tiles=25"
+  },
+  {
+   "step": "A \u00b7 home lists stores (\"Where to find us\")",
+   "ok": true,
+   "detail": "11 stores with addresses"
+  },
+  {
+   "step": "A \u00b7 /shop/collection lists the catalogue",
+   "ok": true,
+   "detail": "96 cards"
+  },
+  {
+   "step": "A \u00b7 collection filters by category",
+   "ok": true,
+   "detail": "17/96 cards, groups=Accessories"
+  },
+  {
+   "step": "A \u00b7 collection search finds matching products",
+   "ok": true,
+   "detail": "q=grinder \u2192 2 hits, both grinders"
+  },
+  {
+   "step": "A \u00b7 collection search with no hits shows the empty state",
+   "ok": true,
+   "detail": "0 cards + empty state"
+  },
+  {
+   "step": "A \u00b7 collection filters by mode=Buy (only purchasable)",
+   "ok": true,
+   "detail": "19 cards, no Enquire/In-store labels"
+  },
+  {
+   "step": "A \u00b7 /all-products serves the Maison listing",
+   "ok": true,
+   "detail": "96 cards"
+  },
+  {
+   "step": "A \u00b7 buyable product page shows \"Add to bag\"",
+   "ok": true,
+   "detail": "ACC-007 Aluminum 4-pc Grinder"
+  },
+  {
+   "step": "A \u00b7 product page shows availability per store",
+   "ok": true,
+   "detail": "11 store rows"
+  },
+  {
+   "step": "A \u00b7 age-restricted item is NOT purchasable online",
+   "ok": true,
+   "detail": "DSP-001: add-to-bag buttons=0, reserve=0"
+  },
+  {
+   "step": "A \u00b7 age-restricted item says \"Available in store\"",
+   "ok": true,
+   "detail": "cta=1 \u00b7 \"Age-restricted (21+) products are sold in store only \u2014 bring a valid government ID.\""
+  },
+  {
+   "step": "A \u00b7 age-restricted item shows the 21+ / ID spec",
+   "ok": true,
+   "detail": "AGE 21+ \u00b7 ID required"
+  },
+  {
+   "step": "A \u00b7 listing marks age-restricted cards \"21+ / In store \u00b7 21+\"",
+   "ok": true,
+   "detail": "pills=26 modes=In store \u00b7 21+"
+  },
+  {
+   "step": "A \u00b7 availability API reports in_store_only + Enquire mode",
+   "ok": true,
+   "detail": "{\"mode\":\"Enquire\",\"in_store_only\":true,\"chain_qty\":327}"
+  },
+  {
+   "step": "A \u00b7 /shop/boutiques lists the stores",
+   "ok": true,
+   "detail": "Broken Arrow / Tulsa / Houston present"
+  }
+ ],
+ "consoleLog": [],
+ "note": "transcribed from the run console; the script stopped on a harness/navigation issue after these checks"
+}

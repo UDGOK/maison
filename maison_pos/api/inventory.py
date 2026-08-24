@@ -36,6 +36,53 @@ ALERT_FIELDS = [
 ]
 
 
+# --- v0.8 QA W-D6 — `first_seen` / `last_seen` never reached any client -------------------------
+#
+# `frappe.get_all` drops them silently: `DatabaseQuery.set_optional_columns` removes any field
+# whose *name contains* one of the optional columns (`_user_tags`, `_comments`, `_assign`,
+# `_liked_by`, **`_seen`**) when the table has no such column — and "first_seen" / "last_seen"
+# both contain "_seen". The columns exist and hold the right values (filters and `order_by` on
+# them work, which is why nothing else looked wrong); only the SELECT list lost them, so no
+# screen could ever say "this has been low for three days". `tasks.check_heartbeat_staleness`
+# already had to work around the same thing for `Maison Device Heartbeat.last_seen`.
+#
+# The query builder is not affected, so alert rows are read through it.
+# ------------------------------------------------------------------------------------------------
+def alert_rows(filters: dict[str, Any], order_by: Optional[str] = None, limit: Optional[int] = None) -> list[Any]:
+	"""``Maison Stock Alert`` rows with every field in ``ALERT_FIELDS`` actually populated."""
+	SA = frappe.qb.DocType("Maison Stock Alert")
+	query = frappe.qb.from_(SA).select(*[SA[f] for f in ALERT_FIELDS])
+	for field, value in (filters or {}).items():
+		column = SA[field]
+		if isinstance(value, (list, tuple)) and len(value) == 2:
+			operator, operand = value[0], value[1]
+			if str(operator).lower() == "in":
+				query = query.where(column.isin(list(operand) or ["__none__"]))
+			elif str(operator).lower() == "not in":
+				query = query.where(column.notin(list(operand) or ["__none__"]))
+			elif operator == "!=":
+				query = query.where(column != operand)
+			elif operator == ">":
+				query = query.where(column > operand)
+			elif operator == "<":
+				query = query.where(column < operand)
+			else:
+				query = query.where(column == operand)
+		else:
+			query = query.where(column == value)
+	for part in (order_by or "").split(","):
+		part = part.strip()
+		if not part:
+			continue
+		field, _, direction = part.partition(" ")
+		column = SA[field]
+		query = query.orderby(column, order=frappe.qb.desc if direction.strip().lower() == "desc" else frappe.qb.asc)
+	if limit:
+		query = query.limit(cint(limit))
+	return query.run(as_dict=True)
+# --- end v0.8 QA W-D6 ---
+
+
 def _boutique_for_warehouse(warehouse: str) -> Optional[str]:
 	return frappe.db.get_value("Maison Boutique", {"warehouse": warehouse}, "name")
 
@@ -191,25 +238,54 @@ def low_stock_digest() -> dict[str, Any]:
 
 	if not get_operations_settings()["low_stock_digest_enabled"]:
 		return {"sent": 0, "skipped": "disabled"}
-	rows = frappe.get_all("Maison Stock Alert", filters={"status": ("in", ("Open", "Acknowledged"))}, fields=ALERT_FIELDS, order_by="boutique, item_code")
+	rows = alert_rows({"status": ("in", ("Open", "Acknowledged"))}, order_by="boutique asc, item_code asc")  # v0.8 QA W-D6
 	if not rows:
 		return {"sent": 0}
 	by_boutique: dict[Optional[str], list] = {}
 	for r in rows:
 		by_boutique.setdefault(r.boutique, []).append(r)
+	# --- v0.8 QA W-D3 — one bad recipient used to kill every store's digest ---
+	# `_send_digest` was called unguarded, so a site with no outgoing Email Account (which is how
+	# this deployment ships) failed the head-office send with `OutgoingEmailError` and the whole
+	# scheduled job was recorded Failed — no store manager got theirs either. Each send is now its
+	# own attempt, and with no outgoing account configured the job reports that instead of raising
+	# (there is nothing to retry until someone sets one up). `_notify_new_alerts` has always
+	# guarded its inserts this way.
+	if not _has_outgoing_email():
+		return {"sent": 0, "alerts": len(rows), "skipped": "no outgoing email account", "boutiques": len([b for b in by_boutique if b])}
 	sent = 0
+	failed: list[str] = []
 	ho = _recipients_for(None)
-	if ho:
-		_send_digest(ho, rows, _("Maison low stock digest — {0} open alert(s)").format(len(rows)))
+	if ho and _try_send_digest(ho, rows, _("Maison low stock digest — {0} open alert(s)").format(len(rows)), failed):
 		sent += len(ho)
 	for boutique, alerts in by_boutique.items():
 		if not boutique:
 			continue
 		managers = [u for u in _recipients_for(boutique) if u not in ho]
-		if managers:
-			_send_digest(managers, alerts, _("{0}: {1} low-stock alert(s)").format(boutique, len(alerts)))
+		if managers and _try_send_digest(managers, alerts, _("{0}: {1} low-stock alert(s)").format(boutique, len(alerts)), failed, boutique):
 			sent += len(managers)
-	return {"sent": sent, "alerts": len(rows)}
+	out: dict[str, Any] = {"sent": sent, "alerts": len(rows)}
+	if failed:
+		out["failed"] = failed
+	return out
+
+
+def _has_outgoing_email() -> bool:
+	"""True when something on this site can actually send (an Email Account or a site-config SMTP)."""
+	if frappe.db.exists("Email Account", {"enable_outgoing": 1}):
+		return True
+	return bool(frappe.conf.get("mail_server") or frappe.conf.get("mail_login"))
+
+
+def _try_send_digest(recipients: list[str], rows: list, subject: str, failed: list[str], label: Optional[str] = None) -> bool:
+	try:
+		_send_digest(recipients, rows, subject)
+		return True
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), f"Maison low stock digest ({label or 'head office'})")
+		failed.append(label or "head office")
+		return False
+	# --- end v0.8 QA W-D3 ---
 
 
 def _send_digest(recipients: list[str], rows: list, subject: str) -> None:
@@ -245,7 +321,7 @@ def alerts(boutique: Optional[str] = None, status: str = "open", limit: int = 20
 		filters["status"] = ("in", ("Open", "Acknowledged"))
 	elif status != "all":
 		filters["status"] = status
-	rows = frappe.get_all("Maison Stock Alert", filters=filters, fields=ALERT_FIELDS, order_by="status asc, qty asc, item_code asc", limit=cint(limit) or 200)
+	rows = alert_rows(filters, order_by="status asc, qty asc, item_code asc", limit=cint(limit) or 200)  # v0.8 QA W-D6
 	return {
 		"boutiques": boutiques,
 		"alerts": rows,
@@ -445,7 +521,23 @@ def submit_cycle_count(boutique: str, serials: Any = None, qty: Any = None, devi
 			frappe.set_user("Administrator")
 			sr.owner = user
 			sr.insert()
+			# v0.8 QA W-D5 — Frappe stamps `owner` with `frappe.session.user` on insert, which is
+			# Administrator here (the draft is created on the associate's behalf, see above), so the
+			# manager reviewing it saw "Administrator" as the counter. Put the real user back.
+			frappe.db.set_value("Stock Reconciliation", sr.name, "owner", user, update_modified=False)
+			sr.owner = user
 			recon = sr.name
+			# Stock Reconciliation has no remarks field: the provenance goes in a comment, where the
+			# reviewing manager reads it on the document itself
+			frappe.get_doc(
+				{
+					"doctype": "Comment",
+					"comment_type": "Info",
+					"reference_doctype": "Stock Reconciliation",
+					"reference_name": sr.name,
+					"content": _("Maison cycle count {0} at {1} — counted by {2}").format(cc.name, boutique, user),
+				}
+			).insert(ignore_permissions=True)
 			cc.db_set("stock_reconciliation", recon, update_modified=False)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), f"Maison cycle count {cc.name}: stock reconciliation draft")
@@ -636,10 +728,20 @@ def receive_shipment(shipment: str, lines: Any = None, final: int = 1, device_id
 		else:
 			# no Damaged warehouse on this boutique: leave the units in transit, the discrepancy tracks them
 			pass
-	if se_good:
-		sh.stock_entry_receive = se_good if not sh.stock_entry_receive else f"{sh.stock_entry_receive}"  # first receipt leg kept as the link
+	# --- v0.8 QA W-N2 — every leg of a multi-leg receipt is linked ---
+	# The Link field can only hold one Stock Entry, so a partial receipt followed by the final one
+	# left the later legs findable only through the Stock Entry remark. The Link keeps the first
+	# leg (what every existing caller reads); `receipt_entries` lists them all, in order.
+	legs = [n for n in (sh.receipt_entries or "").split("\n") if n.strip()]
+	for entry in (se_good, se_dmg):
+		if entry and entry not in legs:
+			legs.append(entry)
+	sh.receipt_entries = "\n".join(legs)
+	if se_good and not sh.stock_entry_receive:
+		sh.stock_entry_receive = se_good
 	if se_dmg:
 		sh.stock_entry_damaged = se_dmg
+	# --- end v0.8 QA W-N2 ---
 	if final:
 		sh.status = "Received"
 		sh.received_at = now_datetime()
@@ -658,7 +760,7 @@ def receive_shipment(shipment: str, lines: Any = None, final: int = 1, device_id
 			except Exception:
 				pass
 	out = shipment_dict(sh)
-	out.update({"stock_entry_receive": se_good, "stock_entry_damaged": se_dmg, "discrepancies": discrepancies, "final": bool(final)})
+	out.update({"stock_entry_receive": se_good, "stock_entry_damaged": se_dmg, "receipt_entries": legs, "discrepancies": discrepancies, "final": bool(final)})
 	return out
 
 

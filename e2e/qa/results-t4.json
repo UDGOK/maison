@@ -1,0 +1,74 @@
+{
+  "when": "2026-08-23T19:31:22.406Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "4.3a client attaches by client №",
+      "ok": false,
+      "detail": "client card shows \"Walk-in\"",
+      "sev": ""
+    },
+    {
+      "step": "4.1 receipt QR renders on the 80 mm preview",
+      "ok": true,
+      "detail": "img count=1 box={\"x\":1077.359375,\"y\":577.53125,\"width\":98.265625,\"height\":98.265625}",
+      "sev": ""
+    },
+    {
+      "step": "4.2 receipt link opens as a guest (no session)",
+      "ok": true,
+      "detail": "GET /r/RlRqM2REba2CD_ds → 200, 342288 bytes, contains invoice=true; link shown in POS = \"https://cloudchaserz.frappe.cloud/r/RlRqM2REba2CD_ds\"",
+      "sev": ""
+    },
+    {
+      "step": "4.2b guest receipt page carries no Frappe/ERPNext wording",
+      "ok": false,
+      "detail": "frappe,erpnext,erpnext,frappe,frappe,frappe",
+      "sev": ""
+    },
+    {
+      "step": "4.3 receipt points line matches the server ledger",
+      "ok": true,
+      "detail": "receipt \"Points earned\"=8, balance=8; Loyalty Point Entry for ACC-SINV-2026-03051 = [{\"loyalty_points\":8,\"purchase_amount\":8.99,\"customer\":\"Andre Baptiste\"}]; basket total 9.73",
+      "sev": ""
+    },
+    {
+      "step": "4.3 receipt text",
+      "ok": null,
+      "detail": "CLOUDCHASERZ CLOUDCHASERZ MONTROSE 2037 W Alabama St Houston, TX 77098 (281) 974-3712 INVOICE ACC-SINV-2026-03051 DATE Aug 23, 2026, 14:31 ASSOCIATE Dante Ruiz CLIENT Andre Baptiste / Member CLIENT NO MC699911 ROLLING TRAY — MEDIUM METAL 1 X 8.99 8.99 SUBTOTAL 8.99 TAX 8.25% 0.74 TOTAL USD 9.73 CASH 9.73 TENDERED 9.73 CLOUDCHASERZ REWARDS POINTS EARNED 8 POINTS BALANCE 8 NEXT REWARD 5.00 off at 10"
+    },
+    {
+      "step": "4.4 print → reader canvas route (V660p)",
+      "ok": true,
+      "detail": "route pill=\"Reader prints\"; canvas PNG 41066 chars; meta=\"Printer 10.20.1.50 (TM-m30III) Printed on Counter 1 · V660p.\"",
+      "sev": ""
+    },
+    {
+      "step": "4.4b print → browser dialog fallback",
+      "ok": true,
+      "detail": "route pill=\"Browser prints\", window.print() calls=1, meta=\"Printer 10.20.1.50 (TM-m30III)\"",
+      "sev": ""
+    },
+    {
+      "step": "4.5 \"Email receipt\" actually sends / queues the receipt",
+      "ok": false,
+      "detail": "UI accepted the address (button now \"Email queued\", validation on \"@\" works: disabled-before-@=false) but nothing reaches the server: Sales Invoice ACC-SINV-2026-03051 maison_notes={\"maison_notes\":null}, Email Queue for the invoice=[]. ReceiptView.sendEmail() only writes notes:\"email:<addr>\" into the local Dexie queue row, and that row has already been sent (status ok) — nothing re-posts it. A server endpoint exists (maison_pos.api.salon.email_receipt) but the POS never calls it.",
+      "sev": "medium"
+    },
+    {
+      "step": "4.5 email queue sample",
+      "ok": null,
+      "detail": "[]"
+    },
+    {
+      "step": "4.6 receipt screen carries no Frappe/ERPNext wording",
+      "ok": false,
+      "detail": "SALE COMPLETE $9.73 SYNCED ACC-SINV-2026-03051 PRINT RECEIPT EMAIL QUEUED DONE RECEIPT LINK https://cloudchaserz.frappe.cloud/r/RlRqM2REba2CD_ds COPY LINK Print",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "created": [
+    "ACC-SINV-2026-03051"
+  ]
+}

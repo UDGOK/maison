@@ -48,6 +48,7 @@ import {
   stockFor
 } from './seed'
 import { computeTotals } from '@/utils/totals'
+import { round } from '@/utils/money' // v0.8 POS D1 / D11
 import { computeExchange, computeReturnTotals, managerRequired } from '@/returns/math'
 import { compareCount } from '@/inventory/count'
 import type { CycleCountResult, ExchangeRequest, ExchangeResult, POSInvoiceItem, ReturnRequest, ReturnResult, ReturnableInvoice, StockAlert } from './types'
@@ -131,7 +132,10 @@ const state = {
   serials: new Map<string, Record<string, string[]>>(),
   stock: new Map<string, Record<string, number>>(),
   submitted: new Map<string, SubmitResult>(),
-  invoices: [] as (SalesSummaryRow & { boutique: string; item_codes: string[]; lines?: POSInvoiceItem[]; receipt_token?: string; terminal_ref?: string; card_brand?: string; last4?: string; tax_rate?: number })[],
+  // v0.8 POS D7 / D11 — card brand / last 4 / approval and the cash tendered + change given
+  /** v0.8 POS D4 — receipts the mock has "sent" (asserted by the vitest suite) */
+  emails: [] as { invoice: string; email: string; at: string }[],
+  invoices: [] as (SalesSummaryRow & { boutique: string; item_codes: string[]; lines?: POSInvoiceItem[]; receipt_token?: string; terminal_ref?: string; card_brand?: string; card_last4?: string; approval_code?: string; last4?: string; change_amount?: number; tendered?: number; tax_rate?: number })[],
   /** v0.4 E: credit notes */
   returns: [] as MockCreditNote[],
   /** v0.4 D: stock alerts */
@@ -169,6 +173,7 @@ function load() {
     state.events = j.events || []
     state.returns = j.returns || []
     state.alerts = j.alerts || []
+    state.emails = j.emails || [] // v0.8 POS D4
   } catch {
     /* ignore corrupt state */
   }
@@ -192,7 +197,8 @@ function save() {
         consents: state.consents,
         events: state.events,
         returns: state.returns,
-        alerts: state.alerts
+        alerts: state.alerts,
+        emails: state.emails // v0.8 POS D4
       })
     )
   } catch {
@@ -406,7 +412,20 @@ export const mockApi: MaisonApi = {
       const r = state.receipts[token]
       if (!r) throw new ApiError('Receipt not found', 'NotFound', 404)
       return r
+    },
+    // --- v0.8 POS D4 — the mock sends for real too, so the receipt screen can be exercised offline ---
+    async email_receipt(invoice_or_token, email) {
+      await guard()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((email || '').trim()))
+        throw new ApiError('That e-mail address does not look right', 'ValidationError', 417)
+      const inv = state.invoices.find((i) => i.invoice === invoice_or_token || i.receipt_token === invoice_or_token)
+      if (!inv) throw new ApiError('Receipt not found', 'NotFound', 404)
+      state.emails.push({ invoice: inv.invoice, email: email.trim().toLowerCase(), at: new Date().toISOString() })
+      save()
+      const [user, domain] = email.trim().toLowerCase().split('@')
+      return { ok: true, queued: true, invoice: inv.invoice, email_masked: `${user.slice(0, 2)}•••@${domain}` }
     }
+    // --- end v0.8 POS D4 ---
   },
   stripe_terminal: {
     async connection_token(boutique) {
@@ -880,8 +899,18 @@ function processInvoice(inv: POSInvoice): SubmitResult {
   const paid = inv.payments.reduce((s, p) => s + p.amount, 0)
   // v0.4 G — a web order's online payment is an advance: only the balance is tendered at the counter
   const advance = inv.sales_order ? __mockWebOrderPrepaid(inv.sales_order) : 0
-  if (Math.abs(paid + advance - totals.grand_total) > 0.01)
-    return fail(inv, `Payments ${paid.toFixed(2)} do not match grand total ${totals.grand_total.toFixed(2)}`, 'PaymentMismatch')
+  // --- v0.8 POS D1 / D3 / D11 — mirror the server's tender rules exactly ---
+  // D11: a cash row carries what was *tendered*, so paying over is normal and the drawer gives
+  // change back; only a card may not exceed the total. D3: a $0.00 comp has nothing to tender.
+  // D1: a gap no larger than one cent is a rounding difference, booked rather than refused.
+  const due = round(totals.grand_total - advance)
+  const nonCash = inv.payments.filter((p) => p.mode_of_payment !== 'Cash').reduce((s, p) => s + p.amount, 0)
+  if (paid + 0.005 < due && round(due - paid) > 0.01)
+    return fail(inv, `Payments ${paid.toFixed(2)} do not cover the invoice total ${due.toFixed(2)}`, 'PaymentMismatch')
+  if (nonCash - 0.005 > due && round(nonCash - due) > 0.01)
+    return fail(inv, 'Card payments exceed the invoice total', 'PaymentMismatch')
+  const change = round(Math.max(0, paid - due))
+  // --- end v0.8 POS D1 / D3 / D11 ---
 
   // Commit stock + serials
   for (const line of inv.items) {
@@ -900,8 +929,15 @@ function processInvoice(inv: POSInvoice): SubmitResult {
     net_total: totals.net_total,
     total_taxes: totals.total_taxes,
     grand_total: totals.grand_total,
-    cash: inv.payments.filter((p) => p.mode_of_payment === 'Cash').reduce((s, p) => s + p.amount, 0),
+    // v0.8 POS D11 — the drawer keeps the tender minus the change handed back
+    cash: round(inv.payments.filter((p) => p.mode_of_payment === 'Cash').reduce((s, p) => s + p.amount, 0) - change),
     card: inv.payments.filter((p) => p.mode_of_payment === 'Card').reduce((s, p) => s + p.amount, 0),
+    // v0.8 POS D7 — the terminal result is kept on the invoice, so Returns can name the card
+    card_brand: inv.payments.find((p) => p.card_brand)?.card_brand,
+    card_last4: inv.payments.find((p) => p.last4)?.last4,
+    approval_code: inv.payments.find((p) => p.approval_code)?.approval_code,
+    change_amount: change,
+    tendered: round(inv.payments.filter((p) => p.mode_of_payment === 'Cash').reduce((s, p) => s + p.amount, 0)),
     items: inv.items.reduce((s, l) => s + l.qty, 0),
     boutique: inv.boutique,
     item_codes: inv.items.map((l) => l.item_code),
@@ -1143,8 +1179,9 @@ function returnableFor(src: (typeof state.invoices)[number]): ReturnableInvoice 
     loyalty_amount: 0,
     payments: [...(src.cash ? [{ mode_of_payment: 'Cash', amount: src.cash }] : []), ...(src.card ? [{ mode_of_payment: 'Card', amount: src.card }] : [])],
     terminal_ref: src.terminal_ref || null,
-    card_brand: src.card ? 'Visa' : null,
-    card_last4: src.card ? '4242' : null,
+    // v0.8 POS D7 — what the terminal actually returned, not a hard-coded guess
+    card_brand: src.card ? src.card_brand || 'Visa' : null,
+    card_last4: src.card ? src.card_last4 || '4242' : null,
     receipt_token: src.receipt_token,
     days_since: days,
     within_return_window: days <= RETURNS_POLICY.return_window_days,

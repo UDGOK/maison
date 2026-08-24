@@ -173,8 +173,12 @@ class TestReturns(FrappeTestCase):
 		self.assertEqual(cn.docstatus, 1)
 		self.assertEqual(new.docstatus, 1)
 		self.assertEqual(new.is_pos, 1)
+		# v0.8 POS D8 — one direction only: the mutual link deadlocked both documents against
+		# `LinkExistsError`, so an exchange booked in error could never be cancelled. The new sale
+		# records the pair in its notes instead (see `test_v0_8_pos_defects.TestPosDefectsV08`).
 		self.assertEqual(cn.maison_exchange_invoice, new.name)
-		self.assertEqual(new.maison_exchange_invoice, cn.name)
+		self.assertFalse(new.maison_exchange_invoice)
+		self.assertIn(cn.name, new.maison_notes or "")
 		self.assertEqual({p.mode_of_payment: flt(p.amount) for p in cn.payments}, {"Exchange Credit": -credit})
 		tenders = {p.mode_of_payment: round(flt(p.amount), 2) for p in new.payments}
 		self.assertAlmostEqual(tenders["Exchange Credit"], credit, places=2)

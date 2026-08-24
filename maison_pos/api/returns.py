@@ -254,6 +254,74 @@ def _reverse_commission(credit_note, original) -> Optional[dict[str, Any]]:
 		return None
 
 
+# --- v0.8 QA B3 — returning a sale whose points have already been spent -------------------------
+#
+# ERPNext refuses the credit note outright once any of the points the sale earned have been
+# redeemed on a later sale ("Sales Invoice can't be cancelled since the Loyalty Points earned has
+# been redeemed. First cancel the Sales Invoice No …"), so the counter could not refund the client
+# at all and the message pointed at an unrelated invoice.
+#
+# The return is now taken in two steps: the credit note is submitted with no `loyalty_program` —
+# the field ERPNext's rebuild branch reads — and the points the returned goods earned are clawed
+# back explicitly against the client's live balance (`api/rewards.claw_back_points`). When the
+# client has already spent them there is nothing to take back: that is a money decision, so it
+# asks for a manager exactly like an over-threshold refund does, and the result says what happened.
+# ------------------------------------------------------------------------------------------------
+def _loyalty_context(src, cn) -> Optional[dict[str, Any]]:
+	"""``{program, customer, company, points, shortfall}`` when this return needs the B3 path."""
+	from maison_pos.api import rewards
+
+	program = src.get("loyalty_program")
+	if not program or not src.get("customer") or rewards.is_walk_in(src.customer):
+		return None
+	if not rewards.redemptions_against_sale(src.name):
+		return None  # ERPNext can rebuild the accrual itself, as it always has
+	accrual = rewards.accrual_entry(src.name)
+	company = (accrual or {}).get("company") or src.company
+	returned_net = sum(abs(flt(row.qty)) * flt(row.rate) for row in cn.get("items") or [])
+	points = rewards.points_for_amount(program, returned_net)
+	if accrual:
+		# never claw back more than this sale ever granted, less what earlier returns took
+		taken = abs(
+			cint(
+				frappe.db.get_value(
+					"Loyalty Point Entry",
+					{"redeem_against": accrual["name"], "invoice": ("in", _credit_notes(src.name) or ["__none__"])},
+					"sum(loyalty_points)",
+				)
+				or 0
+			)
+		)
+		points = min(points, max(0, cint(accrual["loyalty_points"]) - taken))
+	balance = rewards.available_points(src.customer, program, company)
+	return {
+		"program": program,
+		"customer": src.customer,
+		"company": company,
+		"points": cint(points),
+		"shortfall": max(0, cint(points) - cint(balance)),
+		"balance": cint(balance),
+	}
+
+
+def _settle_loyalty_after_return(cn, src, ctx: dict[str, Any]) -> dict[str, Any]:
+	from maison_pos.api import rewards
+
+	try:
+		result = rewards.claw_back_points(
+			ctx["customer"], ctx["program"], ctx["company"], ctx["points"], invoice=cn.name, posting_date=cn.posting_date
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), f"Maison loyalty claw-back {cn.name}")
+		return {"points_clawed_back": 0, "points_shortfall": ctx["points"], "error": True}
+	return {
+		"points_clawed_back": cint(result["clawed_back"]),
+		"points_shortfall": cint(result["shortfall"]),
+		"points_settled_manually": True,
+	}
+# --- end v0.8 QA B3 ---
+
+
 # ---------------------------------------------------------------------------
 # credit note builder (shared by return_items / exchange)
 # ---------------------------------------------------------------------------
@@ -391,13 +459,25 @@ def _do_card_refund(cn, src, amount: float, reason: Optional[str]) -> None:
 	cn.db_set("maison_refund_id", res.get("id"), update_modified=False)
 
 
-def _finalize_credit_note(cn, src, approver: Optional[str], refund_method: str, refund_amount: float, reason: Optional[str]) -> None:
-	"""Validate tenders, submit, refund the card, reverse commission, log on the original sale."""
+def _finalize_credit_note(cn, src, approver: Optional[str], refund_method: str, refund_amount: float, reason: Optional[str], loyalty: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+	"""Validate tenders, submit, refund the card, reverse commission, log on the original sale.
+
+	Returns the loyalty outcome (v0.8 QA B3) so the caller can report it.
+	"""
 	if cn.is_pos:
 		_validate_return_payments(cn)
 	cn.maison_manager_approved_by = approver
 	cn.maison_receipt_token = new_receipt_token()
+	if loyalty:
+		# v0.8 QA B3: ERPNext skips its (impossible) rebuild when the credit note carries no
+		# programme; the points are settled explicitly below. `loyalty_program` is `fetch_from`
+		# the customer, and Frappe does not re-fetch a submitted document's fields, so clearing
+		# it here sticks through `submit()`.
+		cn.loyalty_program = None
 	cn.submit()
+	outcome: dict[str, Any] = {}
+	if loyalty:
+		outcome = _settle_loyalty_after_return(cn, src, loyalty)
 	if refund_method == "card" and refund_amount > 0:
 		_do_card_refund(cn, src, refund_amount, reason)
 	_reverse_commission(cn, src)
@@ -407,9 +487,15 @@ def _finalize_credit_note(cn, src, approver: Optional[str], refund_method: str, 
 			"comment_type": "Info",
 			"reference_doctype": "Sales Invoice",
 			"reference_name": src.name,
-			"content": _("Return {0} ({1}) via POS by {2}: {3}").format(cn.name, refund_method, frappe.session.user, reason or ""),
+			"content": _("Return {0} ({1}) via POS by {2}: {3}").format(cn.name, refund_method, frappe.session.user, reason or "")
+			+ (
+				_(" · {0} loyalty point(s) taken back, {1} could not be recovered (already spent)").format(outcome.get("points_clawed_back"), outcome["points_shortfall"])
+				if outcome.get("points_shortfall")
+				else (_(" · {0} loyalty point(s) taken back").format(outcome["points_clawed_back"]) if outcome.get("points_clawed_back") else "")
+			),
 		}
 	).insert(ignore_permissions=True)
+	return outcome
 
 
 def _validate_return_payments(cn) -> None:
@@ -537,6 +623,13 @@ def return_items(
 		why = _("sale is {0} days old (policy {1})").format(days, ops["return_window_days"])
 	elif estimate > flt(ops["returns_manager_threshold"]):
 		why = _("refund {0} is above the manager threshold {1}").format(estimate, ops["returns_manager_threshold"])
+	# --- v0.8 QA B3 — points already spent are a write-off, so a manager signs for them ---
+	loyalty = _loyalty_context(src, cn)
+	if not why and loyalty and loyalty["shortfall"]:
+		why = _("the client has already spent {0} of the {1} points this sale earned — the refund goes through, the points cannot be taken back").format(
+			loyalty["shortfall"], loyalty["points"]
+		)
+	# --- end v0.8 QA B3 ---
 	approver = _verify_manager(boutique, manager, manager_pin, estimate, why) if why else ((get_associate() or {}).get("name") if is_manager_or_above() else None)
 
 	# ERPNext computes totals on insert; the tender row needs the final total, so insert first.
@@ -547,8 +640,8 @@ def return_items(
 	_refund_payments(cn, src, refund_method, refund_amount)
 	cn.maison_device_id = device_id
 	cn.save()
-	_finalize_credit_note(cn, src, approver, refund_method, refund_amount, reason)
-	return _result(cn, src, {"manager_approved_by": approver, "simulated_refund": not stripe_client.is_configured()})
+	outcome = _finalize_credit_note(cn, src, approver, refund_method, refund_amount, reason, loyalty)
+	return _result(cn, src, {"manager_approved_by": approver, "simulated_refund": not stripe_client.is_configured(), **outcome})
 
 
 @frappe.whitelist()
@@ -598,6 +691,13 @@ def exchange(
 		why = _("sale is {0} days old (exchange policy {1})").format(days, ops["exchange_window_days"])
 	elif estimate > flt(ops["returns_manager_threshold"]):
 		why = _("exchange credit {0} is above the manager threshold {1}").format(estimate, ops["returns_manager_threshold"])
+	# --- v0.8 QA B3 — same pre-check as a return: an exchange also cancels the earned points ---
+	loyalty = _loyalty_context(src, cn)
+	if not why and loyalty and loyalty["shortfall"]:
+		why = _("the client has already spent {0} of the {1} points this sale earned — the exchange goes through, the points cannot be taken back").format(
+			loyalty["shortfall"], loyalty["points"]
+		)
+	# --- end v0.8 QA B3 ---
 	approver = _verify_manager(boutique, manager, manager_pin, estimate, why) if why else ((get_associate() or {}).get("name") if is_manager_or_above() else None)
 
 	# 1) credit note (inserted to learn the exact credit)
@@ -617,7 +717,8 @@ def exchange(
 		"posting_datetime": now_datetime().isoformat(),
 		"items": new_items,
 		"payments": [{"mode_of_payment": EXCHANGE_MOP, "amount": 1}],  # placeholder, replaced below
-		"notes": _("Exchange against {0}").format(src.name),
+		# v0.8 POS D8 — the pair is recorded here rather than in a second Link field (see below)
+		"notes": _("Exchange against {0} · credit note {1}").format(src.name, cn.name),
 	}
 	new_si = build_sales_invoice(payload, boutique)
 	new_si.flags.ignore_permissions = True
@@ -649,7 +750,15 @@ def exchange(
 				new_si.maison_approval_code = p.get("approval_code")
 	new_si.save()
 	_validate_payments_cover_total(new_si)
-	new_si.maison_exchange_invoice = cn.name
+	# --- v0.8 POS D8 — the exchange link is one-directional ---
+	# Writing `maison_exchange_invoice` on *both* documents made them point at each other, and
+	# Frappe then refused to cancel either one (`LinkExistsError`, each naming the other): an
+	# exchange booked in error could only be neutralised by voiding, which adds a third document.
+	# The credit note keeps the pointer (it is the row the Returns history lists and the return
+	# receipt prints); the new sale records the pair in its notes instead of in a Link field.
+	# `events.sales_invoice.unlink_exchange_pair` additionally clears a surviving pointer when the
+	# document it names is cancelled, so either half can be cancelled first.
+	# --- end v0.8 POS D8 ---
 	new_si.submit()
 
 	# 3) credit note tenders: exchange credit applied + remainder refunded
@@ -670,7 +779,10 @@ def exchange(
 		_validate_return_payments(cn)
 	cn.maison_manager_approved_by = approver
 	cn.maison_receipt_token = new_receipt_token()
+	if loyalty:
+		cn.loyalty_program = None  # v0.8 QA B3 (see `_finalize_credit_note`)
 	cn.submit()
+	loyalty_outcome = _settle_loyalty_after_return(cn, src, loyalty) if loyalty else {}
 	if refund_info and refund_method == "card" and remainder > 0:
 		_do_card_refund(cn, src, remainder, reason)
 	_reverse_commission(cn, src)
@@ -695,6 +807,7 @@ def exchange(
 			"difference": difference,
 			"refund_remainder": remainder,
 			"new_receipt_token": new_si.get("maison_receipt_token"),
+			**loyalty_outcome,
 			"new_receipt": receipt_payload(new_si),
 			"new_payments": [{"mode_of_payment": p.mode_of_payment, "amount": flt(p.amount)} for p in new_si.payments],
 			"manager_approved_by": approver,

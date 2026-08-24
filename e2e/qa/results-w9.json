@@ -1,0 +1,127 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "four concurrent replenishment requests from two users all succeed with unique names",
+   "ok": true,
+   "detail": "4/4 ok in 784 ms; requests=MRR-2026-00047,MRR-2026-00050,MRR-2026-00048,MRR-2026-00049; MRs=MAT-MR-2026-00019,MAT-MR-2026-00022,MAT-MR-2026-00020,MAT-MR-2026-00021; failures=",
+   "severity": ""
+  },
+  {
+   "step": "all four are persisted and Pending Approval (nothing lost to a race)",
+   "ok": true,
+   "detail": "[[\"MRR-2026-00047\",\"Pending Approval\"],[\"MRR-2026-00048\",\"Pending Approval\"],[\"MRR-2026-00049\",\"Pending Approval\"],[\"MRR-2026-00050\",\"Pending Approval\"]]",
+   "severity": ""
+  },
+  {
+   "step": "two admins approving the same request at once produce exactly ONE shipment",
+   "ok": true,
+   "detail": "1/2 calls succeeded; shipments for MRR-2026-00047: [\"MSH-2026-00051\"]; loser said \"Error: maison_pos.api.shipping.approve: 417 {\"exception\":\"frappe.exceptions.TimestampMismatchError: Error: Document has been modified after \"",
+   "severity": ""
+  },
+  {
+   "step": "approving a request whose shipment has already gone out is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Request MRR-2026-00041 is Approved",
+   "severity": ""
+  },
+  {
+   "step": "rejecting a request whose shipment has already gone out is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Request MRR-2026-00041 is Approved",
+   "severity": ""
+  },
+  {
+   "step": "you cannot pick a shipment that is already Received",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00042 is Received",
+   "severity": ""
+  },
+  {
+   "step": "you cannot pack a shipment that is already Received",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00042 is Received",
+   "severity": ""
+  },
+  {
+   "step": "you cannot buy a label for a shipment that is already Received",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00042 is already Received",
+   "severity": ""
+  },
+  {
+   "step": "you cannot ship a shipment that is already Received",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00042 is already Received",
+   "severity": ""
+  },
+  {
+   "step": "receiving an already-received shipment a second time is refused (no double stock)",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00042 is Received, not in transit",
+   "severity": ""
+  },
+  {
+   "step": "a Received shipment cannot be marked back to Picking",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Shipment MSH-2026-00042 is Received",
+   "severity": ""
+  },
+  {
+   "step": "an unsupported status transition is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Unsupported status Teleported",
+   "severity": ""
+  },
+  {
+   "step": "a 50-line replenishment request is accepted",
+   "ok": true,
+   "detail": "MRR-2026-00052: 50 lines / 50 units in 1419 ms",
+   "severity": ""
+  },
+  {
+   "step": "approving 50 lines creates a 50-line shipment (and a 50-line Material Request)",
+   "ok": true,
+   "detail": "MSH-2026-00053: 50 lines in 2389 ms; MR=MAT-MR-2026-00023",
+   "severity": ""
+  },
+  {
+   "step": "the shipment estimates parcels/weight for 50 lines",
+   "ok": true,
+   "detail": "est_weight=27.21 kg, est_dims=[40,30,75], parcels=[]",
+   "severity": ""
+  },
+  {
+   "step": "the pick list renders all 50 lines sorted by bin location",
+   "ok": true,
+   "detail": "50 lines in 196 ms; first bins A-01-1,A-01-2,A-01-3,A-02-2,A-02-3",
+   "severity": ""
+  },
+  {
+   "step": "rates still quote for a 50-line / multi-carton consignment",
+   "ok": true,
+   "detail": "8 rates, cheapest USPS Ground Advantage $165.85 in 112 ms; parcels=[{\"length\":40,\"width\":30,\"height\":25,\"weight\":9.07},{\"length\":40,\"width\":30,\"height\":25,\"weight\":9.07},{\"length\":40,\"width\":30,\"height\":25,\"weight\":9.07}]",
+   "severity": ""
+  },
+  {
+   "step": "the quote is cached on the shipment (rate_options) when rates is called as the UI does (POST)",
+   "ok": true,
+   "detail": "rate_options length=2020",
+   "severity": ""
+  },
+  {
+   "step": "the wall payload still builds with the big consignment on it",
+   "ok": true,
+   "detail": "wall built in 128 ms; counts={\"pending_approval\":8,\"to_pick\":4,\"packing\":1,\"ready\":1,\"shipped_today\":0}",
+   "severity": ""
+  },
+  {
+   "step": "the packing list print format renders 50 lines with barcodes",
+   "ok": true,
+   "detail": "200 len=180306, 51 inline barcode/QR SVGs",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

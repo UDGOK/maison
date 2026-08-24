@@ -21,7 +21,8 @@ const sub = (b: PeriodBlock) => b.label.replace(/^.*? vs /, 'vs ')
   <section class="periods">
     <header class="head">
       <span class="label">Period comparison</span>
-      <span class="label">net sales · returns netted</span>
+      <!-- v0.8 QA D-7: the same definition as the Live and Stores tabs, said out loud -->
+      <span class="label">net sales · incl. tax · returns netted</span>
     </header>
     <div class="grid">
       <div v-for="b in blocks" :key="b.kind" class="cell">
@@ -37,7 +38,7 @@ const sub = (b: PeriodBlock) => b.label.replace(/^.*? vs /, 'vs ')
           </div>
           <div class="row2 label">
             <span>{{ fmtInt(b.block.current.tickets) }} tickets <span class="num" :class="tone(b.block.pct.tickets)">{{ sign(b.block.pct.tickets) }}</span></span>
-            <span>avg {{ fmtMoney(b.block.current.avg_ticket) }} <span class="num" :class="tone(b.block.pct.avg_ticket)">{{ sign(b.block.pct.avg_ticket) }}</span></span>
+            <span>avg sale {{ fmtMoney(b.block.current.avg_ticket) }} <span class="num" :class="tone(b.block.pct.avg_ticket)">{{ sign(b.block.pct.avg_ticket) }}</span></span>
             <span v-if="b.block.current.returns">{{ b.block.current.returns }} returns · {{ fmtMoney(b.block.current.returns_value) }}</span>
           </div>
           <div class="bar">

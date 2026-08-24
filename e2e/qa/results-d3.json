@@ -1,0 +1,19 @@
+{
+ "issues": [
+  "ROL-002.on_hand: API=524.0 calc=512.0",
+  "ROL-002.days_on_hand: API=3668.0 calc=3584.0",
+  "ROL-006.on_hand: API=514.0 calc=512.0",
+  "ACC-002.on_hand: API=508.0 calc=504.0",
+  "ACC-002.days_on_hand: API=1778.0 calc=1764.0"
+ ],
+ "t_ms": 551.4769554138184,
+ "total": 156,
+ "computed_at": "2026-08-23 15:45:52.202818",
+ "last_run": {
+  "boutiques": 11,
+  "computed_at": "2026-08-23 15:45:52.202818",
+  "items": 160,
+  "rows": 2500,
+  "seconds": 0.69
+ }
+}

@@ -1,0 +1,131 @@
+{
+  "when": "2026-08-23T19:19:40.231Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "baseline associates @ HOU-MTR",
+      "ok": null,
+      "detail": "[{\"name\":\"hou.mtr.a2@cloudchaserz.example\",\"user\":\"hou.mtr.a2@cloudchaserz.example\",\"full_name\":\"Keisha Brown\",\"role\":\"Associate\",\"failed_pin_attempts\":0,\"enabled\":1},{\"name\":\"hou.mtr.a1@cloudchaserz.example\",\"user\":\"hou.mtr.a1@cloudchaserz.example\",\"full_name\":\"Dante Ruiz\",\"role\":\"Associate\",\"failed_pin_attempts\":0,\"enabled\":1},{\"name\":\"hou.mtr.manager@cloudchaserz.example\",\"user\":\"hou.mtr.manager@cloudchaserz.example\",\"full_name\":\"Marisol Vega\",\"role\":\"Manager\",\"failed_pin_attempts\":0,\"enabled\":1}]"
+    },
+    {
+      "step": "1.1 unlock screen loads the catalogue",
+      "ok": true,
+      "detail": "keypad shown after 1727ms",
+      "sev": ""
+    },
+    {
+      "step": "1.1b no Frappe/ERPNext wording on Unlock",
+      "ok": true,
+      "detail": "CLOUDCHASERZ MAISON POS BY CLOUDCHASERZ Elevate Your Smoking Experience CLOUDCHASERZ MONTROSE · HOU-MTR NETWORK AVAILABLE STORE Montrose — Houston, TX 77098 ASSOCIATE Dante Ruiz · Associate Keisha Bro",
+      "sev": ""
+    },
+    {
+      "step": "1.3 wrong PIN rejected and names the associate",
+      "ok": true,
+      "detail": "msg=\"Incorrect PIN for Dante Ruiz\" (associate option \"Dante Ruiz · Associate\")",
+      "sev": ""
+    },
+    {
+      "step": "1.4 other associate's PIN refused, message names the selected associate",
+      "ok": true,
+      "detail": "msg=\"Incorrect PIN for Dante Ruiz\" (typed Keisha's PIN 1357 with Dante selected)",
+      "sev": ""
+    },
+    {
+      "step": "1.2 correct PIN unlocks to Sell",
+      "ok": true,
+      "detail": "https://cloudchaserz.frappe.cloud/pos/sell",
+      "sev": ""
+    },
+    {
+      "step": "1.2b no Frappe/ERPNext wording on Sell",
+      "ok": true,
+      "detail": "CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK ALL ACCESSORIES CBD & HEMP DEVICES & MOD",
+      "sev": ""
+    },
+    {
+      "step": "1.7 Lock returns to the unlock screen",
+      "ok": true,
+      "detail": "https://cloudchaserz.frappe.cloud/pos/unlock",
+      "sev": ""
+    },
+    {
+      "step": "1.5 shift status before",
+      "ok": null,
+      "detail": "Not clocked inHR"
+    },
+    {
+      "step": "1.5 clock in puts the associate on shift",
+      "ok": true,
+      "detail": "before=\"Not clocked inHR\" after=\"On shift since Aug 23, 2026, 14:19HR\"",
+      "sev": ""
+    },
+    {
+      "step": "1.5b clock-in recorded server-side",
+      "ok": true,
+      "detail": "{\"name\":\"1j9u8depbn\",\"status\":\"On shift\",\"clock_in\":\"2026-08-23 14:19:21.269455\",\"clock_out\":null,\"boutique\":\"HOU-MTR\"}",
+      "sev": ""
+    },
+    {
+      "step": "1.6 clock out works and never opens the till",
+      "ok": true,
+      "detail": "msg=\"Clocked out · 0m worked\" status=\"Not clocked inHR\" url=https://cloudchaserz.frappe.cloud/pos/unlock",
+      "sev": ""
+    },
+    {
+      "step": "1.8 PIN lockout counter increments and locks after 5 failures",
+      "ok": true,
+      "detail": "failed_pin_attempts=5; messages=[\"Incorrect PIN for Keisha Brown\",\"Incorrect PIN for Keisha Brown\",\"Incorrect PIN for Keisha Brown\",\"Incorrect PIN for Keisha Brown\",\"Incorrect PIN for Keisha Brown\",\"Incorrect PIN for Keisha Brown\"]",
+      "sev": ""
+    },
+    {
+      "step": "1.8b UI tells the associate the PIN is locked (not just \"Incorrect PIN\")",
+      "ok": false,
+      "detail": "last message = \"Incorrect PIN for Keisha Brown\"",
+      "sev": "medium"
+    },
+    {
+      "step": "1.8c correct PIN refused while locked",
+      "ok": true,
+      "detail": "url=https://cloudchaserz.frappe.cloud/pos/unlock msg=\"Incorrect PIN for Keisha Brown\"",
+      "sev": ""
+    },
+    {
+      "step": "cleanup: A2 failed_pin_attempts reset",
+      "ok": null,
+      "detail": "{\"failed_pin_attempts\":0}"
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "[maison] service worker registration failed TypeError: Failed to register a ServiceWorker for scope ('https://cloudchaserz.frappe.cloud/pos/') with script ('https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.pwa.service_worker'): An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    }
+  ]
+}

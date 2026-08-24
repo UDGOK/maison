@@ -484,8 +484,11 @@ function stepState(s: WebOrderStatus) {
   resize: vertical;
 }
 .input:focus {
-  outline: none;
   border-color: var(--accent);
+}
+/* v0.8 QA U2: keyboard focus keeps a visible ring (the mouse/touch state is the border alone) */
+.input:focus:not(:focus-visible) {
+  outline: none;
 }
 .actions {
   display: flex;

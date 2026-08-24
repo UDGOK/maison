@@ -1,0 +1,89 @@
+{
+  "when": "2026-08-23T22:37:01.011Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "C · Salon feedback reaches Head Office against this sale",
+      "ok": true,
+      "detail": "{\"name\":\"a6o1b7eo97\",\"rating\":5,\"comment\":\"QA4 QA4A salon feedback — please ignore\",\"boutique\":\"OK-BA\",\"customer\":\"QA4 Salon QA4A\"}",
+      "sev": ""
+    },
+    {
+      "step": "C · the thank-you state carries points, receipt QR link and giveaway entries",
+      "ok": true,
+      "detail": "{\"customer\":\"QA4 Salon QA4A\",\"receipt_token\":\"Q420nFNHr_Ylw_56\",\"receipt_url\":\"https://cloudchaserz.frappe.cloud/r/Q420nFNHr_Ylw_56\",\"sales_invoice\":\"ACC-SINV-2026-03093\",\"points_earned\":79,\"points_balance\":100,\"tier\":\"Member\",\"grand_total\":86.71,\"currency\":\"U",
+      "sev": ""
+    },
+    {
+      "step": "C · the private-viewing invitation is recorded on the client profile",
+      "ok": true,
+      "detail": "invite offered=true · {\"private_viewing_invite\":1,\"private_viewing_invite_on\":\"2026-08-23 17:36:26.241390\"}",
+      "sev": ""
+    },
+    {
+      "step": "C · the thank-you screen (receipt QR, feedback, invitation) self-clears 20 s after the last touch",
+      "ok": null,
+      "detail": "observed while testing: the QR and the \"How was your visit?\" / invitation buttons disappear on the countdown"
+    },
+    {
+      "step": "C · the associate can switch the Salon to Concierge",
+      "ok": false,
+      "detail": "toggle present=1 · salon view=ambient",
+      "sev": ""
+    },
+    {
+      "step": "C · an unpaired Salon shows only the pairing screen (no client data)",
+      "ok": true,
+      "detail": "view=pair",
+      "sev": ""
+    },
+    {
+      "step": "C · Unpair from the POS returns the Salon to the pairing screen",
+      "ok": true,
+      "detail": "salon view = pair",
+      "sev": ""
+    },
+    {
+      "step": "C · the session is Unpaired on the server",
+      "ok": true,
+      "detail": "{\"status\":\"Unpaired\"}",
+      "sev": ""
+    },
+    {
+      "step": "C · the old token no longer serves a paired session",
+      "ok": true,
+      "detail": "403 {}",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "[maison] service worker registration failed TypeError: Failed to register a ServiceWorker for scope ('https://cloudchaserz.frappe.cloud/pos/') with script ('https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.pwa.service_worker'): An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "salon",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    }
+  ],
+  "created": {
+    "invoices": [
+      "ACC-SINV-2026-03093"
+    ],
+    "sessions": [
+      "58579856a62d46bbd84c237fe86ef03e"
+    ]
+  }
+}

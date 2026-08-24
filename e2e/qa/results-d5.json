@@ -1,0 +1,32 @@
+{
+ "report_row": {
+  "boutique": "HOU-MTR",
+  "boutique_name": "CloudChaserz Montrose",
+  "tax_template": "TX Sales Tax (Houston) - CCZ",
+  "tax_rate": 8.25,
+  "gross_sales": 1232.93,
+  "returns_value": 385.8,
+  "taxable_sales": 847.13,
+  "non_taxable_sales": 0.0,
+  "net_sales": 847.13,
+  "tax_sales": 101.72,
+  "tax_returns": 31.85,
+  "tax_collected": 69.87,
+  "tickets": 30,
+  "returns": 12
+ },
+ "hand": {
+  "gross_sales": 1232.93,
+  "returns_value": 385.8,
+  "taxable_sales": 847.13,
+  "non_taxable_sales": 0.0,
+  "net_sales": 847.13,
+  "tax_sales": 101.72,
+  "tax_returns": 31.85,
+  "tax_collected": 69.87,
+  "tickets": 30,
+  "returns": 12
+ },
+ "mismatch_fields": [],
+ "booked_tax": 69.87
+}

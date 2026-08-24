@@ -28,6 +28,14 @@ REPORTS: list[dict[str, str]] = [
 	{"name": "Maison Client Purchases", "group": "Clients", "description": "RFM per client: recency, frequency, monetary, tier, lifetime."},
 	{"name": "Maison Serial Ledger", "group": "Inventory", "description": "Every serial: received → sold / returned / transferred, current location."},
 	{"name": "Maison Returns", "group": "Returns", "description": "Credit notes by reason / boutique / associate, or line detail."},
+	# --- v0.8 QA D-6 — three reports existed but were unreachable from the dashboard ---
+	# They were missing from this list, so the Reports tab never linked them and
+	# `reports.export?report=Maison Commission Statement` answered 404 (`_check` gates on
+	# `REPORT_NAMES`) — no CSV of commissions, promotions or campaigns for head office.
+	{"name": "Maison Commission Statement", "group": "Employees", "description": "Commission per associate: entries, rate, base amount and commission, reversals netted. CSV for payroll."},
+	{"name": "Maison Promotion Performance", "group": "Marketing", "description": "Pricing rules and coupons: redemptions, discount given, revenue and discount rate."},
+	{"name": "Maison Campaign Performance", "group": "Marketing", "description": "Campaigns: sends, opens, clicks, direct and assisted attributed revenue."},
+	# --- end v0.8 QA D-6 ---
 ]
 REPORT_NAMES = {r["name"] for r in REPORTS}
 

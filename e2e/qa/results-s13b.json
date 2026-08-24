@@ -1,0 +1,14 @@
+{
+  "when": "2026-08-23T22:44:40.528Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "B · the $5 / 100 points tier redeems at the POS",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03096: loyalty_amount=5 loyalty_points=100 tier=RT-100-00001 grand=54.2 (balance 490 → 434)",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "invoice": "ACC-SINV-2026-03096"
+}

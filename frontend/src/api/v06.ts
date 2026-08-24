@@ -5,7 +5,8 @@
  */
 import { ApiError, type AgeCheckPayload, type RewardTier } from './types'
 import { evaluateAge, parseAamva, todayIso } from '@/scan/aamva'
-import { stripHtml } from '@/utils/text'
+import { humanizeServerMessage, SESSION_EXPIRED_MESSAGE } from '@/utils/text' // v0.8 POS D5 / D9
+import { serverDateTime } from '@/utils/time' // v0.8 POS D2
 
 // ---------------------------------------------------------------------------------------------
 // types
@@ -140,15 +141,17 @@ async function call<T>(method: string, args: Record<string, unknown> = {}, get =
     /* non-JSON */
   }
   if (!res.ok) {
-    let message = `${res.status} ${res.statusText}`
+    // v0.8 POS D5 / D9 — same sanitising as `api/frappe.ts`: no module paths, no exception classes
+    let message = ''
     if (body?._server_messages) {
       try {
-        message = stripHtml((JSON.parse(body._server_messages) as string[]).map((m) => JSON.parse(m).message).join('\n'))
+        message = humanizeServerMessage((JSON.parse(body._server_messages) as string[]).map((m) => JSON.parse(m).message).join('\n'))
       } catch {
         /* ignore */
       }
-    } else if (body?.exception) message = stripHtml(String(body.exception).split('\n').pop()) || message
-    throw new ApiError(message, res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
+    } else if (body?.exception) message = humanizeServerMessage(String(body.exception).split('\n').pop())
+    if (body?.session_expired || (!message && (res.status === 401 || res.status === 403))) message = SESSION_EXPIRED_MESSAGE
+    throw new ApiError(message || `${res.status} ${res.statusText}`, body?.session_expired ? 'SESSION_EXPIRED' : res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
   }
   return (body?.message ?? body) as T
 }
@@ -181,7 +184,7 @@ function mockMessage(outcome: AgeCheckResult['outcome'], min: number): string {
 }
 function mockDecide(method: 'Scan' | 'Manual', dob: string | null, expiry: string | null, initials: string | null, jurisdiction: string | null): AgeCheckResult {
   const d = evaluateAge(dob, expiry, MOCK_AGE.minimum_age, todayIso())
-  return { ok: d.ok, verified: d.ok ? 1 : 0, outcome: d.outcome, method, age: d.age, minimum_age: MOCK_AGE.minimum_age, dob_year_ok: d.dob_year_ok, expired: d.expired, initials, jurisdiction, check: `MAC-MOCK-${++mockSeq}`, checked_at: new Date().toISOString(), message: mockMessage(d.outcome, MOCK_AGE.minimum_age) }
+  return { ok: d.ok, verified: d.ok ? 1 : 0, outcome: d.outcome, method, age: d.age, minimum_age: MOCK_AGE.minimum_age, dob_year_ok: d.dob_year_ok, expired: d.expired, initials, jurisdiction, check: `MAC-MOCK-${++mockSeq}`, checked_at: serverDateTime(), message: mockMessage(d.outcome, MOCK_AGE.minimum_age) }
 }
 
 export const mockV06: V06Api = {
@@ -206,10 +209,16 @@ export const mockV06: V06Api = {
   }
 }
 
-/** Quick offline-safe age check (no server): identical decision to the mock / server. */
+/**
+ * Quick offline-safe age check (no server): identical decision to the mock / server.
+ *
+ * v0.8 POS D2 — `checked_at` goes onto a Frappe Datetime column when the queued sale replays, so
+ * it is the site's wall clock in the server's format, never `Date.toISOString()`'s UTC `Z` form
+ * (which MariaDB rejected outright, making every offline 21+ sale unsyncable).
+ */
 export function decideOffline(method: 'Scan' | 'Manual', dob: string | null, expiry: string | null, minimumAge: number, initials?: string | null, jurisdiction?: string | null): AgeCheckResult {
   const d = evaluateAge(dob, expiry, minimumAge, todayIso())
-  return { ok: d.ok, verified: d.ok ? 1 : 0, outcome: d.outcome, method, age: d.age, minimum_age: minimumAge, dob_year_ok: d.dob_year_ok, expired: d.expired, initials: initials || null, jurisdiction: jurisdiction || null, checked_at: new Date().toISOString(), message: mockMessage(d.outcome, minimumAge) }
+  return { ok: d.ok, verified: d.ok ? 1 : 0, outcome: d.outcome, method, age: d.age, minimum_age: minimumAge, dob_year_ok: d.dob_year_ok, expired: d.expired, initials: initials || null, jurisdiction: jurisdiction || null, checked_at: serverDateTime(), message: mockMessage(d.outcome, minimumAge) }
 }
 
 export function toPayload(r: AgeCheckResult, offline: boolean): AgeCheckPayload {

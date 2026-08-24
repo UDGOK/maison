@@ -8,11 +8,16 @@ import frappe
 from frappe.query_builder import DocType
 from frappe.utils import flt
 
-from maison_pos.reports import boutique_names, col, money_col
+from maison_pos.reports import boutique_names, col, money_col, normalize_filters
 
 
 def execute(filters=None):
-	f = dict(filters or {})
+	# --- v0.8 QA D-14 — the only Maison report that skipped `normalize_filters` ---
+	# It therefore ignored `from_date` / `to_date` entirely, never rejected an inverted range and
+	# — the part that matters — applied no boutique restriction, so a store-scoped manager running
+	# it in the desk would have seen every store's serial numbers. It behaves like every other
+	# report now: defaults filled in, range validated, scope enforced.
+	f = normalize_filters(filters)
 	SN = DocType("Serial No")
 	cond = SN.name.isnotnull()
 	if f.get("item_code"):
@@ -55,6 +60,8 @@ def execute(filters=None):
 	inv_meta = {r.name: r for r in frappe.get_all("Sales Invoice", filters={"name": ("in", list(invoices) or ["__none__"])}, fields=["name", "is_return", "customer_name", "maison_boutique", "posting_date", "maison_associate"])}
 	data = []
 	want = (f.get("status") or "").strip()
+	allowed = f.get("_boutiques")
+	from_date, to_date = f.get("from_date"), f.get("to_date")
 	for s in serials:
 		hist = by_serial.get(s.name, [])
 		received = next((m for m in hist if m.type_of_transaction == "Inward" and m.voucher_type != "Sales Invoice"), None)
@@ -72,6 +79,14 @@ def execute(filters=None):
 		if want and status != want:
 			continue
 		boutique = wh_to_b.get(s.warehouse) or damaged.get(s.warehouse) or (inv_meta.get(last_sale.voucher_no, {}).get("maison_boutique") if last_sale else None)
+		# v0.8 QA D-14 — scope + date window (a serial belongs to a store, and the window is the
+		# movement window: a serial with no movement inside it is not part of this report)
+		if allowed is not None and boutique and boutique not in allowed:
+			continue
+		if from_date and to_date:
+			dates = [m.posting_date for m in hist if m.posting_date]
+			if dates and not any(from_date <= d <= to_date for d in dates):
+				continue
 		data.append(
 			{
 				"serial_no": s.name,

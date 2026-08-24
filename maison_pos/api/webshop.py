@@ -72,10 +72,22 @@ def _customer_for_user(user: Optional[str] = None) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# v0.7 S4 — every public endpoint on this module gets a real limit (per client + global
+# ceiling). Read-only storefront calls are generous: they must not break a busy shop, only
+# stop a scraper. Anything that writes or answers "does this client exist" is strict.
+# ---------------------------------------------------------------------------
+def _guest_limit(endpoint: str, limit: int, seconds: int = 60) -> None:
+	from maison_pos.ratelimit import guard
+
+	guard(endpoint, limit, seconds, global_limit=limit * 30, global_seconds=seconds)
+
+
+# ---------------------------------------------------------------------------
 # guest: catalogue, availability, boutiques
 # ---------------------------------------------------------------------------
 @frappe.whitelist(allow_guest=True)
 def boutiques() -> list[dict[str, Any]]:
+	_guest_limit("webshop.boutiques", 120)
 	return [
 		{k: v for k, v in b.items() if k not in ("warehouse", "company")} for b in core.boutiques()
 	]
@@ -84,6 +96,7 @@ def boutiques() -> list[dict[str, Any]]:
 @frappe.whitelist(allow_guest=True)
 def availability(item_code: str) -> dict[str, Any]:
 	"""``{item_code, web_mode, available_at, boutiques: [{boutique, boutique_name, city, qty}]}``."""
+	_guest_limit("webshop.availability", 120)
 	if not frappe.db.exists("Item", item_code):
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
 	avail = core.availability(item_code)
@@ -118,6 +131,17 @@ def _website_items(filters: dict[str, Any], start: int = 0, limit: int = 48, q: 
 	)
 
 
+def _website_items_count(filters: dict[str, Any], q: Optional[str] = None) -> int:
+	"""How many published Website Items match *filters* (v0.8 QA A4 — paging)."""
+	f: dict[str, Any] = {"published": 1}
+	for k, v in filters.items():
+		if v:
+			f[k] = v
+	if q:
+		f["web_item_name"] = ("like", f"%{q}%")
+	return cint(frappe.db.count("Website Item", f))
+
+
 @frappe.whitelist(allow_guest=True)
 def catalogue(
 	item_group: Optional[str] = None,
@@ -128,11 +152,13 @@ def catalogue(
 	limit: int = 48,
 ) -> dict[str, Any]:
 	"""Published website items with price, image, web mode and availability label (server-rendered listing)."""
+	_guest_limit("webshop.catalogue", 120)
 	_require_webshop()
 	from erpnext.utilities.product import get_price
 	from webshop.webshop.doctype.webshop_settings.webshop_settings import get_shopping_cart_settings
 
 	settings = get_shopping_cart_settings()
+	start, limit = max(0, cint(start)), max(1, cint(limit) or 48)
 	rows = _website_items({"item_group": item_group}, start, limit, q)
 	codes = [r.item_code for r in rows]
 	items = {
@@ -181,6 +207,7 @@ def catalogue(
 				"one_off": bool(item.get("has_serial_no")) and chain <= 1,
 				"chain_qty": chain,
 				"available_at": core.city_label(avail),
+				"available_at_full": core.city_label_full(avail),  # v0.8 QA A2
 				"rate": flt(price.get("price_list_rate")),
 				"formatted_price": price.get("formatted_price") or "",
 				"currency": price.get("currency") or settings.get("currency") or "USD",
@@ -192,12 +219,152 @@ def catalogue(
 		fields=["name", "route", "image", "description"],
 		order_by="weightage desc, name asc",
 	)
-	return {"items": out, "item_groups": groups, "count": len(out)}
+	# --- v0.8 QA A4 — the listing must be able to page ---
+	# `/shop/collection` rendered one page of 96 and stopped: 59 of the 155 published products
+	# were reachable only through a category chip or a search. Report how many rows the filters
+	# match and whether another page exists so the template can draw Previous / Next.
+	total = _website_items_count({"item_group": item_group}, q)
+	return {
+		"items": out,
+		"item_groups": groups,
+		"count": len(out),
+		"total": total,
+		"start": start,
+		"limit": limit,
+		"has_more": (start + len(rows)) < total,
+	}
+	# --- end v0.8 QA A4 ---
 
 
 # ---------------------------------------------------------------------------
 # guest: enquiries + loyalty
 # ---------------------------------------------------------------------------
+# --- v0.8 QA A1 — storefront registration that works on a site with no outgoing e-mail ----------
+#
+# Frappe's own `sign_up` creates the Website User with a *random* password and mails a
+# verification link; on a deployment with no outgoing Email Account (which is how CloudChaserz
+# ships) that mail is never sent, so the shopper is registered and still cannot sign in. The
+# storefront therefore takes the registration itself: the shopper chooses their own password,
+# gets the portal default role and is signed in on the spot, so the bag and `/shop/checkout`
+# (both behind `require_login`) are reachable without any mail server.
+#
+# Guardrails: Website User only, only the Portal Settings default role, the platform password
+# policy still applies, sign-up must be enabled, an existing address is never touched (and never
+# has a password set on it), and the endpoint is rate limited like every other public write.
+# -----------------------------------------------------------------------------------------------
+MIN_PASSWORD_LENGTH = 8
+
+
+def _ensure_portal_party(user: str, full_name: str) -> Optional[str]:
+	"""The Customer + Contact a portal shopper needs before their first cart action.
+
+	webshop creates these lazily on the first ``get_party`` — but Frappe has already created a
+	*bare* Contact for the new User, webshop resolves the party through the **first** contact of
+	the user, and ERPNext then refuses the cart Quotation with "Contact Person does not belong to
+	<customer>". The Maison seed works around the same thing for its demo shopper
+	(``setup/demo_v04_webshop.ensure_web_user``); a self-registered shopper needs it too.
+	"""
+	if not is_webshop_installed():
+		return None
+	from frappe.utils.nestedset import get_root_of
+
+	customer = frappe.db.get_value("Portal User", {"user": user}, "parent")
+	if not customer or not frappe.db.exists("Customer", customer):
+		group = frappe.db.get_single_value("Webshop Settings", "default_customer_group") or frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
+		doc = frappe.get_doc(
+			{
+				"doctype": "Customer",
+				# ERPNext appends " - n" when the name is taken, so this never adopts someone else's record
+				"customer_name": full_name,
+				"customer_type": "Individual",
+				"customer_group": group,
+				"territory": get_root_of("Territory"),
+				"email_id": user,
+				"portal_users": [{"user": user}],
+			}
+		)
+		doc.flags.ignore_permissions = True
+		doc.flags.ignore_mandatory = True
+		doc.insert()
+		customer = doc.name
+	contacts = frappe.get_all("Contact", filters={"user": user}, pluck="name")
+	if not contacts:
+		contact = frappe.get_doc(
+			{
+				"doctype": "Contact",
+				"first_name": full_name,
+				"user": user,
+				"email_ids": [{"email_id": user, "is_primary": 1}],
+				"links": [{"link_doctype": "Customer", "link_name": customer}],
+			}
+		)
+		contact.flags.ignore_permissions = True
+		contact.flags.ignore_mandatory = True
+		contact.insert()
+	for name in contacts:
+		contact = frappe.get_doc("Contact", name)
+		if not any(link.link_doctype == "Customer" and link.link_name == customer for link in contact.links):
+			contact.append("links", {"link_doctype": "Customer", "link_name": customer})
+			contact.flags.ignore_permissions = True
+			contact.flags.ignore_mandatory = True
+			contact.save()
+	return customer
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def register(email: str, full_name: str, password: str, redirect_to: Optional[str] = None) -> dict[str, Any]:
+	"""Create a storefront account (Website User + portal role) and sign the shopper in."""
+	from frappe.core.doctype.user.user import is_signup_disabled
+	from frappe.utils import escape_html, validate_email_address
+
+	_guest_limit("webshop.register", 5, 600)
+	if frappe.session.user != "Guest":
+		return {"ok": True, "user": frappe.session.user, "already_signed_in": True, "redirect_to": "/shop/account"}
+	if is_signup_disabled():
+		frappe.throw(_("Registration is closed — please ask in store"), frappe.ValidationError)
+	email = (email or "").strip().lower()
+	full_name = " ".join((full_name or "").split())
+	if not validate_email_address(email):
+		frappe.throw(_("Please enter a valid e-mail address"), frappe.ValidationError)
+	if len(full_name) < 2:
+		frappe.throw(_("Please tell us your name"), frappe.ValidationError)
+	if not password or len(password) < MIN_PASSWORD_LENGTH:
+		frappe.throw(_("Please choose a password of at least {0} characters").format(MIN_PASSWORD_LENGTH), frappe.ValidationError)
+	if frappe.db.exists("User", email):
+		# never touch an existing account (and never set a password on one)
+		frappe.throw(_("There is already an account for {0} — please sign in instead").format(email), frappe.ValidationError)
+
+	parts = full_name.split(" ", 1)
+	user = frappe.get_doc(
+		{
+			"doctype": "User",
+			"email": email,
+			"first_name": escape_html(parts[0]),
+			"last_name": escape_html(parts[1]) if len(parts) > 1 else "",
+			"enabled": 1,
+			"user_type": "Website User",
+			"send_welcome_email": 0,
+			"new_password": password,
+		}
+	)
+	user.flags.ignore_permissions = True
+	user.insert()
+	role = frappe.db.get_single_value("Portal Settings", "default_role") or "Customer"
+	if frappe.db.exists("Role", role):
+		user.add_roles(role)
+	_ensure_portal_party(user.name, user.full_name or full_name)
+	# sign them straight in — the point of registering here is to get to the bag
+	login_manager = getattr(frappe.local, "login_manager", None)
+	if login_manager:
+		login_manager.login_as(user.name)
+	else:  # no HTTP session (tests / a console call): the account is still ready to sign in with
+		frappe.set_user(user.name)
+	frappe.local.response["type"] = "json"
+	target = redirect_to if (redirect_to or "").startswith("/") and "//" not in (redirect_to or "") else "/shop/account"
+	return {"ok": True, "user": user.name, "full_name": user.full_name, "redirect_to": target}
+# --- end v0.8 QA A1 ---
+
+
 @frappe.whitelist(allow_guest=True)
 def enquire(
 	item_code: str,
@@ -209,6 +376,7 @@ def enquire(
 	serial_no: Optional[str] = None,
 ) -> dict[str, Any]:
 	"""Create a ``Maison Web Enquiry`` (+ an ERPNext Lead, best effort) for an Enquire-mode piece."""
+	_guest_limit("webshop.enquire", 5, 600)
 	if not frappe.db.exists("Item", item_code):
 		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
 	name = (name or "").strip()
@@ -294,6 +462,10 @@ def loyalty_lookup(client_number: Optional[str] = None, email: Optional[str] = N
 	client_number = (client_number or "").strip().upper().replace(" ", "")
 	email = (email or "").strip().lower()
 	if client_number or email:
+		# v0.7 S4 — it takes *both* halves to match, but guessing must still cost something.
+		# Only the guessable path is limited: the signed-in shopper's own card (no arguments)
+		# is read on every account-page render and must not throttle.
+		_guest_limit("webshop.loyalty_lookup", 15, 600)
 		if not (client_number and email):
 			frappe.throw(_("Enter both your client number and the e-mail we have on file"), frappe.ValidationError)
 		row = frappe.db.get_value(
@@ -420,6 +592,41 @@ def _payment_mode_info() -> dict[str, Any]:
 	}
 
 
+# --- v0.8 QA A5 — refuse an item that cannot be bought online at *add* time ------------------
+#
+# `update_cart` had no web-mode guard, so an API caller (or a cart left over from before an item
+# was made 21+) could put an "Available in store" product in the bag; `place_order` then refused
+# the whole basket with a message about one line, leaving a bag the shopper had to repair by hand.
+# The refusal belongs where the line is added, and it has to say what to do instead.
+# ---------------------------------------------------------------------------------------------
+def _assert_buyable_online(item_code: str) -> None:
+	item = frappe.db.get_value(
+		"Item",
+		item_code,
+		["item_code", "item_name", "has_serial_no", "is_stock_item", "maison_web_mode", "maison_age_restricted"],
+		as_dict=True,
+	)
+	if not item:
+		frappe.throw(_("Item {0} not found").format(item_code), frappe.DoesNotExistError)
+	if core.effective_web_mode(item) == "Buy":
+		return
+	name = item.item_name or item.item_code
+	if core.is_age_restricted_online_blocked(item):
+		from maison_pos.brand import get_age_settings, get_brand
+
+		frappe.throw(
+			_("{0} is {1}+ and is sold in store only — bring a valid government ID to any {2}. It cannot be added to your bag.").format(
+				name, get_age_settings()["minimum_age"], str(get_brand()["store_noun"]).lower()
+			),
+			frappe.ValidationError,
+		)
+	frappe.throw(
+		_("{0} cannot be bought online — please enquire or reserve it instead").format(name),
+		frappe.ValidationError,
+	)
+# --- end v0.8 QA A5 ---
+
+
 @frappe.whitelist()
 def update_cart(item_code: str, qty: float) -> dict[str, Any]:
 	"""Quantity change / removal. Wraps webshop's ``update_cart``; removing the last line deletes the
@@ -430,6 +637,7 @@ def update_cart(item_code: str, qty: float) -> dict[str, Any]:
 
 	qty = flt(qty)
 	if qty > 0:
+		_assert_buyable_online(item_code)  # v0.8 QA A5
 		_update_cart(item_code, qty)
 		return cart()
 	quotation = _get_cart_quotation()
@@ -958,6 +1166,7 @@ def _notify_boutique(so) -> None:
 @frappe.whitelist(allow_guest=True)
 def status() -> dict[str, Any]:
 	"""Feature flags for the storefront JS."""
+	_guest_limit("webshop.status", 240)
 	enabled = False
 	if is_webshop_installed():
 		enabled = bool(frappe.db.get_single_value("Webshop Settings", "enabled"))

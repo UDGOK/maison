@@ -126,5 +126,13 @@ class TestReports(FrappeTestCase):
 		self.assertGreaterEqual(len(lines), 2)
 		self.assertTrue(all(NYC in l for l in lines[1:]))
 		listed = reports.list_reports()["reports"]
-		self.assertEqual(len(listed), 8)
+		# v0.8 QA D-6: Commission Statement / Promotion Performance / Campaign Performance were
+		# missing from `REPORTS`, so head office could neither open nor export them
+		self.assertEqual(len(listed), 11)
+		self.assertLessEqual(
+			{"Maison Commission Statement", "Maison Promotion Performance", "Maison Campaign Performance"},
+			{r["name"] for r in listed},
+		)
 		self.assertTrue(all(r["installed"] for r in listed))
+		reports.export("Maison Commission Statement", {"boutique": NYC, "from_date": nowdate(), "to_date": nowdate()})
+		self.assertEqual(frappe.response["type"], "download")

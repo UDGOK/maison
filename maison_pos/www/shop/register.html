@@ -1,0 +1,80 @@
+{% extends "maison_pos/templates/webshop/base.html" %}
+{% block shop_content %}
+<div class="mw-wrap">
+	<section class="mw-narrow" style="max-width:520px">
+		<span class="mw-label gold">{{ shop.brand_name }}</span>
+		<h1 class="mw-display md" style="margin:10px 0 6px" data-testid="register-title">Create an account</h1>
+		<p class="mw-note" style="margin-bottom:26px">Order online and collect in your {{ shop.store_noun | lower }}. One account for your bag, your orders and your {{ shop.rewards_name }} balance.</p>
+
+		{% if signed_in %}
+		<div class="mw-panel" data-testid="register-signed-in">
+			<p class="mw-note">You are signed in as <b>{{ shop.full_name or shop.user }}</b>.</p>
+			<a class="mw-btn" href="{{ redirect_to }}">Continue</a>
+		</div>
+		{% elif not signup_enabled %}
+		<div class="mw-panel" data-testid="register-closed">
+			<p class="mw-note">Online registration is closed at the moment — ask in any {{ shop.store_noun | lower }} and we will set you up.</p>
+			<a class="mw-btn ghost" href="{{ login_url }}">Sign in</a>
+		</div>
+		{% else %}
+		<form class="rw-join" id="rg-form" data-token="{{ csrf_token }}" data-redirect="{{ redirect_to }}" novalidate>
+			<label for="rg-name">Name</label>
+			<input type="text" id="rg-name" name="full_name" autocomplete="name" required placeholder="First and last name">
+			<label for="rg-email">E-mail</label>
+			<input type="email" id="rg-email" name="email" autocomplete="email" required placeholder="you@example.com">
+			<label for="rg-password">Password</label>
+			<input type="password" id="rg-password" name="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+			<label for="rg-password2">Confirm password</label>
+			<input type="password" id="rg-password2" name="password2" autocomplete="new-password" required minlength="8" placeholder="Type it again">
+			<button type="submit" id="rg-submit" data-testid="register-submit">Create account</button>
+			<div class="err" id="rg-err" role="alert" style="display:none"></div>
+			<div class="ok" id="rg-ok" role="status" style="display:none"></div>
+		</form>
+		<p class="mw-note" style="margin-top:22px">Already have an account? <a href="{{ login_url }}" data-testid="register-signin" style="color:var(--mw-accent)">Sign in</a>.</p>
+		{% endif %}
+	</section>
+</div>
+{% endblock %}
+
+{% block shop_script %}
+<script>
+(function () {
+	var form = document.getElementById('rg-form');
+	if (!form) return;
+	var err = document.getElementById('rg-err'), ok = document.getElementById('rg-ok'), btn = document.getElementById('rg-submit');
+	function fail(m) { err.textContent = m; err.style.display = 'block'; ok.style.display = 'none'; btn.disabled = false; }
+	form.addEventListener('submit', function (e) {
+		e.preventDefault();
+		err.style.display = 'none';
+		var args = {
+			full_name: document.getElementById('rg-name').value.trim(),
+			email: document.getElementById('rg-email').value.trim(),
+			password: document.getElementById('rg-password').value,
+			redirect_to: form.dataset.redirect || '/shop/account'
+		};
+		var again = document.getElementById('rg-password2').value;
+		if (!args.full_name) return fail('Please enter your name.');
+		if (!args.email) return fail('Please enter your e-mail address.');
+		if (args.password.length < 8) return fail('Please choose a password of at least 8 characters.');
+		if (args.password !== again) return fail('The two passwords do not match.');
+		btn.disabled = true;
+		/* the CSRF token travels in the body, like the rewards form — no framework-named header */
+		args.csrf_token = (form.dataset && form.dataset.token) || '';
+		fetch('/api/method/maison_pos.api.webshop.register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(args) })
+			.then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+			.then(function (r) {
+				if (r.status >= 200 && r.status < 300 && r.body.message && r.body.message.ok) {
+					ok.textContent = 'Welcome — taking you to your bag…';
+					ok.style.display = 'block';
+					window.location.href = r.body.message.redirect_to || '/shop/account';
+					return;
+				}
+				var m = (r.body && (r.body._server_messages || r.body.exception || r.body.message)) || 'Something went wrong.';
+				try { var arr = JSON.parse(m); if (arr.length) m = JSON.parse(arr[0]).message; } catch (e2) {}
+				fail(String(m).replace(/<[^>]+>/g, ''));
+			})
+			.catch(function () { fail('Network error — please try again.'); });
+	});
+})();
+</script>
+{% endblock %}

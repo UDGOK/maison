@@ -1,0 +1,43 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "the shipment lines record shipped / received / damaged / short / over per line",
+   "ok": true,
+   "detail": "ROL-002: qty 6 shipped 6 recv 4 dmg 0 short 2 over 0 | ACC-002: qty 4 shipped 4 recv 5 dmg 0 short 0 over 1 | ROL-006: qty 3 shipped 3 recv 2 dmg 1 short 0 over 0",
+   "severity": ""
+  },
+  {
+   "step": "SHIP leg: every line leaves the warehouse and lands in \"<store> In Transit\"",
+   "ok": true,
+   "detail": "{\"se\":\"MAT-STE-2026-00054\",\"from\":\"HOU-WH - CCZ\",\"to\":\"OK-JENKS In Transit - CCZ\",\"sle\":[\"ROL-002 OK-JENKS In Transit +6\",\"ACC-002 HOU-WH -4\",\"ROL-002 HOU-WH -6\",\"ROL-006 OK-JENKS In Transit +3\",\"ROL-006 HOU-WH -3\",\"ACC-002 OK-JENKS In Transit +4\"]}",
+   "severity": ""
+  },
+  {
+   "step": "RECEIVE leg: only the counted units move In Transit -> store (short stays behind, over is ignored)",
+   "ok": true,
+   "detail": "{\"se\":\"MAT-STE-2026-00055\",\"from\":\"OK-JENKS In Transit - CCZ\",\"to\":\"OK-JENKS - CCZ\",\"sle\":[\"ROL-006 OK-JENKS +2\",\"ROL-002 OK-JENKS In Transit -4\",\"ACC-002 OK-JENKS +4\",\"ROL-002 OK-JENKS +4\",\"ROL-006 OK-JENKS In Transit -2\",\"ACC-002 OK-JENKS In Transit -4\"]}",
+   "severity": ""
+  },
+  {
+   "step": "DAMAGED leg: the damaged unit is a separate Stock Entry into \"<store> Damaged\"",
+   "ok": true,
+   "detail": "{\"se\":\"MAT-STE-2026-00056\",\"from\":\"OK-JENKS In Transit - CCZ\",\"to\":\"OK-JENKS Damaged - CCZ\",\"sle\":[\"ROL-006 OK-JENKS In Transit -1\",\"ROL-006 OK-JENKS Damaged +1\"]}",
+   "severity": ""
+  },
+  {
+   "step": "the \"Returned to warehouse\" resolution posts In Transit -> warehouse for the short units",
+   "ok": true,
+   "detail": "MAT-STE-2026-00057: [[\"ROL-002\",\"HOU-WH - CCZ\",2],[\"ROL-002\",\"OK-JENKS In Transit - CCZ\",-2]]",
+   "severity": ""
+  },
+  {
+   "step": "nothing is left stranded in the store's In Transit warehouse after the discrepancies are resolved",
+   "ok": true,
+   "detail": "[[\"a\",0],[\"b\",0],[\"c\",0]]",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

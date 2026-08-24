@@ -1,0 +1,28 @@
+{
+  "when": "2026-08-23T19:58:38.928Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "8.3c \"Sync now\" does not re-send a sale that was rejected by a transient 403",
+      "ok": true,
+      "detail": "queue before=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE 1 SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOC\" after Sync now=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE 1 SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · \"; invoice=[]",
+      "sev": ""
+    },
+    {
+      "step": "8.3d the per-row Retry recovers a sale rejected by an expired session",
+      "ok": true,
+      "detail": "after Retry: queue=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 0 rejected · 1 synced \"; invoice=[{\"name\":\"ACC-SINV-2026-03075\"}]",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03075"
+  ]
+}

@@ -6,13 +6,14 @@ import { useCartStore } from '@/stores/cart'
 import { useSessionStore } from '@/stores/session'
 import { useCatalogStore } from '@/stores/catalog'
 import { useSyncStore } from '@/stores/sync'
-import { IS_MOCK, type POSInvoice } from '@/api'
+import { IS_MOCK, type POSInvoice, type POSPayment } from '@/api'
 import { usePromosStore } from '@/stores/promos'
 import { __mockRedeemCoupon } from '@/api/v04'
 import type { ReceiptSnapshot } from '@/db'
 import type { CardResult, TerminalProgress } from '@/payments/terminal'
 import { usePrinterStore } from '@/stores/printer'
 import { fmtMoney, round } from '@/utils/money'
+import { lineGross, lineNet } from '@/utils/totals' // v0.8 POS D1
 import { useLayoutStore } from '@/stores/layout'
 import { useSalonPosStore } from '@/stores/salon' // v0.5 K
 import { useWebOrdersStore } from '@/stores/webOrders' // v0.4 G
@@ -32,7 +33,9 @@ const layout = useLayoutStore()
 const age = useAgeStore() // v0.6 N
 const brand = useBrand() // v0.6 N
 
-const mode = ref<'cash' | 'card'>((route.query.mode as 'cash' | 'card') || 'cash')
+// v0.8 POS D10 — cash, card, or part of each
+type PayMode = 'cash' | 'card' | 'split'
+const mode = ref<PayMode>((route.query.mode as PayMode) || 'cash')
 
 // --- v0.4 G: collecting a web order — the amount paid online is an advance; only the balance is due ---
 const webOrders = useWebOrdersStore()
@@ -67,6 +70,52 @@ function key(k: string) {
   else if (tenderedStr.value.length < 10) tenderedStr.value += k
 }
 
+// --- v0.8 POS D10 — split tender (part cash, part card) ---
+// A customer paying half in cash and half on a card could not be served: the Pay screen offered a
+// single mode and `finalize()` always sent exactly one payment row, even though the server has
+// always accepted several (`maison_pos/api/sales.py::build_sales_invoice` loops over `payments`,
+// and `_validate_payments_cover_total` only forbids a *card* overshooting the total).
+// The associate types the cash they are taking; whatever is left goes on the reader. There is no
+// change on a split — extra cash simply reduces the card share, which is what a till does anyway.
+const splitCashStr = ref('')
+const splitCash = computed(() => round(Math.min(Math.max(0, parseFloat(splitCashStr.value) || 0), total.value)))
+const splitCard = computed(() => round(total.value - splitCash.value))
+const splitOk = computed(() => splitCash.value > 0.005 && splitCard.value > 0.005)
+/** Handy cash parts: half the bill and the round notes below it. */
+const splitQuick = computed(() => {
+  const t = total.value
+  const options = [round(t / 2), Math.floor(t / 20) * 20, Math.floor(t / 50) * 50, Math.floor(t / 100) * 100]
+  return [...new Set(options.filter((v) => v > 0.005 && v < t - 0.005))].slice(0, 4)
+})
+function splitKey(k: string) {
+  if (k === 'clear') splitCashStr.value = ''
+  else if (k === 'back') splitCashStr.value = splitCashStr.value.slice(0, -1)
+  else if (k === '.' && splitCashStr.value.includes('.')) return
+  else if (splitCashStr.value.length < 10) splitCashStr.value += k
+}
+async function paySplit() {
+  if (!splitOk.value || busy.value) return
+  cardError.value = ''
+  busy.value = true
+  try {
+    const result = await terminal.charge({
+      boutique: session.boutique!.name,
+      amount: Math.round(splitCard.value * 100),
+      currency: session.currency,
+      offline_uuid: offline_uuid.value,
+      customer: cart.customer?.name,
+      onProgress: (p) => (progress.value = p)
+    })
+    await finalize('Card', result, { cash: splitCash.value, card: splitCard.value })
+  } catch (e) {
+    progress.value = { step: 'error', message: (e as Error).message }
+    cardError.value = (e as Error).message
+  } finally {
+    busy.value = false
+  }
+}
+// --- end v0.8 POS D10 ---
+
 // ---- card
 // v0.4 A — the driver is bound to the reader picked in Settings (shared with the printer store)
 const terminal = usePrinterStore().terminal()
@@ -79,7 +128,9 @@ watch(
   [mode, () => progress.value.step, total],
   () => {
     if (salon.pay?.step === 'approved') return
-    salon.setPay({ mode: mode.value, amount: total.value, step: mode.value === 'card' && ['collecting', 'processing'].includes(String(progress.value.step)) ? 'processing' : 'present' })
+    // v0.8 POS D10 — the client display knows two modes; a split shows as the card leg
+    const shown = mode.value === 'cash' ? 'cash' : 'card'
+    salon.setPay({ mode: shown, amount: total.value, step: shown === 'card' && ['collecting', 'processing'].includes(String(progress.value.step)) ? 'processing' : 'present' })
   },
   { immediate: true, flush: 'post' }
 )
@@ -142,7 +193,64 @@ async function payCash() {
   }
 }
 
-async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
+/**
+ * The tender rows for the invoice and the matching rows for the printed receipt.
+ *
+ * --- v0.8 POS D7 / D10 / D11 ---
+ * D7: the terminal tells us the brand, the last four digits and the approval code; all three were
+ * dropped here, so the invoice kept only the payment intent and the Returns screen could not name
+ * the card it was about to refund. The server already reads `card_brand` / `last4` /
+ * `approval_code` (`maison_pos/api/sales.py::build_sales_invoice`).
+ * D10: a split sends two rows — the cash taken and the balance charged to the card.
+ * D11: a cash row carries what was actually **tendered**, not what was due. ERPNext computes
+ * `change_amount = paid_amount - grand_total` for a Cash tender and posts the change back through
+ * the till's change account, so the drawer reconciles against the invoice and the change given is
+ * auditable. The receipt already printed both; only the document was missing them.
+ * --- end v0.8 POS D7 / D10 / D11 ---
+ */
+function cardRow(amount: number, card?: CardResult): POSPayment {
+  return {
+    mode_of_payment: 'Card',
+    amount,
+    stripe_payment_intent: card?.payment_intent,
+    card_brand: card?.card_brand,
+    last4: card?.last4,
+    approval_code: card?.approval
+  }
+}
+
+function tenders(
+  modeOfPayment: 'Cash' | 'Card',
+  card?: CardResult,
+  split?: { cash: number; card: number }
+): { invoice: POSPayment[]; receipt: ReceiptSnapshot['payments'] } {
+  // v0.4 G — nothing to tender when the web order was fully paid online; v0.8 POS D3 — a $0.00
+  // comp / 100 % discount sends the same empty array and the server books it
+  if (total.value <= 0.005) return { invoice: [], receipt: [] }
+  if (split) {
+    return {
+      invoice: [{ mode_of_payment: 'Cash', amount: split.cash }, cardRow(split.card, card)],
+      receipt: [
+        { mode_of_payment: 'Cash', amount: split.cash, tendered: split.cash, change: 0 },
+        { mode_of_payment: 'Card', amount: split.card, card_brand: card?.card_brand, last4: card?.last4, approval: card?.approval }
+      ]
+    }
+  }
+  if (modeOfPayment === 'Cash') {
+    const paid = Math.max(total.value, round(tendered.value))
+    return {
+      invoice: [{ mode_of_payment: 'Cash', amount: paid }],
+      receipt: [{ mode_of_payment: 'Cash', amount: total.value, tendered: paid, change: change.value }]
+    }
+  }
+  return {
+    invoice: [cardRow(total.value, card)],
+    receipt: [{ mode_of_payment: 'Card', amount: total.value, card_brand: card?.card_brand, last4: card?.last4, approval: card?.approval }]
+  }
+}
+
+async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult, split?: { cash: number; card: number }) {
+  const paid = tenders(modeOfPayment, card, split)
   const now = new Date()
   const invoice: POSInvoice = {
     offline_uuid: offline_uuid.value,
@@ -160,8 +268,7 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
       discount_amount: round(l.discount_amount + (promos.promoResult.perLine[l.id] || 0)) || undefined,
       coupon_discount: promos.couponResult.perLine[l.id] || undefined
     })),
-    // v0.4 G — nothing to tender when the web order was fully paid online
-    payments: total.value > 0.005 ? [{ mode_of_payment: modeOfPayment, amount: total.value, stripe_payment_intent: card?.payment_intent }] : [],
+    payments: paid.invoice,
     sales_order: webOrders.active?.name,
     loyalty_points_redeemed: cart.loyalty_points_redeemed || undefined,
     notes: cart.notes || undefined,
@@ -192,10 +299,11 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
       item_name: l.item_name,
       qty: l.qty,
       rate: l.rate,
-      amount: round(l.qty * l.rate - l.discount_amount - (cart.extras[l.id] || 0)),
+      // v0.8 POS D1 — the same cent-granular line net the totals (and the invoice) use
+      amount: lineNet(l.qty, l.rate, round(l.discount_amount + (cart.extras[l.id] || 0))),
       serial_no: l.serial_no,
       certificate_no: l.certificate_no,
-      discount_amount: round(l.discount_amount + (cart.extras[l.id] || 0)) || undefined
+      discount_amount: round(lineGross(l.qty, l.rate) - lineNet(l.qty, l.rate, round(l.discount_amount + (cart.extras[l.id] || 0)))) || undefined
     })),
     net_total: t.net_total,
     discount: t.discount,
@@ -204,14 +312,7 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult) {
     loyalty_amount: t.loyalty_amount,
     loyalty_points_redeemed: cart.reward_tiers.length ? cart.rewardPoints : cart.loyalty_points_redeemed,
     grand_total: t.grand_total,
-    payments:
-      total.value > 0.005
-        ? [
-            modeOfPayment === 'Cash'
-              ? { mode_of_payment: 'Cash', amount: total.value, tendered: round(tendered.value), change: change.value }
-              : { mode_of_payment: 'Card', amount: total.value, card_brand: card?.card_brand, last4: card?.last4, approval: card?.approval }
-          ]
-        : [],
+    payments: paid.receipt,
     web_order: webOrders.active?.name, // v0.4 G
     prepaid: prepaid.value || undefined, // v0.4 G
     points_earned: cart.pointsEarned,
@@ -255,6 +356,8 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
       <div class="tabs">
         <button class="tab display" :class="{ active: mode === 'cash' }" :disabled="busy" @click="mode = 'cash'">Cash</button>
         <button class="tab display" :class="{ active: mode === 'card' }" :disabled="busy" @click="mode = 'card'">Card</button>
+        <!-- v0.8 POS D10 -->
+        <button class="tab display" :class="{ active: mode === 'split' }" :disabled="busy" data-testid="pay-tab-split" @click="mode = 'split'">Split</button>
       </div>
 
       <div class="amount">
@@ -287,6 +390,35 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
           <button class="btn btn-big" :disabled="busy" @click="router.push({ name: 'sell' })">Back</button>
           <button v-if="fullyPrepaid" class="btn btn-primary btn-big" style="flex: 1" :disabled="busy" data-testid="collect-complete" @click="completeCollection">Complete collection · paid online</button>
           <button v-else class="btn btn-primary btn-big" style="flex: 1" :disabled="!cashOk || busy" @click="payCash">Complete cash sale</button>
+        </div>
+      </div>
+
+      <!-- SPLIT — v0.8 POS D10: take part in cash, charge the balance to the card -->
+      <div v-else-if="mode === 'split'" class="cash split">
+        <div class="cash-grid">
+          <div class="cash-left">
+            <div class="field">
+              <label class="label">Cash taken</label>
+              <div class="tendered num" :class="{ placeholder: !splitCashStr }" data-testid="split-cash">{{ splitCashStr ? splitCashStr : fmtMoney(0, session.currency) }}</div>
+            </div>
+            <div class="quick">
+              <button v-for="qv in splitQuick" :key="qv" class="chip" :disabled="busy" @click="splitCashStr = String(qv)">{{ fmtMoney(qv, session.currency) }}</button>
+            </div>
+            <div class="change between">
+              <span class="label">On the card</span>
+              <span class="num change-amt" :class="{ crit: !splitOk }" data-testid="split-card">{{ fmtMoney(splitCard, session.currency) }}</span>
+            </div>
+            <div class="status" :class="{ crit: progress.step === 'error', good: progress.step === 'done' }">
+              {{ progress.step === 'idle' ? (splitOk ? 'Take the cash, then charge the balance' : 'Enter the cash part — both parts must be more than zero') : progress.message }}
+            </div>
+          </div>
+          <Keypad decimal @key="splitKey" />
+        </div>
+        <div class="actions">
+          <button class="btn btn-big" :disabled="busy" @click="router.push({ name: 'sell' })">Back</button>
+          <button class="btn btn-primary btn-big" style="flex: 1" :disabled="!splitOk || busy" data-testid="split-complete" @click="paySplit">
+            {{ busy ? progress.message : progress.step === 'error' ? 'Retry card' : `Take ${fmtMoney(splitCash, session.currency)} cash · charge ${fmtMoney(splitCard, session.currency)}` }}
+          </button>
         </div>
       </div>
 
@@ -323,7 +455,7 @@ if (!cart.lines.length) router.replace({ name: 'sell' })
         <div v-for="l in cart.lines" :key="l.id" class="sline">
           <div class="between">
             <span class="ellipsis">{{ l.item_name }}</span>
-            <span class="num">{{ fmtMoney(l.qty * l.rate - l.discount_amount, session.currency) }}</span>
+            <span class="num">{{ fmtMoney(lineNet(l.qty, l.rate, l.discount_amount), session.currency) }}</span>
           </div>
           <div class="muted sline-sub">{{ l.serial_no ? 'Serial ' + l.serial_no : l.qty + ' × ' + fmtMoney(l.rate, session.currency) }}</div>
         </div>

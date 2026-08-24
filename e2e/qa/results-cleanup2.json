@@ -1,0 +1,48 @@
+{
+  "when": "2026-08-23T22:49:11.652Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "cleanup · web orders cancelled",
+      "ok": true,
+      "detail": "left: none",
+      "sev": ""
+    },
+    {
+      "step": "cleanup · test giveaway removed",
+      "ok": true,
+      "detail": "[]",
+      "sev": ""
+    },
+    {
+      "step": "cleanup · nothing of mine is left submitted",
+      "ok": true,
+      "detail": "{\"invoices\":0,\"orders\":0}",
+      "sev": ""
+    },
+    {
+      "step": "cleanup · records deliberately kept (audit trail)",
+      "ok": true,
+      "detail": "enquiry [{\"name\":\"MWE-2026-00001\",\"status\":\"Contacted\"}] · feedback [{\"name\":\"a6o1b7eo97\",\"rating\":5},{\"name\":\"4jretiisc1\",\"rating\":2}] · customers [{\"name\":\"QA4 Declined QA4A\",\"disabled\":1},{\"name\":\"QA4 Recog QA4A\",\"disabled\":1},{\"name\":\"QA4 Salon QA4A\",\"disabled\":1},{\"name\":\"QA4 New Shopper QA4A\",\"disabled\":1},{\"name\":\"QA4 Member QA4A\",\"disabled\":1},{\"name\":\"QA4 Bypass QA4A\",\"disabled\":1}]",
+      "sev": ""
+    },
+    {
+      "step": "cleanup · no Salon session left paired anywhere",
+      "ok": false,
+      "detail": "[{\"name\":\"991a2de5b55d4b357cbf0ce6452b1963\",\"boutique\":\"HOU-MTR\"}]",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "cancelled": [
+    "Payment Request ACC-PRQ-2026-00002",
+    "Sales Order SAL-ORD-2026-00002",
+    "Payment Request ACC-PRQ-2026-00003",
+    "Sales Order SAL-ORD-2026-00003"
+  ],
+  "deleted": [
+    "Maison Giveaway Entry bqhrjp6ar7",
+    "Maison Giveaway GIVE-2026-00055"
+  ],
+  "failed": []
+}

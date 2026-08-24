@@ -1,0 +1,120 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "store manager unlocks the POS at their store (PIN)",
+   "ok": true,
+   "detail": "ok.jenks.manager@cloudchaserz.example @ OK-JENKS",
+   "severity": ""
+  },
+  {
+   "step": "the Shift screen shows a \"Low stock\" card with the open-alert count",
+   "ok": true,
+   "detail": "\"LOW STOCK 2 OPEN Green Maeng Da Powder 100g · KRT-001 2 / 3 ACKNOWLEDGED MAT-MR-2026-00005 requested RESOLVE Al Fakher Two Apples 250g · HKA-004 3 / 4 OPEN ACKNOWLEDGE REQUEST FROM WAREHOUSE TRANSFER… RESOLVE REFRESH\"",
+   "severity": ""
+  },
+  {
+   "step": "the Shift count matches the alerts API for this store",
+   "ok": true,
+   "detail": "card says \"2 OPEN\", API open=2 (KRT-001/Acknowledged, HKA-004/Open)",
+   "severity": ""
+  },
+  {
+   "step": "each low-stock line shows on-hand vs reorder level and its state",
+   "ok": true,
+   "detail": "LOW STOCK 2 OPEN Green Maeng Da Powder 100g · KRT-001 2 / 3 ACKNOWLEDGED MAT-MR-2026-00005 requested RESOLVE Al Fakher Two Apples 250g · HKA-004 3 / 4 OPEN ACKNOWLEDGE REQUEST FROM WAREHOUSE TRANSFER…",
+   "severity": ""
+  },
+  {
+   "step": "a low-stock line offers a one-tap \"Request from warehouse\" when nothing is on order yet",
+   "ok": true,
+   "detail": "1 one-tap buttons; ids=[\"request-warehouse-HKA-004\"]",
+   "severity": ""
+  },
+  {
+   "step": "tapping it raises a replenishment request straight from the alert",
+   "ok": true,
+   "detail": "request-warehouse-HKA-004 -> MRR-2026-00043 HKA-004×10 Low stock",
+   "severity": ""
+  },
+  {
+   "step": "the Receive screen lists what is in transit to this store",
+   "ok": true,
+   "detail": "FROM THE WAREHOUSE 1 IN TRANSIT MSH-2026-00042 5 UNITS USPS GROUND ADVANTAGE · 9400320104575999133830 · SHIPPED AUG 23, 2026, 15:33 BEING PREPARED AT THE WAREHOUSE MSH-2026-00028 PICKING MSH-2026-00030 PACKED MSH-2026-00032 PACKED MSH-2026-",
+   "severity": ""
+  },
+  {
+   "step": "the Receive screen lists vendor POs addressed to the store",
+   "ok": true,
+   "detail": "VENDOR DELIVERIES (POS) 1 OPEN PUR-ORD-2026-00001 60% QA2 TEST SUPPLIER · EXPECTED 2026-08-23 · 1 LINES",
+   "severity": ""
+  },
+  {
+   "step": "the Receive screen shows my requests with their status and any rejection reason",
+   "ok": false,
+   "detail": "MY REQUESTS 4 PENDING MRR-2026-00043 · 1 item · 10 u PENDING APPROVAL AUG 23, 2026, 15:34 MRR-2026-00041 · 1 item · 5 u APPROVED AUG 23, 2026, 15:33 · MSH-2026-00042 MRR-2026-00040 · 1 item · 1 u PENDING APPROVAL AUG 23, 2026, 15:31 MRR-2026-00035 · 3 items · 13 u APPROVED AUG 23, 2026, 15:31 · MSH-",
+   "severity": ""
+  },
+  {
+   "step": "a manual request with an edited quantity can be sent from the Receive screen",
+   "ok": true,
+   "detail": "MRR-2026-00044 ROL-006×3",
+   "severity": ""
+  },
+  {
+   "step": "scanning the item barcode increments the counted quantity on the sheet",
+   "ok": true,
+   "detail": "3 scans of EAN 2007841007630 -> counted \"3\"; pill=\"COUNTED · 2007841007630\"",
+   "severity": ""
+  },
+  {
+   "step": "scanning a barcode that is not on this delivery is rejected with a clear pill",
+   "ok": true,
+   "detail": "\"NOT ON THIS DELIVERY · 9999999999999\"",
+   "severity": ""
+  },
+  {
+   "step": "the sheet summarises the short/over position before posting",
+   "ok": true,
+   "detail": "\"3 / 5 UNITS · 1 SHORT\"",
+   "severity": ""
+  },
+  {
+   "step": "a \"Save partial\" action is offered while units are still missing",
+   "ok": true,
+   "detail": "partial button present=true",
+   "severity": ""
+  },
+  {
+   "step": "the partial receipt posts from the UI and the shipment stays in transit",
+   "ok": true,
+   "detail": "\"MSH-2026-00042 · PARTIAL RECEIPT SAVED DISMISS Stock Entry MAT-STE-2026-00059\"; status=Shipped received=3/5",
+   "severity": ""
+  },
+  {
+   "step": "completing the count from the UI closes the shipment and posts the rest",
+   "ok": true,
+   "detail": "\"MSH-2026-00042 · RECEIVED DISMISS Stock Entry MAT-STE-2026-00060\"; status=Received received=5",
+   "severity": ""
+  },
+  {
+   "step": "no \"Frappe\"/\"ERPNext\" text visible on the POS Receive screen",
+   "ok": true,
+   "detail": "1935 chars scanned",
+   "severity": ""
+  }
+ ],
+ "console": [
+  {
+   "tag": "pos",
+   "type": "error",
+   "text": "An unknown error occurred when fetching the script."
+  },
+  {
+   "tag": "pos",
+   "type": "warning",
+   "text": "[maison] service worker registration failed TypeError: Failed to register a ServiceWorker for scope ('https://cloudchaserz.frappe.cloud/pos/') with script ('https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.pwa.service_worker'): An unknown error occurred when fetching the script."
+  }
+ ]
+}

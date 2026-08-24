@@ -402,8 +402,20 @@ export interface POSInvoiceItem {
 
 export interface POSPayment {
   mode_of_payment: 'Cash' | 'Card'
+  /**
+   * What the client handed over on this tender. For cash this is the amount **tendered**, not the
+   * amount due (v0.8 POS D11): ERPNext derives `change_amount` from `paid_amount - grand_total`,
+   * so sending the due amount left the drawer unreconcilable and the change unauditable.
+   */
   amount: number
   stripe_payment_intent?: string
+  // --- v0.8 POS D7 — the terminal result belongs on the invoice, not only on the paper receipt ---
+  // Without these, Returns offers "Original card — Card ••••" with no digits and card
+  // reconciliation has nothing to match on. `maison_pos/api/sales.py` already reads all three.
+  card_brand?: string
+  last4?: string
+  approval_code?: string
+  // --- end v0.8 POS D7 ---
 }
 
 export interface POSInvoice {
@@ -446,6 +458,14 @@ export interface AgeCheckPayload {
 }
 // --- end v0.6 N ---
 
+/** v0.8 POS D4 */
+export interface EmailReceiptResult {
+  ok: boolean
+  queued: boolean
+  invoice?: string
+  email_masked?: string
+}
+
 export type SubmitStatus = 'ok' | 'duplicate' | 'error'
 
 export interface SubmitResult {
@@ -458,6 +478,11 @@ export interface SubmitResult {
   error_code?: string
   /** v0.6 Q — points earned / balance / next reward / giveaway entries (member sales) */
   rewards?: RewardsExtras | null
+  /**
+   * v0.8 POS D1 — set when the server booked a rounding-sized gap between the tenders and the
+   * invoice total to the store's write-off account instead of refusing a completed sale.
+   */
+  rounding_adjustment?: { amount: number; account: string; note: string } | null
 }
 
 // --- v0.6 Q — `rewards.receipt_extras` (submit result + public receipt) ---
@@ -499,6 +524,11 @@ export interface SalesSummaryRow {
   cash: number
   card: number
   items: number
+  // --- v0.8 POS D11 — what was handed over and what went back, so the drawer reconciles ---
+  /** cash tendered on the invoice (>= `cash`, which is net of the change given) */
+  tendered?: number
+  change_amount?: number
+  // --- end v0.8 POS D11 ---
 }
 
 export interface SalesList {
@@ -560,6 +590,12 @@ export interface MaisonApi {
     void(invoice: string, reason: string): Promise<{ credit_note: string }>
     /** v0.2 — guest endpoint; JSON of a receipt by token. */
     receipt(token: string): Promise<PublicReceipt>
+    /**
+     * v0.8 POS D4 — actually e-mail the receipt link. `invoice_or_token` takes either the Sales
+     * Invoice name or the public receipt token; throws with a readable message when the site has
+     * no outgoing e-mail account, so the till can say so instead of claiming "Email queued".
+     */
+    email_receipt(invoice_or_token: string, email: string): Promise<EmailReceiptResult>
   }
   stripe_terminal: {
     connection_token(boutique: string): Promise<{ secret: string }>

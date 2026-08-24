@@ -1,0 +1,83 @@
+{
+ "when": "2026-08-23",
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "B \u00b7 catalogue bootstrap ships the three reward tiers",
+   "ok": true,
+   "detail": "[[100,5,\"$5 off at 100 points\"],[200,10,\"$10 off at 200 points\"],[300,15,\"$15 off at 300 points\"]]"
+  },
+  {
+   "step": "B \u00b7 stacking is off by default",
+   "ok": true,
+   "detail": "reward_allow_stacking=0"
+  },
+  {
+   "step": "B \u00b7 $1 spent = 1 point, earned on the net amount (not the taxed total)",
+   "ok": true,
+   "detail": "net $359.92 grand $390.21 -> +359 pts (balance 39 -> 398), ACC-SINV-2026-03082"
+  },
+  {
+   "step": "B \u00b7 points are earned on the right basket (invoice-linked entry)",
+   "ok": true,
+   "detail": "[{\"loyalty_points\":359,\"purchase_amount\":359.92,\"expiry_date\":\"2036-08-20\"}]"
+  },
+  {
+   "step": "B \u00b7 all three tiers are affordable at 300+ points",
+   "ok": true,
+   "detail": "points=398 affordable=100,200,300"
+  },
+  {
+   "step": "B \u00b7 the POS Redeem sheet offers every affordable tier",
+   "ok": true,
+   "detail": "$5.00 off 100 POINTS | $10.00 off 200 POINTS | $15.00 off 300 POINTS"
+  },
+  {
+   "step": "B \u00b7 the sheet states 'One reward per transaction' while stacking is off",
+   "ok": true,
+   "detail": "QA4 member has 398 points. One reward per transaction."
+  },
+  {
+   "step": "B \u00b7 redeeming a tier takes the reward off the total",
+   "ok": true,
+   "detail": "130.08 -> 115.08 (-15.00), tier = $15 off at 300 points"
+  },
+  {
+   "step": "B \u00b7 the redeeming sale syncs",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03083"
+  },
+  {
+   "step": "B \u00b7 the invoice records the redemption (loyalty_amount / loyalty_points / tier)",
+   "ok": true,
+   "detail": "loyalty_amount=15 loyalty_points=300 tier=RT-300-00003 grand=130.08"
+  },
+  {
+   "step": "B \u00b7 the balance moves by redeemed minus earned",
+   "ok": true,
+   "detail": "398 -> 202 (-300 redeemed, +104 earned on net 119.98 - 15 reward)"
+  },
+  {
+   "step": "B \u00b7 the receipt shows the redeemed reward and the tier progress",
+   "ok": true,
+   "detail": "REWARD REDEEMED $15 off at 300 points / POINTS EARNED 104 / POINTS BALANCE 202 / NEXT REWARD 15.00 off at 300 pts (98 to go) / GIVEAWAY ENTRIES 4"
+  },
+  {
+   "step": "B \u00b7 a tier the client cannot afford is refused",
+   "ok": true,
+   "detail": "balance=202, asked 300 -> error \"Not enough points: 300 needed, 202 available\""
+  },
+  {
+   "step": "B \u00b7 the POS offers no tier when the balance is short",
+   "ok": true,
+   "detail": "points=202 affordable=100,200 next={points_needed:98}"
+  },
+  {
+   "step": "B \u00b7 stacking two tiers is refused while reward_allow_stacking is off",
+   "ok": true,
+   "detail": "error \"Only one reward can be redeemed per transaction\""
+  }
+ ],
+ "consoleLog": [],
+ "note": "transcribed from the run console; the script crashed on the return step (invalid reason string) before writing the file"
+}

@@ -148,19 +148,19 @@ def _loads(value: Any, default: Any) -> Any:
 		return default
 
 
-def _request_ip() -> Optional[str]:
-	return getattr(frappe.local, "request_ip", None)
-
-
 def _rate_limit(key: str, limit: int, window: int = 60) -> None:
-	if frappe.flags.in_test:
-		return
-	ip = _request_ip() or "local"
-	ck = f"maison_salon_rl:{key}:{ip}"
-	count = cint(frappe.cache().get_value(ck) or 0)
-	if count >= limit:
-		frappe.throw(_("Too many attempts, please wait a moment"), frappe.ValidationError)
-	frappe.cache().set_value(ck, count + 1, expires_in_sec=window)
+	"""v0.7 S4 — throttle one guest endpoint.
+
+	This used to key on ``frappe.local.request_ip``, which the framework reads from the **first**
+	hop of ``X-Forwarded-For`` — i.e. from a header the client itself controls behind a proxy, so
+	a caller that varied it was never limited at all (the QA audit rang 16 ``pair`` calls against
+	a limit of 12 and none were blocked). :mod:`maison_pos.ratelimit` resolves the client from the
+	trusted end of the chain instead, and adds a per-endpoint global ceiling so a distributed
+	flood still runs into something.
+	"""
+	from maison_pos.ratelimit import guard
+
+	guard(f"salon.{key}", limit, window, global_limit=limit * 25, global_seconds=window)
 
 
 def get_session(token: str, *, for_salon: bool = True):
@@ -545,15 +545,18 @@ def identify(token: str, code: str) -> dict[str, Any]:
 
 def _resolve_code(code: str) -> Optional[str]:
 	from maison_pos.api.customers import _customer_rows, _phone_regexp
-	from maison_pos.identifiers import CUSTOMER_QR_PREFIX, is_client_number, normalize_client_number
+	from maison_pos.identifiers import CUSTOMER_QR_PREFIX, coerce_client_number
 
 	if code.upper().startswith(CUSTOMER_QR_PREFIX):
 		payload = code[len(CUSTOMER_QR_PREFIX) :].strip()
 		if frappe.db.exists("Customer", {"name": payload, "disabled": 0}):
 			return payload
 		code = payload
-	if is_client_number(code):
-		return frappe.db.get_value("Customer", {"maison_client_number": normalize_client_number(code), "disabled": 0}, "name")
+	# v0.8 QA C1 — the identify screen's keypad is digits only, so the six digits of a printed
+	# `MC######` card have to resolve on their own (a phone lookup needs seven or more digits).
+	client_number = coerce_client_number(code)
+	if client_number:
+		return frappe.db.get_value("Customer", {"maison_client_number": client_number, "disabled": 0}, "name")
 	if "@" in code:
 		from frappe.query_builder import DocType
 		from frappe.query_builder.functions import Lower

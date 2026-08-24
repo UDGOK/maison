@@ -121,3 +121,30 @@ export function clockHM(at: Date = new Date()): string {
 export function clockHMS(at: Date = new Date()): string {
   return formatInSiteZone(at, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 }
+
+/**
+ * --- v0.8 POS D2 — a timestamp a Frappe Datetime column will actually take ---
+ *
+ * Frappe stores naive site-zone datetimes (`2026-08-23 14:39:08`). `Date.toISOString()` produces
+ * `2026-08-23T19:39:08.269Z`, which MariaDB refuses outright (*Incorrect datetime value*) — that
+ * is what made every offline sale of an age-restricted item unsyncable. Send the site's wall
+ * clock in the server's own format instead; the server normalises whatever it receives too
+ * (`maison_pos.api.age._checked_at`), so a till on an old bundle still syncs.
+ * --- end v0.8 POS D2 ---
+ */
+export function serverDateTime(at: Date = new Date()): string {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: siteTimeZone(),
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).formatToParts(at)
+  const get = (t: string) => p.find((x) => x.type === t)?.value || '00'
+  // `hour: '2-digit'` with hour12:false renders midnight as 24 in some engines
+  const hour = String(Number(get('hour')) % 24).padStart(2, '0')
+  return `${get('year')}-${get('month')}-${get('day')} ${hour}:${get('minute')}:${get('second')}`
+}

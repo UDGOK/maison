@@ -118,6 +118,7 @@ to Buy.
 | `/shop/pay?pr=…` | simulated payment (Stripe mode goes to the `payments` checkout instead) |
 | `/shop/order?name=…`, `/shop/orders` | order status timeline, order list |
 | `/shop/account` | Maison Collectors (loyalty sign-in) |
+| `/shop/register?redirect-to=…` | create an account (or sign in) — the storefront's sign-in wall (v0.8 QA A1) |
 | `/shop/boutiques` | boutiques |
 
 The seed sets `Website Settings.home_page = shop`, so the site root is the storefront for guests
@@ -167,10 +168,17 @@ its own host.
 
 ## Operating notes
 
-* Webshop requires a signed-in Website User for the bag; `/login#signup` creates one and
-  `Portal Settings.default_role = Customer` (set by the seed) gives it the portal role. The demo
-  shopper is `client@maison.example` / `maison123` (Contact → Customer *Isabella Marchetti*,
-  client № printed on her receipts).
+* Webshop requires a signed-in Website User for the bag, so the bag and the checkout sit behind
+  `www/shop/_common.require_login`, which sends a guest to **`/shop/register`** — one page that
+  both creates an account and links to sign-in, carrying `redirect-to` through either.
+  `api/webshop.register` takes the registration itself (Website User + the `Portal Settings`
+  default role + the Customer/Contact wiring webshop's cart needs, then signs the shopper in):
+  Frappe's own `/login#signup` mails a random password, which a site with no outgoing Email
+  Account can never deliver — that is how the live CloudChaserz storefront ended up browse-only
+  (v0.8 QA A1). `webshop/setup.ensure_portal_signup()` asserts `disable_signup = 0` and
+  `Portal Settings.default_role = Customer` on install, migrate and both seeds. Demo shoppers:
+  `client@maison.example` / `maison123` (Contact → Customer *Isabella Marchetti*) and
+  `shopper@cloudchaserz.example` / `cloud123` (*Jordan Vance*).
 * Stock shown on the site is the sum of the boutique warehouses (`Website Item.website_warehouse`
   = the company's root warehouse). The checkout shows per boutique whether every line is in that
   boutique ("Transfer · ~3 days" otherwise); serialized pieces must be in the chosen boutique.

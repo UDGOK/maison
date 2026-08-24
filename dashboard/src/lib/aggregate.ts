@@ -51,19 +51,28 @@ export function addSaleToHours(hours: HourBucket[], sale: Pick<SaleEvent, 'posti
   return next
 }
 
-export function computeTotals(rows: Pick<BoutiqueRow, 'net' | 'cash' | 'card' | 'invoices'>[]): Totals {
+export function computeTotals(rows: Pick<BoutiqueRow, 'net' | 'cash' | 'card' | 'invoices' | 'gross' | 'returns_value'>[]): Totals {
   const t: Totals = rows.reduce<Totals>(
     (acc, r) => {
       acc.net += r.net
       acc.cash += r.cash
       acc.card += r.card
       acc.invoices += r.invoices
+      acc.gross = (acc.gross ?? 0) + grossOf(r)
       return acc
     },
-    { net: 0, cash: 0, card: 0, invoices: 0, avg_ticket: 0 },
+    { net: 0, cash: 0, card: 0, invoices: 0, avg_ticket: 0, gross: 0 },
   )
-  t.avg_ticket = t.invoices ? t.net / t.invoices : 0
+  // v0.8 QA D-4 — "avg ticket" is the average *sale*: returns excluded on both sides of the
+  // division (dividing net-of-returns by a sales-only count is not an average of anything, and on
+  // a returns-heavy day it read $19 where the average sale was $45).
+  t.avg_ticket = t.invoices ? (t.gross ?? 0) / t.invoices : 0
   return t
+}
+
+/** Sales-only takings for a row: the server sends `gross`; older payloads are reconstructed. */
+export function grossOf(r: Pick<BoutiqueRow, 'net' | 'gross' | 'returns_value'>): number {
+  return r.gross ?? r.net + Math.abs(r.returns_value ?? 0)
 }
 
 export function applySale(rows: BoutiqueRow[], sale: SaleEvent): BoutiqueRow[] {
@@ -129,6 +138,10 @@ export interface BoutiqueAgg {
   invoices: number
   returns: number
   returns_value: number
+  /** sales only, returns excluded — the basis of `avg_ticket` (v0.8 QA D-4) */
+  gross: number
+  /** tender that is neither cash nor card: gift cards, store credit, the web tender (v0.8 QA D-12) */
+  other_tender: number
   avg_ticket: number
   last_week_net: number
   vs_last_week_pct: number | null
@@ -174,6 +187,8 @@ function blankAgg(code: string, name = code): BoutiqueAgg {
     invoices: 0,
     returns: 0,
     returns_value: 0,
+    gross: 0,
+    other_tender: 0,
     avg_ticket: 0,
     last_week_net: 0,
     vs_last_week_pct: null,
@@ -205,7 +220,9 @@ export function seedFromSummary(state: AggState, rows: BoutiqueRow[], hours?: Ho
       invoices: r.invoices,
       returns: r.returns ?? 0,
       returns_value: r.returns_value ?? 0,
-      avg_ticket: r.invoices ? r.net / r.invoices : 0,
+      gross: grossOf(r),
+      other_tender: r.other_tender ?? 0,
+      avg_ticket: r.invoices ? grossOf(r) / r.invoices : 0,
       last_week_net: r.last_week_net ?? 0,
       vs_last_week_pct: r.vs_last_week_pct ?? ((r.last_week_net ?? 0) > 0 ? ((r.net - (r.last_week_net ?? 0)) / (r.last_week_net ?? 0)) * 100 : null),
       last_sale: r.last_sale ?? prev?.last_sale ?? null,
@@ -254,8 +271,9 @@ export function foldSale(state: AggState, s: SaleEvent, now = Date.now()): boole
     b.returns_value += Math.abs(s.net)
   } else {
     b.invoices += 1
+    b.gross += s.net // v0.8 QA D-4
   }
-  b.avg_ticket = b.invoices ? b.net / b.invoices : 0
+  b.avg_ticket = b.invoices ? b.gross / b.invoices : 0
   b.vs_last_week_pct = b.last_week_net > 0 ? ((b.net - b.last_week_net) / b.last_week_net) * 100 : null
   b.last_sale = { invoice: s.invoice, item: s.top_item ?? s.items[0] ?? null, amount: s.net, ts: s.posting_datetime, is_return: s.is_return ? 1 : 0 }
   b.last_seen = s.posting_datetime > (b.last_seen ?? '') ? s.posting_datetime : b.last_seen
@@ -313,8 +331,10 @@ export function reduceEvents(state: AggState, events: LiveEvent[], now = Date.no
   return { applied, sales }
 }
 
-export function chainTotals(state: AggState): Totals & { returns: number; returns_value: number; last_week_net: number; vs_last_week_pct: number | null; low_stock: number; feedback_open: number; pending_approvals: number; online: number } {
+export function chainTotals(state: AggState): Totals & { gross: number; other_tender: number; returns: number; returns_value: number; last_week_net: number; vs_last_week_pct: number | null; low_stock: number; feedback_open: number; pending_approvals: number; online: number } {
   let net = 0
+  let gross = 0
+  let otherTender = 0
   let cash = 0
   let card = 0
   let invoices = 0
@@ -328,6 +348,8 @@ export function chainTotals(state: AggState): Totals & { returns: number; return
   const now = Date.now()
   for (const b of state.rows.values()) {
     net += b.net
+    gross += b.gross
+    otherTender += b.other_tender
     cash += b.cash
     card += b.card
     invoices += b.invoices
@@ -342,12 +364,14 @@ export function chainTotals(state: AggState): Totals & { returns: number; return
   }
   return {
     net,
+    gross,
+    other_tender: otherTender,
     cash,
     card,
     invoices,
     returns,
     returns_value,
-    avg_ticket: invoices ? net / invoices : 0,
+    avg_ticket: invoices ? gross / invoices : 0, // v0.8 QA D-4 — the average sale
     last_week_net,
     vs_last_week_pct: last_week_net > 0 ? ((net - last_week_net) / last_week_net) * 100 : null,
     low_stock,

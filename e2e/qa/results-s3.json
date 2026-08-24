@@ -1,0 +1,67 @@
+{
+  "when": "2026-08-23T21:54:10.518Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "A · a new shopper can sign up on the web shop",
+      "ok": false,
+      "detail": "Website Settings.disable_signup=1; Portal Settings.default_role=null; Website Users on the site=2",
+      "sev": "critical"
+    },
+    {
+      "step": "A · /login offers a \"Sign up\" route for new shoppers",
+      "ok": false,
+      "detail": "signup link visible=false",
+      "sev": ""
+    },
+    {
+      "step": "A · test shopper qa4.newshopper.qa4a@cloudchaserz.example exists with the Customer role",
+      "ok": true,
+      "detail": "Website User · roles=Customer",
+      "sev": ""
+    },
+    {
+      "step": "A · test shopper qa4.client.qa4a@cloudchaserz.example exists with the Customer role",
+      "ok": true,
+      "detail": "Website User · roles=Customer",
+      "sev": ""
+    },
+    {
+      "step": "A · existing shopper is linked to a rewards member (Contact → Customer)",
+      "ok": true,
+      "detail": "qa4.client.qa4a@cloudchaserz.example → QA4 Member QA4A (MC647413) contact=QA4 Member Shopper QA4A-QA4 Member QA4A",
+      "sev": ""
+    },
+    {
+      "step": "A · qa4.newshopper.qa4a can sign in",
+      "ok": true,
+      "detail": "200",
+      "sev": ""
+    },
+    {
+      "step": "A · qa4.client.qa4a can sign in",
+      "ok": true,
+      "detail": "200",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "NEW": {
+    "usr": "qa4.newshopper.qa4a@cloudchaserz.example",
+    "pwd": "Qa4!Shopper#2026",
+    "first": "QA4 New",
+    "last": "Shopper QA4A"
+  },
+  "EXIST": {
+    "usr": "qa4.client.qa4a@cloudchaserz.example",
+    "pwd": "Qa4!Shopper#2026",
+    "first": "QA4 Member",
+    "last": "Shopper QA4A"
+  },
+  "member": {
+    "name": "QA4 Member QA4A",
+    "maison_client_number": "MC647413",
+    "email_id": "qa4.member.qa4a@example.com",
+    "mobile_no": "+1 918 555 9407"
+  }
+}

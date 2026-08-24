@@ -1,0 +1,68 @@
+{
+ "R1": "MRR-2026-00018",
+ "R2": "MRR-2026-00019",
+ "S1": "MSH-2026-00020",
+ "S2": "MSH-2026-00021",
+ "R3": "MRR-2026-00022",
+ "scarce": {
+  "item_code": "HKA-002",
+  "item_name": "Starbuzz Carbine 2.0 Hookah",
+  "item_group": "Hookah & Shisha",
+  "barcode": "2000935438686",
+  "image": "/files/cloudchaserz-hka-002.svg",
+  "actual_qty": 6,
+  "reserved_qty": 0,
+  "projected_qty": 6,
+  "reorder_level": 0,
+  "low": false
+ },
+ "R5": "MRR-2026-00023",
+ "S5": "MSH-2026-00024",
+ "S1done": true,
+ "RW": "MRR-2026-00025",
+ "RC": "MRR-2026-00026",
+ "toPick": {
+  "req": "MRR-2026-00027",
+  "mr": "MAT-MR-2026-00010",
+  "ship": "MSH-2026-00028"
+ },
+ "packing": {
+  "req": "MRR-2026-00029",
+  "mr": "MAT-MR-2026-00011",
+  "ship": "MSH-2026-00030"
+ },
+ "ready": {
+  "req": "MRR-2026-00031",
+  "mr": "MAT-MR-2026-00012",
+  "ship": "MSH-2026-00032"
+ },
+ "RUI": "MRR-2026-00033",
+ "SD": "MSH-2026-00036",
+ "RD": "MRR-2026-00035",
+ "MRD": "MAT-MR-2026-00014",
+ "reship": "MRR-2026-00040",
+ "po": "PUR-ORD-2026-00001",
+ "pr": "MAT-PRE-2026-00001",
+ "supplier": "QA2 Test Supplier",
+ "SU": "MSH-2026-00042",
+ "RU": "MRR-2026-00041",
+ "cycleCounts": [
+  "MCC-2026-00045",
+  "MCC-2026-00046",
+  "MAT-RECO-2026-00001"
+ ],
+ "edge": {
+  "requests": [
+   "MRR-2026-00047",
+   "MRR-2026-00050",
+   "MRR-2026-00048",
+   "MRR-2026-00049",
+   "MRR-2026-00052"
+  ],
+  "shipments": [
+   "MSH-2026-00051",
+   "MSH-2026-00053"
+  ]
+ },
+ "BIG": "MSH-2026-00053"
+}

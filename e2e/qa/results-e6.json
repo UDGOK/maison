@@ -1,0 +1,102 @@
+[
+ {
+  "name": "Insights tab loads",
+  "ok": true,
+  "detail": "6921 ms"
+ },
+ {
+  "name": "insight tiles render",
+  "ok": true,
+  "detail": "CLIENTS TO CONTACT | 155 | REBALANCE MOVES | 0 | STOCK-OUT RISKS | 28 | REVENUE · 90 DAYS | 122K | CLIENTS WITH OFFERS | 179 | LAST COMPUTED | 2026-08-23 12:43 | NARRATIVE · TEMPLATE"
+ },
+ {
+  "name": "tiles match insights.summary",
+  "ok": true,
+  "detail": "API open_signals=155 open_rebalances=0 recommended=179 llm=false"
+ },
+ {
+  "name": "narrative mode is \"template\" (no LLM)",
+  "ok": true,
+  "detail": "NARRATIVE · TEMPLATE"
+ },
+ {
+  "name": "weekly narrative card renders",
+  "ok": true,
+  "detail": "WEEKLY NARRATIVE | NO REPORT YET — THE WEEKLY JOB RUNS MONDAY 06:00"
+ },
+ {
+  "name": "rebalance card renders",
+  "ok": true,
+  "detail": "REBALANCE SUGGESTIONS | 0 open · velocity over 90 days | STOCK IS WHERE IT SELLS — NOTHING TO MOVE"
+ },
+ {
+  "name": "group heatmap renders",
+  "ok": true,
+  "detail": "121 cells"
+ },
+ {
+  "name": "movers table renders",
+  "ok": true,
+  "detail": "TOP / SLOW MOVERS | HOU-MTR | OK-BA | OK-BIX | OK-ETUL | OK-JENKS | OK-MINGO | OK-MUS | OK-OWA | OK-SAP | OK-STUL | OK-YALE | TOP BY REVENUE | 90 days | 01 | Starbuzz Carbine 2.0 Hookah | HKA-002 · Hookah & Shisha | 7 u | 1.4k | 2.2× | 02 | Moze Breeze Pro Hoo"
+ },
+ {
+  "name": "client signals / contact list renders",
+  "ok": true,
+  "detail": "40 rows"
+ },
+ {
+  "name": "contact list count matches client_signals",
+  "ok": true,
+  "detail": "40 on screen, API 50 signals, by_type={\"Birthday\":13,\"Overdue visit\":24,\"Due this week\":13}"
+ },
+ {
+  "name": "Reports tab loads",
+  "ok": true,
+  "detail": "2855 ms"
+ },
+ {
+  "name": "report catalogue lists reports",
+  "ok": true,
+  "detail": "8: Sales Tax Summary / Daily Sales / Sales by Item / Sales by Associate / Hourly Sales Heatmap / Client Purchases / Serial Ledger / Returns"
+ },
+ {
+  "name": "every report has a CSV link",
+  "ok": true,
+  "detail": "8 CSV links / 8 reports"
+ },
+ {
+  "name": "all 11 Maison Script Reports are linked",
+  "ok": false,
+  "detail": "missing from the Reports tab: Commission Statement, Promotion Performance, Campaign Performance"
+ },
+ {
+  "name": "no \"Frappe\"/\"ERPNext\" text on the Reports tab",
+  "ok": true,
+  "detail": "none"
+ },
+ {
+  "name": "report link + CSV href well formed",
+  "ok": true,
+  "detail": "/app/query-report/Maison%20Sales%20Tax%20Summary?from_date=2026-08-01&to_date=2026-08-23 | /api/method/maison_pos.api.reports.export?report=Maison+Sales+Tax+Summary&filters=%7B%22from_date%22%3A%222026-08-01%22%2C%22to_date%22%3A%222026-08-23%22%7D"
+ },
+ {
+  "name": "CSV export downloads real rows",
+  "ok": true,
+  "detail": "200 text/csv; charset=utf-8 12 data lines; head=\"Boutique,Boutique Name,Jurisdiction / Tax Template,Rate %,Tickets,Returns,Gross Sales,Returns Value,Taxable Sales (net),\""
+ },
+ {
+  "name": "period comparison widget renders",
+  "ok": true,
+  "detail": "today_vs_same_weekday: net 553.25 vs 1032.58 (-46.4%) ; wtd: net 8671.63 vs 8754.78 (-0.9%) ; mtd: net 29891.94 vs 31986.06 (-6.5%) ; ytd: net 127954.59 vs 0 (null%)"
+ },
+ {
+  "name": "no \"Frappe\"/\"ERPNext\" anywhere on the Reports page",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no console errors on Insights/Reports",
+  "ok": true,
+  "detail": ""
+ }
+]

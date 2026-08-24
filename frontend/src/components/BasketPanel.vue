@@ -8,6 +8,7 @@ import { useScanStore } from '@/stores/scan'
 import { useLayoutStore } from '@/stores/layout'
 import { useSyncStore } from '@/stores/sync'
 import { fmtMoney, fmtInt } from '@/utils/money'
+import { lineNet } from '@/utils/totals' // v0.8 POS D1
 import { fmtDate } from '@/utils/device'
 import Modal from './Modal.vue'
 import Keypad from './Keypad.vue'
@@ -282,7 +283,8 @@ function charge() {
             </div>
           </button>
           <div class="line-right">
-            <div class="line-amt num">{{ fmtMoney(l.qty * l.rate - l.discount_amount - (cart.extras[l.id] || 0), session.currency) }}</div>
+            <!-- v0.8 POS D1: the cent-granular line net the invoice will carry -->
+            <div class="line-amt num">{{ fmtMoney(lineNet(l.qty, l.rate, l.discount_amount + (cart.extras[l.id] || 0)), session.currency) }}</div>
             <div v-if="!l.serial_no" class="qty">
               <button class="qty-btn" @click="cart.setQty(l.id, l.qty - 1)" aria-label="Less">&minus;</button>
               <span class="qty-n">{{ l.qty }}</span>

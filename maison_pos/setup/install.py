@@ -236,6 +236,10 @@ def after_install() -> None:
 
 	setup_v06_shipping()
 	# --- end v0.6 O/P ---
+	# v0.8 QA U1 — the stored website footer line follows the brand's developer credit
+	from maison_pos.setup.whitelabel import refresh_footer_credit
+
+	refresh_footer_credit()
 	# v0.6 — one URL that gets staff to their screen
 	ensure_launcher_home_page()
 	# --- v0.7 white-label — brand every Frappe/ERPNext surface from Maison POS Settings ---
@@ -243,6 +247,13 @@ def after_install() -> None:
 
 	setup_whitelabel()
 	# --- end v0.7 white-label ---
+	# --- v0.7 security — re-assert the Maison Associate permlevels. Frappe ignores a doctype's
+	# standard permissions as soon as the site holds a single Custom DocPerm row for it, so the
+	# permlevel-1/2 rows have to be mirrored there on every migrate (idempotent, no-op otherwise).
+	from maison_pos.patches.v0_7.associate_hardening import ensure_permlevel_docperms
+
+	ensure_permlevel_docperms()
+	# --- end v0.7 security ---
 	frappe.db.commit()
 
 
@@ -276,6 +287,11 @@ def after_migrate() -> None:
 
 	setup_v06_shipping()
 	# --- end v0.6 O/P ---
+	# v0.8 QA U1 — the stored website footer line follows the brand's developer credit, so an
+	# already-white-labelled site picks up "Powered by <developer>" on its next deploy
+	from maison_pos.setup.whitelabel import refresh_footer_credit
+
+	refresh_footer_credit()
 	# v0.6 — one URL that gets staff to their screen
 	ensure_launcher_home_page()
 	# --- v0.7 white-label — brand every Frappe/ERPNext surface from Maison POS Settings ---

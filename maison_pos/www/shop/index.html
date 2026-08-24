@@ -80,9 +80,10 @@
 	</section>
 
 	<section class="mw-section">
-		<div class="mw-panel" style="display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;padding:36px">
+		{#- v0.8 QA U4: the two CTAs used to hold an `auto` grid track open past a 360 px screen -#}
+		<div class="mw-panel mw-cta-panel">
 			<div><span class="mw-label gold">{{ shop.rewards_name }}</span><h2 class="mw-display md" style="margin:10px 0 8px">{{ 'Points on every piece, online and in boutique' if shop.vertical == 'Jewellery' else 'Earn 1 point for every $1 you spend' }}</h2><p class="mw-muted" style="margin:0;max-width:60ch">{{ 'Sign in with your client number to see your balance, your tier and your recent purchases.' if shop.vertical == 'Jewellery' else '$5 off at 100 points, $10 at 200, $15 at 300 — plus a birthday discount, monthly promotions, new-arrival alerts, giveaways and event invites.' }}</p></div>
-			<div style="display:flex;gap:12px;flex-wrap:wrap"><a class="mw-btn" href="/rewards">Join rewards</a><a class="mw-btn ghost" href="/shop/account">My points</a></div>
+			<div class="actions"><a class="mw-btn" href="/rewards">Join rewards</a><a class="mw-btn ghost" href="/shop/account">My points</a></div>
 		</div>
 	</section>
 </div>

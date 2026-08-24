@@ -34,6 +34,24 @@ def normalize_client_number(value: str) -> str:
 	return str(value or "").strip().upper().replace(" ", "")
 
 
+# --- v0.8 QA C1 — a client number typed on a digits-only keypad ---------------------------------
+# The Salon (and the POS client keypad) offer digits only, but the printed number is `MC######`,
+# so a client keying the six digits on their card was told "We could not find you". Six digits are
+# unambiguous here: a phone lookup needs at least seven.
+# ------------------------------------------------------------------------------------------------
+def coerce_client_number(value: Optional[str]) -> Optional[str]:
+	"""``"MC123456"`` / ``"mc 123456"`` / ``"123456"`` -> ``"MC123456"``; anything else ``None``."""
+	raw = normalize_client_number(value or "")
+	if not raw:
+		return None
+	if is_client_number(raw):
+		return raw
+	if raw.isdigit() and len(raw) == CLIENT_NUMBER_DIGITS:
+		return f"{CLIENT_NUMBER_PREFIX}{raw}"
+	return None
+# --- end v0.8 QA C1 ---
+
+
 def new_client_number() -> str:
 	"""Return an unused ``MC`` + 6-digit client number."""
 	for _ in range(100):

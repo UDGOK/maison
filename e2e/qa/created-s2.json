@@ -1,0 +1,16 @@
+{
+  "TAG": "QA4A",
+  "member": {
+    "name": "QA4 Member QA4A",
+    "phone": "+1 918 555 9407",
+    "email": "qa4.member.qa4a@example.com",
+    "birthday": "1990-04-11"
+  },
+  "created": {
+    "customers": [
+      "QA4 Bypass QA4A",
+      "QA4 Member QA4A"
+    ],
+    "invoices": []
+  }
+}

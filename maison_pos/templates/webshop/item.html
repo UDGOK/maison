@@ -55,7 +55,8 @@
 			<div class="mw-avail" id="mw-avail">
 				<div class="head">
 					<span class="mw-label">Availability</span>
-					{% if m.chain_qty > 0 %}<span class="mw-pill good"><span class="dot"></span>Available at {{ m.available_at }}</span>{% else %}<span class="mw-pill"><span class="dot"></span>Atelier order</span>{% endif %}
+					{#- v0.8 QA A2: a summary that fits the pill; the full city list is one tap away -#}
+				{% if m.chain_qty > 0 %}{% if m.available_at_full and m.available_at_full != m.available_at %}<details class="mw-avail-more" data-testid="availability-more"><summary class="mw-pill good" title="{{ m.available_at_full }}"><span class="dot"></span>Available at {{ m.available_at }}</summary><div class="cities">{{ m.available_at_full }}</div></details>{% else %}<span class="mw-pill good"><span class="dot"></span>Available at {{ m.available_at }}</span>{% endif %}{% else %}<span class="mw-pill"><span class="dot"></span>Atelier order</span>{% endif %}
 				</div>
 				<ul>
 					{% for a in m.availability %}

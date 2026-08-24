@@ -1,0 +1,50 @@
+{
+  "when": "2026-08-23T22:12:24.273Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "B · a sale can still be returned after its points were redeemed",
+      "ok": false,
+      "detail": "return of ACC-SINV-2026-03082 → 417 frappe.exceptions.ValidationError: Sales Invoice can't be cancelled since the Loyalty Points earned has been redeemed. First cancel the Sales Invoice No ACC-SINV-2026-03083",
+      "sev": "major"
+    },
+    {
+      "step": "B · a return reverses the points earned on that sale",
+      "ok": true,
+      "detail": "sale ACC-SINV-2026-03084 net 134.97 → credit note ACC-SINV-2026-03085 net -134.97; points 336 → 202 (Δ -134)",
+      "sev": ""
+    },
+    {
+      "step": "B · the balance never goes negative",
+      "ok": true,
+      "detail": "points=202",
+      "sev": ""
+    },
+    {
+      "step": "B · the reversal is written as a Loyalty Point Entry against the credit note",
+      "ok": true,
+      "detail": "[[\"ACC-SINV-2026-03084\",0],[\"ACC-SINV-2026-03083\",-300],[\"ACC-SINV-2026-03083\",104],[\"ACC-SINV-2026-03082\",359],[\"ACC-SINV-2026-03081\",39]]",
+      "sev": ""
+    },
+    {
+      "step": "B · with stacking off the sheet never holds two tiers at once",
+      "ok": true,
+      "detail": "after picking a tier: sheet closes; sheet closed",
+      "sev": ""
+    },
+    {
+      "step": "B · only one reward ends up applied",
+      "ok": true,
+      "detail": "applied = $5 off at 100 points",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "creditNote": "ACC-SINV-2026-03085"
+}

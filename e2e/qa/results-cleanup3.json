@@ -1,0 +1,127 @@
+{
+  "when": "2026-08-23T22:49:45.106Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "cleanup · test feedback + enquiry removed (they would skew the HQ tiles)",
+      "ok": true,
+      "detail": "[\"Maison Feedback a6o1b7eo97\",\"Notification Log 4jred8efuj\",\"Notification Log 4jref2uqpl\",\"Maison Feedback 4jretiisc1\",\"Maison Web Enquiry MWE-2026-00001\"]",
+      "sev": ""
+    },
+    {
+      "step": "cleanup · store stock restored by the cancellations",
+      "ok": true,
+      "detail": "{\"ACC-003\":9,\"ACC-007\":16,\"ACC-013\":10,\"ACC-002\":52,\"CBD-002\":11,\"CBD-003\":11}",
+      "sev": ""
+    },
+    {
+      "step": "cleanup · summary of what remains",
+      "ok": true,
+      "detail": "{\"customers\":[{\"name\":\"QA4 Declined QA4A\",\"disabled\":1},{\"name\":\"QA4 Recog QA4A\",\"disabled\":1},{\"name\":\"QA4 Salon QA4A\",\"disabled\":1},{\"name\":\"QA4 New Shopper QA4A\",\"disabled\":1},{\"name\":\"QA4 Member QA4A\",\"disabled\":1},{\"name\":\"QA4 Bypass QA4A\",\"disabled\":1}],\"users\":[{\"name\":\"qa4.client.qa4a@cloudchaserz.example\",\"enabled\":0},{\"name\":\"qa4.newshopper.qa4a@cloudchaserz.example\",\"enabled\":0}],\"coupons\":[{\"name\":\"BDAY26F9D7E5\",\"enabled\":0},{\"name\":\"QA4EXPIREDQA4A\",\"enabled\":0},{\"name\":\"QA4GROUPQA4A\",\"enabled\":0},{\"name\":\"QA4CLIENTQA4A\",\"enabled\":0},{\"name\":\"QA4MULTIQA4A\",\"enabled\":0},{\"name\":\"QA4SINGLEQA4A\",\"enabled\":0},{\"name\":\"PROMO2609\",\"enabled\":1},{\"name\":\"PROMO2608\",\"enabled\":1}],\"consent",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "deleted": [
+    "Maison Feedback a6o1b7eo97",
+    "Notification Log 4jred8efuj",
+    "Notification Log 4jref2uqpl",
+    "Maison Feedback 4jretiisc1",
+    "Maison Web Enquiry MWE-2026-00001"
+  ],
+  "failed": [],
+  "stock": {
+    "ACC-003": 9,
+    "ACC-007": 16,
+    "ACC-013": 10,
+    "ACC-002": 52,
+    "CBD-002": 11,
+    "CBD-003": 11
+  },
+  "kept": {
+    "customers": [
+      {
+        "name": "QA4 Declined QA4A",
+        "disabled": 1
+      },
+      {
+        "name": "QA4 Recog QA4A",
+        "disabled": 1
+      },
+      {
+        "name": "QA4 Salon QA4A",
+        "disabled": 1
+      },
+      {
+        "name": "QA4 New Shopper QA4A",
+        "disabled": 1
+      },
+      {
+        "name": "QA4 Member QA4A",
+        "disabled": 1
+      },
+      {
+        "name": "QA4 Bypass QA4A",
+        "disabled": 1
+      }
+    ],
+    "users": [
+      {
+        "name": "qa4.client.qa4a@cloudchaserz.example",
+        "enabled": 0
+      },
+      {
+        "name": "qa4.newshopper.qa4a@cloudchaserz.example",
+        "enabled": 0
+      }
+    ],
+    "coupons": [
+      {
+        "name": "BDAY26F9D7E5",
+        "enabled": 0
+      },
+      {
+        "name": "QA4EXPIREDQA4A",
+        "enabled": 0
+      },
+      {
+        "name": "QA4GROUPQA4A",
+        "enabled": 0
+      },
+      {
+        "name": "QA4CLIENTQA4A",
+        "enabled": 0
+      },
+      {
+        "name": "QA4MULTIQA4A",
+        "enabled": 0
+      },
+      {
+        "name": "QA4SINGLEQA4A",
+        "enabled": 0
+      },
+      {
+        "name": "PROMO2609",
+        "enabled": 1
+      },
+      {
+        "name": "PROMO2608",
+        "enabled": 1
+      }
+    ],
+    "consents": [
+      {
+        "name": "MBC-2026-00002",
+        "status": "Revoked",
+        "customer": "QA4 Recog QA4A"
+      },
+      {
+        "name": "MBC-2026-00001",
+        "status": "Revoked",
+        "customer": "QA4 Recog QA4A"
+      }
+    ],
+    "cancelledInvoices": 16,
+    "cancelledOrders": 3
+  }
+}

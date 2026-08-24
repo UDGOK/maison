@@ -1,0 +1,135 @@
+{
+  "when": "2026-08-23T21:57:04.767Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "A · \"Add to bag\" adds the line and offers \"View bag\"",
+      "ok": true,
+      "detail": "ACC-007",
+      "sev": ""
+    },
+    {
+      "step": "A · bag lists both lines",
+      "ok": true,
+      "detail": "2 lines",
+      "sev": ""
+    },
+    {
+      "step": "A · quantity + updates the line and the totals",
+      "ok": true,
+      "detail": "qty=2 server=[[\"ACC-007\",2],[\"ACC-002\",1]] total=41.77",
+      "sev": ""
+    },
+    {
+      "step": "A · quantity − updates the line",
+      "ok": true,
+      "detail": "[[\"ACC-007\",1],[\"ACC-002\",1]]",
+      "sev": ""
+    },
+    {
+      "step": "A · Remove deletes the line",
+      "ok": true,
+      "detail": "[\"ACC-007\"]",
+      "sev": ""
+    },
+    {
+      "step": "A · removing the last line empties the bag cleanly",
+      "ok": true,
+      "detail": "[]",
+      "sev": ""
+    },
+    {
+      "step": "A · empty bag shows the empty state",
+      "ok": true,
+      "detail": "",
+      "sev": ""
+    },
+    {
+      "step": "A · age-restricted item cannot be added to the bag",
+      "ok": false,
+      "detail": "update_cart(DSP-001) → 200; in bag=true",
+      "sev": "major"
+    },
+    {
+      "step": "A · …and checkout refuses it",
+      "ok": true,
+      "detail": "place_order → 417 frappe.exceptions.ValidationError: Geek Bar Pulse 15K — Miami Mint cannot be bought online — please enquire or reserve it instead",
+      "sev": ""
+    },
+    {
+      "step": "A · checkout offers every store as a collection point (with stock status)",
+      "ok": true,
+      "detail": "11: CloudChaserz Bixby 11063-B S Memorial Dr · Tulsa, OK 74133 ALL PIECES  | CloudChaserz Broken Arrow 6420 S Elm Pl · Broken Arrow, OK 74011 ALL P",
+      "sev": ""
+    },
+    {
+      "step": "A · the warehouse (HOU-WH) is not offered as a collection point",
+      "ok": true,
+      "detail": "OK-BIX,OK-BA,OK-ETUL,OK-JENKS,OK-MINGO,HOU-MTR,OK-MUS,OK-OWA,OK-SAP,OK-STUL,OK-YALE",
+      "sev": ""
+    },
+    {
+      "step": "A · placing the order goes to the payment page",
+      "ok": true,
+      "detail": "https://cloudchaserz.frappe.cloud/shop/pay?pr=ACC-PRQ-2026-00003",
+      "sev": ""
+    },
+    {
+      "step": "A · simulated payment returns to the order page",
+      "ok": true,
+      "detail": "https://cloudchaserz.frappe.cloud/shop/order?name=SAL-ORD-2026-00003&paid=1",
+      "sev": ""
+    },
+    {
+      "step": "A · Sales Order carries the web-order fields and the chosen store",
+      "ok": true,
+      "detail": "SAL-ORD-2026-00003 boutique=OK-BA status=New order_type=Sales total=43.35 taxes=OK Sales Tax (Broken Arrow) - CCZ",
+      "sev": ""
+    },
+    {
+      "step": "A · online payment is recorded as an advance on the order",
+      "ok": true,
+      "detail": "advance_paid=43.35 maison_prepaid_amount=43.35 payment_entries=[]",
+      "sev": ""
+    },
+    {
+      "step": "A · the order is taxed with the collecting store template",
+      "ok": true,
+      "detail": "OK Sales Tax (Broken Arrow) - CCZ → 3.37",
+      "sev": ""
+    },
+    {
+      "step": "A · order history lists the order",
+      "ok": true,
+      "detail": "1 rows",
+      "sev": ""
+    },
+    {
+      "step": "A · order page shows the collection timeline and store",
+      "ok": true,
+      "detail": "CLOUDCHASERZ MAISON POS ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & C",
+      "sev": ""
+    },
+    {
+      "step": "A · fully prepaid order shows no \"payment due\"",
+      "ok": true,
+      "detail": "none",
+      "sev": ""
+    },
+    {
+      "step": "A · another shopper cannot see this order in my_orders",
+      "ok": true,
+      "detail": "1 orders for the other shopper",
+      "sev": ""
+    },
+    {
+      "step": "A · another shopper cannot open this order by name",
+      "ok": true,
+      "detail": "403 frappe.exceptions.PermissionError: Not permitted",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "orderName": "SAL-ORD-2026-00003",
+  "shopper": "qa4.client.qa4a@cloudchaserz.example"
+}

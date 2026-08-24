@@ -1,0 +1,177 @@
+{
+  "when": "2026-08-23T22:15:35.192Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "B · a valid coupon previews its discount",
+      "ok": true,
+      "detail": "{\"valid\":true,\"code\":\"QA4SINGLEQA4A\",\"title\":\"QA4 single-use QA4A\",\"discount_type\":\"Amount\",\"value\":3,\"item_group\":null,\"customer\":null,\"discount\":3,\"per_line\":",
+      "sev": ""
+    },
+    {
+      "step": "B · an expired coupon is refused",
+      "ok": true,
+      "detail": "expired · Coupon QA4EXPIREDQA4A has expired",
+      "sev": ""
+    },
+    {
+      "step": "B · an unknown coupon is refused (no exception)",
+      "ok": true,
+      "detail": "unknown · Unknown coupon QA4NOSUCHCODE",
+      "sev": ""
+    },
+    {
+      "step": "B · a client-bound coupon is refused without that client",
+      "ok": true,
+      "detail": "wrong_customer · Coupon QA4CLIENTQA4A is reserved for another client",
+      "sev": ""
+    },
+    {
+      "step": "B · a client-bound coupon works for its client",
+      "ok": true,
+      "detail": "{\"valid\":true,\"code\":\"QA4CLIENTQA4A\",\"title\":\"QA4 client-bound QA4A\",\"discount_type\":\"Amount\",\"value\":4,\"item_group\":null,\"customer\":\"QA4 Me",
+      "sev": ""
+    },
+    {
+      "step": "B · a client-bound coupon is refused for another client",
+      "ok": true,
+      "detail": "wrong_customer · Coupon QA4CLIENTQA4A is reserved for another client",
+      "sev": ""
+    },
+    {
+      "step": "B · an item-group coupon discounts only that group",
+      "ok": true,
+      "detail": "discount=12 per_line=[12,0] (Accessories 59.99, CBD 44.99)",
+      "sev": ""
+    },
+    {
+      "step": "B · an item-group coupon is refused on a basket without that group",
+      "ok": true,
+      "detail": "not_applicable · Coupon QA4GROUPQA4A does not apply to anything in this basket",
+      "sev": ""
+    },
+    {
+      "step": "B · a coupon can be redeemed on a sale",
+      "ok": true,
+      "detail": "{\"offline_uuid\":\"qa4-QA4A-coupon-1787523330144\",\"status\":\"ok\",\"invoice_name\":\"ACC-SINV-2026-03086\",\"grand_total\":61.79,\"rounded_total\":61.79,\"change_amount\":0.71,\"receipt_token\":\"n",
+      "sev": ""
+    },
+    {
+      "step": "B · the invoice records the coupon and its discount",
+      "ok": true,
+      "detail": "coupon=QA4SINGLEQA4A discount=3 net=56.99 grand=61.79",
+      "sev": ""
+    },
+    {
+      "step": "B · redemption is recorded and used_count is bumped",
+      "ok": true,
+      "detail": "{\"name\":\"7qh5tjvpd0\",\"sales_invoice\":\"ACC-SINV-2026-03086\",\"amount\":3,\"customer\":\"QA4 Member QA4A\"} used_count=1",
+      "sev": ""
+    },
+    {
+      "step": "B · a single-use coupon is refused the second time",
+      "ok": true,
+      "detail": "exhausted · Coupon QA4SINGLEQA4A has already been used",
+      "sev": ""
+    },
+    {
+      "step": "B · a multi-use coupon stays valid",
+      "ok": true,
+      "detail": "{\"valid\":true,\"code\":\"QA4MULTIQA4A\",\"title\":\"QA4 multi-use QA4A\",\"discount_type\":\"Percent\",\"value\":10,\"item_group\":null,",
+      "sev": ""
+    },
+    {
+      "step": "B · a monthly promotion calendar exists",
+      "ok": true,
+      "detail": "[{\"name\":\"PROMO-2026-08\",\"title\":\"Disposables month — August 2026\",\"month\":\"2026-08-01\",\"status\":\"Planned\",\"coupon\":\"PROMO2608\",\"campaign\":null,\"sent_on\":null},{\"name\":\"PROMO-2026-09\",\"title\":\"Glass & hookah month — September 2026\",\"month\":\"2026-09-01\",\"status\":\"Planned\",\"coupon\":\"PROMO2609\",\"campai",
+      "sev": ""
+    },
+    {
+      "step": "B · this month's calendar carries its pricing rules and featured items",
+      "ok": true,
+      "detail": "Disposables month — August 2026 · rules=1 featured=4 coupon=PROMO2608 status=Planned",
+      "sev": ""
+    },
+    {
+      "step": "B · the POS sees this month's promotions",
+      "ok": true,
+      "detail": "{\"boutique\":\"OK-BA\",\"date\":\"2026-08-23\",\"enabled\":true,\"promotions\":[{\"name\":\"PRLE-0001\",\"title\":\"Disposables month Aug 2026\",\"apply_on\":\"Item Group\",\"targets\":[\"Disposables\"],\"kind\":\"percent\",\"rate\":0,\"discount_percentage\":15,\"discount_amount\":0,\"min_qty\":0,\"",
+      "sev": ""
+    },
+    {
+      "step": "B · the rewards jobs are scheduled (birthday / monthly promo / new arrivals)",
+      "ok": true,
+      "detail": "[[\"new_arrivals_campaign\",\"Weekly\",0,null],[\"send_monthly_promotions\",\"Daily\",0,null],[\"issue_birthday_coupons\",\"Daily\",0,null]]",
+      "sev": ""
+    },
+    {
+      "step": "B · the scheduler is enabled on the site",
+      "ok": true,
+      "detail": "enable_scheduler=1; note: these three jobs have never run (last_execution null)",
+      "sev": ""
+    },
+    {
+      "step": "B · the POS lists open giveaways with the client's entries",
+      "ok": true,
+      "detail": "{\"giveaways\":[{\"name\":\"GIVE-2026-00004\",\"title\":\"Geek Bar Pulse X giveaway\",\"boutique\":null,\"entry_rule\":\"Per amount\",\"amount_per_entry\":25,\"max_entries_per_invoice\":10,\"requires_member\":1,\"prize_description\":\"A Geek Bar",
+      "sev": ""
+    },
+    {
+      "step": "B · entries accrue at 1 per $25 of net spend",
+      "ok": true,
+      "detail": "[[\"ACC-SINV-2026-03086\",2],[\"ACC-SINV-2026-03084\",5],[\"ACC-SINV-2026-03083\",4],[\"ACC-SINV-2026-03082\",10],[\"ACC-SINV-2026-03081\",1]] (net of ACC-SINV-2026-03086 = 56.99)",
+      "sev": ""
+    },
+    {
+      "step": "B · a sale during a giveaway creates the right number of entries",
+      "ok": true,
+      "detail": "net 59.97 → [[\"QA4 Member QA4A\",2]]",
+      "sev": ""
+    },
+    {
+      "step": "B · Head Office can draw a winner with a recorded seed",
+      "ok": true,
+      "detail": "winner=QA4 Impostor2 QA4A entry=bqhrjp6ar7 pool=2 seed=qa4-seed-1",
+      "sev": ""
+    },
+    {
+      "step": "B · the draw is stored with an audit trail",
+      "ok": true,
+      "detail": "status=Drawn winner=QA4 Member QA4A audit={\n \"seed\": \"qa4-seed-1\",\n \"algorithm\": \"python random.Random(seed).randrange(len(pool)) over entries sorted by name, eac",
+      "sev": ""
+    },
+    {
+      "step": "B · a drawn giveaway cannot be drawn twice",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: GIVE-2026-00055 has already been drawn",
+      "sev": ""
+    },
+    {
+      "step": "B · an associate may not draw a giveaway",
+      "ok": true,
+      "detail": "403 frappe.exceptions.PermissionError: Only Head Office may draw a giveaway",
+      "sev": ""
+    },
+    {
+      "step": "B · the draw is reproducible from the recorded seed (audit records index + pool)",
+      "ok": true,
+      "detail": "audit index=1 entries_hash=699dca82fec27ea6…",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "created": {
+    "coupons": [
+      "QA4SINGLEQA4A",
+      "QA4MULTIQA4A",
+      "QA4CLIENTQA4A",
+      "QA4GROUPQA4A",
+      "QA4EXPIREDQA4A"
+    ],
+    "invoices": [
+      "ACC-SINV-2026-03086",
+      "ACC-SINV-2026-03087"
+    ],
+    "giveaway": "GIVE-2026-00055"
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "when": "2026-08-23T21:52:47.490Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "B · /rewards states \"Earn 1 point for every $1 you spend\"",
+      "ok": true,
+      "detail": "Earn 1 point for every $1 you spend.",
+      "sev": ""
+    },
+    {
+      "step": "B · /rewards states \"$5 off at 100 points\"",
+      "ok": true,
+      "detail": "",
+      "sev": ""
+    },
+    {
+      "step": "B · /rewards states \"$10 off at 200 points\"",
+      "ok": true,
+      "detail": "",
+      "sev": ""
+    },
+    {
+      "step": "B · /rewards states \"$15 off at 300 points\"",
+      "ok": true,
+      "detail": "",
+      "sev": ""
+    },
+    {
+      "step": "B · tier tiles read $5/100, $10/200, $15/300",
+      "ok": false,
+      "detail": "$5 OFF AT 100 POINTS 100 points = 100 dollars spent | $10 OFF AT 200 POINTS 200 points = 200 dollars spent | $15 OFF AT 300 POINTS 300 points = 300 dollars spent",
+      "sev": ""
+    },
+    {
+      "step": "B · programme name is CloudChaserz Rewards",
+      "ok": true,
+      "detail": "CloudChaserz Rewards",
+      "sev": ""
+    },
+    {
+      "step": "B · all five member perks listed",
+      "ok": true,
+      "detail": "Birthday discount | Monthly sale promotions | Latest product arrivals | Product giveaways | Exclusive event invites",
+      "sev": ""
+    },
+    {
+      "step": "B · server tiers match the copy (100/5, 200/10, 300/15)",
+      "ok": true,
+      "detail": "[[100,5],[200,10],[300,15]]",
+      "sev": ""
+    },
+    {
+      "step": "B · birthday perk copy matches settings",
+      "ok": false,
+      "detail": "{\"type\":\"Percent\",\"value\":15,\"lead_days\":7,\"valid_days\":30,\"label\":\"15% off\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · live giveaways are listed on /rewards",
+      "ok": true,
+      "detail": "1 giveaway rows · api=[{\"title\":\"Geek Bar Pulse X giveaway\",\"prize\":\"A Geek Bar Pulse X 25K in the flavor of your choice\",\"end_date\":\"2026-09-22\",\"rule\":\"Per amount\",\"amount_per_entry\":25}]",
+      "sev": ""
+    },
+    {
+      "step": "B · join form refuses without the 21+ / terms checkbox (client side)",
+      "ok": true,
+      "detail": "ok visible=false; validity=true",
+      "sev": ""
+    },
+    {
+      "step": "B · server enforces the 21+/terms consent (consent=0 must be refused)",
+      "ok": false,
+      "detail": "POST signup {consent:0, consent_email:1} → 200 {\"message\":{\"ok\":true,\"customer_name\":\"QA4 Bypass QA4A\",\"client_number\":\"MC647777\",\"program_name\":\"CloudChaserz Rewards\"}}",
+      "sev": "major"
+    },
+    {
+      "step": "B · signup without any consent is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Please accept the program terms",
+      "sev": ""
+    },
+    {
+      "step": "B · signup without a name is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Name is required",
+      "sev": ""
+    },
+    {
+      "step": "B · signup without phone or e-mail is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Phone or e-mail is required",
+      "sev": ""
+    },
+    {
+      "step": "B · sign-up through /rewards creates a member with a client number",
+      "ok": true,
+      "detail": "Welcome, QA4 Member QA4A! Your member number is MC647413. Show your phone number at any store to earn points.",
+      "sev": ""
+    },
+    {
+      "step": "B · member is enrolled in CloudChaserz Rewards + profile written",
+      "ok": true,
+      "detail": "{\"name\":\"QA4 Member QA4A\",\"maison_client_number\":\"MC647413\",\"loyalty_program\":\"CloudChaserz Rewards\",\"mobile_no\":\"+1 918 555 9407\",\"email_id\":\"qa4.member.qa4a@example.com\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · birthday, home store and marketing consents stored on the profile",
+      "ok": true,
+      "detail": "{\"birthday\":\"1990-04-11\",\"preferred_boutique\":\"OK-BA\",\"do_not_email\":0,\"do_not_sms\":1}",
+      "sev": ""
+    },
+    {
+      "step": "B · duplicate phone does not silently rename the existing member",
+      "ok": false,
+      "detail": "signup with the same phone → 200 {\"ok\":true,\"customer_name\":\"QA4 Impostor QA4A\",\"client_number\":\"MC647413\",\"program_name\":\"CloudChaserz Rewards\"}; customer_name now \"QA4 Impostor QA4A\"",
+      "sev": "major"
+    },
+    {
+      "step": "B · duplicate e-mail does not silently rename the existing member",
+      "ok": false,
+      "detail": "→ 200; customer_name now \"QA4 Impostor2 QA4A\"",
+      "sev": "major"
+    },
+    {
+      "step": "B · duplicate phone does not create a second Customer",
+      "ok": true,
+      "detail": "1 customers with +1 918 555 9407",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "member": {
+    "name": "QA4 Member QA4A",
+    "phone": "+1 918 555 9407",
+    "email": "qa4.member.qa4a@example.com",
+    "birthday": "1990-04-11"
+  },
+  "created": {
+    "customers": [
+      "QA4 Bypass QA4A",
+      "QA4 Member QA4A"
+    ],
+    "invoices": []
+  }
+}

@@ -13,6 +13,16 @@ Demo logins (password ``maison123``):
     <code>.manager@maison.example   Maison Manager     PIN 1234
     <code>.a1@maison.example        Maison Associate   PIN 2580
     <code>.a2@maison.example        Maison Associate   PIN 1357
+
+.. warning::
+
+   **These PINs (and the password) are shared constants, identical in every store and on every
+   seeded site.** They exist so a demo can be picked up by anyone; they are not credentials.
+   Knowing the role is enough to know the PIN, so a seeded site must never hold real client data
+   and must never be reachable from the public internet without resetting them —
+   ``maison_pos.maison_pos.doctype.maison_associate.maison_associate.reset_pin`` per associate,
+   or ``bench --site … set-admin-password`` plus a fresh PIN for every row. See
+   ``docs/security.md`` ("Demo credentials").
 """
 
 from __future__ import annotations

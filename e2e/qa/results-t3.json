@@ -1,0 +1,99 @@
+{
+  "when": "2026-08-23T19:28:34.757Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "3.1 cash — no tender typed defaults to exact, change $0.00",
+      "ok": true,
+      "detail": "due=1.94 basket=1.94 change=\"$0.00\"",
+      "sev": ""
+    },
+    {
+      "step": "3.3 cash — under-tender shows \"Short …\" and blocks completion",
+      "ok": true,
+      "detail": "tendered=1 change-field=\"Short $0.94\" completeDisabled=true",
+      "sev": ""
+    },
+    {
+      "step": "3.2 cash — over-tender computes the change",
+      "ok": true,
+      "detail": "tendered 20.00 on 1.94 → change \"$18.06\", expected 18.06",
+      "sev": ""
+    },
+    {
+      "step": "3.2b cash sale posts and the receipt shows tendered + change",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03048 total 1.94; receipt=\"CLOUDCHASERZ CLOUDCHASERZ MONTROSE 2037 W Alabama St Houston, TX 77098 (281) 974-3712 INVOICE ACC-SINV-2026-03048 DATE Aug 23, 2026, 14:27 ASSOCIATE Dante Ruiz BIC LIGHTER — CLASSIC 1 X 1.79 1.79 SUBTOTAL 1.79 TAX 8.25% 0.15 TOTAL USD 1.94 \"",
+      "sev": ""
+    },
+    {
+      "step": "3.2c change is booked on the invoice",
+      "ok": false,
+      "detail": "invoice change_amount=0 paid=1.94 grand=1.94, expected change 18.06",
+      "sev": ""
+    },
+    {
+      "step": "3.6 cancel mid-payment returns to Sell with the basket intact",
+      "ok": true,
+      "detail": "mid-flow status=\"Discovering readers\", lines after cancel=1, url=https://cloudchaserz.frappe.cloud/pos/sell",
+      "sev": ""
+    },
+    {
+      "step": "3.6b invoices created in the last 2 min at 7.57 (should not include the cancelled one)",
+      "ok": null,
+      "detail": "[]"
+    },
+    {
+      "step": "3.4 card payment through the simulated reader completes",
+      "ok": true,
+      "detail": "reader=\"Simulated reader\" invoice=ACC-SINV-2026-03049 pi=pi_sim_62ab99021040ccfc null ****null; receipt=\"CLOUDCHASERZ CLOUDCHASERZ MONTROSE 2037 W Alabama St Houston, TX 77098 (281) 974-3712 INVOICE ACC-SINV-2026-03049 DATE Aug 23, 2026, 14:27 ASSOCIATE Dante Ruiz USB-C CABLE 3FT 1 X 6.99 6.99 SUBTOTAL 6\"",
+      "sev": ""
+    },
+    {
+      "step": "3.5 split payment (cash + card on one sale)",
+      "ok": false,
+      "detail": "Not supported: the Pay screen offers a single mode (tabs = Cash | Card) and finalize() always sends exactly one payment row (frontend/src/views/PayView.vue finalize(), payments:[{mode_of_payment, amount: total}]). No partial-tender UI, and POS Profile \"allow_partial_payment\" is 0.",
+      "sev": "low"
+    },
+    {
+      "step": "3.7 declined card shows the error, offers Retry and creates no sale",
+      "ok": true,
+      "detail": "status=\"Your card was declined (test)\" retryButton=1 url=https://cloudchaserz.frappe.cloud/pos/pay?mode=card",
+      "sev": ""
+    },
+    {
+      "step": "3.7b retry after a decline completes the sale exactly once",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03050; pill=Synced",
+      "sev": ""
+    },
+    {
+      "step": "3.8 card sale of a 2-line basket whose per-line tax rounds up is accepted",
+      "ok": false,
+      "detail": "basket 8.78 + tax(per-line) 0.73 = 9.51; server tax(on-net-total) would be 0.72 = 9.5; sync pill \"Rejected\"; invoice=none",
+      "sev": "high"
+    },
+    {
+      "step": "3.8 sync log for that sale",
+      "ok": null,
+      "detail": "{\"status\":\"Error\",\"error\":\"Card payments exceed the invoice total\"}"
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 402 (Payment Required)"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03048",
+    "ACC-SINV-2026-03049",
+    "ACC-SINV-2026-03050"
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "when": "2026-08-23T22:05:38.787Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "B · feedback reaches HQ as a Maison Feedback record",
+      "ok": true,
+      "detail": "{\"name\":\"4jretiisc1\",\"rating\":2,\"comment\":\"QA4 QA4A — test feedback, please ignore (rating 2)\",\"boutique\":\"OK-BA\",\"customer\":\"QA4 Member QA4A\",\"status\":\"New\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · the feedback record is scoped to the store and carries the comment",
+      "ok": true,
+      "detail": "{\"boutique\":\"OK-BA\",\"rating\":2,\"alerted\":1,\"status\":\"New\",\"comment\":\"QA4 QA4A — test feedback, please ignore (rating 2)\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · HQ feedback summary reports the store's ratings",
+      "ok": true,
+      "detail": "{\"days\":30,\"count\":2,\"avg_rating\":3.5,\"low_count\":1,\"by_boutique\":[{\"boutique\":\"OK-BA\",\"count\":1,\"low\":1,\"avg_rating\":2},{\"boutique\":\"OK-BIX\",\"count\":1,\"low\":0,\"avg_rating\":5}],\"recent\":[{\"name\":\"4jretiisc1\",\"boutique\":\"OK-BA\",\"rating\":2,\"comment\":\"QA4 QA4A — test feedback, please ignore (rating 2)\"",
+      "sev": ""
+    },
+    {
+      "step": "B · feedback is not readable by a shopper",
+      "ok": true,
+      "detail": "403 rows=0",
+      "sev": ""
+    },
+    {
+      "step": "B · a rating ≤ 2 alerts the store manager",
+      "ok": true,
+      "detail": "alerted=1 notification_logs=2 [{\"name\":\"4jred8efuj\",\"subject\":\"Low rating (2/5) at OK-BA — ACC-SINV-2026-03081\",\"for_user\":\"hq@cloudchaserz.example\"},{\"name\":\"4jref2uqpl\",\"subject\":\"Low rating (2/5) at OK-BA — ACC-SINV-2026-03081\",\"for_user\":\"ok.ba.manager@cloudchaserz.example\"}] todos=0 communications=0",
+      "sev": ""
+    },
+    {
+      "step": "B · only one feedback per receipt is stored",
+      "ok": true,
+      "detail": "1 rows; second submit → 200 {\"ok\":true,\"duplicate\":true,\"thanks\":\"Thank you — we already have your feedback for this visit.\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · feedback with an unknown receipt token is refused",
+      "ok": true,
+      "detail": "404 ",
+      "sev": ""
+    },
+    {
+      "step": "B · an out-of-range rating is refused",
+      "ok": true,
+      "detail": "417 frappe.exceptions.ValidationError: Rating must be between 1 and 5",
+      "sev": ""
+    }
+  ],
+  "consoleLog": []
+}

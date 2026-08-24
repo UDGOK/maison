@@ -1,0 +1,115 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "warehouse admin approves a request with an edited quantity",
+   "ok": true,
+   "detail": "MRR-2026-00018 Pending Approval->Approved; shipment MSH-2026-00020 Pending",
+   "severity": ""
+  },
+  {
+   "step": "the shipment carries the EDITED quantity, not the requested one",
+   "ok": true,
+   "detail": "requested 8 -> approved 10 -> shipment [[\"KRT-001\",10]]",
+   "severity": ""
+  },
+  {
+   "step": "the linked Material Request is submitted with the approved quantities",
+   "ok": true,
+   "detail": "MAT-MR-2026-00005 docstatus=1 status=Pending items=[{\"item_code\":\"KRT-001\",\"qty\":10}]",
+   "severity": ""
+  },
+  {
+   "step": "the shipment is wired to the request / MR / transit warehouse",
+   "ok": true,
+   "detail": "req=MRR-2026-00018 mr=MAT-MR-2026-00005 from=HOU-WH - CCZ transit=OK-JENKS In Transit - CCZ to=OK-JENKS - CCZ",
+   "severity": ""
+  },
+  {
+   "step": "the request records approved_by / approved_at and links the shipment",
+   "ok": true,
+   "detail": "{\"status\":\"Approved\",\"approved_by\":\"warehouse@cloudchaserz.example\",\"approved_at\":\"2026-08-23 15:22:20.521229\",\"shipment\":\"MSH-2026-00020\"}",
+   "severity": ""
+  },
+  {
+   "step": "the store manager is notified that the request was approved",
+   "ok": true,
+   "detail": "[{\"for_user\":\"ok.jenks.manager@cloudchaserz.example\",\"subject\":\"Replenishment MRR-2026-00018 approved — shipment MSH-2026-00020\"}]",
+   "severity": ""
+  },
+  {
+   "step": "approving an already-approved request is refused and creates no second shipment",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Request MRR-2026-00018 is Approved; shipments for MRR-2026-00018: 1",
+   "severity": ""
+  },
+  {
+   "step": "rejecting an already-approved request is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: Request MRR-2026-00018 is Approved",
+   "severity": ""
+  },
+  {
+   "step": "a line approved at 0 is dropped from the shipment",
+   "ok": true,
+   "detail": "request lines=[[\"HKA-004\",11,11],[\"ROL-001\",5,0]] shipment lines=[[\"HKA-004\",11]]",
+   "severity": ""
+  },
+  {
+   "step": "the zeroed line is removed from the submitted Material Request too",
+   "ok": true,
+   "detail": "[{\"item_code\":\"HKA-004\",\"qty\":11}]",
+   "severity": ""
+  },
+  {
+   "step": "rejecting without a reason is refused",
+   "ok": true,
+   "detail": "417 frappe.exceptions.ValidationError: A rejection reason is required",
+   "severity": ""
+  },
+  {
+   "step": "warehouse admin rejects a request with a reason",
+   "ok": true,
+   "detail": "MRR-2026-00022 -> Rejected: \"QA2 discontinued — order the 20K instead\"",
+   "severity": ""
+  },
+  {
+   "step": "rejecting deletes the draft Material Request (nothing left half-open)",
+   "ok": true,
+   "detail": "material_request=null; MR MAT-MR-2026-00007 exists=0",
+   "severity": ""
+  },
+  {
+   "step": "the store manager is notified of the rejection, with the reason",
+   "ok": false,
+   "detail": "[{\"for_user\":\"warehouse@cloudchaserz.example\",\"subject\":\"OK-JENKS requests 7 unit(s) from the warehouse\"},{\"for_user\":\"ok.jenks.manager@cloudchaserz.example\",\"subject\":\"Replenishment MRR-2026-00022 rejected: QA2 discontinued — order the 20K instead\"}]",
+   "severity": ""
+  },
+  {
+   "step": "a rejected request creates no shipment",
+   "ok": true,
+   "detail": "0 shipments",
+   "severity": ""
+  },
+  {
+   "step": "the rejected request shows on the store's Receive feed with the reason",
+   "ok": true,
+   "detail": "Rejected \"QA2 discontinued — order the 20K instead\"",
+   "severity": ""
+  },
+  {
+   "step": "approving MORE than the warehouse holds is accepted (no stock check at approval)",
+   "ok": true,
+   "detail": "HKA-002: HQ has 6, approved 31 -> MSH-2026-00024",
+   "severity": "observation"
+  },
+  {
+   "step": "the request line shows the warehouse on-hand so the admin can see the shortfall",
+   "ok": true,
+   "detail": "line.on_hand_warehouse=6 vs Bin 6",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

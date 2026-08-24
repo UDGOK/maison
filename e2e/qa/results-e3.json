@@ -1,0 +1,42 @@
+[
+ {
+  "name": "associate login for the live-sale probe",
+  "ok": true,
+  "detail": "200 ok.mus.a1@cloudchaserz.example"
+ },
+ {
+  "name": "test sale accepted by the server",
+  "ok": true,
+  "detail": "{\"message\":{\"results\":[{\"offline_uuid\":\"qa-dash-1787519367669\",\"status\":\"ok\",\"invoice_name\":\"ACC-SINV-2026-03080\",\"grand_total\":2.17,\"rounded_total\":2.17,\"change_amount\":0,\"receipt_token\":\"TOZ8ZDj_hD38MXRy\",\"rewards\":{\"program_name\":\"CloudChaserz Rewards\",\"points_earned\":0,\"points_balance\":0,\"next_r"
+ },
+ {
+  "name": "OK-MUS live card updates within seconds of the sale",
+  "ok": true,
+  "detail": "card ticket 0→1 after 144 ms; last item=\"Clipper Lighter — Assorted\"; ticker head=ACC-SINV-2026-03080"
+ },
+ {
+  "name": "card net increased by the sale amount",
+  "ok": true,
+  "detail": "-60 → -58 (sale 2.17)"
+ },
+ {
+  "name": "chain ticker shows the new sale at the head",
+  "ok": true,
+  "detail": "head=ACC-SINV-2026-03080 want=ACC-SINV-2026-03080 text=\"16:09 · OK-MUS · Clipper Lighter — Assorted · 2\""
+ },
+ {
+  "name": "only the selling store card changed",
+  "ok": true,
+  "detail": "HOU-MTR=30 OK-BIX=1 OK-ETUL=0 OK-OWA=0 OK-STUL=0 OK-YALE=0 OK-SAP=0 OK-MUS=1 OK-BA=0 OK-JENKS=0 OK-MINGO=0"
+ },
+ {
+  "name": "CLEANUP: test invoice cancelled",
+  "ok": true,
+  "detail": "200 ACC-SINV-2026-03080 {\"message\":{\"name\":\"ACC-SINV-2026-03080\",\"owner\":\"ok.mus.a1@cloudchaserz.example\",\"creation\":\"2026-08-23 16:09:28.664227\",\"modified\":\"2026-08-23 16:09:31.024062"
+ },
+ {
+  "name": "no console errors during the live update",
+  "ok": true,
+  "detail": ""
+ }
+]

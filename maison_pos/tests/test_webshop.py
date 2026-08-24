@@ -152,14 +152,30 @@ class TestWebshop(FrappeTestCase):
 		self.assertNotIn(so.name, [o["name"] for o in web_orders("NYC-5AV")["orders"]])
 		self.assertIsNone(out["payment_url"])
 
-	def test_place_order_refuses_enquire_pieces(self):
+	def test_the_bag_refuses_enquire_pieces_at_add_time(self):
+		"""v0.8 QA A5 — the refusal moved from checkout to the moment the line is added.
+
+		`update_cart` had no web-mode guard, so an API caller (or a stale cart) could put an
+		"Available in store" piece in the bag and `place_order` then refused the whole basket,
+		leaving a bag the shopper had to repair by hand. `place_order` still refuses a line that
+		became Enquire *after* it was added (below).
+		"""
 		from maison_pos.api.webshop import place_order, update_cart
 
 		_web_session()
-		update_cart("HJ-001", 1)
 		with self.assertRaises(frappe.ValidationError):
-			place_order(boutique="CHI-OAK")
-		update_cart("HJ-001", 0)
+			update_cart("HJ-001", 1)
+		# a piece that was buyable when it went in, and is not any more, is still stopped at checkout
+		update_cart("AC-012", 1)
+		frappe.db.set_value("Item", "AC-012", "maison_web_mode", "Enquire", update_modified=False)
+		frappe.clear_document_cache("Item", "AC-012")
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				place_order(boutique="CHI-OAK")
+		finally:
+			frappe.db.set_value("Item", "AC-012", "maison_web_mode", "Buy", update_modified=False)
+			frappe.clear_document_cache("Item", "AC-012")
+		update_cart("AC-012", 0)
 		frappe.set_user("Administrator")
 
 	def test_status_machine(self):

@@ -1,0 +1,128 @@
+{
+ "when": "2026-08-23",
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "C \u00b7 POS Settings has a \"Client display\" card",
+   "ok": true,
+   "detail": "Not paired"
+  },
+  {
+   "step": "C \u00b7 the POS shows a 6-digit pairing code, its QR and a 10-minute countdown",
+   "ok": true,
+   "detail": "711524 \u00b7 10:00 \u00b7 qr=1"
+  },
+  {
+   "step": "C \u00b7 the Salon pairs with the 6-digit code and lands on the ambient screen",
+   "ok": true,
+   "detail": "code 711524"
+  },
+  {
+   "step": "C \u00b7 the POS card flips to \"Paired\"",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "C \u00b7 the server holds a Paired Maison Salon Session for this POS device",
+   "ok": true,
+   "detail": "e42c57d5d1\u2026 boutique=OK-BA"
+  },
+  {
+   "step": "C \u00b7 the ambient screen shows the brand, the hour and a curated piece",
+   "ok": false,
+   "detail": "CLOUDCHASERZ \u00b7 17:29 \u00b7 pieces=0"
+  },
+  {
+   "step": "C \u00b7 the first piece with no client switches the Salon to \"identify\"",
+   "ok": true,
+   "detail": "GOOD AFTERNOON Are you a client of the house? Let us know who you are and your points and preferences follow you to the counter. PHONE OR CLIENT \u2116 E-MAIL SCAN CLIENT CARD JOIN CLOU"
+  },
+  {
+   "step": "C \u00b7 the keypad masks what the client types",
+   "ok": true,
+   "detail": "\u2022\u20227413"
+  },
+  {
+   "step": "C \u00b7 a client number typed on the Salon keypad identifies the client",
+   "ok": false,
+   "detail": "typed 647413 (the keypad has no letters, so the MC prefix cannot be entered) \u2192 error: We could not find you \u2014 try another number, or join the house."
+  },
+  {
+   "step": "C \u00b7 the identify API accepts the printed client number (MC######)",
+   "ok": true,
+   "detail": "bare digits \u2192 found=false; \"MC647413\" \u2192 found=true"
+  },
+  {
+   "step": "C \u00b7 identify by e-mail finds the client",
+   "ok": true,
+   "detail": "qa4.member.qa4a@example.com \u2192 {\"customer\":\"QA4 Member QA4A\",\"first_name\":\"QA4\",\"customer_name\":\"QA4 Impostor2 QA4A\",\"client_number_masked\":\"MC \u2022\u2022 413\",\"phone_masked\":\"\u2022\u2022\u2022"
+  },
+  {
+   "step": "C \u00b7 an unknown number answers \"not found\" with no hint",
+   "ok": true,
+   "detail": "{\"found\":false}"
+  },
+  {
+   "step": "C \u00b7 the client screen welcomes the client with masked contact details",
+   "ok": true,
+   "detail": "\"QA4\" \u00b7 \"Client \u2116 MC \u2022\u2022 413 \u00b7 \u2022\u2022\u2022\u2022 9407 \u00b7 q\u2022\u2022\u2022@example.com\" \u00b7 points=560"
+  },
+  {
+   "step": "C \u00b7 the Salon state carries no full phone, e-mail or other client's data",
+   "ok": true,
+   "detail": "state payload checked for qa4.member.qa4a@example.com / +1 918 555 9407"
+  },
+  {
+   "step": "C \u00b7 the POS basket picks up the client the Salon identified",
+   "ok": true,
+   "detail": "QA4 Impostor2 QA4A"
+  },
+  {
+   "step": "C \u00b7 the basket mirror follows the POS (lines, focus piece, total)",
+   "ok": true,
+   "detail": "focus=\"BIC Lighter \u2014 Classic\" salon $88.65 vs POS $88.65"
+  },
+  {
+   "step": "C \u00b7 the mirror shows the points this visit will earn",
+   "ok": true,
+   "detail": "+ 81 points with this visit"
+  },
+  {
+   "step": "C \u00b7 \"Ask about this piece\" reaches the POS and the client profile",
+   "ok": true,
+   "detail": "POS notice=true \u00b7 interaction={\"name\":\"82r08q8chv\",\"type\":\"Note\",\"note\":\"Client asked about BIC Lighter \u2014 Classic: QA4 QA4A: does this come in a bigge"
+  },
+  {
+   "step": "C \u00b7 the Salon shows the payment screen with the amount due",
+   "ok": true,
+   "detail": "salon $88.65 vs POS $88.65"
+  },
+  {
+   "step": "C \u00b7 the Salon shows the \"approved\" state before the receipt",
+   "ok": true,
+   "detail": "salon view now = thankyou"
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows the points earned and the receipt QR",
+   "ok": false,
+   "detail": "+81 \u00b7 qr=0 \u00b7 THANK YOU Until next time, QA4 +81 POINTS EARNED Balance 641 \u00b7 Member Issuing your receipt\u2026 Scan for your receipt EMAIL MY RECEIPT TO Q\u2022\u2022\u2022@E"
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows the tier progress",
+   "ok": false,
+   "detail": ""
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows giveaway entries",
+   "ok": false,
+   "detail": ""
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows no full name, phone or e-mail",
+   "ok": true,
+   "detail": "THANK YOU Until next time, QA4 +81 POINTS EARNED Balance 641 \u00b7 Member Issuing your receipt\u2026 Scan for your receipt EMAIL"
+  }
+ ],
+ "consoleLog": [],
+ "note": "transcribed from the run log; the script stopped on a harness timeout after these checks"
+}

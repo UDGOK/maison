@@ -286,6 +286,30 @@ def decline(boutique: Optional[str] = None, device_id: Optional[str] = None, off
 # ---------------------------------------------------------------------------
 # invoice gate (called from sales.build_sales_invoice)
 # ---------------------------------------------------------------------------
+def _checked_at(value: Any):
+	"""--- v0.8 POS D2 — normalise the device's timestamp before it reaches a Datetime column.
+
+	An offline sale carries the moment the ID was checked, produced on the device. The PWA used to
+	send ``Date.toISOString()`` — ``2026-08-23T19:39:08.269Z`` — and this went straight into
+	``tabSales Invoice.maison_age_checked_at``, so MariaDB refused the row with *Incorrect datetime
+	value* and the sale could never sync. 127 of the 160 items in this catalogue are 21+, which made
+	offline mode unusable. ``utils.parse_datetime`` is the same tolerant parser
+	``sales.build_sales_invoice`` already uses for ``posting_datetime``: it accepts the ``T``/``Z``
+	form and converts the instant into the site's timezone, naive — which is what the column stores.
+	Anything unparseable falls back to *now* rather than refusing a completed, age-verified sale.
+	--- end v0.8 POS D2 ---
+	"""
+	if not value:
+		return now_datetime()
+	try:
+		from maison_pos.utils import parse_datetime
+
+		return parse_datetime(value) or now_datetime()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison age checked_at parse")
+		return now_datetime()
+
+
 def apply_to_invoice(si, payload: dict[str, Any]) -> None:
 	"""Refuse a POS invoice with age-restricted lines unless the payload carries a valid check.
 
@@ -326,7 +350,7 @@ def apply_to_invoice(si, payload: dict[str, Any]) -> None:
 	si.maison_age_method = method
 	si.maison_age_dob_year_ok = dob_year_ok
 	si.maison_age_checked_by = si.get("maison_associate")
-	si.maison_age_checked_at = check.get("checked_at") or now_datetime()
+	si.maison_age_checked_at = _checked_at(check.get("checked_at"))
 	si.maison_age_check = name
 
 

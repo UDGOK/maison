@@ -1,0 +1,73 @@
+{
+ "when": "2026-08-23",
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "C \u00b7 the pairing QR is rendered on the POS",
+   "ok": true,
+   "detail": "data:image/png;base64,iVBORw0KGgoAAAANSU\u2026"
+  },
+  {
+   "step": "C \u00b7 the Salon pairs from the QR deep link (/salon?code=\u2026)",
+   "ok": true,
+   "detail": "code 570971 \u2192 ambient"
+  },
+  {
+   "step": "C \u00b7 a paired session lasts 12 h",
+   "ok": true,
+   "detail": "paired_at=2026-08-23 17:33:43.305656 expires_at=2026-08-24 05:33:43.305656"
+  },
+  {
+   "step": "C \u00b7 sessions are expired by an hourly job",
+   "ok": true,
+   "detail": "{\"name\":\"salon.expire_sessions\",\"frequency\":\"Hourly\",\"stopped\":0,\"last_execution\":\"2026-08-23 17:01:00.164350\"}"
+  },
+  {
+   "step": "C \u00b7 an unknown session token is refused with no detail",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Salon session not found"
+  },
+  {
+   "step": "C \u00b7 a guest cannot list Salon sessions",
+   "ok": true,
+   "detail": "403 rows=0"
+  },
+  {
+   "step": "C \u00b7 the Join screen names the programme and its terms",
+   "ok": true,
+   "detail": "JOIN CLOUDCHASERZ REWARDS Earn 1 point for every $1 you spend. $5 off at 100 points $10 off at 200 points $15 off at 300 points BIRTHDAY DISCOUNT MONTHLY SALE PROMOTIONS LATEST PRODUCT ARRIVALS PRODUC"
+  },
+  {
+   "step": "C \u00b7 Join from the Salon creates the member and attaches them to the sale",
+   "ok": true,
+   "detail": "{\"name\":\"QA4 Salon QA4A\",\"maison_client_number\":\"MC517789\",\"loyalty_program\":\"CloudChaserz Rewards\",\"mobile_no\":\"9185557970\",\"email_id\":\"qa4.salon.qa4a7970@example.com\"}"
+  },
+  {
+   "step": "C \u00b7 the marketing preferences chosen on the Salon are stored",
+   "ok": true,
+   "detail": "{\"birthday\":\"1994-02-02\",\"do_not_email\":0,\"do_not_sms\":1}"
+  },
+  {
+   "step": "C \u00b7 the POS shows the client that joined on the Salon",
+   "ok": true,
+   "detail": "QA4 Salon QA4A"
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows the points earned and the receipt QR",
+   "ok": true,
+   "detail": "+21 \u00b7 qr=1 \u00b7 invoice ACC-SINV-2026-03092 (Synced)"
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows the tier progress (next reward)",
+   "ok": true,
+   "detail": "Next reward: $5.00 off at 100 points \u00b7 79 to go"
+  },
+  {
+   "step": "C \u00b7 the thank-you screen shows the giveaway entries",
+   "ok": false,
+   "detail": ""
+  }
+ ],
+ "consoleLog": [],
+ "note": "transcribed from the run log; the script stopped on a harness timeout after these checks"
+}

@@ -1,0 +1,64 @@
+{
+  "when": "2026-08-23T22:40:21.984Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "C · with a client attached and no basket the Salon shows the welcome screen",
+      "ok": true,
+      "detail": "client",
+      "sev": ""
+    },
+    {
+      "step": "C · the associate can switch the Salon to Concierge",
+      "ok": true,
+      "detail": "salon view = concierge",
+      "sev": ""
+    },
+    {
+      "step": "C · Concierge answers are written to the client profile",
+      "ok": true,
+      "detail": "steps=ring→wrist→metal→style→occasion · saved-banner=1 · profile fields changed: [[\"ring_size\",\"6.5\"],[\"metal_preference\",\"Yellow Gold\"],[\"style_notes\",\"[Salon 2026-08-23] Occasions: Anniversary\"]]",
+      "sev": ""
+    },
+    {
+      "step": "C · Concierge can be switched off again",
+      "ok": true,
+      "detail": "pair",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "[maison] service worker registration failed TypeError: Failed to register a ServiceWorker for scope ('https://cloudchaserz.frappe.cloud/pos/') with script ('https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.pwa.service_worker'): An unknown error occurred when fetching the script."
+    },
+    {
+      "tag": "salon",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    }
+  ],
+  "steps": [
+    "ring",
+    "wrist",
+    "metal",
+    "style",
+    "occasion"
+  ]
+}

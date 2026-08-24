@@ -1,0 +1,49 @@
+{
+  "when": "2026-08-23T19:39:17.922Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "6.0 service worker registered and controlling the page after a reload",
+      "ok": true,
+      "detail": "{\"controller\":\"https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.pwa.service_worker\",\"regs\":[{\"scope\":\"https://cloudchaserz.frappe.cloud/pos/\",\"state\":\"activated\"}]}",
+      "sev": ""
+    },
+    {
+      "step": "6.6 offline oversell is refused server-side with a readable stock error",
+      "ok": false,
+      "detail": "qty 41 of ACC-003 (bin 9); log={\"status\":\"Error\",\"error\":\"<strong>32.0</strong> units of <a href=\\\"/app/Form/Item/ACC-003\\\" style=\\\"font-weight: bold;\\\">Item ACC-003: Blazer Big Shot Torch</a> needed in <a href=\\\"/app/Form/Warehouse/HOU-MTR%20-%20CCZ\\\" style=\\\"font-weight: bold;\\\">Warehouse HOU-MTR - CCZ</a> to complete this transaction.\"}; invoices=[]",
+      "sev": ""
+    },
+    {
+      "step": "6.6b the refused sale moved no stock",
+      "ok": true,
+      "detail": "bin 9 → 9",
+      "sev": ""
+    },
+    {
+      "step": "6.6c the rejection is shown to the associate in plain language (no HTML / traceback)",
+      "ok": true,
+      "detail": "QUEUE 0 pending · 1 rejected · 0 synced · heartbeat 14:38 ONLINE SYNC NOW STATUS SALE TIME CLIENT TOTAL DETAIL REJECTED 690CD355 1 line · Cash Aug 23, 2026, 14:38 Walk-in $2,662.51 32.0 units of Item ACC-003: Blazer Big Shot Torch needed in Warehouse HOU-MTR - CCZ to complete this transaction. (VALIDATION_ERROR) RECEIPTRETRY",
+      "sev": ""
+    },
+    {
+      "step": "6.7 the 21+ gate still works offline (rules run on the device)",
+      "ok": true,
+      "detail": "gate=1 lines=1",
+      "sev": ""
+    },
+    {
+      "step": "6.7b an offline sale of an age-restricted item syncs",
+      "ok": false,
+      "detail": "sync log={\"status\":\"Error\",\"error\":\"(1292, \\\"Incorrect datetime value: '2026-08-23T19:39:08.269Z' for column `_1c16a14f83a97af7`.`tabSales Invoice`.`maison_age_checked_at` at row 1\\\")\"}; invoices=[]",
+      "sev": "critical"
+    },
+    {
+      "step": "6.7c what the associate sees",
+      "ok": null,
+      "detail": "QUEUE 0 pending · 2 rejected · 0 synced · heartbeat 14:39 ONLINE SYNC NOW STATUS SALE TIME CLIENT TOTAL DETAIL REJECTED 6F4E2D6C 1 line · Cash Aug 23, 2026, 14:39 Walk-in $25.75 (1292, \"Incorrect datetime value: '2026-08-23T19:39:08.269Z' for column `_1c16a14f83a97af7`.`tabSales Invoice`.`maison_age_checked_at` at row 1\") (SERVER_ERROR) RECEIPTRETRY REJECTED 690CD355 1 line · Cash Aug 23, 2026, 14:38 Walk-in $2,662.51 32.0 units of Item ACC-003: Blazer Big Shot Torch needed in Warehouse HOU-MTR "
+    }
+  ],
+  "consoleLog": [],
+  "created": []
+}

@@ -11,8 +11,8 @@ from frappe.query_builder import DocType
 from frappe.query_builder.functions import Max
 from frappe.utils import cint, flt
 
-from maison_pos.identifiers import CUSTOMER_QR_PREFIX, digits_only, is_client_number, normalize_client_number
-from maison_pos.scoping import assert_roles, get_user_boutique, is_unrestricted
+from maison_pos.identifiers import CUSTOMER_QR_PREFIX, coerce_client_number, digits_only, normalize_client_number
+from maison_pos.scoping import assert_roles, get_user_boutique, is_unrestricted, is_store_scoped
 from maison_pos.scoping import ALL_MAISON_ROLES
 
 CUSTOMER_FIELDS = [
@@ -40,6 +40,11 @@ UPSERT_ALLOWED = {
 	"maison_face_consent",
 }
 MIN_PHONE_DIGITS = 4
+#: v0.7 S6 — a store user searching the chain-wide client book gets an exact-ish match and a
+#: short page of it. Bulk reading the book is closed off at the list-query level
+#: (``maison_pos.scoping.customer_query``); this is the service counter, not a data export.
+SCOPED_SEARCH_LIMIT = 25
+SCOPED_SEARCH_MIN_CHARS = 3
 
 
 def _loyalty(customer: str, company: Optional[str] = None) -> tuple[float, Optional[str], float]:
@@ -165,37 +170,96 @@ def _customer_rows(criterion, limit: int) -> list[dict[str, Any]]:
 	return [r for r in rows if not str(r.get("customer_name") or "").lower().startswith("walk-in")]
 
 
+def store_customer_criterion(boutique: str):
+	"""Query-builder form of :func:`maison_pos.scoping.customer_query` — *this store's* clients."""
+	C = DocType("Customer")
+	SI = DocType("Sales Invoice")
+	A = DocType("Maison Associate")
+	criterion = C.name.isin(frappe.qb.from_(SI).select(SI.customer).where(SI.maison_boutique == boutique)) | C.owner.isin(
+		frappe.qb.from_(A).select(A.user).where(A.boutique == boutique)
+	)
+	if frappe.get_meta("Sales Order").has_field("maison_boutique"):
+		SO = DocType("Sales Order")
+		criterion = criterion | C.name.isin(frappe.qb.from_(SO).select(SO.customer).where(SO.maison_boutique == boutique))
+	if frappe.db.exists("DocType", "Maison Client Profile"):
+		P = DocType("Maison Client Profile")
+		criterion = criterion | C.name.isin(frappe.qb.from_(P).select(P.name).where(P.preferred_boutique == boutique))
+	return criterion
+
+
+def _search_criterion(q: str, exact_ish: bool):
+	"""Match *q* against client number / phone / e-mail / name.
+
+	*exact_ish* (store staff, v0.7 S6) anchors the text matches to the start of a name or word
+	instead of ``%q%`` anywhere, so the search stays a search and does not double as a way of
+	walking the client book one letter at a time.
+	"""
+	C = DocType("Customer")
+	like = f"%{q}%"
+	number = normalize_client_number(q)
+	if exact_ish:
+		criterion = (
+			C.customer_name.like(f"{q}%")
+			| C.customer_name.like(f"% {q}%")
+			| C.email_id.like(f"{q}%")
+			| C.name.like(f"{q}%")
+			| C.maison_client_number.like(f"{number}%")
+		)
+	else:
+		criterion = C.customer_name.like(like) | C.email_id.like(like) | C.name.like(like) | C.maison_client_number.like(f"%{number}%")
+	digits = digits_only(q)
+	# "phone-like" input: mostly digits (allow + ( ) - . and spaces) and at least 4 digits
+	if digits and len(digits) >= MIN_PHONE_DIGITS and len(digits) >= len(q) - 6:
+		return criterion | C.mobile_no.regexp(_phone_regexp(digits))
+	return criterion | C.mobile_no.like(like if not exact_ish else f"{q}%")
+
+
 @frappe.whitelist()
 def search(q: str = "", limit: int = 20) -> list[dict[str, Any]]:
-	"""Search customers by client number, phone (digits only, 4+), email or name (min 2 chars).
+	"""Search customers by client number, phone (digits only, 4+), email or name.
 
-	Empty *q* returns the most recently modified customers. Returns rows with
-	``client_number``, ``loyalty_points``, ``points_value``, ``tier`` and last visit.
+	A client may shop in any store, so staff keep searching the whole chain — but v0.7 S6 makes
+	that a *lookup*: store users need 3 characters, get prefix (not substring) matching, at most
+	:data:`SCOPED_SEARCH_LIMIT` rows, and every cross-store hit is written to the security log.
+	With no query at all they see their own store's clients, not the chain's most recent.
 	"""
 	assert_roles(*ALL_MAISON_ROLES, "System Manager")
-	limit = min(max(cint(limit) or 20, 1), 100)
+	scoped = is_store_scoped()
+	limit = min(max(cint(limit) or 20, 1), SCOPED_SEARCH_LIMIT if scoped else 100)
 	q = (q or "").strip()
 	if q.upper().startswith(CUSTOMER_QR_PREFIX):
 		q = q[len(CUSTOMER_QR_PREFIX) :].strip()
-	if q and len(q) < 2:
+	if q and len(q) < (SCOPED_SEARCH_MIN_CHARS if scoped else 2):
 		return []
-	criterion = None
-	if q:
-		C = DocType("Customer")
-		like = f"%{q}%"
-		criterion = (
-			C.customer_name.like(like)
-			| C.email_id.like(like)
-			| C.name.like(like)
-			| C.maison_client_number.like(f"%{normalize_client_number(q)}%")
-		)
-		digits = digits_only(q)
-		# "phone-like" input: mostly digits (allow + ( ) - . and spaces) and at least 4 digits
-		if digits and len(digits) >= MIN_PHONE_DIGITS and len(digits) >= len(q) - 6:
-			criterion = criterion | C.mobile_no.regexp(_phone_regexp(digits))
-		else:
-			criterion = criterion | C.mobile_no.like(like)
-	return _serialize(_customer_rows(criterion, limit))
+	boutique = get_user_boutique() if scoped else None
+	if not q:
+		# the default list is "my store's clients", never the whole chain's newest rows
+		criterion = store_customer_criterion(boutique) if scoped else None
+		if scoped and not boutique:
+			return []
+		return _serialize(_customer_rows(criterion, limit))
+	rows = _customer_rows(_search_criterion(q, exact_ish=scoped), limit)
+	if scoped:
+		_audit_lookup("customers.search", q, rows, boutique)
+	return _serialize(rows)
+
+
+def _audit_lookup(event: str, needle: str, rows: list[dict[str, Any]], boutique: Optional[str]) -> None:
+	"""Record a store user reading client records — how many, and how many from other stores."""
+	from maison_pos.audit import log
+	from maison_pos.scoping import customer_is_known_to_store
+
+	if not rows:
+		return
+	foreign = [r["name"] for r in rows if not customer_is_known_to_store(r["name"])]
+	log(
+		event,
+		boutique=boutique,
+		query=(needle or "")[:64],
+		results=len(rows),
+		other_store_results=len(foreign) or None,
+		customers=foreign[:10] or None,
+	)
 
 
 @frappe.whitelist()
@@ -217,8 +281,10 @@ def lookup(code: str) -> Optional[dict[str, Any]]:
 			name = payload
 		else:
 			code = payload
-	if not name and is_client_number(code):
-		name = frappe.db.get_value("Customer", {"maison_client_number": normalize_client_number(code), "disabled": 0}, "name")
+	# v0.8 QA C1 — a bare six-digit client number (digits-only keypads) resolves like `MC######`
+	client_number = coerce_client_number(code)
+	if not name and client_number:
+		name = frappe.db.get_value("Customer", {"maison_client_number": client_number, "disabled": 0}, "name")
 	if not name and "@" in code:
 		name = frappe.db.get_value("Customer", {"email_id": code, "disabled": 0}, "name")
 	if not name:
@@ -234,6 +300,8 @@ def lookup(code: str) -> Optional[dict[str, Any]]:
 	if not name:
 		return None
 	row = frappe.db.get_value("Customer", name, CUSTOMER_FIELDS, as_dict=True)
+	if row and is_store_scoped():
+		_audit_lookup("customers.lookup", code, [row], get_user_boutique())
 	return _serialize([row])[0] if row else None
 
 
@@ -244,6 +312,8 @@ def get(customer: str) -> dict[str, Any]:
 	row = frappe.db.get_value("Customer", customer, CUSTOMER_FIELDS, as_dict=True)
 	if not row:
 		frappe.throw(_("Customer {0} not found").format(customer), frappe.DoesNotExistError)
+	if is_store_scoped():
+		_audit_lookup("customers.get", customer, [row], get_user_boutique())
 	return _serialize([row])[0]
 
 
@@ -266,7 +336,8 @@ def upsert(customer: Any) -> dict[str, str]:
 				if name:
 					break
 
-	values = {k: v for k, v in data.items() if k in UPSERT_ALLOWED}
+	# v0.7 — a key that was not sent must not blank the stored value ("" still clears it)
+	values = {k: v for k, v in data.items() if k in UPSERT_ALLOWED and v is not None}
 	if name and frappe.db.exists("Customer", name):
 		doc = frappe.get_doc("Customer", name)
 		doc.update(values)

@@ -346,6 +346,32 @@ def _snapshot() -> dict[str, Any]:
 	return snap
 
 
+# --- v0.8 QA U1 — keep the stored footer line current on an already-white-labelled site --------
+#
+# `/login` and every standard web page render `Website Settings.footer_powered`, which
+# `apply_whitelabel` *stores*: a site white-labelled before the developer credit existed kept the
+# old line for ever ("Maison POS by CloudChaserz" — no "Powered by", no developer), which is why
+# QA found the credit missing on the whole customer-facing website. Only sites that already opted
+# into the white-label (a backup snapshot exists) are touched — this never white-labels a site by
+# itself.
+# ------------------------------------------------------------------------------------------------
+def refresh_footer_credit() -> dict[str, Any]:
+	"""Re-assert the footer line from the current brand. Idempotent; no-op before `apply_whitelabel`."""
+	try:
+		if not _read_backup():
+			return {"skipped": "white-label not applied"}
+		desired = _powered_html(_brand())
+		if (frappe.db.get_single_value("Website Settings", "footer_powered") or "") == desired:
+			return {"changed": False}
+		frappe.db.set_single_value("Website Settings", "footer_powered", desired)
+		frappe.clear_cache()
+		return {"changed": True}
+	except Exception:  # pragma: no cover - never break a migrate over a footer line
+		frappe.log_error(frappe.get_traceback(), "maison footer credit refresh")
+		return {"error": True}
+# --- end v0.8 QA U1 ---
+
+
 def _apply_website_settings(values: dict[str, Any]) -> list[str]:
 	changed: list[str] = []
 	doc = frappe.get_single("Website Settings")

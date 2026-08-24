@@ -16,10 +16,19 @@
 			{% for g in groups %}<a class="mw-chip {{ 'active' if mw_group == g.name else '' }}" href="/shop/collection?item_group={{ g.name | urlencode }}{{ '&mode=' ~ mode if mode else '' }}">{{ g.name }}</a>{% endfor %}
 			<span style="width:1px;height:24px;background:var(--mw-line-strong);margin:0 6px"></span>
 			{% for m, label in modes %}<a class="mw-chip {{ 'active' if mode == m else '' }}" href="/shop/collection?{{ 'item_group=' ~ (mw_group | urlencode) ~ '&' if mw_group else '' }}{{ '' if mode == m else 'mode=' ~ m }}">{{ label }}</a>{% endfor %}
-			<span class="count mw-label dim">{{ items | length }} {{ 'pieces' if shop.vertical == 'Jewellery' else 'products' }}</span>
+			{#- v0.8 QA A4: say how many there are in total, not just how many this page shows -#}
+			<span class="count mw-label dim">{% if total > (items | length) %}{{ page_from }}&ndash;{{ page_to }} of {{ total }}{% else %}{{ items | length }}{% endif %} {{ 'pieces' if shop.vertical == 'Jewellery' else 'products' }}</span>
 		</div>
 		{% if items %}
 		<div class="mw-grid">{% for p in items %}{{ product_card(p) }}{% endfor %}</div>
+		{#- v0.8 QA A4 — pagination: without it 59 of 155 products were unreachable by browsing -#}
+		{% if has_more or start > 0 %}
+		<nav class="mw-pager" aria-label="Pages" data-testid="collection-pager">
+			{% if start > 0 %}<a class="mw-btn ghost sm" rel="prev" data-testid="page-prev" href="/shop/collection?{{ base_query ~ '&' if base_query else '' }}start={{ [start - page_size, 0] | max }}">Previous</a>{% else %}<span></span>{% endif %}
+			<span class="mw-label dim">{{ page_from }}&ndash;{{ page_to }} of {{ total }}</span>
+			{% if has_more %}<a class="mw-btn ghost sm" rel="next" data-testid="page-next" href="/shop/collection?{{ base_query ~ '&' if base_query else '' }}start={{ start + page_size }}">Next</a>{% else %}<span></span>{% endif %}
+		</nav>
+		{% endif %}
 		{% else %}
 		<div class="mw-empty"><div class="mw-display md">Nothing here yet</div><p>Try another collection or <a href="/shop/collection">clear the filters</a>.</p></div>
 		{% endif %}

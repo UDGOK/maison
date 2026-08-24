@@ -1,0 +1,67 @@
+{
+  "cancelled": [
+    "Sales Invoice ACC-SINV-2026-03085",
+    "Sales Invoice ACC-SINV-2026-03096",
+    "Sales Invoice ACC-SINV-2026-03095",
+    "Sales Invoice ACC-SINV-2026-03094",
+    "Sales Invoice ACC-SINV-2026-03093",
+    "Sales Invoice ACC-SINV-2026-03092",
+    "Sales Invoice ACC-SINV-2026-03091",
+    "Sales Invoice ACC-SINV-2026-03090",
+    "Sales Invoice ACC-SINV-2026-03089",
+    "Sales Invoice ACC-SINV-2026-03088",
+    "Sales Invoice ACC-SINV-2026-03087",
+    "Sales Invoice ACC-SINV-2026-03086",
+    "Sales Invoice ACC-SINV-2026-03084",
+    "Sales Invoice ACC-SINV-2026-03083",
+    "Sales Invoice ACC-SINV-2026-03082",
+    "Sales Invoice ACC-SINV-2026-03081",
+    "Sales Order SAL-ORD-2026-00004",
+    "Payment Entry ACC-PAY-2026-00002"
+  ],
+  "failed": [
+    {
+      "doc": "Sales Order SAL-ORD-2026-00003",
+      "err": "Error: frappe.client.cancel: 417 {\"exception\":\"frappe.exceptions.LinkExistsError: Cannot delete or cancel because Sales Order <a href=\\\"https://cloudchaserz.frappe.cloud/app/sales-order/SAL-ORD-2026-00003\\\">SAL-ORD-2026-"
+    },
+    {
+      "doc": "Sales Order SAL-ORD-2026-00002",
+      "err": "Error: frappe.client.cancel: 417 {\"exception\":\"frappe.exceptions.LinkExistsError: Cannot delete or cancel because Sales Order <a href=\\\"https://cloudchaserz.frappe.cloud/app/sales-order/SAL-ORD-2026-00002\\\">SAL-ORD-2026-"
+    },
+    {
+      "doc": "delete Maison Giveaway Entry bqhrjp6ar7",
+      "err": "Error: frappe.client.delete: 417 {\"exception\":\"frappe.exceptions.LinkExistsError: Cannot delete or cancel because Maison Giveaway Entry <a href=\\\"https://cloudchaserz.frappe.cloud/app/maison-giveaway-"
+    },
+    {
+      "doc": "delete Maison Giveaway GIVE-2026-00055",
+      "err": "Error: frappe.client.delete: 417 {\"exception\":\"frappe.exceptions.LinkExistsError: Cannot delete or cancel because Maison Giveaway <a href=\\\"https://cloudchaserz.frappe.cloud/app/maison-giveaway/GIVE-2"
+    }
+  ],
+  "disabled": [
+    "Salon session 5e2ac0e028… → Unpaired",
+    "Salon session e42c57d5d1… → Unpaired",
+    "Salon session 36febb7bef… → Unpaired",
+    "Salon session 461e94be1e… → Unpaired",
+    "Salon session 0c44694fe3… → Unpaired",
+    "Salon session e9b5f79d14… → Unpaired",
+    "Salon session 46aef9daf6… → Unpaired",
+    "Coupon QA4EXPIREDQA4A",
+    "Coupon QA4GROUPQA4A",
+    "Coupon QA4CLIENTQA4A",
+    "Coupon QA4MULTIQA4A",
+    "Coupon QA4SINGLEQA4A",
+    "Coupon BDAY26F9D7E5",
+    "Customer QA4 Declined QA4A",
+    "Customer QA4 Recog QA4A",
+    "Customer QA4 Salon QA4A",
+    "Customer QA4 New Shopper QA4A",
+    "Customer QA4 Member QA4A",
+    "Customer QA4 Bypass QA4A",
+    "User qa4.client.qa4a@cloudchaserz.example",
+    "User qa4.newshopper.qa4a@cloudchaserz.example"
+  ],
+  "deleted": [
+    "Maison Coupon BDAY26925C51"
+  ],
+  "kept": []
+}

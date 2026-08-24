@@ -221,10 +221,41 @@ def create_portal_permissions() -> None:
 				update_permission_property(doctype, role, 0, ptype, 1, validate=False)
 
 
+# --- v0.8 QA A1 — a new customer must be able to register and check out --------------------------
+#
+# The bag and the checkout require a login (`www/shop/_common.py::require_login`), so a storefront
+# whose sign-up is closed is browse-only: on the live CloudChaserz site `Website Settings.
+# disable_signup` was 1, `Portal Settings.default_role` was unset and there was not a single
+# Website User, and `sign_up` answered "Sign Up is disabled". Both settings are part of the shop
+# working at all, so they are asserted wherever the webshop glue runs (install, migrate, seed)
+# rather than left to whoever remembers to tick them.
+#
+# `default_role` is what gives a self-registered shopper the Customer role, which is what
+# webshop's cart needs to read Items and write its Quotation.
+# -------------------------------------------------------------------------------------------
+PORTAL_DEFAULT_ROLE = "Customer"
+
+
+def ensure_portal_signup(enable_signup: bool = True) -> dict[str, object]:
+	"""Portal sign-up on, with the Customer role for whoever registers. Idempotent."""
+	changed: dict[str, object] = {}
+	if frappe.db.exists("DocType", "Portal Settings"):
+		if frappe.db.exists("Role", PORTAL_DEFAULT_ROLE) and frappe.db.get_single_value("Portal Settings", "default_role") != PORTAL_DEFAULT_ROLE:
+			frappe.db.set_single_value("Portal Settings", "default_role", PORTAL_DEFAULT_ROLE)
+			changed["default_role"] = PORTAL_DEFAULT_ROLE
+	if enable_signup and frappe.utils.cint(frappe.db.get_single_value("Website Settings", "disable_signup")):
+		frappe.db.set_single_value("Website Settings", "disable_signup", 0)
+		frappe.clear_cache()
+		changed["disable_signup"] = 0
+	return changed
+# --- end v0.8 QA A1 ---
+
+
 def after_install() -> None:
 	create_webshop_custom_fields()
 	create_web_mode_of_payment()
 	create_portal_permissions()
+	ensure_portal_signup()
 	frappe.db.commit()
 
 
@@ -232,4 +263,5 @@ def after_migrate() -> None:
 	create_webshop_custom_fields()
 	create_web_mode_of_payment()
 	create_portal_permissions()
+	ensure_portal_signup()
 	frappe.db.commit()

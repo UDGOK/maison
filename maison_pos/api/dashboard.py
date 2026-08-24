@@ -123,7 +123,8 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 			sum(case when si.is_return = 1 then si.grand_total else 0 end) as returns_value,
 			sum(case when si.is_return = 0 then si.change_amount else 0 end) as change_amt,
 			sum((select coalesce(sum(p.amount), 0) from `tabSales Invoice Payment` p where p.parent = si.name and lower(p.mode_of_payment) = 'cash')) as cash,
-			sum((select coalesce(sum(p.amount), 0) from `tabSales Invoice Payment` p where p.parent = si.name and lower(p.mode_of_payment) <> 'cash')) as card,
+			sum((select coalesce(sum(p.amount), 0) from `tabSales Invoice Payment` p where p.parent = si.name and lower(p.mode_of_payment) = 'card')) as card,
+			sum((select coalesce(sum(p.amount), 0) from `tabSales Invoice Payment` p where p.parent = si.name and lower(p.mode_of_payment) not in ('cash', 'card'))) as other_tender,
 			sum(case when si.customer is not null and si.customer <> '' and si.customer not in %(walkins)s and si.is_return = 0 then 1 else 0 end) as with_customer
 		from `tabSales Invoice` si
 		where si.docstatus = 1 and si.is_pos = 1 and si.posting_date = %(day)s and si.maison_boutique in %(b)s
@@ -185,8 +186,10 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 			"city": m.get("city"),
 			"region": _region_of(m),
 			"net": 0.0,
+			"gross": 0.0,  # v0.8 QA D-4 — sales only (returns excluded), the basis of "avg sale"
 			"cash": 0.0,
 			"card": 0.0,
+			"other_tender": 0.0,  # v0.8 QA D-12
 			"invoices": 0,
 			"returns": 0,
 			"returns_value": 0.0,
@@ -214,6 +217,10 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 		b["returns_value"] += abs(flt(r.returns_value))
 		b["cash"] += flt(r.cash) - flt(r.change_amt)  # change handed back reduces cash in drawer
 		b["card"] += flt(r.card)
+		# v0.8 QA D-12 — gift cards, store credit and the web tender are not "card"; the Daily Sales
+		# report has always split them out and the Live board reported the two added together.
+		b["other_tender"] += flt(r.other_tender)
+		b["gross"] += flt(r.net) + abs(flt(r.returns_value))  # sales only, for the avg-sale KPI (D-4)
 		b["with_customer"] += cint(r.with_customer)
 		h = cint(r.hr)
 		if 0 <= h < 24:
@@ -232,7 +239,15 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 		b["last_sale"] = {"invoice": r.name, "item": top_items.get(r.name), "amount": flt(r.grand_total), "ts": ts, "is_return": cint(r.is_return)}
 		b["last_sale_ts"] = ts
 	for b in per_b.values():
-		b["avg_ticket"] = (b["net"] / b["invoices"]) if b["invoices"] else 0.0
+		# --- v0.8 QA D-4 — "avg ticket" divided a net-of-returns numerator by a sales-only count ---
+		# On a returns-heavy day that is not an average of anything: the chain KPI read $19.27
+		# where the average *sale* was $44.60. One definition everywhere now — the average sale,
+		# returns excluded on both sides (the same basis `hr.employee_performance` uses, and what
+		# the Reports tab's period comparison reports) — and `net_per_ticket` keeps the old figure
+		# for anyone who wants net sales spread over the tickets.
+		b["avg_ticket"] = (b["gross"] / b["invoices"]) if b["invoices"] else 0.0
+		b["net_per_ticket"] = (b["net"] / b["invoices"]) if b["invoices"] else 0.0
+		# --- end v0.8 QA D-4 ---
 		b["vs_last_week_pct"] = round((b["net"] - b["last_week_net"]) / b["last_week_net"] * 100.0, 1) if b["last_week_net"] > 0 else None
 		b["conversion"] = round(b["with_customer"] / b["invoices"], 3) if b["invoices"] else 0.0
 
@@ -259,6 +274,7 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 			b["status"] = "queued"
 
 	totals_net = sum(b["net"] for b in per_b.values())
+	totals_gross = sum(b["gross"] for b in per_b.values())
 	totals_inv = sum(b["invoices"] for b in per_b.values())
 	lw_net = sum(b["last_week_net"] for b in per_b.values())
 	pending_total = cint(sum(pending_by_boutique.values()))
@@ -276,7 +292,10 @@ def _live_summary(day: _dt.date) -> dict[str, Any]:
 			"returns_value": returns_value,
 			"cash": sum(b["cash"] for b in per_b.values()),
 			"card": sum(b["card"] for b in per_b.values()),
-			"avg_ticket": (totals_net / totals_inv) if totals_inv else 0.0,
+			"other_tender": sum(b["other_tender"] for b in per_b.values()),  # v0.8 QA D-12
+			"gross": totals_gross,  # sales only, returns excluded
+			"avg_ticket": (totals_gross / totals_inv) if totals_inv else 0.0,  # v0.8 QA D-4: the average *sale*
+			"net_per_ticket": (totals_net / totals_inv) if totals_inv else 0.0,
 			"online": sum(1 for b in per_b.values() if b["status"] in ("online", "queued")),
 			"boutiques": len(per_b),
 			"last_week_net": lw_net,
@@ -458,6 +477,7 @@ def _period_totals_by_boutique(boutiques: list[str], from_date: Any, to_date: An
 	rows = frappe.db.sql(
 		"""
 		select maison_boutique as boutique, sum(grand_total) as net,
+			sum(case when is_return = 0 then grand_total else 0 end) as gross,
 			sum(case when is_return = 0 then 1 else 0 end) as tickets,
 			sum(case when is_return = 1 then 1 else 0 end) as returns,
 			sum(case when is_return = 0 and customer is not null and customer <> '' and customer not in %(walkins)s then 1 else 0 end) as with_customer
@@ -468,7 +488,7 @@ def _period_totals_by_boutique(boutiques: list[str], from_date: Any, to_date: An
 		{"f": from_date, "t": to_date, "b": tuple(boutiques), "walkins": _walk_ins()},
 		as_dict=True,
 	)
-	return {r.boutique: {"net": flt(r.net), "tickets": cint(r.tickets), "returns": cint(r.returns), "with_customer": cint(r.with_customer)} for r in rows}
+	return {r.boutique: {"net": flt(r.net), "gross": flt(r.gross), "tickets": cint(r.tickets), "returns": cint(r.returns), "with_customer": cint(r.with_customer)} for r in rows}
 
 
 def _daily_series(boutiques: list[str], days: int, to_date: Any) -> dict[str, list[float]]:
@@ -528,9 +548,10 @@ def boutiques_table(date: Optional[str] = None) -> dict[str, Any]:
 	rows = []
 	for b in live["by_boutique"]:
 		code = b["boutique"]
-		w = wtd.get(code, {"net": 0.0, "tickets": 0, "returns": 0, "with_customer": 0})
-		l = lw.get(code, {"net": 0.0, "tickets": 0, "returns": 0, "with_customer": 0})
-		m = mtd.get(code, {"net": 0.0, "tickets": 0, "returns": 0, "with_customer": 0})
+		empty = {"net": 0.0, "gross": 0.0, "tickets": 0, "returns": 0, "with_customer": 0}
+		w = wtd.get(code, empty)
+		l = lw.get(code, empty)
+		m = mtd.get(code, empty)
 		rows.append(
 			{
 				**{k: b[k] for k in ("boutique", "name", "city", "region", "net", "invoices", "returns", "avg_ticket", "status", "last_seen", "queued", "pending_approvals", "low_stock", "vs_last_week_pct", "last_sale", "conversion")},
@@ -538,7 +559,8 @@ def boutiques_table(date: Optional[str] = None) -> dict[str, Any]:
 				"mtd_net": m["net"],
 				"wtd_vs_lw_pct": round((w["net"] - l["net"]) / l["net"] * 100.0, 1) if l["net"] > 0 else None,
 				"mtd_tickets": m["tickets"],
-				"mtd_avg_ticket": (m["net"] / m["tickets"]) if m["tickets"] else 0.0,
+				# v0.8 QA D-4 — the average *sale*, on the same basis as the Live KPI
+				"mtd_avg_ticket": (m["gross"] / m["tickets"]) if m["tickets"] else 0.0,
 				"mtd_conversion": round(m["with_customer"] / m["tickets"], 3) if m["tickets"] else 0.0,
 				"returns_pct": round(m["returns"] / (m["tickets"] + m["returns"]) * 100.0, 1) if (m["tickets"] + m["returns"]) else 0.0,
 				"stock_value": stock_value.get(code, 0.0),
@@ -861,6 +883,12 @@ def clients_overview(boutique: Optional[str] = None, tiers: Any = None, limit: i
 	return {
 		"boutique": boutique,
 		"tiers": tier_filter,
+		# --- v0.8 QA D-5 — the tab's tier chips were hard-coded to the jewellery tenant's tiers ---
+		# `['Patron','Collector','Connoisseur']` do not exist on a programme whose only tier is
+		# "Member", so every chip filtered the list to zero rows. The tiers come from the loyalty
+		# programme now, top tier first.
+		"available_tiers": loyalty_tiers(),
+		# --- end v0.8 QA D-5 ---
 		"churn": churn,
 		"upcoming": upcoming,
 		"follow_ups": follow_ups,
@@ -869,6 +897,16 @@ def clients_overview(boutique: Optional[str] = None, tiers: Any = None, limit: i
 		"recognition": {**(recognition or {}), "enrolled_total": enrolled_total},
 		"as_of": str(day),
 	}
+
+
+def loyalty_tiers() -> list[str]:
+	"""Tier names of the site's loyalty programme(s), richest first (v0.8 QA D-5)."""
+	rows = frappe.get_all("Loyalty Program Collection", fields=["tier_name", "min_spent"], order_by="min_spent desc")
+	out: list[str] = []
+	for r in rows:
+		if r.tier_name and r.tier_name not in out:
+			out.append(r.tier_name)
+	return out
 
 
 def _tiers_for(customers: list[str]) -> dict[str, Optional[str]]:

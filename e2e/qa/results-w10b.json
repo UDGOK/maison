@@ -1,0 +1,31 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "the scan re-raises the alert when stock dips again",
+   "ok": true,
+   "detail": "[{\"name\":\"MSA-2026-00054\",\"item_code\":\"KRT-001\",\"qty\":2}]",
+   "severity": ""
+  },
+  {
+   "step": "inventory.low_stock_digest composes and queues the daily e-mail when alerts are open",
+   "ok": false,
+   "detail": "job=Failed; Email Queue rows: 0 []; new Error Log rows: 4 [\"Maison submit_batch aa65f051-17b0-437a-b880-d2cef72405dc [VALIDATION_ERROR]\",\"Maison submit_batch afaba639-3830-42d7-bcf6-dd88f556a93d [PAYMENT_MISMATCH]\"]",
+   "severity": ""
+  },
+  {
+   "step": "the digest goes to head office and to the store manager, with the alert table",
+   "ok": false,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "the digest fixture is fully reversed (balances restored, alert resolved)",
+   "ok": true,
+   "detail": "{\"st\":12,\"hq\":60} -> {\"st\":12,\"hq\":60}; open alerts 0",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

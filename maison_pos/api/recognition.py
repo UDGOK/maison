@@ -133,8 +133,13 @@ def find_customer(phone: Optional[str] = None, email: Optional[str] = None) -> O
 	return None
 
 
-def find_or_create_customer(phone: Optional[str], email: Optional[str], name: Optional[str]) -> tuple[str, bool]:
-	"""Return ``(customer, created)``; creates an Individual customer when nothing matches."""
+def validate_contact(phone: Optional[str], email: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+	"""Normalise + validate a phone / e-mail pair, or raise. Returns ``(phone, email)``.
+
+	Split out of :func:`find_or_create_customer` in v0.7 so a public sign-up can validate its
+	input *before* looking anything up — an existing client and a new one must fail on a
+	malformed address in exactly the same way (see ``rewards.signup``).
+	"""
 	phone = (phone or "").strip() or None
 	email = (email or "").strip() or None
 	if not phone and not email:
@@ -143,6 +148,12 @@ def find_or_create_customer(phone: Optional[str], email: Optional[str], name: Op
 		frappe.throw(_("Invalid email {0}").format(email), frappe.ValidationError)
 	if phone and len(digits_only(phone)) < MIN_PHONE_DIGITS:
 		frappe.throw(_("Phone number must contain at least {0} digits").format(MIN_PHONE_DIGITS), frappe.ValidationError)
+	return phone, email
+
+
+def find_or_create_customer(phone: Optional[str], email: Optional[str], name: Optional[str]) -> tuple[str, bool]:
+	"""Return ``(customer, created)``; creates an Individual customer when nothing matches."""
+	phone, email = validate_contact(phone, email)
 
 	existing = find_customer(phone, email)
 	if existing:

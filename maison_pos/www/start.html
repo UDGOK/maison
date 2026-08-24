@@ -14,13 +14,14 @@
   a{color:inherit;text-decoration:none}
   .ms-wrap{max-width:1120px;margin:0 auto;padding:64px 24px 96px}
   .ms-head{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:40px}
-  .ms-wordmark{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(28px,5vw,54px);
-    letter-spacing:.14em;line-height:1;margin:0;color:var(--text)}
+  /* v0.8 QA U4: a long wordmark at the 28px floor overflowed a 360px screen by 30px */
+  .ms-wordmark{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(20px,6.4vw,54px);
+    letter-spacing:.14em;line-height:1;margin:0;color:var(--text);overflow-wrap:anywhere}
   .ms-sub{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-top:14px;font-weight:500}
   .ms-tag{color:var(--dim);font-size:14px;margin-top:8px}
   .ms-who{margin-top:22px;font-size:13px;color:var(--muted)}
   .ms-who b{color:var(--text);font-weight:500}
-  .ms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+  .ms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
   .ms-card{background:var(--surface);padding:26px 24px;display:flex;flex-direction:column;gap:10px;min-height:132px;
     transition:background .15s ease}
   .ms-card:hover,.ms-card:focus-visible{background:#1B1916;outline:none}

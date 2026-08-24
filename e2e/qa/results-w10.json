@@ -1,0 +1,37 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "alerts auto-resolve on the next scan once stock is back above the reorder level",
+   "ok": true,
+   "detail": "scan=Complete; [[\"KRT-001\",\"Resolved\",12],[\"HKA-004\",\"Resolved\",14]]; open left for OK-JENKS: 0",
+   "severity": ""
+  },
+  {
+   "step": "the POS Shift low-stock count drops back to 0 for the store",
+   "ok": true,
+   "detail": "open=0 counts={}",
+   "severity": ""
+  },
+  {
+   "step": "inventory.low_stock_digest (daily job) runs without error",
+   "ok": true,
+   "detail": "job status=Complete details=",
+   "severity": ""
+  },
+  {
+   "step": "the digest is a no-op when no alert is open anywhere, and queues mail when some are",
+   "ok": true,
+   "detail": "0 open alert(s) site-wide at run time (none); Email Queue rows created: 0",
+   "severity": "observation"
+  },
+  {
+   "step": "OBSERVATION: outgoing e-mail configuration on this deployment",
+   "ok": true,
+   "detail": "no Email Account has enable_outgoing=1, so the digest cannot actually be delivered from this site",
+   "severity": "observation"
+  }
+ ],
+ "console": []
+}

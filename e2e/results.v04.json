@@ -1,31 +1,31 @@
 {
   "base": "http://maison.localhost:8000",
-  "run": "PZMR1",
+  "run": "ONDMW",
   "results": [
     {
       "step": "demo coupon WELCOME10 exists (Maison Coupon)",
       "ok": true,
-      "detail": "{\"name\":\"WELCOME10\",\"discount_type\":\"Percent\",\"value\":10,\"usage\":\"Multi-use\",\"used_count\":20}"
+      "detail": "{\"name\":\"WELCOME10\",\"discount_type\":\"Percent\",\"value\":10,\"usage\":\"Multi-use\",\"used_count\":27}"
     },
     {
       "step": "prep: reorder level of AC-001 @ CHI-OAK raised above stock",
       "ok": true,
-      "detail": "stock 17 → level 22 (was 5)"
+      "detail": "stock 57 → level 62 (was 5)"
     },
     {
       "step": "inventory.low_stock_scan raises a Maison Stock Alert for AC-001 @ CHI-OAK",
       "ok": true,
-      "detail": "bench execute: {\"checked\": 460, \"created\": [\"MSA-2026-00253\"], \"updated\": 1, \"resolved\": []} · alert MSA-2026-00253 qty 17 / level 22"
+      "detail": "bench execute: {\"checked\": 460, \"created\": [\"MSA-2026-00285\"], \"updated\": 0, \"resolved\": []} · alert MSA-2026-00285 qty 57 / level 62"
     },
     {
       "step": "clock-in on Unlock → open Maison Shift for the associate at CHI-OAK",
       "ok": true,
-      "detail": "Not clocked inHR → {\"name\":\"t8die634ef\",\"boutique\":\"CHI-OAK\",\"clock_in\":\"2026-08-23 07:24:49.279080\",\"checkin_in\":\"EMP-CKIN-08-2026-000047\",\"status\":\"On shift\"}"
+      "detail": "Not clocked inHR → {\"name\":\"los7bs77ep\",\"boutique\":\"CHI-OAK\",\"clock_in\":\"2026-08-23 23:35:05.039277\",\"checkin_in\":\"EMP-CKIN-08-2026-000061\",\"status\":\"On shift\"}"
     },
     {
       "step": "clock-in → HRMS Employee Checkin (IN) created",
       "ok": true,
-      "detail": "checkins 23 → 24; shift.checkin_in=EMP-CKIN-08-2026-000047"
+      "detail": "checkins 30 → 31; shift.checkin_in=EMP-CKIN-08-2026-000061"
     },
     {
       "step": "Settings: V660p reader picked from the boutique reader registry",
@@ -35,12 +35,12 @@
     {
       "step": "Shift screen shows the open low-stock alert for AC-001",
       "ok": true,
-      "detail": "Low stock3 openFull Eternity Band 1.5ct · BR-0096 / 13OpenAcknowledgeRequest from warehouseTransfer…Silk Pocket Square · AC-0128 / 12OpenAcknowledgeRequest from"
+      "detail": "Low stock1 openSignature Gold Chain 45cm · AC-00157 / 62OpenAcknowledgeRequest from warehouseTransfer…Refreshing"
     },
     {
       "step": "serialized watch added to the basket",
       "ok": true,
-      "detail": "TP-007 TP-007-CHI-T0E7C03"
+      "detail": "TP-008 TP-008-CHI-E2E01355"
     },
     {
       "step": "Clienteling tab shows the wishlist (profile, sizes, preferences)",
@@ -55,42 +55,42 @@
     {
       "step": "coupon WELCOME10 applied at POS: basket shows the coupon line and a lower total",
       "ok": true,
-      "detail": "Welcome 10% off · −$18,500.00 · \"Coupon WELCOME10−$18,500.00\" · 203962.5 → 183566.25"
+      "detail": "Welcome 10% off · −$1,790.00 · \"Coupon WELCOME10−$1,790.00\" · 19734.75 → 17761.28"
     },
     {
       "step": "card sale synced; on-screen 80 mm receipt shows the coupon",
       "ok": true,
-      "detail": "Synced · uuid 93e4435b-ef68-4109-99dc-acaf1cad4335"
+      "detail": "Synced · uuid a9fecd83-ee3f-4b12-bd4c-9c5fd58c8bd9"
     },
     {
       "step": "server Sales Invoice carries maison_coupon + discount, the client and a terminal ref",
       "ok": true,
-      "detail": "{\"name\":\"ACC-SINV-2026-02857\",\"grand_total\":183566.25,\"maison_coupon\":\"WELCOME10\",\"maison_coupon_discount\":18500,\"maison_receipt_token\":\"x5YVLvYblAVIUqHb\",\"maison_terminal_ref\":\"pi_sim_9cf4f5f660add314\",\"customer\":\"Isabella Marchetti\",\"is_return\":0}"
+      "detail": "{\"name\":\"ACC-SINV-2026-02985\",\"grand_total\":17761.28,\"maison_coupon\":\"WELCOME10\",\"maison_coupon_discount\":1790,\"maison_receipt_token\":\"DYq9_xw0i664N863\",\"maison_terminal_ref\":\"pi_sim_15eb1515df932e03\",\"customer\":\"Isabella Marchetti\",\"is_return\":0}"
     },
     {
       "step": "coupon redemption counted (used_count +1, Maison Coupon Redemption row)",
       "ok": true,
-      "detail": "used 20 → 21"
+      "detail": "used 27 → 28"
     },
     {
       "step": "receipt printed through the reader route: terminal.print(canvas) called on the simulated V660p (384 px bitmap)",
       "ok": true,
-      "detail": "width 384px, 36 KB · Printed on Counter 1"
+      "detail": "width 384px, 37 KB · Printed on Counter 1"
     },
     {
       "step": "Clienteling → Owned pieces lists the serialized watch just sold to the client",
       "ok": true,
-      "detail": "owned pieces 16, includes TP-007-CHI-T0E7C03: true"
+      "detail": "owned pieces 19, includes TP-008-CHI-E2E01355: true"
     },
     {
       "step": "Returns: card sale found, serialized line + serial selected, refund to original card offered",
       "ok": true,
-      "detail": "CreditItems1Subtotal$148,000.00Tax 10.25%$15,170.00Refund$163,170.00Refund toOriginal cardCard •••• Cashfrom the drawerStore crediton the cl"
+      "detail": "CreditItems1Subtotal$14,320.00Tax 10.25%$1,467.80Refund$15,787.80Refund toOriginal cardVisa •••• 4242Cashfrom the drawerStore crediton the c"
     },
     {
       "step": "credit note created (is_return, against the sale, submitted, card refund recorded)",
       "ok": true,
-      "detail": "{\"is_return\":1,\"return_against\":\"ACC-SINV-2026-02857\",\"docstatus\":1,\"grand_total\":-183566.25,\"maison_refund_method\":\"Card\",\"maison_refund_id\":\"re_sim_f28ce883b0ea6f93\",\"update_stock\":1}"
+      "detail": "{\"is_return\":1,\"return_against\":\"ACC-SINV-2026-02985\",\"docstatus\":1,\"grand_total\":-17761.28,\"maison_refund_method\":\"Card\",\"maison_refund_id\":\"re_sim_c78470b735ccbd76\",\"update_stock\":1}"
     },
     {
       "step": "returned serial is back in the boutique warehouse (sellable)",
@@ -100,7 +100,7 @@
     {
       "step": "commission reversal entry on the credit note",
       "ok": true,
-      "detail": "[{\"name\":\"MCE-2026-02908\",\"commission_amount\":-4995,\"is_reversal\":1}]"
+      "detail": "[{\"name\":\"MCE-2026-03022\",\"commission_amount\":-483.3,\"is_reversal\":1}]"
     },
     {
       "step": "return receipt printed on the reader (canvas route)",
@@ -110,12 +110,12 @@
     {
       "step": "Maison Return Receipt print format renders for the credit note (/printview)",
       "ok": true,
-      "detail": "200 13111 chars"
+      "detail": "200 13210 chars"
     },
     {
       "step": "cash accessory sale synced (to be exchanged)",
       "ok": true,
-      "detail": "ACC-SINV-2026-02859 149.94"
+      "detail": "ACC-SINV-2026-02987 149.94"
     },
     {
       "step": "exchange: new piece added, difference to collect shown",
@@ -125,32 +125,32 @@
     {
       "step": "exchange with difference: credit note + new invoice linked, difference = price gap (+tax) paid",
       "ok": true,
-      "detail": "credit ACC-SINV-2026-02860 -149.94 · new ACC-SINV-2026-02861 418.95 (exchange link ACC-SINV-2026-02860) · gap 220.00 · Paid$269.01"
+      "detail": "credit ACC-SINV-2026-02988 -149.94 · new ACC-SINV-2026-02989 418.95 (exchange link null) · gap 220.00 · Paid$269.01"
     },
     {
       "step": "web order placed for Oak Street through the webshop API (paid online, status New)",
       "ok": true,
-      "detail": "SAL-ORD-2026-00061 {\"maison_boutique\":\"CHI-OAK\",\"maison_web_order\":1,\"maison_web_status\":\"New\",\"maison_prepaid_amount\":2149.88,\"grand_total\":2149.88,\"docstatus\":1}"
+      "detail": "SAL-ORD-2026-00068 {\"maison_boutique\":\"CHI-OAK\",\"maison_web_order\":1,\"maison_web_status\":\"New\",\"maison_prepaid_amount\":2149.88,\"grand_total\":2149.88,\"docstatus\":1}"
     },
     {
       "step": "web order collected at the POS → submitted Sales Invoice, advance allocated, order Collected",
       "ok": true,
-      "detail": "ACC-SINV-2026-02862 total 2042.38 advance 2042.38 · {\"maison_web_status\":\"Collected\",\"maison_sales_invoice\":\"ACC-SINV-2026-02862\"}"
+      "detail": "ACC-SINV-2026-02990 total 2042.38 advance 2042.38 · {\"maison_web_status\":\"Collected\",\"maison_sales_invoice\":\"ACC-SINV-2026-02990\"}"
     },
     {
       "step": "public receipt page shows the private feedback form (guest)",
       "ok": true,
-      "detail": "/r/x5YVLvYb…"
+      "detail": "/r/DYq9_xw0…"
     },
     {
       "step": "feedback stored as Maison Feedback (rating 5, boutique, associate) and visible to HQ via feedback.list",
       "ok": true,
-      "detail": "Thank you for your feedback. · {\"name\":\"u3lpa32i4i\",\"sales_invoice\":\"ACC-SINV-2026-02857\",\"boutique\":\"CHI-OAK\",\"associate\":\"chi.oak.a1@maison.example\",\"rating\":5,\"comment\":\"Wonderful service at Oak Street (e2e PZMR1)\",\"submitted_at\":\"2026-08-23 07:26:16.565790\",\"status\":\"New\",\"hq_response\":null,\"responded_by\":null,\"responded_on\":null,\"associate_name\":\"Ines Calder\"}"
+      "detail": "Thank you for your feedback. · {\"name\":\"mkgbg9k7ee\",\"sales_invoice\":\"ACC-SINV-2026-02985\",\"boutique\":\"CHI-OAK\",\"associate\":\"chi.oak.a1@maison.example\",\"rating\":5,\"comment\":\"Wonderful service at Oak Street (e2e ONDMW)\",\"submitted_at\":\"2026-08-23 23:36:33.668507\",\"status\":\"New\",\"hq_response\":null,\"responded_by\":null,\"responded_on\":null,\"associate_name\":\"Ines Calder\"}"
     },
     {
       "step": "HQ dashboard tile (feedback.summary) counts the new rating",
       "ok": true,
-      "detail": "{\"days\":30,\"count\":38,\"avg_rating\":4.76,\"low_count\":2,\"by_boutique\":[{\"boutique\":\"CHI-OAK\",\"count\":34,\"low\":2,\"avg_rating\":4.82},{\"boutique\":\"MIA-DD\",\"count\":2,\"low\":0,\"avg_rating\":4},{\"boutique\":\"NYC-5AV\",\"count\":2,\"low\":0,\"avg_rating\":4.5"
+      "detail": "{\"days\":30,\"count\":45,\"avg_rating\":4.8,\"low_count\":2,\"by_boutique\":[{\"boutique\":\"CHI-OAK\",\"count\":41,\"low\":2,\"avg_rating\":4.85},{\"boutique\":\"MIA-DD\",\"count\":2,\"low\":0,\"avg_rating\":4},{\"boutique\":\"NYC-5AV\",\"count\":2,\"low\":0,\"avg_rating\":4.5}"
     },
     {
       "step": "reloading the receipt shows \"already received\" instead of the form",

@@ -12,7 +12,21 @@ import type { ClientsOverview } from '../../types'
 const data = ref<ClientsOverview | null>(null)
 const error = ref<string | null>(null)
 const tiers = ref<string[]>([])
-const TIERS = ['Patron', 'Collector', 'Connoisseur']
+/**
+ * v0.8 QA D-5 — the chips used to be the jewellery tenant's tiers (`Patron / Collector /
+ * Connoisseur`). CloudChaserz Rewards has exactly one tier, "Member", so every chip filtered the
+ * list to zero rows. They come from the loyalty programme now (`clients_overview.available_tiers`),
+ * with the tiers actually present in the rows as a fallback.
+ */
+const availableTiers = computed<string[]>(() => {
+  const fromApi = data.value?.available_tiers
+  if (fromApi?.length) return fromApi
+  const seen: string[] = []
+  for (const row of [...(data.value?.churn ?? []), ...(data.value?.upcoming ?? [])]) {
+    if (row.tier && !seen.includes(row.tier)) seen.push(row.tier)
+  }
+  return seen
+})
 const busy = ref<Record<string, boolean>>({})
 
 async function load() {
@@ -53,7 +67,7 @@ const maxFollow = computed(() => Math.max(1, ...(data.value?.follow_ups.map((f) 
     <header class="toolbar">
       <span class="label">Clients</span>
       <div class="seg">
-        <button v-for="t in TIERS" :key="t" class="btn ghost" :class="{ on: tiers.includes(t) }" @click="toggleTier(t)">{{ t }}</button>
+        <button v-for="t in availableTiers" :key="t" class="btn ghost" :class="{ on: tiers.includes(t) }" :data-tier="t" @click="toggleTier(t)">{{ t }}</button>
       </div>
       <span class="label meta">{{ data?.as_of ?? '' }}</span>
     </header>

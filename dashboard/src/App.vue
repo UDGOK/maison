@@ -47,7 +47,9 @@ function sync() {
 }
 function setView(v: View) {
   view.value = v
-  if (v !== 'boutiques') boutique.value = null
+  // v0.8 QA D-10: a tab click always lands on that tab's root. Clicking the active STORES tab from
+  // a store drill-in used to be a no-op — the only way back to the list was the page's own button.
+  boutique.value = null
   sync()
 }
 function openBoutique(code: string) {
@@ -90,7 +92,10 @@ function back() {
 <style scoped>
 .app { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; background: var(--ground); }
 .views { display: flex; align-items: center; gap: 2px; padding: 0 var(--pad-x); border-bottom: 1px solid var(--line); }
-.view-tab { height: 2.667rem; padding: 0 1.2rem; color: var(--dim); background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -1px; }
+/* v0.8 QA U3: the inactive tabs were `--dim` (#7d7668) on the black ground = 4.37:1 at 11px/500,
+   just under AA's 4.5. `--muted` is 8.6:1; the active tab is still unmistakable (gold + underline). */
+.view-tab { height: 2.667rem; padding: 0 1.2rem; color: var(--muted); background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -1px; }
+.view-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .view-tab.on { color: var(--accent); border-bottom-color: var(--accent); }
 .stamp { margin-left: auto; color: var(--dim); letter-spacing: 0.12em; text-transform: none; }
 .main { min-height: 0; overflow: hidden; }

@@ -1,0 +1,52 @@
+{
+  "when": "2026-08-23T22:16:42.588Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "B · the birthday-coupon job is registered as a daily scheduled job",
+      "ok": true,
+      "detail": "{\"name\":\"rewards.issue_birthday_coupons\",\"method\":\"maison_pos.api.rewards.issue_birthday_coupons\",\"frequency\":\"Daily\",\"stopped\":0,\"last_execution\":null}",
+      "sev": ""
+    },
+    {
+      "step": "B · the birthday job issues a coupon for a member whose birthday is `lead_days` away",
+      "ok": true,
+      "detail": "job run → 200; BDAY coupons 0 → 2; mine={\"name\":\"BDAY26F9D7E5\",\"customer\":\"QA4 Member QA4A\",\"discount_type\":\"Percent\",\"value\":15,\"usage\":\"Single-use\",\"max_uses\":1,\"valid_from\":\"2026-08-23\",\"valid_upto\":\"2026-09-22\",\"enabled\":1,\"title\":\"Birthday 2026 — QA4 Impostor2 QA4A\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · the birthday coupon matches the settings (15% / single-use / client-bound / 30 days)",
+      "ok": true,
+      "detail": "Percent 15 Single-use max_uses=1 valid 2026-08-23→2026-09-22 (settings: Percent 15, valid_days 30)",
+      "sev": ""
+    },
+    {
+      "step": "B · the birthday coupon is redeemable at the POS for that client only",
+      "ok": true,
+      "detail": "{\"valid\":true,\"code\":\"BDAY26F9D7E5\",\"title\":\"Birthday 2026 — QA4 Impostor2 QA4A\",\"discount_type\":\"Percent\",\"value\":15,\"item_group\":null,\"customer\":\"QA4 Member QA4A\",\"discount\":9,\"p",
+      "sev": ""
+    },
+    {
+      "step": "B · the birthday coupon is refused for anyone else",
+      "ok": true,
+      "detail": "wrong_customer · Coupon BDAY26F9D7E5 is reserved for another client",
+      "sev": ""
+    },
+    {
+      "step": "B · the issue is logged on the client record",
+      "ok": true,
+      "detail": "{\"name\":\"dr411qgu90\",\"note\":\"Birthday coupon BDAY26F9D7E5 issued (valid until 2026-09-22)\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · running the birthday job twice does not double-issue",
+      "ok": true,
+      "detail": "2 → 2 (second run → 200)",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "due": [
+    "Gabriela Santos"
+  ]
+}

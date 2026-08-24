@@ -5,7 +5,7 @@
  */
 import { ApiError, type Customer } from './types'
 import { CUSTOMERS, ITEMS, LOYALTY, PRICES } from './seed'
-import { stripHtml } from '@/utils/text'
+import { humanizeServerMessage, SESSION_EXPIRED_MESSAGE } from '@/utils/text' // v0.8 POS D5 / D9
 
 // ---------------------------------------------------------------------------------------------
 // types
@@ -251,15 +251,19 @@ async function call<T>(method: string, args: Record<string, unknown> = {}, get =
     /* non-JSON */
   }
   if (!res.ok) {
-    let message = `${res.status} ${res.statusText}`
+    // v0.8 POS D9 — the manager-PIN modal used to render
+    // "maison_pos.api.returns.ManagerRequiredError: Manager PIN incorrect": this response carries no
+    // `_server_messages`, so the fallback kept Frappe's exception class path. Sanitised centrally now.
+    let message = ''
     if (body?._server_messages) {
       try {
-        message = stripHtml((JSON.parse(body._server_messages) as string[]).map((m) => JSON.parse(m).message).join('\n'))
+        message = humanizeServerMessage((JSON.parse(body._server_messages) as string[]).map((m) => JSON.parse(m).message).join('\n'))
       } catch {
         /* ignore */
       }
-    } else if (body?.exception) message = stripHtml(String(body.exception).split('\n').pop()) || message
-    throw new ApiError(message, res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
+    } else if (body?.exception) message = humanizeServerMessage(String(body.exception).split('\n').pop())
+    if (body?.session_expired || (!message && (res.status === 401 || res.status === 403))) message = SESSION_EXPIRED_MESSAGE
+    throw new ApiError(message || `${res.status} ${res.statusText}`, body?.session_expired ? 'SESSION_EXPIRED' : res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
   }
   return (body?.message ?? body) as T
 }

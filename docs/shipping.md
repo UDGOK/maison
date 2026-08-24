@@ -189,8 +189,17 @@ wall detects this and opens them in a new window instead, where kiosk-printing s
 complete ship-to address including ZIP. The Simulated provider always returns rates, so if
 switching to Simulated fixes it, the problem is the carrier account.
 
-**A label was bought for the wrong service.** `shipping.buy` is one-way — refund the label in the
-carrier's dashboard (Shippo refunds unused labels within 30 days) and buy again.
+**A label was bought for the wrong service.** `shipping.buy` refuses to buy a second label for a
+shipment that already has one (v0.8 QA W-D4 — it used to overwrite the first silently, and that
+label was already billed with its tracking number unrecoverable from the app). Pass `replace=1`
+to buy the replacement: the voided label's carrier / service / tracking is written to the
+shipment's notes and returned as `voided_label`, and you still have to refund it in the carrier's
+dashboard (Shippo refunds unused labels within 30 days).
+
+**A shipment had to be cancelled.** Cancelling puts its replenishment request back to *Pending
+Approval*, cancels the Material Request and notifies the store (v0.8 QA W-N1) — the request used
+to stay Approved with its MR submitted and nobody told. Approve it again to raise a fresh
+shipment, or reject it with a reason.
 
 **The store reports a short.** Their Receive screen records the counted quantity; the difference
 raises a `Maison Receiving Discrepancy` visible on the warehouse desk. Resolve it with a reason

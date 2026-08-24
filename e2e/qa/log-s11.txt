@@ -1,0 +1,30 @@
+(node:32478) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  C · the pairing QR is rendered on the POS — data:image/png;base64,iVBORw0KGgoAAAANSU…
+PASS  C · the Salon pairs from the QR deep link (/salon?code=…) — code 570971 → ambient
+PASS  C · a paired session lasts 12 h — paired_at=2026-08-23 17:33:43.305656 expires_at=2026-08-24 05:33:43.305656
+PASS  C · sessions are expired by an hourly job — {"name":"salon.expire_sessions","frequency":"Hourly","stopped":0,"last_execution":"2026-08-23 17:01:00.164350"}
+PASS  C · an unknown session token is refused with no detail — 403 frappe.exceptions.PermissionError: Salon session not found
+PASS  C · a guest cannot list Salon sessions — 403 rows=0
+PASS  C · the Join screen names the programme and its terms — JOIN CLOUDCHASERZ REWARDS Earn 1 point for every $1 you spend. $5 off at 100 points $10 off at 200 points $15 off at 300 points BIRTHDAY DISCOUNT MONTHLY SALE PROMOTIONS LATEST PRODUCT ARRIVALS PRODUC
+  shot 161-salon-signup.png
+PASS  C · Join from the Salon creates the member and attaches them to the sale — {"name":"QA4 Salon QA4A","maison_client_number":"MC517789","loyalty_program":"CloudChaserz Rewards","mobile_no":"9185557970","email_id":"qa4.salon.qa4a7970@example.com"}
+PASS  C · the marketing preferences chosen on the Salon are stored — {"birthday":"1994-02-02","do_not_email":0,"do_not_sms":1}
+PASS  C · the POS shows the client that joined on the Salon — QA4 Salon QA4A
+  shot 162-pos-salon-joined.png
+PASS  C · the thank-you screen shows the points earned and the receipt QR — +21 · qr=1 · invoice ACC-SINV-2026-03092 (Synced)
+PASS  C · the thank-you screen shows the tier progress (next reward) — Next reward: $5.00 off at 100 points · 79 to go
+FAIL  C · the thank-you screen shows the giveaway entries
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+locator.innerText: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-testid=salon-thankyou]')[22m
+
+    at /home/claude/maison/e2e/qa/s11-salon-join.mjs:91:73 {
+  name: 'TimeoutError'
+}
+
+Node.js v22.22.2

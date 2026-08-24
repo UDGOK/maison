@@ -1,0 +1,61 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "every stock movement this QA run posted nets back to zero in every warehouse",
+   "ok": true,
+   "detail": "17 Stock Entries + 1 cancelled Purchase Receipt, all net 0 per item/warehouse: KRT-001, HKA-004, ROL-002, ACC-002, ROL-006",
+   "severity": ""
+  },
+  {
+   "step": "nothing is left stranded in the store's In Transit warehouse",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "nothing is left in the store's Damaged warehouse",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "no open shipment is left for the store",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "no request is left pending approval for the store",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "no discrepancy is left open",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "no Material Request of mine is left hanging half-open",
+   "ok": true,
+   "detail": "[]",
+   "severity": ""
+  },
+  {
+   "step": "no low-stock alert left open at my store after the final scan",
+   "ok": true,
+   "detail": "site-wide open alerts: 0 []",
+   "severity": ""
+  },
+  {
+   "step": "the warehouse wall is back to an empty board",
+   "ok": true,
+   "detail": "counts={\"pending_approval\":0,\"to_pick\":0,\"packing\":0,\"ready\":0,\"shipped_today\":0} in_transit=0 open_discrepancies=0 received_today=8",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

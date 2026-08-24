@@ -1,0 +1,17 @@
+[
+ {
+  "name": "KPI strip evidence captured",
+  "ok": true,
+  "detail": "NET SALES · TODAY | 597 | −47% vs same day LW | INVOICES | 31 | 0 / 11 stores online | CARD / CASH | 26% | / | 74% | of gross · -320 · 893 | AVG TICKET | 19 | RETURNS | 22 | 785 | PENDING APPROVALS | 0 | LOW STOCK | 0 | FEEDBACK ≤ 2 | 0"
+ },
+ {
+  "name": "tier chip \"Collector\" empties the churn list on CloudChaserz",
+  "ok": true,
+  "detail": "0 rows; card text: \"CHURN RISK · TOP TIERS | 0 CLIENTS | NO CHURN SIGNALS FOR THE SELECTED TIERS\""
+ },
+ {
+  "name": "Reports header text captured",
+  "ok": true,
+  "detail": "REPORTS | MONTH TO DATE · FRAPPE DESK"
+ }
+]

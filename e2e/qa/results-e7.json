@@ -1,0 +1,47 @@
+[
+ {
+  "name": "1920x1080: every tab loads",
+  "ok": true,
+  "detail": "live=1420ms · boutiques=1161ms · products=967ms · clients=1586ms · insights=882ms · reports=1164ms"
+ },
+ {
+  "name": "1920x1080: no \"Frappe\"/\"ERPNext\" visible on any tab (case-insensitive)",
+  "ok": false,
+  "detail": "reports: \"MONTH TO DATE · FRAPPE DESK\""
+ },
+ {
+  "name": "1920x1080: no horizontal overflow on any tab",
+  "ok": true,
+  "detail": "none"
+ },
+ {
+  "name": "1920x1080: no console errors",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1440x900: every tab loads",
+  "ok": true,
+  "detail": "live=1292ms · boutiques=989ms · products=867ms · clients=1560ms · insights=825ms · reports=1173ms"
+ },
+ {
+  "name": "1440x900: no \"Frappe\"/\"ERPNext\" visible on any tab (case-insensitive)",
+  "ok": false,
+  "detail": "reports: \"MONTH TO DATE · FRAPPE DESK\""
+ },
+ {
+  "name": "1440x900: no horizontal overflow on any tab",
+  "ok": true,
+  "detail": "none"
+ },
+ {
+  "name": "1440x900: no console errors",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "live_summary / product_trends response times measured",
+  "ok": true,
+  "detail": "live_summary (cached): 87/79/70/71/71 ms (median 71) | live_summary (nocache): 124/129/131/131/126 ms (median 129) | product_trends 7d: 73/75/74/71/74 ms (median 74) | top_products all: 138/81/88/81/82 ms (median 82) | boutiques_table: 116/127/109/114/122 ms (median 116) | clients_overview: 434/439/461/444/459 ms (median 444)"
+ }
+]

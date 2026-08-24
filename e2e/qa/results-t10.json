@@ -1,0 +1,55 @@
+{
+  "when": "2026-08-23T19:57:34.367Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "cookie-swap probe",
+      "ok": null,
+      "detail": "{\"status\":403,\"cookie\":\"\",\"body\":\"{\\\"session_expired\\\":1,\\\"exception\\\":\\\"frappe.exceptions.PermissionError: <details><summary>You are not permitted to access t\"}"
+    },
+    {
+      "step": "8.3 a sale rung up after the Frappe session expired is kept, not lost",
+      "ok": true,
+      "detail": "pill=\"Rejected\"; server invoice=[]; receipt panel=\"SALE COMPLETE $1.94 REJECTED D9270081 SERVER REJECTED THIS SALE frappe.exceptions.PermissionError: You are not permitted to access this resource. Login to access OPEN QUEUE PRINT RECEIPT EMAIL RECEIPT DONE RECEIPT LINK Available once the sale has synced — the QR is added to the receipt automatically\"",
+      "sev": ""
+    },
+    {
+      "step": "8.3b the associate is told the session expired rather than just \"failed\"",
+      "ok": true,
+      "detail": "receipt=\"SALE COMPLETE $1.94 REJECTED D9270081 SERVER REJECTED THIS SALE frappe.exceptions.PermissionError: You are not permitted to access this resource. Login to access OPEN QUEUE PRINT RECEIPT EMAIL RECEIPT\"; queue=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE 1 SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 1 rejected · 0 synced · heartbeat 14:57 ONLINE SYNC NOW STATUS SALE TIME CLIENT TOTAL DETAIL REJECTED D9270081 1 line · \"",
+      "sev": "medium"
+    },
+    {
+      "step": "8.3c once the session is valid again the sale syncs — nothing lost",
+      "ok": false,
+      "detail": "[]; queue=\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE 1 SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK QUEUE 0 pending · 1 rejected · 0 synced · heartbeat 14:57 ONLINE SYNC NOW STAT\"",
+      "sev": ""
+    },
+    {
+      "step": "5.7c the printed receipt records that the ID was checked",
+      "ok": true,
+      "detail": "CLOUDCHASERZ CLOUDCHASERZ MONTROSE 2037 W Alabama St Houston, TX 77098 (281) 974-3712 INVOICE ACC-SINV-2026-03074 DATE Aug 23, 2026, 14:57 ASSOCIATE Dante Ruiz LOST MARY MO20000 PRO — STRAWBERRY ICE 1 X 22.99 19.54 DISCOUNT -3.45 SUBTOTAL 22.99 DISCOUNT -3.45 INCL. PROMOTIONS -3.45 TAX 8.25% 1.61 TOTAL USD 21.15 CASH 21.15 TENDERED 21.15 ID checked · 21+ verified THANK YOU FOR VISITING CLOUDCHASER",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03074"
+  ]
+}

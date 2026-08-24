@@ -67,8 +67,10 @@
 				{% for s in stores %}<option value="{{ s.name }}">{{ s.boutique_name }} &middot; {{ (s.city or '').split(',')[0] }}</option>{% endfor %}
 			</select>
 			{% endif %}
-			<label class="consent"><input type="checkbox" id="rw-consent-email" name="consent_email" checked> E-mail me promotions, new arrivals, giveaways and event invites.</label>
-			<label class="consent"><input type="checkbox" id="rw-consent-sms" name="consent_sms"> Text me (SMS) about promotions and my rewards. Msg &amp; data rates may apply. Reply STOP to opt out.</label>
+			{#- v0.8 QA U5: these two were labelled only by wrapping, which leaves them without a
+			    programmatic name for anything that looks for `label[for]` / aria-label. -#}
+			<label class="consent" for="rw-consent-email"><input type="checkbox" id="rw-consent-email" name="consent_email" checked> E-mail me promotions, new arrivals, giveaways and event invites.</label>
+			<label class="consent" for="rw-consent-sms"><input type="checkbox" id="rw-consent-sms" name="consent_sms"> Text me (SMS) about promotions and my rewards. Msg &amp; data rates may apply. Reply STOP to opt out.</label>
 			{# v0.6 R — the age/terms consent is the one box that gates the sign-up: it gets its own block and a "Required" label #}
 			<label class="consent required" for="rw-consent"><input type="checkbox" id="rw-consent" name="consent" required aria-required="true"><span><span class="req">Required</span>I am {{ p.minimum_age or 21 }} or older and I agree to the {{ p.program_name }} terms. {{ p.brand.brand_name }} keeps my name, contact details and purchase history to run the program.</span></label>
 			<button type="submit" id="rw-submit" data-testid="rewards-join">Join {{ p.program_name }}</button>
@@ -114,7 +116,10 @@
 			.then(function (r) {
 				btn.disabled = false;
 				if (r.status >= 200 && r.status < 300 && r.body.message && r.body.message.ok) {
-					ok.textContent = 'Welcome, ' + r.body.message.customer_name + '! Your member number is ' + (r.body.message.client_number || 'on its way') + '. Show your phone number at any store to earn points.';
+					// v0.7 S3: the public form never receives a client number — the acknowledgement is
+					// identical whether the address was already on file or not, so it cannot be used to
+					// find out whether somebody is a member.
+					ok.textContent = (r.body.message.message || 'Thank you — check your e-mail, or ask for your card next time you are in store.') + ' Show your phone number at any store to earn points.';
 					ok.style.display = 'block';
 					form.reset();
 				} else {

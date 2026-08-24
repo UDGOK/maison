@@ -1,0 +1,16 @@
+import { apiFor, closeBrowser, log, STORE } from './lib-wh.mjs'
+import { readFileSync } from 'node:fs'
+const S = JSON.parse(readFileSync('/home/claude/maison/e2e/qa/state.json', 'utf8'))
+const a = await apiFor('admin')
+const reqs = await a.list('Maison Replenishment Request', { boutique: STORE }, ['name', 'status', 'shipment', 'material_request'], 200, 'creation asc')
+log('REQUESTS'); for (const r of reqs) log(' ', JSON.stringify(r))
+const sh = await a.list('Maison Shipment', { boutique: STORE }, ['name', 'status', 'replenishment_request', 'material_request'], 200, 'creation asc')
+log('SHIPMENTS'); for (const r of sh) log(' ', JSON.stringify(r))
+const mrs = await a.list('Material Request', {}, ['name', 'docstatus', 'status', 'set_warehouse'], 100, 'creation asc')
+log('MATERIAL REQUESTS'); for (const r of mrs) log(' ', JSON.stringify(r))
+const ses = await a.list('Stock Entry', {}, ['name', 'stock_entry_type', 'from_warehouse', 'to_warehouse', 'docstatus', 'remarks'], 100, 'creation asc')
+log('STOCK ENTRIES (all)'); for (const r of ses) log(' ', JSON.stringify(r).slice(0, 240))
+log('PR', JSON.stringify(await a.list('Purchase Receipt', {}, ['name', 'docstatus', 'status'], 10)))
+log('SR', JSON.stringify(await a.list('Stock Reconciliation', {}, ['name', 'docstatus'], 10)))
+log('wall', JSON.stringify((await a.get('maison_pos.api.shipping.wall')).counts))
+await a.dispose(); await closeBrowser()

@@ -1,0 +1,17 @@
+{
+  "TAG": "QA4A",
+  "created": {
+    "coupons": [
+      "QA4SINGLEQA4A",
+      "QA4MULTIQA4A",
+      "QA4CLIENTQA4A",
+      "QA4GROUPQA4A",
+      "QA4EXPIREDQA4A"
+    ],
+    "invoices": [
+      "ACC-SINV-2026-03086",
+      "ACC-SINV-2026-03087"
+    ],
+    "giveaway": "GIVE-2026-00055"
+  }
+}

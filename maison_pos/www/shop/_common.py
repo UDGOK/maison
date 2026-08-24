@@ -28,7 +28,15 @@ def base_context(context, nav: str = "", title: str = "Maison") -> None:
 
 
 def require_login(context) -> bool:
+	"""Send a guest to the storefront's own sign-in wall (v0.8 QA A1).
+
+	It used to be Frappe's ``/login``, which on a site with sign-up disabled (and no outgoing
+	e-mail account to verify a sign-up with) is a dead end for a new customer: the bag and the
+	checkout are both behind this, so the whole shop was browse-only. ``/shop/register`` offers
+	both halves — create an account, or sign in — and carries ``redirect-to`` through either.
+	"""
 	if frappe.session.user == "Guest":
-		frappe.local.flags.redirect_location = "/login?redirect-to=" + frappe.utils.quote(frappe.local.request.path + ("?" + frappe.local.request.query_string.decode() if frappe.local.request.query_string else ""))
+		target = frappe.local.request.path + ("?" + frappe.local.request.query_string.decode() if frappe.local.request.query_string else "")
+		frappe.local.flags.redirect_location = "/shop/register?redirect-to=" + frappe.utils.quote(target)
 		raise frappe.Redirect
 	return True

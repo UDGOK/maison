@@ -1,0 +1,97 @@
+[
+ {
+  "name": "Products tab loads",
+  "ok": true,
+  "detail": "1463 ms page → first row; toolbar: \"Data as of 23 Aug, 16:00 CDT · loaded in 182 ms\""
+ },
+ {
+  "name": "Products tab in-browser load < 300 ms",
+  "ok": true,
+  "detail": "182 ms"
+ },
+ {
+  "name": "\"Data as of\" stamp present",
+  "ok": true,
+  "detail": "Data as of 23 Aug, 16:00 CDT · loaded in 182 ms"
+ },
+ {
+  "name": "\"Data as of\" stamp matches last_run.computed_at",
+  "ok": true,
+  "detail": "stamp=\"23 Aug, 16:00 CDT\" last_run.computed_at=2026-08-23 16:00:53.449954 table computed_at=2026-08-23 16:00:53.449954"
+ },
+ {
+  "name": "Trending renders rows from the precomputed table",
+  "ok": true,
+  "detail": "60 rows; total=156"
+ },
+ {
+  "name": "trend badges Trending up / New / Cooling present",
+  "ok": false,
+  "detail": "Trending up, Steady, Cooling"
+ },
+ {
+  "name": "badge filter \"Trending up\" shows only that badge",
+  "ok": true,
+  "detail": "27 rows, distinct=Trending up"
+ },
+ {
+  "name": "badge filter \"New\" shows only that badge",
+  "ok": true,
+  "detail": "3 rows, distinct=New"
+ },
+ {
+  "name": "badge filter \"Cooling\" shows only that badge",
+  "ok": true,
+  "detail": "47 rows, distinct=Cooling"
+ },
+ {
+  "name": "group filter offers item groups",
+  "ok": true,
+  "detail": "All groups / Accessories / CBD & Hemp / Devices & Mods / Disposables / E-Liquid / Glass & Rigs / Hookah & Shisha / Kratom / Pods & Coils / Rolling & Papers / Services"
+ },
+ {
+  "name": "group filter \"Hookah & Shisha\" narrows to that group only",
+  "ok": true,
+  "detail": "17 shown, API has 17; sample=HKA-012,HKA-013,HKA-002,HKA-015"
+ },
+ {
+  "name": "28d period switches the data",
+  "ok": true,
+  "detail": "60 rows vs API 60 (total 160)"
+ },
+ {
+  "name": "trending row numbers match the API row",
+  "ok": true,
+  "detail": "HKA-012: UI=\"01 | HKA-012 | CocoUrth Coconut Coals 72 pc (flats) | Hookah & Shisha | 61 | 1 | +6000% | +275% | 792 | 1 | 26% | 20 | TRENDING UP\" | API units=61 prev=1 delta=6000 ST=0.2585 DOH=20.1 stores=1"
+ },
+ {
+  "name": "Top by store: one column per store + matrix",
+  "ok": true,
+  "detail": "11 store columns, 121 matrix cells"
+ },
+ {
+  "name": "Top by store excludes HOU-WH",
+  "ok": true,
+  "detail": "HOU-MTR,OK-BA,OK-BIX,OK-ETUL,OK-JENKS,OK-MINGO,OK-MUS,OK-OWA,OK-SAP,OK-STUL,OK-YALE"
+ },
+ {
+  "name": "by-net list for HOU-MTR matches the API order",
+  "ok": true,
+  "detail": "UI[0..2]=01CocoUrth Coconut Coals 72 pc (flats)79244% ; 02Geek Bar Pulse 15K — Blue Razz Ice1317% ; 03Khalil Mamoon Classic Hookah 28\"1307% | API=CocoUrth Coconut Coals 72 pc (flats) ; Geek Bar Pulse 15K — Blue Razz Ice ; Khalil Mamoon Classic Hookah 28\""
+ },
+ {
+  "name": "by-units list for HOU-MTR matches the API order",
+  "ok": true,
+  "detail": "UI[0..2]=01CocoUrth Coconut Coals 72 pc (flats)6144% ; 02Geek Bar Pulse 15K — Blue Razz Ice67% ; 03RAZ DC25000 — Miami Mint35% | API=CocoUrth Coconut Coals 72 pc (flats) ; Geek Bar Pulse 15K — Blue Razz Ice ; RAZ DC25000 — Miami Mint"
+ },
+ {
+  "name": "store selector narrows Top-by-store to one store",
+  "ok": true,
+  "detail": "OK-SAP"
+ },
+ {
+  "name": "no console errors on Products",
+  "ok": true,
+  "detail": ""
+ }
+]

@@ -1,0 +1,81 @@
+{
+  "when": "2026-08-23T19:48:44.233Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "7.9.0 setup: a sale above the $2,500 manager threshold",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03061 total 2598",
+      "sev": ""
+    },
+    {
+      "step": "7.9 a refund above the threshold announces that a manager PIN is needed",
+      "ok": true,
+      "detail": "qty 24; summary=\"CREDIT ITEMS 1 SUBTOTAL $2,400.00 TAX 8.25% $198.00 REFUND $2,598.00 Manager PIN required — above $2,500.00 REFUND TO ORIGINAL CARD not a card sale CASH from the drawer STORE CREDIT on the client acco\"; button=\"Refund with manager PIN\"",
+      "sev": ""
+    },
+    {
+      "step": "7.9b the manager PIN modal explains why",
+      "ok": true,
+      "detail": "MANAGER APPROVAL CLOSE Refund $2,598.00 is above the manager threshold. MANAGER Marisol Vega · Manager 1 2 3 4 5 6 7 8 9 C 0 ← CANCEL APPROVE",
+      "sev": ""
+    },
+    {
+      "step": "7.9c a wrong manager PIN is refused",
+      "ok": true,
+      "detail": "MANAGER APPROVAL CLOSE Refund $2,598.00 is above the manager threshold. MANAGER Marisol Vega · Manager 1 2 3 4 5 6 7 8 9 C 0 ← maison_pos.api.returns.ManagerRequiredError: Manager PIN incorrect CANCEL APPROVE",
+      "sev": ""
+    },
+    {
+      "step": "7.9d the correct manager PIN releases the refund and is recorded",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03062: {\"grand_total\":-2598,\"is_return\":1,\"maison_manager_approved_by\":\"hou.mtr.manager@cloudchaserz.example\",\"maison_refund_method\":\"Cash\"}; screen=\"RETURNS CloudChaserz Montrose · refunds within 30 days · manager above $2,500.00 1 FIND 2 ITEMS 3 REFUND 4 DONE CREDIT NOTE ACC-SINV-2026-03062 AGAINST ACC-SINV-2026-03061 Gift Card $100 × 24 · Sellable $2,400.00 REFUNDED · CASH $2,598.00 A\"",
+      "sev": ""
+    },
+    {
+      "step": "7.8 exchange for a pricier item asks the client to pay the difference",
+      "ok": true,
+      "detail": "RETURNED BIC Lighter — Classic × 1 · Sellable $1.79 CREDIT INCL. TAX $1.94 NEW SALE CloudChaserz Logo Tee × 1 $24.99 × NEW TOTAL INCL. TAX $27.05 CLIENT PAYS $25.11 CARD · COUNTER 1 · V660P CASH CHARGE $25.11; button=\"Charge $25.11\"",
+      "sev": ""
+    },
+    {
+      "step": "7.8b the exchange posts a credit note and a new sale",
+      "ok": true,
+      "detail": "credit note ACC-SINV-2026-03064, new sale ACC-SINV-2026-03065 {\"grand_total\":27.05,\"is_return\":0,\"docstatus\":1}; screen=\"EXCHANGE Against ACC-SINV-2026-03063 · Walk-in Customer · 0 days ago BACK TO RETURN EXCHANGE COMPLETE CREDIT NOTE ACC-SINV-2026-03064 NEW SALE ACC-SINV-2026-03065 CREDIT $1.94 NEW TOTAL $27.05 PAID $25.11 PRINT RECEIPT ANOTHER RETURN BACK TO SELL\"",
+      "sev": ""
+    },
+    {
+      "step": "7.8c exchange for a cheaper item refunds the difference",
+      "ok": true,
+      "detail": "RETURNED CloudChaserz Logo Tee × 1 · Sellable $24.99 CREDIT INCL. TAX $27.05 NEW SALE BIC Lighter — Classic × 1 $1.79 × NEW TOTAL INCL. TAX $1.94 REFUND TO CLIENT $25.11 ORIGINAL CARD CASH STORE CREDIT EXCHANGE & REFUND $25.11; button=\"Exchange & refund $25.11\"",
+      "sev": ""
+    },
+    {
+      "step": "7.8d the negative-difference exchange completes and shows what was refunded",
+      "ok": true,
+      "detail": "EXCHANGE Against ACC-SINV-2026-03066 · Walk-in Customer · 0 days ago BACK TO RETURN EXCHANGE COMPLETE CREDIT NOTE ACC-SINV-2026-03067 NEW SALE ACC-SINV-2026-03068 CREDIT $27.05 NEW TOTAL $1.94 REFUNDED $25.11 PRINT RECEIPT ANOTHER RETURN BACK TO SELL",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 417 (Expectation Failed)"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03062",
+    "ACC-SINV-2026-03063",
+    "ACC-SINV-2026-03065",
+    "ACC-SINV-2026-03064",
+    "ACC-SINV-2026-03066",
+    "ACC-SINV-2026-03068",
+    "ACC-SINV-2026-03067"
+  ]
+}

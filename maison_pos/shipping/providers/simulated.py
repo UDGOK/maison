@@ -95,6 +95,16 @@ def price(base: float, per_lb: float, zone_factor: float, lb: float, zone: int, 
 	return round(amount * max(1, parcels), 2)
 
 
+def _site_now() -> datetime:
+	"""The site's wall clock (naive, site timezone) — the same clock the shipment stamps use."""
+	try:
+		import frappe
+
+		return frappe.utils.now_datetime()
+	except Exception:  # pragma: no cover - the provider is unit-testable without a site
+		return datetime.now()
+
+
 class SimulatedProvider(BaseProvider):
 	name = "simulated"
 	test_mode = True
@@ -118,7 +128,7 @@ class SimulatedProvider(BaseProvider):
 		r = self.to_rate(rate)
 		if not r.provider_rate_id.startswith("sim_"):
 			raise ShippingError("Rate does not belong to the simulated provider")
-		seed = hashlib.sha1(f"{r.provider_rate_id}|{datetime.utcnow().isoformat()}".encode()).hexdigest()
+		seed = hashlib.sha1(f"{r.provider_rate_id}|{_site_now().isoformat()}".encode()).hexdigest()
 		digits = "".join(str(int(c, 16) % 10) for c in seed[:22])
 		if r.carrier == "USPS":
 			tracking = "9400" + digits[:18]
@@ -138,8 +148,14 @@ class SimulatedProvider(BaseProvider):
 		)
 
 	def track(self, tracking_no: str, carrier: Optional[str] = None, shipped_at: Optional[datetime] = None, days: Optional[int] = None) -> Tracking:
-		"""A plausible timeline: label → accepted after 2 h → in transit → out for delivery → delivered after ``days``."""
-		now = datetime.utcnow()
+		"""A plausible timeline: label → accepted after 2 h → in transit → out for delivery → delivered after ``days``.
+
+		v0.8 QA W-N4: ``shipped_at`` comes from the site clock (``api/shipping._track_doc`` passes
+		``Maison Shipment.shipped_at`` / ``label_at``, both site-local), so "now" has to be the
+		site clock too. With ``datetime.utcnow()`` the timeline ran the UTC offset ahead and a
+		label bought seconds ago already reported "Accepted at origin facility".
+		"""
+		now = _site_now()
 		start = shipped_at or (now - timedelta(hours=1))
 		age_h = (now - start).total_seconds() / 3600.0
 		transit_h = max(12, (days or 3) * 24)

@@ -1,0 +1,19 @@
+(node:509) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  shot 171-salon-thankyou-full.png
+  shot 172-salon-feedback.png
+PASS  C · Salon feedback reaches Head Office against this sale — {"name":"a6o1b7eo97","rating":5,"comment":"QA4 QA4A salon feedback — please ignore","boutique":"OK-BA","customer":"QA4 Salon QA4A"}
+PASS  C · the thank-you state carries points, receipt QR link and giveaway entries — {"customer":"QA4 Salon QA4A","receipt_token":"Q420nFNHr_Ylw_56","receipt_url":"https://cloudchaserz.frappe.cloud/r/Q420nFNHr_Ylw_56","sales_invoice":"ACC-SINV-2026-03093","points_earned":79,"points_balance":100,"tier":"Member","grand_total":86.71,"currency":"U
+PASS  C · the private-viewing invitation is recorded on the client profile — invite offered=true · {"private_viewing_invite":1,"private_viewing_invite_on":"2026-08-23 17:36:26.241390"}
+  shot 173-salon-invite.png
+NOTE  C · the thank-you screen (receipt QR, feedback, invitation) self-clears 20 s after the last touch — observed while testing: the QR and the "How was your visit?" / invitation buttons disappear on the countdown
+FAIL  C · the associate can switch the Salon to Concierge — toggle present=1 · salon view=ambient
+PASS  C · an unpaired Salon shows only the pairing screen (no client data) — view=pair
+  shot 174-salon-second-display.png
+PASS  C · Unpair from the POS returns the Salon to the pairing screen — salon view = pair
+PASS  C · the session is Unpaired on the server — {"status":"Unpaired"}
+PASS  C · the old token no longer serves a paired session — 403 {}
+  shot 175-salon-unpaired.png
+
+== results-s11b.json: 7 passed, 1 failed, 4 console issues ==
+  FAIL C · the associate can switch the Salon to Concierge — toggle present=1 · salon view=ambient

@@ -1,0 +1,22 @@
+{
+  "TAG": "QA4A",
+  "NEW": {
+    "usr": "qa4.newshopper.qa4a@cloudchaserz.example",
+    "pwd": "Qa4!Shopper#2026",
+    "first": "QA4 New",
+    "last": "Shopper QA4A"
+  },
+  "EXIST": {
+    "usr": "qa4.client.qa4a@cloudchaserz.example",
+    "pwd": "Qa4!Shopper#2026",
+    "first": "QA4 Member",
+    "last": "Shopper QA4A"
+  },
+  "member": {
+    "name": "QA4 Member QA4A",
+    "maison_client_number": "MC647413",
+    "email_id": "qa4.member.qa4a@example.com",
+    "mobile_no": "+1 918 555 9407"
+  },
+  "contact": "QA4 Member Shopper QA4A-QA4 Member QA4A"
+}

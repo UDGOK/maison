@@ -152,6 +152,8 @@ doc_events = {
 			"maison_pos.webshop.events.on_invoice_cancel",
 			# v0.6 Q — giveaway entries reversed
 			"maison_pos.api.rewards.on_invoice_cancel",
+			# v0.8 POS D12 — undoing a return re-prices the original sale's points on the net amount
+			"maison_pos.api.rewards.on_return_cancel",
 		],
 	},
 	# v0.4 B — wishlist alerts when a wished item arrives in a boutique warehouse
@@ -259,6 +261,15 @@ permission_query_conditions = {
 	"Sales Order": "maison_pos.scoping.sales_order_query",
 	"Delivery Note": "maison_pos.scoping.delivery_note_query",
 	# --- end v0.6 D3 ---
+	# --- v0.7 S2/S5 — every associate of every store (PIN hashes included) used to be listable
+	# by any Maison role through `frappe.client.get_list`. A store user now sees their own shop
+	# floor and nothing else; `session.associates` / `catalog.bootstrap` are unaffected because
+	# they select safe fields explicitly through `frappe.get_all`.
+	"Maison Associate": "maison_pos.scoping.associate_query",
+	# --- v0.7 S6 — the chain-wide client book is no longer bulk-readable from a shop floor
+	# (single-client service lookups keep working through `customers.search` / `customers.lookup`).
+	"Customer": "maison_pos.scoping.customer_query",
+	# --- end v0.7 ---
 }
 
 has_permission = {
@@ -279,6 +290,11 @@ has_permission = {
 	"Sales Order": "maison_pos.scoping.sales_order_has_permission",
 	"Delivery Note": "maison_pos.scoping.delivery_note_has_permission",
 	# --- end v0.6 D3 ---
+	# --- v0.7 S1/S2/S5 — reads scoped to the caller's own store; writes additionally refused
+	# when they would change `user` / `boutique` / `role`, so the escalation fails with a 403
+	# instead of silently doing nothing.
+	"Maison Associate": "maison_pos.scoping.associate_has_permission",
+	# --- end v0.7 ---
 }
 
 # ---------------------------------------------------------------------------
@@ -298,6 +314,8 @@ jinja = {
 		"maison_pos.webshop.context.shop_store_name",
 		# v0.6 N — brand tokens in every template (receipts, e-mails, shop)
 		"maison_pos.brand.get_brand",
+		# v0.8 QA U1 — "Powered by <developer>" for the storefront / receipt footers
+		"maison_pos.setup.whitelabel.developer_credit",
 		"maison_pos.utils.get_brand_context",
 	],
 }

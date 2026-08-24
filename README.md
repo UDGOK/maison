@@ -83,8 +83,9 @@ bench build --app maison_pos
 Open `/pos`, `/warehouse`, `/warehouse-wall`, `/maison-dashboard`, `/shop`, `/rewards`, `/salon`.
 Everything is branded CloudChaserz. Demo password **`cloud123`**: associate
 `hou.mtr.a1@cloudchaserz.example` PIN `2580`, manager `hou.mtr.manager@cloudchaserz.example` PIN
-`1101`, warehouse `warehouse@cloudchaserz.example`, head office `hq@cloudchaserz.example`
-(full table in `docs/cloudchaserz.md`). On a managed host without shell access, the same seed over
+`1101`, warehouse `warehouse@cloudchaserz.example`, head office `hq@cloudchaserz.example`, web
+shopper `shopper@cloudchaserz.example` (full table in `docs/cloudchaserz.md`). New shoppers
+register on the storefront itself at `/shop/register` — no mail server needed. On a managed host without shell access, the same seed over
 the API: `POST /api/method/maison_pos.setup.cloudchaserz.seed_remote`, then
 `…cloudchaserz.seed_history_remote {"months": 3}` and `…cloudchaserz.status` to watch it.
 
@@ -96,6 +97,11 @@ bench --site yoursite execute maison_pos.insights.jobs.compute_weekly
 bench build --app maison_pos
 ```
 Demo associate: `chi.oak.a1@maison.example` / `maison123`, PIN `2580`; manager `chi.oak.manager@maison.example`, PIN `1234`; web shopper `client@maison.example` / `maison123` (see `maison_pos/setup/demo*.py`).
+
+> **These demo passwords and PINs are shared constants, identical on every seeded site** — they
+> are a convenience, not credentials. A seeded site must hold no real client data, and any site
+> reachable from the internet has to be re-credentialed first (`maison_associate.reset_pin` per
+> associate, new passwords, `bench set-admin-password`). See `docs/security.md`.
 
 > One brand per site. The two profiles use different companies so they *can* coexist, but the brand
 > settings are a singleton — seeding CloudChaserz onto a jewellery site rebrands it.
@@ -120,4 +126,4 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc-site:8000 ADMIN_PWD=adm
 ```
 
 ## Docs
-`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **white-label**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`
+`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **security**, **white-label**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`

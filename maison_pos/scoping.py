@@ -20,6 +20,22 @@ SCOPED_ROLES = frozenset({"Maison Manager", "Maison Associate"})
 ALL_MAISON_ROLES = ("Maison Associate", "Maison Manager", "Maison Regional", "Maison Head Office")
 APPROVER_ROLES = frozenset({"Administrator", "System Manager", "Maison Head Office", "Maison Regional"})
 
+# --- v0.7 S1/S5 — the fields that decide *who someone is* on this chain ---------------------
+#: changing any of these grants access: ``role`` drives the Frappe role sync, ``boutique`` moves
+#: the user's whole data scope to another store, ``user`` re-points the record at somebody else.
+PRIVILEGED_ASSOCIATE_FIELDS = ("user", "boutique", "role")
+#: ``Maison Associate.role`` → seniority. A caller may never grant a rank above their own.
+ASSOCIATE_ROLE_RANK = {"Associate": 1, "Manager": 2, "Regional": 3, "HeadOffice": 4}
+#: Frappe role → the same seniority, for the ``_sync_user_role`` guard
+FRAPPE_ROLE_RANK = {
+	"Maison Associate": 1,
+	"Maison Manager": 2,
+	"Maison Regional": 3,
+	"Maison Head Office": 4,
+	"System Manager": 4,
+	"Administrator": 4,
+}
+
 
 def _user(user: Optional[str] = None) -> str:
 	return user or frappe.session.user
@@ -502,3 +518,117 @@ def delivery_note_query(user: Optional[str] = None) -> str:
 def delivery_note_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
 	return _stock_doc_has_permission(doc, ("set_warehouse",), user)
 # --- end v0.6 D3 ---
+
+
+# ---------------------------------------------------------------------------
+# v0.7 S1 / S2 / S5 — Maison Associate is the credential store of this chain
+#
+# Before v0.7 every Maison role could list **every** associate of **every** store through the
+# generic REST surface, PIN hashes included, and a store manager could ``set_value`` their own
+# ``role`` to ``HeadOffice`` (the ``on_update`` role sync then granted the matching Frappe role
+# with ``ignore_permissions``). Three independent fixes: the secret fields moved out of reach
+# (permlevel 2 + ``Password`` fieldtype, see the doctype), the identity fields became permlevel 1,
+# and the rows themselves are scoped to the caller's own store here.
+# ---------------------------------------------------------------------------
+def associate_query(user: Optional[str] = None) -> str:
+	"""A store user only ever lists the associates of their own boutique."""
+	if not is_store_scoped(user):
+		return ""
+	boutique = get_user_boutique(user)
+	if not boutique:
+		return "1=0"
+	return f"`tabMaison Associate`.`boutique` = {frappe.db.escape(boutique)}"
+
+
+def associate_has_permission(doc, ptype: str = "read", user: Optional[str] = None) -> bool:
+	"""Read: own store only. Write / create: own store, Associate level, never a privileged field.
+
+	This runs from ``Document.check_permission`` **before** the framework resets permlevel fields,
+	so the caller gets an honest ``403`` instead of a silent no-op — and it holds even if the
+	permlevels are lost (a hand-edited Custom DocPerm, an older site that has not migrated).
+	"""
+	user = _user(user)
+	if is_unrestricted(user):
+		return True
+	if not is_store_scoped(user):
+		return True  # not a store role: core Frappe permissions decide
+	own = get_user_boutique(user)
+	if not own:
+		return False
+	get = doc.get if hasattr(doc, "get") else (lambda field: None)
+	if get("boutique") != own:
+		return False
+	if ptype in ("read", "select", "report", "print", "email", "export", "share"):
+		return True
+	# a manager may hire, edit and disable their own shop floor — nothing above it
+	if (get("role") or "Associate") != "Associate":
+		return False
+	name = get("name")
+	if name and frappe.db.exists("Maison Associate", name):
+		before = frappe.db.get_value("Maison Associate", name, list(PRIVILEGED_ASSOCIATE_FIELDS), as_dict=True) or {}
+		for field in PRIVILEGED_ASSOCIATE_FIELDS:
+			if (get(field) or None) != (before.get(field) or None):
+				return False
+	return True
+
+
+def max_grantable_rank(user: Optional[str] = None) -> int:
+	"""The highest ``Maison Associate.role`` rank *user* may hand out (0 = none at all)."""
+	user = _user(user)
+	if user == "Administrator":
+		return max(ASSOCIATE_ROLE_RANK.values())
+	roles = set(frappe.get_roles(user))
+	return max((FRAPPE_ROLE_RANK.get(r, 0) for r in roles), default=0)
+# --- end v0.7 S1/S2/S5 ---
+
+
+# ---------------------------------------------------------------------------
+# v0.7 S6 — the client book is chain-wide, the client *list* is not
+#
+# A client shops wherever they like, so ``customers.search`` / ``customers.lookup`` deliberately
+# still match across the chain (exact-ish, capped and audited — see ``maison_pos.api.customers``).
+# What is closed here is bulk enumeration: ``frappe.client.get_list("Customer")`` and
+# ``/api/resource/Customer`` used to hand any associate the whole chain's names, phone numbers,
+# e-mail addresses and client numbers in one call.
+# ---------------------------------------------------------------------------
+def _customer_store_link_conditions(boutique: str) -> list[str]:
+	b = frappe.db.escape(boutique)
+	conditions = [
+		f"`tabCustomer`.`name` in (select `customer` from `tabSales Invoice` where `maison_boutique` = {b} and `customer` is not null)",
+		f"`tabCustomer`.`owner` in (select `user` from `tabMaison Associate` where `boutique` = {b} and `user` is not null)",
+	]
+	if _meta_has("Sales Order", "maison_boutique"):
+		conditions.append(
+			f"`tabCustomer`.`name` in (select `customer` from `tabSales Order` where `maison_boutique` = {b} and `customer` is not null)"
+		)
+	if _meta_has("Maison Client Profile", "preferred_boutique"):
+		conditions.append(
+			f"`tabCustomer`.`name` in (select `name` from `tabMaison Client Profile` where `preferred_boutique` = {b})"
+		)
+	return conditions
+
+
+def customer_query(user: Optional[str] = None) -> str:
+	"""Store users list the clients of *their* store: served there, created there, or homed there."""
+	if not is_store_scoped(user):
+		return ""
+	boutique = get_user_boutique(user)
+	if not boutique:
+		return "1=0"
+	return "(" + " or ".join(_customer_store_link_conditions(boutique)) + ")"
+
+
+def customer_is_known_to_store(customer: str, user: Optional[str] = None) -> bool:
+	"""True when *customer* is one of the caller's own store's clients (unrestricted → always)."""
+	if not is_store_scoped(user):
+		return True
+	boutique = get_user_boutique(user)
+	if not boutique or not customer:
+		return False
+	conditions = " or ".join(_customer_store_link_conditions(boutique))
+	row = frappe.db.sql(
+		f"select 1 from `tabCustomer` where `tabCustomer`.`name` = %s and ({conditions}) limit 1",  # nosec B608 — codes are escaped above
+		(customer,),
+	)
+	return bool(row)
+# --- end v0.7 S6 ---

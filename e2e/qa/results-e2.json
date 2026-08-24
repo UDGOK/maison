@@ -1,0 +1,92 @@
+[
+ {
+  "name": "Live card drill-in opens item-level feed",
+  "ok": true,
+  "detail": "HOU-MTR | CloudChaserz Montrose | OPEN | CLOSE | NET | 917 | TICKETS | 30 | AVG TICKET | 31 | RETURNS | 12 | 09 | 12 | 29 | 15 | 18 | 21 | ITEM-LEVEL FEED | LOADING…"
+ },
+ {
+  "name": "drill-in closes",
+  "ok": true,
+  "detail": "buttons: Open / Close"
+ },
+ {
+  "name": "clicking the STORES tab from a store page returns to the store list",
+  "ok": false,
+  "detail": "still on the store drill-in page; url=https://cloudchaserz.frappe.cloud/maison-dashboard?view=boutiques&boutique=HOU-MTR (App.vue setView keeps `boutique` when v === \"boutiques\")"
+ },
+ {
+  "name": "Stores tab loads",
+  "ok": true,
+  "detail": "335 ms"
+ },
+ {
+  "name": "sortable column headers present",
+  "ok": false,
+  "detail": ""
+ },
+ {
+  "name": "every sortable column sorts correctly (desc + asc toggle)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "sparklines render on every row",
+  "ok": true,
+  "detail": "11 svgs / 11 rows"
+ },
+ {
+  "name": "store page: hourly bars",
+  "ok": true,
+  "detail": "10 bars"
+ },
+ {
+  "name": "store page: top items",
+  "ok": true,
+  "detail": "← STORES | HOU-MTR | CloudChaserz Montrose | OFFLINE | 7 D | 28 D"
+ },
+ {
+  "name": "store page: associates",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "store page: alerts section",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "store page: feedback section",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "store drill-in sets ?view=boutiques&boutique=",
+  "ok": true,
+  "detail": "https://cloudchaserz.frappe.cloud/maison-dashboard?view=boutiques&boutique=HOU-MTR"
+ },
+ {
+  "name": "boutique_detail returns top_items/associates/alerts/feedback",
+  "ok": true,
+  "detail": "top_items=10 associates=3 alerts=0 feedback=0 recent=20"
+ },
+ {
+  "name": "top item on the page matches boutique_detail",
+  "ok": true,
+  "detail": "CocoUrth Coconut Coals 72 pc (flats) net=818.37 units=63"
+ },
+ {
+  "name": "store with zero sales today renders without error",
+  "ok": true,
+  "detail": "today invoices=0 net=0 last_sale=null | page: ← STORES | OK-ETUL | CloudChaserz East Tulsa | OFFLINE | 7 D | 28 D | 90 D | NET TODAY | 0 | VS SAME DAY LW | −100% | TICKETS | 0 | AVG TICKET | 0 | RETURNS | 0 | 14 DAYS | NET SALES BY HOUR | PEAK | 09:00 · 0 | 0 | 250 | 500 | 750 | 1k | 09:00 | 10:00 | 11:00 | 12:00 | 13:00 | 14:00 | 15:00 | 16:00 | 17:00 | 18:00 | 19:00 | 20:00 | 21:00 | TOP ITEMS ·"
+ },
+ {
+  "name": "zero-sales store shows no NaN / Infinity / undefined",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no console errors on Stores",
+  "ok": true,
+  "detail": ""
+ }
+]

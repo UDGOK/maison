@@ -1,6 +1,6 @@
 {
   "base": "http://maison.localhost:8000",
-  "run": "ERNAH",
+  "run": "T1D0K",
   "passed": 32,
   "total": 32,
   "results": [
@@ -17,7 +17,7 @@
     {
       "step": "pairing code (6 digits) + QR + 10 min countdown on the POS",
       "ok": true,
-      "detail": "877793 · 10:00"
+      "detail": "791849 · 10:00"
     },
     {
       "step": "Salon pairs with the code → ambient screen",
@@ -32,12 +32,12 @@
     {
       "step": "server: Maison Salon Session Paired for this POS device",
       "ok": true,
-      "detail": "47ee2875"
+      "detail": "a6541b43"
     },
     {
       "step": "ambient shows the hour and a playlist piece",
       "ok": true,
-      "detail": "6:10 AM"
+      "detail": "00:38"
     },
     {
       "step": "first piece without a client → Salon asks \"Are you a client of the house?\"",
@@ -62,7 +62,7 @@
     {
       "step": "basket mirror: 3 lines, newest piece large, total matches the POS",
       "ok": true,
-      "detail": "Diamond Stud Earrings 0.5ct · 207982.77"
+      "detail": "Cufflinks Onyx and Gold · 12368.95"
     },
     {
       "step": "basket mirror shows points to be earned",
@@ -72,12 +72,12 @@
     {
       "step": "\"Ask about this piece\" → CRM interaction + POS notice",
       "ok": true,
-      "detail": "Client asked about Diamond Stud Earrings 0.5ct: Is this one available in rose gold? (ERNAH)"
+      "detail": "Client asked about Cufflinks Onyx and Gold: Is this one available in rose gold? (T1D0K)"
     },
     {
       "step": "Salon payment screen shows the amount",
       "ok": true,
-      "detail": "207982.77"
+      "detail": "12368.95"
     },
     {
       "step": "Salon shows \"Approved\" with the gold pulse",
@@ -87,22 +87,22 @@
     {
       "step": "sale submitted with the Salon-identified client",
       "ok": true,
-      "detail": "ACC-SINV-2026-02791"
+      "detail": "ACC-SINV-2026-03001"
     },
     {
       "step": "thank-you: name, points earned and receipt QR",
       "ok": true,
-      "detail": "+125,764"
+      "detail": "+7,479"
     },
     {
       "step": "feedback reaches HQ (Maison Feedback, status New)",
       "ok": true,
-      "detail": "{\"rating\":5,\"comment\":\"Exquisite service (ERNAH)\",\"boutique\":\"CHI-OAK\",\"status\":\"New\"}"
+      "detail": "{\"rating\":5,\"comment\":\"Exquisite service (T1D0K)\",\"boutique\":\"CHI-OAK\",\"status\":\"New\"}"
     },
     {
       "step": "HQ feedback summary counts it",
       "ok": true,
-      "detail": "30 → 31"
+      "detail": "22 → 23"
     },
     {
       "step": "private-viewing invitation sets the Client Profile flag",
@@ -117,7 +117,7 @@
     {
       "step": "sign-up creates the Customer (client № assigned) and attaches it on the POS",
       "ok": true,
-      "detail": "{\"name\":\"Salon Newcomer ERNAH\",\"mobile_no\":\"+1 312 555 7257\",\"maison_client_number\":\"MC823396\"}"
+      "detail": "{\"name\":\"Salon Newcomer T1D0K\",\"mobile_no\":\"+1 312 555 7300\",\"maison_client_number\":\"MC778051\"}"
     },
     {
       "step": "sign-up stores marketing preferences + birthday on the Client Profile",
@@ -137,7 +137,7 @@
     {
       "step": "server: consent_agreed message carries the method + version, no biometrics stored by the Salon",
       "ok": true,
-      "detail": "{\"method\":\"Hold-to-agree\",\"text_version\":\"2026-08-1\",\"captured_at\":\"2026-08-23 02:11:28.435015\",\"customer\":\"Salon Newcomer ERNAH\"}"
+      "detail": "{\"method\":\"Hold-to-agree\",\"text_version\":\"2026-08-1\",\"captured_at\":\"2026-08-24 01:38:43.550889\",\"customer\":\"Salon Newcomer T1D0K\"}"
     },
     {
       "step": "POS without a camera → Salon: \"We will finish this at the counter\"",
@@ -147,7 +147,7 @@
     {
       "step": "concierge answers land in the Client Profile",
       "ok": true,
-      "detail": "{\"ring_size\":\"7\",\"wrist_size\":\"16 cm\",\"metal_preference\":\"Rose Gold\",\"style_notes\":\"[Salon 2026-08-23] Style: Minimal, Heritage · Occasions: Anniversary\",\"anniversary\":\"2020-09-12\"}"
+      "detail": "{\"ring_size\":\"7\",\"wrist_size\":\"16 cm\",\"metal_preference\":\"Rose Gold\",\"style_notes\":\"[Salon 2026-08-24] Style: Minimal, Heritage · Occasions: Anniversary\",\"anniversary\":\"2020-09-12\"}"
     },
     {
       "step": "unpair from the POS → Salon returns to the pairing screen",

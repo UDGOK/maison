@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { fmtCompact, fmtHour, fmtMoney } from '../lib/format'
+import { hourWindow, peakHour, visibleHours } from '../lib/hourly'
 import type { HourBucket } from '../types'
 
-const props = withDefaults(defineProps<{ hours: HourBucket[]; currentHour: number; from?: number; to?: number }>(), {
-  from: 9,
-  to: 21,
-})
+/**
+ * v0.8 QA D-1 — `from` / `to` are overrides, not defaults: left unset the window follows the
+ * data (see `lib/hourly.ts`). The hard-coded 09:00–21:00 hid 86 % of a real trading day and
+ * named the wrong peak hour.
+ */
+const props = defineProps<{ hours: HourBucket[]; currentHour: number; from?: number; to?: number }>()
 
 const W = 1000
 const H = 300
 const PAD = { l: 56, r: 12, t: 18, b: 30 }
 
-const visible = computed(() => props.hours.filter((h) => h.hour >= props.from && h.hour <= props.to))
+const range = computed(() => hourWindow(props.hours, props.currentHour, props.from, props.to))
+const visible = computed(() => visibleHours(props.hours, range.value))
 
 function niceMax(v: number): number {
   if (v <= 0) return 1000
@@ -45,7 +49,8 @@ const bars = computed(() =>
 
 const ticks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((k) => ({ v: maxNet.value * k, y: PAD.t + plotH - k * plotH })))
 
-const peak = computed(() => visible.value.reduce((a, b) => (b.net > a.net ? b : a), visible.value[0] ?? { hour: 0, net: 0, invoices: 0 }))
+/** over every bucket, not the drawn slice — the label can never disagree with the bars */
+const peak = computed(() => peakHour(props.hours))
 </script>
 
 <template>
@@ -54,7 +59,7 @@ const peak = computed(() => visible.value.reduce((a, b) => (b.net > a.net ? b : 
       <span class="label">Net sales by hour</span>
       <span class="meta">
         <span class="label">Peak</span>
-        <span class="num peak">{{ fmtHour(peak.hour) }} · {{ fmtMoney(peak.net) }}</span>
+        <span class="num peak" data-testid="hourly-peak">{{ peak ? `${fmtHour(peak.hour)} · ${fmtMoney(peak.net)}` : '—' }}</span>
       </span>
     </header>
     <div class="plot">

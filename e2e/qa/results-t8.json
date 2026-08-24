@@ -1,0 +1,57 @@
+{
+  "when": "2026-08-23T19:51:19.341Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "8.1 double-tapping CHARGE creates exactly one sale",
+      "ok": true,
+      "detail": "1 invoice(s) for the uuid: [\"ACC-SINV-2026-03069\"]; recent $7.57 invoices=[\"ACC-SINV-2026-03069\",\"ACC-SINV-2026-03050\",\"ACC-SINV-2026-03049\",\"ACC-SINV-2026-02790\",\"ACC-SINV-2026-02138\"]",
+      "sev": ""
+    },
+    {
+      "step": "8.2 browser Back from the receipt does not re-charge",
+      "ok": true,
+      "detail": "landed on https://cloudchaserz.frappe.cloud/pos/sell (\"CLOUDCHASERZ MAISON POS HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE LOCK ALL ACCESSORIES CBD & HEMP DEVICES & MOD\"); invoices for the uuid still 1",
+      "sev": ""
+    },
+    {
+      "step": "8.2b browser Back from the Pay screen returns to Sell with the basket intact",
+      "ok": true,
+      "detail": "url=https://cloudchaserz.frappe.cloud/pos/sell lines=1",
+      "sev": ""
+    },
+    {
+      "step": "8.5 very large amounts render and total correctly",
+      "ok": true,
+      "detail": "qty 121 × $100 → $13,098.25 (expected 13098.25)",
+      "sev": ""
+    },
+    {
+      "step": "8.6 a fully discounted ($0.00) sale can be completed",
+      "ok": false,
+      "detail": "basket total $0.00, amount due $0.00, pill \"Rejected\", invoice undefined (undefined); sync log={\"status\":\"Error\",\"error\":\"Invoice has no payments\"}",
+      "sev": ""
+    },
+    {
+      "step": "t8 crashed",
+      "ok": false,
+      "detail": "page.waitForSelector: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.page-title') to be visible\u001b[22m\n\n    at /home/claude/maison/e2e/qa/t8-edge.mjs:105:14",
+      "sev": "high"
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    },
+    {
+      "tag": "pos",
+      "type": "error",
+      "text": "d"
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03069"
+  ]
+}

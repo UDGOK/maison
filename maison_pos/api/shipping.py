@@ -77,6 +77,10 @@ def request_dict(doc) -> dict[str, Any]:
 		"rejection_reason": doc.rejection_reason,
 		"requested_by": doc.requested_by,
 		"requested_at": _iso(doc.requested_at),
+		# v0.8 QA W-D2 — the desk used to age a request from the zone-less `requested_at` string in
+		# the *browser's* zone, so every new request rendered amber off-zone. The server's own age
+		# is authoritative (the wall and the Shipments tab already use it).
+		"age_seconds": int((now_datetime() - get_datetime(doc.requested_at)).total_seconds()) if doc.requested_at else 0,
 		"approved_by": doc.approved_by,
 		"approved_at": _iso(doc.approved_at),
 		"material_request": doc.material_request,
@@ -137,6 +141,9 @@ def shipment_dict(doc, with_lines: bool = True) -> dict[str, Any]:
 		"stock_entry_ship": doc.stock_entry_ship,
 		"stock_entry_receive": doc.stock_entry_receive,
 		"stock_entry_damaged": doc.stock_entry_damaged,
+		# v0.8 QA W-N2 — every receiving leg, not just the first
+		"receipt_entries": [n for n in (doc.get("receipt_entries") or "").split("\n") if n.strip()],
+		"received_by": doc.received_by,
 		"created_at": _iso(doc.creation),
 		"approved_at": _iso(doc.approved_at),
 		"picking_at": _iso(doc.picking_at),
@@ -424,16 +431,28 @@ def reject(request: str, reason: str) -> dict[str, Any]:
 	req.flags.ignore_permissions = True
 	req.save()
 	req = _transition(req, "Reject", "Rejected")
-	if req.material_request and frappe.db.exists("Material Request", req.material_request):
-		mr = frappe.get_doc("Material Request", req.material_request)
-		if mr.docstatus == 0:
-			req.db_set("material_request", None, update_modified=False)
-			req.material_request = None
-			mr.flags.ignore_permissions = True
-			mr.delete()
+	# --- v0.8 QA W-D1 — a request raised from a low-stock alert could never be rejected ---
+	# `inventory.replenish` links the alert to the draft Material Request
+	# (`Maison Stock Alert.material_request`). Deleting the MR before clearing that link made
+	# ERPNext's link check fire (`LinkExistsError`) and rolled the whole rejection back, so the
+	# request sat on the wall for ever with no way out. Every link to the MR goes first.
 	for line in req.lines:
 		if line.stock_alert and frappe.db.exists("Maison Stock Alert", line.stock_alert):
 			frappe.db.set_value("Maison Stock Alert", line.stock_alert, "material_request", None, update_modified=False)
+	if req.material_request and frappe.db.exists("Material Request", req.material_request):
+		mr_name = req.material_request
+		mr = frappe.get_doc("Material Request", mr_name)
+		req.db_set("material_request", None, update_modified=False)
+		req.material_request = None
+		# any other alert that points at this MR (a second request for the same item) must let go too
+		for alert in frappe.get_all("Maison Stock Alert", filters={"material_request": mr_name}, pluck="name"):
+			frappe.db.set_value("Maison Stock Alert", alert, "material_request", None, update_modified=False)
+		mr.flags.ignore_permissions = True
+		if mr.docstatus == 0:
+			mr.delete()
+		elif mr.docstatus == 1:
+			mr.cancel()
+	# --- end v0.8 QA W-D1 ---
 	publish_wall("rejected", request=req.name, boutique=req.boutique)
 	for user in {req.requested_by, *_store_managers(req.boutique)}:
 		_notify(user, _("Replenishment {0} rejected: {1}").format(req.name, req.rejection_reason), "Maison Replenishment Request", req.name, req.rejection_reason)
@@ -597,12 +616,31 @@ def rates(shipment: str, prefer: str = "cheapest", provider: Optional[str] = Non
 
 
 @frappe.whitelist()
-def buy(shipment: str, rate_id: Optional[str] = None, prefer: str = "cheapest") -> dict[str, Any]:
-	"""Buy the label for *rate_id* (from the last quote) or the auto-selected rate. Stores label / tracking."""
+def buy(shipment: str, rate_id: Optional[str] = None, prefer: str = "cheapest", replace: int = 0) -> dict[str, Any]:
+	"""Buy the label for *rate_id* (from the last quote) or the auto-selected rate. Stores label / tracking.
+
+	Refuses when a label has already been bought unless ``replace=1`` (v0.8 QA W-D4).
+	"""
 	assert_supply_admin()
 	doc = frappe.get_doc("Maison Shipment", shipment)
 	if doc.status in ("Shipped", "Received", "Cancelled"):
 		frappe.throw(_("Shipment {0} is already {1}").format(shipment, doc.status), frappe.ValidationError)
+	# --- v0.8 QA W-D4 — buying twice silently orphaned the first label ---
+	# A second call overwrote carrier / service / rate / label_url / tracking_no, and on a real
+	# carrier that first label has already been bought and billed — with its tracking number then
+	# unrecoverable from the app. The wall's one-tap "Buy label" makes a double press plausible.
+	if doc.label_url and not cint(replace):
+		frappe.throw(
+			_("Shipment {0} already has a {1} {2} label ({3}). Pass replace=1 to void it and buy another — the first label stays billed by the carrier.").format(
+				shipment, doc.carrier or "", doc.service or "", doc.tracking_no or "-"
+			),
+			frappe.ValidationError,
+		)
+	voided = None
+	if doc.label_url and cint(replace):
+		voided = {"carrier": doc.carrier, "service": doc.service, "tracking_no": doc.tracking_no, "label_url": doc.label_url, "amount": flt(doc.rate_amount)}
+		doc.notes = ((doc.notes or "") + "\n" + _("Label replaced by {0}: {1} {2} {3} voided").format(frappe.session.user, voided["carrier"] or "", voided["service"] or "", voided["tracking_no"] or "")).strip()
+	# --- end v0.8 QA W-D4 ---
 	options = _loads(doc.rate_options, [])
 	if not options:
 		options = rates(shipment, prefer=prefer)["rates"]
@@ -646,6 +684,8 @@ def buy(shipment: str, rate_id: Optional[str] = None, prefer: str = "cheapest") 
 	publish_wall("label", doc.name, boutique=doc.boutique, label_url=doc.label_url, print_label=bool(shipping_settings()["auto_print_label"]))
 	out = shipment_dict(doc)
 	out["label"] = label.as_dict()
+	if voided:
+		out["voided_label"] = voided  # v0.8 QA W-D4
 	return out
 
 
@@ -722,7 +762,7 @@ def ship(shipment: str) -> dict[str, Any]:
 
 
 @frappe.whitelist()
-def mark(shipment: str, status: str) -> dict[str, Any]:
+def mark(shipment: str, status: str, reason: Optional[str] = None) -> dict[str, Any]:
 	"""Generic transition for the wall: Picking / Packed / Shipped / Cancelled (Received happens at the store)."""
 	assert_supply_admin()
 	if status == "Picking":
@@ -736,11 +776,55 @@ def mark(shipment: str, status: str) -> dict[str, Any]:
 		if doc.status in ("Shipped", "Received"):
 			frappe.throw(_("A shipped consignment cannot be cancelled — receive it at the store"), frappe.ValidationError)
 		doc.status = "Cancelled"
+		if reason:
+			doc.notes = ((doc.notes or "") + "\n" + _("Cancelled by {0}: {1}").format(frappe.session.user, reason)).strip()
 		doc.flags.ignore_permissions = True
 		doc.save()
-		publish_wall("cancelled", doc.name, boutique=doc.boutique)
-		return shipment_dict(doc)
+		reopened = _reopen_request_after_cancel(doc, reason)  # v0.8 QA W-N1
+		publish_wall("cancelled", doc.name, boutique=doc.boutique, request=doc.replenishment_request)
+		out = shipment_dict(doc)
+		out["request_reopened"] = reopened
+		return out
 	frappe.throw(_("Unsupported status {0}").format(status), frappe.ValidationError)
+
+
+def _reopen_request_after_cancel(doc, reason: Optional[str] = None) -> Optional[str]:
+	"""--- v0.8 QA W-N1 — cancelling a shipment used to leave its request stranded ---
+
+	The replenishment request stayed **Approved** with its Material Request submitted, its
+	shipment cancelled and nobody at the store told: the goods were never coming and the request
+	could not be raised again. The request goes back to *Pending Approval* (so the warehouse can
+	approve it into a new shipment, or reject it), the Material Request is cancelled, and the
+	store is notified.
+	"""
+	name = doc.replenishment_request
+	if not name or not frappe.db.exists("Maison Replenishment Request", name):
+		return None
+	req = frappe.get_doc("Maison Replenishment Request", name)
+	if req.status != "Approved" or req.shipment != doc.name:
+		return None
+	if req.material_request and frappe.db.exists("Material Request", req.material_request):
+		mr = frappe.get_doc("Material Request", req.material_request)
+		mr.flags.ignore_permissions = True
+		try:
+			if mr.docstatus == 1:
+				mr.cancel()
+			elif mr.docstatus == 0:
+				req.db_set("material_request", None, update_modified=False)
+				mr.delete()
+		except Exception:  # a partly-served MR stays as it is; the request still re-opens
+			frappe.log_error(frappe.get_traceback(), f"Maison shipment cancel {doc.name}: material request")
+	req.db_set("status", "Pending Approval", update_modified=False)
+	req.db_set("shipment", None, update_modified=False)
+	req.db_set("approved_by", None, update_modified=False)
+	req.db_set("approved_at", None, update_modified=False)
+	if reason:
+		req.db_set("reason", ((req.reason or "") + f"\n[{frappe.session.user}] " + _("Shipment {0} cancelled: {1}").format(doc.name, reason)).strip(), update_modified=False)
+	message = _("Shipment {0} was cancelled — replenishment {1} is back with the warehouse").format(doc.name, req.name)
+	for user in {req.requested_by, *_store_managers(req.boutique)}:
+		if user:
+			_notify(user, message, "Maison Replenishment Request", req.name, reason)
+	return req.name
 
 
 @frappe.whitelist()
@@ -806,11 +890,9 @@ def wall() -> dict[str, Any]:
 	assert_supply_admin()
 	s = shipping_settings()
 	pending = [
-		{**request_dict(frappe.get_doc("Maison Replenishment Request", n)), "kind": "request", "age_seconds": 0}
+		{**request_dict(frappe.get_doc("Maison Replenishment Request", n)), "kind": "request"}
 		for n in frappe.get_all("Maison Replenishment Request", filters={"status": "Pending Approval"}, pluck="name", order_by="requested_at asc")
 	]
-	for r in pending:
-		r["age_seconds"] = int((now_datetime() - get_datetime(r["requested_at"])).total_seconds()) if r["requested_at"] else 0
 	open_docs = [frappe.get_doc("Maison Shipment", n) for n in frappe.get_all("Maison Shipment", filters={"status": ("in", OPEN_SHIPMENT_STATUSES)}, pluck="name", order_by="creation asc")]
 	today = nowdate()
 	cols = {k: [] for k in WALL_COLUMNS}

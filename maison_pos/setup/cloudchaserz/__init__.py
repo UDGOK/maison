@@ -135,7 +135,7 @@ def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
 	if frappe.session.user not in ("Administrator", "") and "System Manager" not in frappe.get_roles():
 		frappe.throw("Only System Managers may seed demo data", frappe.PermissionError)
 	from maison_pos.setup import demo
-	from maison_pos.setup.cloudchaserz import catalog, rewards, stores, users
+	from maison_pos.setup.cloudchaserz import catalog, rewards, salon, stores, users
 	from maison_pos.setup.install import after_install
 
 	random.seed(606)
@@ -161,6 +161,7 @@ def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
 		summary_rewards = rewards.seed_rewards()
 		summary_ops = users.seed_operations()
 		summary_web = catalog.seed_webshop()
+		summary_salon = salon.seed_salon()  # v0.8 QA C2 — the ambient screen had nothing to show
 
 	if commit:
 		frappe.db.commit()
@@ -176,6 +177,7 @@ def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
 		"rewards": summary_rewards,
 		"operations": summary_ops,
 		"webshop": summary_web,
+		"salon": summary_salon,
 	}
 	if history:
 		from maison_pos.setup.cloudchaserz.history import seed_history

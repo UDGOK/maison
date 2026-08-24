@@ -58,7 +58,7 @@ const maxItem = computed(() => Math.max(1, ...(detail.value?.top_items.map((t) =
         <div><span class="label">Net today</span><span class="display num v accent">{{ fmtMoney(live?.net ?? detail?.row?.net ?? 0) }}</span></div>
         <div><span class="label">vs same day LW</span><span class="display num v" :class="(live?.vs_last_week_pct ?? 0) >= 0 ? 'up' : 'down'">{{ live?.vs_last_week_pct == null ? '—' : `${live.vs_last_week_pct >= 0 ? '+' : '−'}${Math.abs(live.vs_last_week_pct).toFixed(0)}%` }}</span></div>
         <div><span class="label">Tickets</span><span class="display num v">{{ fmtInt(live?.invoices ?? 0) }}</span></div>
-        <div><span class="label">Avg ticket</span><span class="display num v">{{ fmtMoney(live?.avg_ticket ?? 0) }}</span></div>
+        <div><span class="label">Avg sale</span><span class="display num v">{{ fmtMoney(live?.avg_ticket ?? 0) }}</span></div>
         <div><span class="label">Returns</span><span class="display num v">{{ fmtInt(live?.returns ?? 0) }}</span></div>
         <div><span class="label">14 days</span><Sparkline :values="detail?.sparkline ?? []" :width="160" :height="36" /></div>
       </section>

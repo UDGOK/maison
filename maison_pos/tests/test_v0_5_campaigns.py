@@ -393,11 +393,15 @@ class TestEmployeePerformance(V05Base):
 		self.assertEqual(a1["returns_amount"], 300.0)
 		self.assertEqual(a1["avg_ticket"], 200.0)  # gross (300 + 100) / 2
 		self.assertEqual(a1["sales"], 100.0)  # net of the return
-		# boutique avg ticket = net (returns netted) / tickets over every NYC POS invoice of the day (the dev site may hold others)
-		net = frappe.db.get_value("Sales Invoice", {"docstatus": 1, "is_pos": 1, "maison_boutique": "NYC-5AV", "posting_date": nowdate()}, "sum(base_net_total)")
+		# v0.8 QA D-2 — the store's average is on the *same* basis as the associate's: sales only,
+		# returns excluded from the numerator as well as the ticket count. It used to divide a
+		# net-of-returns numerator by a sales-only count, which inflated every ratio.
+		gross = frappe.db.get_value(
+			"Sales Invoice", {"docstatus": 1, "is_pos": 1, "is_return": 0, "maison_boutique": "NYC-5AV", "posting_date": nowdate()}, "sum(base_net_total)"
+		)
 		tickets = frappe.db.count("Sales Invoice", {"docstatus": 1, "is_pos": 1, "is_return": 0, "maison_boutique": "NYC-5AV", "posting_date": nowdate()})
-		self.assertAlmostEqual(a1["boutique_avg_ticket"], round(net / tickets, 2), places=2)
-		self.assertAlmostEqual(a1["avg_ticket_vs_boutique"], round(200 / (net / tickets), 3), places=3)
+		self.assertAlmostEqual(a1["boutique_avg_ticket"], round(gross / tickets, 2), places=2)
+		self.assertAlmostEqual(a1["avg_ticket_vs_boutique"], round(200 / (gross / tickets), 3), places=3)
 		self.assertEqual(a1["follow_ups_assigned"], base["follow_ups_assigned"] + 2)
 		self.assertEqual(a1["follow_ups_done"], base["follow_ups_done"] + 1)
 		self.assertEqual(a1["follow_up_rate"], round(a1["follow_ups_done"] / a1["follow_ups_assigned"], 3))

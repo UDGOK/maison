@@ -1,0 +1,19 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "BUG: a request raised by one-tap from a low-stock alert CANNOT be rejected",
+   "ok": true,
+   "detail": "MRR-2026-00043 (from alert MSA-2026-00017, HKA-004) -> reject returns 417 frappe.exceptions.LinkExistsError: Cannot delete or cancel because Material Request <a href=\"https://cloudchaserz.frappe.cloud/app/material-request/MAT-MR-2026-00017\">MAT-MR-2026-00017</a> is linked with Maison Stock Alert <a href=\"https://; request stays {\"status\":\"Pending Approval\",\"material_request\":\"MAT-MR-2026-00017\",\"rejection_reason\":null} (was {\"status\":\"Pending Approval\",\"material_request\":\"MAT-MR-2026-00017\"}); the alert still points at MAT-MR-2026-00017. shipping.py reject() deletes the draft Material Request BEFORE clearing Maison Stock Alert.material_request, so the delete hits LinkExistsError.",
+   "severity": "high"
+  },
+  {
+   "step": "...and it can only be rejected after the alert link is cleared by hand (proves the cause)",
+   "ok": true,
+   "detail": "after clearing Maison Stock Alert.material_request on MSA-2026-00017: reject -> Rejected",
+   "severity": "high"
+  }
+ ],
+ "console": []
+}

@@ -1,0 +1,53 @@
+{
+ "when": "2026-08-23",
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "A \u00b7 loyalty lookup refuses a wrong e-mail",
+   "ok": true,
+   "detail": "error=\"We could not match that client number and e-mail.\""
+  },
+  {
+   "step": "A \u00b7 loyalty lookup shows points for client number + e-mail",
+   "ok": true,
+   "detail": "CLOUDCHASERZ REWARDS \u00b7 Client \u2116 MC647413 \u00b7 q***@example.com \u00b7 POINTS 39 \u00b7 VALUE $1.95"
+  },
+  {
+   "step": "A \u00b7 loyalty lookup needs both the client number and the e-mail",
+   "ok": true,
+   "detail": "417 Enter both your client number and the e-mail we have on file"
+  },
+  {
+   "step": "A \u00b7 unknown client number returns nothing (no enumeration hint)",
+   "ok": true,
+   "detail": "null"
+  },
+  {
+   "step": "B \u00b7 public receipt shows points earned and balance",
+   "ok": true,
+   "detail": "POINTS EARNED 39 POINTS BALANCE 39"
+  },
+  {
+   "step": "B \u00b7 public receipt shows tier progress (\"next reward \u2026 to go\")",
+   "ok": true,
+   "detail": "NEXT REWARD $5.00 off at 100 pts \u00b7 61 to go"
+  },
+  {
+   "step": "B \u00b7 public receipt masks the client number and shows no name",
+   "ok": true,
+   "detail": "MC\u00b7\u00b7\u00b7413, no customer name on the page"
+  },
+  {
+   "step": "B \u00b7 public receipt shows a giveaway-entry line",
+   "ok": true,
+   "detail": "GIVEAWAY ENTRIES 1 \u00b7 Geek Bar Pulse X giveaway"
+  },
+  {
+   "step": "B \u00b7 the receipt page offers private feedback",
+   "ok": true,
+   "detail": "1 feedback form"
+  }
+ ],
+ "consoleLog": [],
+ "note": "transcribed from the run console; the script stopped on a harness/navigation issue after these checks"
+}

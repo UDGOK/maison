@@ -1,0 +1,64 @@
+{
+  "when": "2026-08-23T22:44:02.301Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "A · \"pay at the store\" places an unpaid web order",
+      "ok": true,
+      "detail": "SAL-ORD-2026-00004 total=21.67 advance=0 prepaid=0 payment_url=null",
+      "sev": ""
+    },
+    {
+      "step": "A · the unpaid order shows a balance due at collection",
+      "ok": true,
+      "detail": "{\"name\":\"SAL-ORD-2026-00004\",\"boutique\":\"OK-BA\",\"boutique_name\":\"CloudChaserz Broken Arrow\",\"customer\":\"QA4 New Shopper QA4A\",\"customer_name\":\"QA4 New Shopper QA4A\",\"contact_email\":\"qa4.newshopper.qa4",
+      "sev": ""
+    },
+    {
+      "step": "A · the queue walks New → Picking → Ready",
+      "ok": true,
+      "detail": "status=Ready balance_due=21.67",
+      "sev": ""
+    },
+    {
+      "step": "A · collecting an unpaid order tenders the full balance",
+      "ok": true,
+      "detail": "{\"offline_uuid\":\"qa4-QA4A-collect-1787525038938\",\"status\":\"ok\",\"invoice_name\":\"ACC-SINV-2026-03094\",\"grand_total\":21.67,\"rounded_total\":21.67,\"change_amount\":0,\"receipt_token\":\"uCRyWfoOHdYsqMfb\",\"rewa",
+      "sev": ""
+    },
+    {
+      "step": "A · the collection invoice is linked to the order, fully paid, no advance",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03094 outstanding=0 advances=0 paid=[[\"Cash\",21.67]]",
+      "sev": ""
+    },
+    {
+      "step": "A · the Sales Order is Collected",
+      "ok": true,
+      "detail": "{\"maison_web_status\":\"Collected\",\"status\":\"Completed\"}",
+      "sev": ""
+    },
+    {
+      "step": "B · the $10 / 200 points tier redeems at the POS",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03095: loyalty_amount=10 loyalty_points=200 tier=RT-200-00002 grand=65.04 (balance 641 → 490)",
+      "sev": ""
+    },
+    {
+      "step": "B · the $5 / 100 points tier redeems at the POS",
+      "ok": false,
+      "detail": "Payments (60.0) do not cover the invoice total (60.040000000000006): loyalty_amount=undefined loyalty_points=undefined tier=undefined grand=undefined (balance 490 → 490)",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "created": {
+    "orders": [
+      "SAL-ORD-2026-00004"
+    ],
+    "invoices": [
+      "ACC-SINV-2026-03094",
+      "ACC-SINV-2026-03095"
+    ]
+  }
+}

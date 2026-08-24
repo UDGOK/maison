@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import builtins
 import json
+import re
 from typing import Any, Optional
 
 import frappe
@@ -139,6 +140,15 @@ def _loyalty_details(customer: str, company: str) -> Optional[dict[str, Any]]:
 	return row
 
 
+def _payload_net(payload: dict[str, Any]) -> float:
+	"""v0.8 POS D3 — what the device says the basket comes to, before tax (0.0 for a comped sale)."""
+	total = 0.0
+	for row in payload.get("items") or []:
+		amount = flt(row.get("qty") or 1) * flt(row.get("rate"))
+		total += max(0.0, amount - flt(row.get("discount_amount")))
+	return flt(total, 2)
+
+
 def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	"""Construct (but do not insert) a POS Sales Invoice from a POSInvoice payload."""
 	b = frappe.get_cached_doc("Maison Boutique", boutique)
@@ -160,8 +170,14 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	if sales_order and not frappe.db.exists("Sales Order", {"name": sales_order, "docstatus": 1}):
 		raise MaisonPOSError(_("Sales Order {0} does not exist").format(sales_order), ERR_NOT_FOUND)
 	# --- end v0.4 G ---
-	if not payments and not sales_order:
+	# --- v0.8 POS D3 — a comp / 100 % discount is a legitimate sale, and it has nothing to tender ---
+	# The till already sends an empty `payments` array when the basket comes to zero (`PayView.finalize`);
+	# refusing it here meant a giveaway prize or a fully discounted line could never be recorded.
+	# A basket that *does* come to money still has to be paid for — the guard only steps aside for the
+	# genuinely-zero one, and `_validate_payments_cover_total` re-checks against the real total anyway.
+	if not payments and not sales_order and _payload_net(payload) > 0.005:
 		raise PaymentMismatchError(_("Invoice has no payments"))
+	# --- end v0.8 POS D3 ---
 
 	posting = parse_datetime(payload.get("posting_datetime"))
 
@@ -205,15 +221,14 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 		# derives `amount` from `rate`, so the net unit rate is what lands in `rate`.
 		rate = flt(row.get("rate"))
 		discount = min(flt(row.get("discount_amount")), flt(qty * rate))
-		unit_discount = flt(discount / qty, 4) if discount else 0.0
 		line = {
 			"item_code": item_code,
 			"qty": qty,
 			"warehouse": b.warehouse,
 			"cost_center": b.cost_center,
 			"price_list_rate": rate,
-			"discount_amount": unit_discount,
-			"rate": flt(rate - unit_discount, 4),
+			"discount_amount": 0.0,
+			"rate": rate,
 		}
 		serials = _split_serials(row.get("serial_no"))
 		if serials:
@@ -226,7 +241,25 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 				"Sales Order Item", {"parent": sales_order, "item_code": item_code}, "name"
 			)
 		# --- end v0.4 G ---
-		si.append("items", line)
+		item_row = si.append("items", line)
+		# --- v0.8 POS D1 — the discounted unit rate at the currency's precision ---
+		# A Sales Invoice Item stores the *net unit rate* and derives `amount = rate x qty` from it,
+		# rounding `rate` to the currency precision. A whole-line discount that does not divide into
+		# whole cents per unit therefore cannot be booked as asked: 2 x $10.50 less $3.69 is a unit
+		# rate of $8.655, which the ledger keeps as $8.66 and books as $17.32 while the device used
+		# to show $17.31 — and the sale was then refused for a cent. Round here, the same way and at
+		# the same precision the device does (`frontend/src/utils/totals.ts::lineNet`), so what is
+		# sent is exactly what is booked. A 100 % line discount additionally needs
+		# `discount_percentage`: ERPNext treats a zero `rate` as "not priced yet" and would restore
+		# the list rate (`erpnext/controllers/taxes_and_totals.py::calculate_item_values`).
+		if discount:
+			precision = item_row.precision("rate")
+			net_rate = max(0.0, flt(rate - (discount / qty), precision))
+			item_row.rate = net_rate
+			item_row.discount_amount = flt(rate - net_rate, precision)
+			if not net_rate and rate:
+				item_row.discount_percentage = 100
+		# --- end v0.8 POS D1 ---
 
 	# taxes from the boutique template (server recomputes amounts)
 	template = b.get_tax_template()
@@ -294,7 +327,27 @@ def build_sales_invoice(payload: dict[str, Any], boutique: str):
 	return si
 
 
-def _validate_payments_cover_total(si) -> None:
+# ---------------------------------------------------------------------------
+# --- v0.8 POS D1 — rounding safety net -------------------------------------
+#
+# The device and ERPNext now compute the tax identically (one rate, once, on the taxable net —
+# see `frontend/src/utils/totals.ts`). This is the belt to that pair of braces: a till running an
+# older bundle, a third-party client or any future divergence must not be able to *refuse a sale
+# the customer has already paid for*. A gap no larger than one unit at the invoice's currency
+# precision — i.e. what Commercial Rounding can produce out of the same numbers — is booked to the
+# store's write-off account instead of raising. Never silently: the amount, the direction and the
+# account land on the invoice notes, in a Comment, in the `Maison Sync Log` and in the batch
+# result the device gets back. Anything larger is still a real disagreement and is still refused.
+# ---------------------------------------------------------------------------
+def _rounding_tolerance(si) -> float:
+	"""One unit at the invoice's currency precision (0.01 on a 2-decimal currency)."""
+	precision = si.precision("grand_total") or 2
+	return 10.0 ** -precision
+
+
+def _paid_and_due(si) -> tuple[float, float]:
+	"""(tendered on the invoice, what the client actually owes) — both at currency precision."""
+	precision = si.precision("grand_total") or 2
 	paid = sum(flt(p.amount) for p in si.payments)
 	# loyalty_amount is deducted from what the client owes (ERPNext posts it to the redemption account)
 	due = flt(si.rounded_total or si.grand_total)
@@ -303,14 +356,92 @@ def _validate_payments_cover_total(si) -> None:
 	# --- v0.4 G (webshop): advances (online payment of a web order) reduce what is due at the counter ---
 	due -= flt(si.get("total_advance"))
 	# --- end v0.4 G ---
+	# v0.8 POS D1 — a rounding difference already booked below is no longer owed by the client
+	due -= flt(si.get("write_off_amount"))
+	return flt(paid, precision), flt(due, precision)
+
+
+def _write_off_target(si) -> tuple[Optional[str], Optional[str]]:
+	"""Where a rounding difference is posted: the till's write-off account, then the company's."""
+	profile = frappe.get_cached_doc("POS Profile", si.pos_profile) if si.get("pos_profile") else None
+	account = (
+		(profile.get("write_off_account") if profile else None)
+		or frappe.get_cached_value("Company", si.company, "write_off_account")
+		or frappe.get_cached_value("Company", si.company, "round_off_account")
+	)
+	cost_center = (
+		(profile.get("write_off_cost_center") if profile else None)
+		or si.get("cost_center")
+		or frappe.get_cached_value("Company", si.company, "round_off_cost_center")
+		or frappe.get_cached_value("Company", si.company, "cost_center")
+	)
+	return account, cost_center
+
+
+def _book_rounding_difference(si, short: float) -> Optional[dict[str, Any]]:
+	"""Book *short* (>0: the client paid a unit less, <0: a unit more) to the write-off account.
+
+	Returns the audit dict, or ``None`` when the company has no account to post it to — in which
+	case the caller refuses the sale exactly as before rather than losing the cent quietly.
+	"""
+	account, cost_center = _write_off_target(si)
+	if not account:
+		return None
+	precision = si.precision("grand_total") or 2
+	paid, due = _paid_and_due(si)
+	si.write_off_amount = flt(flt(si.get("write_off_amount")) + short, precision)
+	si.write_off_account = account
+	if cost_center:
+		si.write_off_cost_center = cost_center
+	note = _("Rounding difference {0} {1} booked to {2} (tendered {3}, invoice total {4}).").format(
+		frappe.format_value(abs(flt(short, precision)), {"fieldtype": "Currency"}, si),
+		_("short") if short > 0 else _("over"),
+		account,
+		flt(paid, precision),
+		flt(due, precision),
+	)
+	si.maison_notes = f"{si.maison_notes}\n{note}" if si.get("maison_notes") else note
+	si.flags.ignore_permissions = True
+	si.save()
+	return {
+		"amount": flt(short, precision),
+		"account": account,
+		"cost_center": cost_center,
+		"paid": flt(paid, precision),
+		"due": flt(due, precision),
+		"note": note,
+	}
+
+
+def _validate_payments_cover_total(si) -> Optional[dict[str, Any]]:
+	"""Refuse a sale the payments do not cover — except for a rounding-sized gap, which is booked.
+
+	Returns the rounding adjustment that was booked (or ``None`` when the tenders matched).
+	"""
+	precision = si.precision("grand_total") or 2
+	paid, due = _paid_and_due(si)
+	non_cash = sum(flt(p.amount) for p in si.payments if (p.mode_of_payment or "").lower() != "cash")
+	# cash over-tender is not a mismatch: the drawer gives change back
+	short = flt(due - paid, precision)
+	over_card = flt(non_cash - due, precision)
+	gap = short if short > 0.005 else (-over_card if over_card > 0.005 else 0.0)
+
+	adjustment = None
+	if gap and abs(gap) <= _rounding_tolerance(si) + 1e-9:
+		adjustment = _book_rounding_difference(si, gap)
+		if adjustment:
+			paid, due = _paid_and_due(si)
+			non_cash = sum(flt(p.amount) for p in si.payments if (p.mode_of_payment or "").lower() != "cash")
+
 	if paid + 0.005 < due:
 		raise PaymentMismatchError(
 			_("Payments ({0}) do not cover the invoice total ({1})").format(paid, due), paid=paid, due=due
 		)
 	# overpayment is only allowed for cash (change given)
-	non_cash = sum(flt(p.amount) for p in si.payments if (p.mode_of_payment or "").lower() != "cash")
 	if non_cash - 0.005 > due:
 		raise PaymentMismatchError(_("Card payments exceed the invoice total"), paid=non_cash, due=due)
+	return adjustment
+# --- end v0.8 POS D1 ---
 
 
 def _existing_invoice_for_uuid(offline_uuid: str) -> Optional[str]:
@@ -365,8 +496,20 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 		si = build_sales_invoice(payload, boutique)
 		si.flags.ignore_permissions = True
 		si.insert()
-		_validate_payments_cover_total(si)
+		adjustment = _validate_payments_cover_total(si)
 		si.submit()
+		# --- v0.8 POS D1 — a booked rounding difference is always visible on the document ---
+		if adjustment:
+			frappe.get_doc(
+				{
+					"doctype": "Comment",
+					"comment_type": "Info",
+					"reference_doctype": "Sales Invoice",
+					"reference_name": si.name,
+					"content": adjustment["note"],
+				}
+			).insert(ignore_permissions=True)
+		# --- end v0.8 POS D1 ---
 
 		synclog.record(
 			offline_uuid,
@@ -384,6 +527,8 @@ def _process_one(payload: dict[str, Any], idx: int) -> dict[str, Any]:
 			"grand_total": flt(si.grand_total),
 			"rounded_total": flt(si.rounded_total),
 			"change_amount": flt(si.change_amount),
+			# v0.8 POS D1 — tell the device when a cent was written off rather than the sale refused
+			"rounding_adjustment": adjustment,
 			"receipt_token": si.get("maison_receipt_token"),
 			# --- v0.6 Q — points earned / balance / next reward / giveaway entries for the POS receipt + Salon ---
 			"rewards": _rewards_extras(si),
@@ -610,6 +755,95 @@ def get_invoice_by_token(token: str):
 	return frappe.get_doc("Sales Invoice", name)
 
 
+# ---------------------------------------------------------------------------
+# --- v0.8 POS D4 — "Email receipt" ------------------------------------------
+#
+# The button on the receipt screen wrote the intent into the local Dexie row of a sale that had
+# *already* been sent and flipped itself to "Email queued"; nothing ever re-posted it, the
+# invoice's notes stayed null and the Email Queue never saw a row. The associate told the client
+# their receipt was on its way and it was not. This is the endpoint that actually sends it.
+#
+# `salon.email_receipt` could not be reused: it is keyed on a *Salon session* token (the paired
+# client display), not on an invoice or a receipt token, and it is `allow_guest`.
+# ---------------------------------------------------------------------------
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _invoice_for(invoice_or_token: str):
+	"""Resolve either a Sales Invoice name or a public receipt token to a submitted POS invoice."""
+	ref = (invoice_or_token or "").strip()
+	if not ref:
+		frappe.throw(_("Which receipt?"), frappe.ValidationError)
+	if frappe.db.exists("Sales Invoice", ref):
+		return frappe.get_doc("Sales Invoice", ref)
+	return get_invoice_by_token(ref)
+
+
+@frappe.whitelist(methods=["POST"])
+def email_receipt(invoice_or_token: str, email: str) -> dict[str, Any]:
+	"""E-mail the public receipt link for a sale. Fails loudly when mail is not configured."""
+	assert_roles(*ALL_MAISON_ROLES, "System Manager")
+	from maison_pos.ratelimit import guard
+
+	guard("sales.email_receipt", 30, 300, global_limit=600)
+
+	address = (email or "").strip().lower()[:140]
+	if not EMAIL_RE.match(address):
+		frappe.throw(_("That e-mail address does not look right"), frappe.ValidationError)
+
+	doc = _invoice_for(invoice_or_token)
+	assert_boutique_access(doc.get("maison_boutique"))
+	if doc.docstatus != 1:
+		frappe.throw(_("This sale has not been booked yet"), frappe.ValidationError)
+	token = doc.get("maison_receipt_token")
+	if not token:
+		frappe.throw(_("This sale has no receipt link"), frappe.ValidationError)
+
+	from maison_pos.utils import get_brand_context, receipt_url
+
+	brand = get_brand_context()
+	url = receipt_url(token)
+	subject = _("Your {0} receipt").format(brand.get("brand_name") or doc.company)
+	message = (
+		f"<p>{frappe.utils.escape_html(_('Thank you for your visit.'))}</p>"
+		f"<p><a href='{url}'>{url}</a></p>"
+		f"<p>{frappe.utils.escape_html(doc.name)}</p>"
+	)
+	try:
+		frappe.sendmail(
+			recipients=[address],
+			subject=subject,
+			message=message,
+			reference_doctype="Sales Invoice",
+			reference_name=doc.name,
+			delayed=True,
+		)
+	except frappe.OutgoingEmailError:
+		frappe.clear_messages()
+		frappe.throw(
+			_("Receipts cannot be e-mailed yet: no outgoing e-mail account is set up. Ask Head Office to add one."),
+			frappe.ValidationError,
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "maison sales email receipt")
+		frappe.clear_messages()
+		frappe.throw(_("The receipt could not be e-mailed. Please try again or print it."), frappe.ValidationError)
+
+	from maison_pos.api.salon import mask_email
+
+	frappe.get_doc(
+		{
+			"doctype": "Comment",
+			"comment_type": "Info",
+			"reference_doctype": "Sales Invoice",
+			"reference_name": doc.name,
+			"content": _("Receipt e-mailed to {0} by {1}").format(mask_email(address), frappe.session.user),
+		}
+	).insert(ignore_permissions=True)
+	return {"ok": True, "queued": True, "invoice": doc.name, "email_masked": mask_email(address)}
+# --- end v0.8 POS D4 ---
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def receipt(token: str) -> dict[str, Any]:
 	"""Guest endpoint: JSON receipt for the token printed in the receipt QR.
@@ -617,6 +851,10 @@ def receipt(token: str) -> dict[str, Any]:
 	Only data already on the paper receipt is returned (boutique, datetime, lines, totals,
 	payment last4, masked client number and points) — never the customer's name or contact.
 	"""
+	from maison_pos.ratelimit import guard
+
+	# v0.7 S4 — the token is 16 CSPRNG chars, but a public endpoint still gets a ceiling
+	guard("sales.receipt", 60, 60, global_limit=1200)
 	doc = get_invoice_by_token(token)
 	if not doc.get("is_pos"):
 		frappe.throw(_("Receipt not found"), frappe.DoesNotExistError)

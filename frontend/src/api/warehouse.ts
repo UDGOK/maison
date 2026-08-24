@@ -9,7 +9,7 @@
  * The mock (VITE_MOCK=1) keeps a small in-memory supply chain so both screens work without a bench.
  */
 import { ApiError } from './types'
-import { stripHtml } from '@/utils/text'
+import { humanizeServerMessage } from '@/utils/text' // v0.8 QA W-N3
 
 // ---------------------------------------------------------------------------------------------
 // types (mirror maison_pos.api.shipping.{request_dict, shipment_dict, discrepancy_dict})
@@ -49,8 +49,8 @@ export interface ReplenishmentRequest {
   units_approved: number
   items: number
   lines: RequestLine[]
-  /** wall only */
-  kind?: 'request'
+  kind?: 'request' // wall only
+  /** server-computed age of the request (v0.8 QA W-D2 — never derive it from `requested_at`, which is zone-less) */
   age_seconds?: number
 }
 
@@ -408,11 +408,11 @@ async function call<T>(method: string, args: Record<string, unknown> = {}, get =
     let message = `${res.status} ${res.statusText}`
     if (body?._server_messages) {
       try {
-        message = stripHtml((JSON.parse(body._server_messages) as string[]).map((m) => JSON.parse(m).message).join('\n'))
+        message = humanizeServerMessage((JSON.parse(body._server_messages) as string[]).map((m) => JSON.parse(m).message).join('\n')) || message
       } catch {
         /* ignore */
       }
-    } else if (body?.exception) message = stripHtml(String(body.exception).split('\n').pop()) || message
+    } else if (body?.exception) message = humanizeServerMessage(String(body.exception).split('\n').pop()) || message
     throw new ApiError(message, res.status === 401 || res.status === 403 ? 'AUTH' : body?.exc_type || `HTTP_${res.status}`, res.status, body)
   }
   return (body?.message ?? body) as T
@@ -505,6 +505,7 @@ function fresh(): MockState {
     rejection_reason: null,
     requested_by: `${boutique.toLowerCase()}.manager@cloudchaserz.example`,
     requested_at: iso(ageMin * 60_000),
+    age_seconds: ageMin * 60, // v0.8 QA W-D2 — the server reports the age; the mock mirrors it
     approved_by: null,
     approved_at: null,
     material_request: `MAT-MR-${String(i).padStart(5, '0')}`,
@@ -713,6 +714,7 @@ export const mockWarehouse: WarehouseApi = {
         rejection_reason: null,
         requested_by: 'manager@cloudchaserz.example',
         requested_at: new Date().toISOString(),
+        age_seconds: 0, // v0.8 QA W-D2
         approved_by: null,
         approved_at: null,
         material_request: `MAT-MR-${String(state.seq).padStart(5, '0')}`,
@@ -806,7 +808,7 @@ export const mockWarehouse: WarehouseApi = {
       await guard()
       const today = new Date().toISOString().slice(0, 10)
       const cols: WallData['columns'] = { pending_approval: [], to_pick: [], packing: [], ready: [], shipped_today: [] }
-      for (const r of state.requests.filter((x) => x.status === 'Pending Approval')) cols.pending_approval.push({ ...r, kind: 'request', age_seconds: r.requested_at ? Math.round((Date.now() - new Date(r.requested_at).getTime()) / 1000) : 0 })
+      for (const r of state.requests.filter((x) => x.status === 'Pending Approval')) cols.pending_approval.push({ ...r, kind: 'request', age_seconds: r.age_seconds ?? (r.requested_at ? Math.round((Date.now() - new Date(r.requested_at).getTime()) / 1000) : 0) })
       cols.pending_approval.sort((a, b) => (b.age_seconds || 0) - (a.age_seconds || 0))
       for (const s of state.shipments) {
         const c = { ...strip(s, false), kind: 'shipment' as const }

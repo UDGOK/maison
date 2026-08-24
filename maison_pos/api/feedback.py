@@ -58,6 +58,9 @@ def _invoice_for_token(token: str):
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def status(token: str) -> dict[str, Any]:
 	"""Guest: ``{enabled, submitted}`` — nothing else leaves the server."""
+	from maison_pos.ratelimit import guard
+
+	guard("feedback.status", 60, 60, global_limit=1200)
 	if not feedback_enabled():
 		return {"enabled": False, "submitted": False}
 	try:
@@ -70,6 +73,10 @@ def status(token: str) -> dict[str, Any]:
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def submit(token: str, rating: Any, comment: Optional[str] = None) -> dict[str, Any]:
 	"""Guest POST: store one feedback for the invoice behind *token*. Returns ``{ok, thanks}`` only."""
+	from maison_pos.ratelimit import guard
+
+	# v0.7 S4 — was an ad-hoc counter on `frappe.local.request_ip` (spoofable, no global ceiling)
+	guard("feedback.submit", 20, 3600, global_limit=600, global_seconds=3600)
 	if not feedback_enabled():
 		frappe.throw(_("Feedback is not enabled"), frappe.ValidationError)
 	doc = _invoice_for_token(token)
@@ -79,14 +86,6 @@ def submit(token: str, rating: Any, comment: Optional[str] = None) -> dict[str, 
 	comment = (comment or "").strip()[:MAX_COMMENT] or None
 	if frappe.db.exists("Maison Feedback", {"sales_invoice": doc.name}):
 		return {"ok": True, "duplicate": True, "thanks": _("Thank you — we already have your feedback for this visit.")}
-	# rate limit per IP: 20 / hour (guest endpoint)
-	ip = frappe.local.request_ip if hasattr(frappe.local, "request_ip") else None
-	if ip:
-		key = f"maison_feedback_rl:{ip}"
-		count = cint(frappe.cache().get_value(key) or 0)
-		if count >= 20:
-			frappe.throw(_("Too many submissions, please try again later"), frappe.RateLimitExceededError if hasattr(frappe, "RateLimitExceededError") else frappe.ValidationError)
-		frappe.cache().set_value(key, count + 1, expires_in_sec=3600)
 	fb = frappe.get_doc(
 		{
 			"doctype": "Maison Feedback",

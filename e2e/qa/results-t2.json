@@ -1,0 +1,134 @@
+{
+  "when": "2026-08-23T19:24:57.978Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "2.1 add item by tapping the tile",
+      "ok": true,
+      "detail": "lines=1 total=7.57 expected=7.57",
+      "sev": ""
+    },
+    {
+      "step": "2.2 add item by searching",
+      "ok": true,
+      "detail": "search \"Mouth Tips\" → 1 tiles, lines=2",
+      "sev": ""
+    },
+    {
+      "step": "2.2b search by item code works",
+      "ok": true,
+      "detail": "\"ACC-005\" → 1 tiles, first=\"Butane Refill 300ml 5x Refined\"",
+      "sev": ""
+    },
+    {
+      "step": "2.3 barcode wedge (type an EAN + Enter) adds the item",
+      "ok": true,
+      "detail": "EAN 2003645894131 → lines 2→3; basket=[\"USB-C Cable 3ft\",\"Hookah Mouth Tips 100 pc\",\"Boveda 62% 8g 4-pack\"]",
+      "sev": ""
+    },
+    {
+      "step": "2.3b unknown barcode is refused with a notice, nothing added",
+      "ok": false,
+      "detail": "lines unchanged=true; notice=\"\"",
+      "sev": ""
+    },
+    {
+      "step": "2.4 quantity + / - adjusts the line",
+      "ok": true,
+      "detail": "after ++ = 3? true; after - = 2",
+      "sev": ""
+    },
+    {
+      "step": "2.4b decrementing past 1 removes the line",
+      "ok": true,
+      "detail": "lines 3 → 2",
+      "sev": ""
+    },
+    {
+      "step": "2.5 line discount (10 %) applies and shows on the line + totals",
+      "ok": true,
+      "detail": "line=\"Hookah Mouth Tips 100 pc 1 × $6.99 −$0.70 $6.29 − 1 +\" totals=[\"Subtotal$13.98\",\"Discount−$0.70\",\"Tax 8.25%$1.10\",\"RewardAdjust\",\"Total$14.38\"]",
+      "sev": ""
+    },
+    {
+      "step": "2.5b line discount by amount ($1.50) applies",
+      "ok": true,
+      "detail": "line=\"Hookah Mouth Tips 100 pc 1 × $6.99 −$1.50 $5.49 − 1 +\"",
+      "sev": ""
+    },
+    {
+      "step": "2.6 remove line from the line sheet",
+      "ok": true,
+      "detail": "lines 2 → 1",
+      "sev": ""
+    },
+    {
+      "step": "2.7 clear basket empties it",
+      "ok": true,
+      "detail": "lines=0 \"BASKET EMPTY\"",
+      "sev": ""
+    },
+    {
+      "step": "2.9 basket tax matches the store template rate (8.25 % of net), per-line rounding",
+      "ok": false,
+      "detail": "net=46.97 UI tax=8.253 per-line=3.87 on-net-total=3.88 UI grand=50.84",
+      "sev": ""
+    },
+    {
+      "step": "2.9 rounding models differ",
+      "ok": null,
+      "detail": "per-line sum = 3.87, single On-Net-Total = 3.88 (Δ 0.01)"
+    },
+    {
+      "step": "2.9b server invoice tax equals what the POS charged the client",
+      "ok": false,
+      "detail": "POS tax 8.253 / total 50.84 vs invoice undefined tax 0 / total 0 (docstatus undefined); sync pill \"Rejected\"",
+      "sev": "high"
+    },
+    {
+      "step": "2.9c the sale is accepted by the server (not rejected at sync)",
+      "ok": false,
+      "detail": "pill=\"Rejected\"; invoice=none",
+      "sev": "high"
+    },
+    {
+      "step": "2.8 40+ line basket renders and totals to the cent",
+      "ok": false,
+      "detail": "42 lines; net=1363.43 tax UI=8.25112 expected=112.45; grand UI=1475.88 expected=1475.88",
+      "sev": ""
+    },
+    {
+      "step": "2.8 totals rows",
+      "ok": null,
+      "detail": "[\"Subtotal$1,363.43\",\"Tax 8.25%$112.45\",\"RewardAdjust\",\"Total$1,475.88\"]"
+    },
+    {
+      "step": "2.7b clear basket works on a 40+ line basket",
+      "ok": true,
+      "detail": "lines=0",
+      "sev": ""
+    },
+    {
+      "step": "8.6 a service (non-stock) item can be sold",
+      "ok": true,
+      "detail": "tile sub=\"Service\" disabled=false lines=1",
+      "sev": ""
+    },
+    {
+      "step": "8.6b service sale posts server-side",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03047 total 5.41 pill \"Synced\"",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03047"
+  ]
+}

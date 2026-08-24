@@ -122,4 +122,7 @@ class TestScoping(FrappeTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			verify_pin(CHI_ASSOCIATE, "2580")
 		self.assertFalse(frappe.db.get_value("Maison Associate", NYC_ASSOCIATE, "pin"))
-		self.assertTrue(frappe.db.get_value("Maison Associate", NYC_ASSOCIATE, "pin_hash").startswith("pbkdf2_sha256$"))
+		# v0.7 S2 — the hash lives in `__Auth` (Password fieldtype); the column holds only asterisks
+		column = frappe.db.get_value("Maison Associate", NYC_ASSOCIATE, "pin_hash")
+		self.assertEqual(set(column), {"*"})
+		self.assertTrue(frappe.get_doc("Maison Associate", NYC_ASSOCIATE).get_pin_hash().startswith("pbkdf2_sha256$"))

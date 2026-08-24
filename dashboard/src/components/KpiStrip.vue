@@ -47,12 +47,14 @@ function delta(p: number | null | undefined): string {
         <span class="slash">/</span>
         <AnimatedNumber class="dimmed" :value="cashPct" :format="fmtPct" />
       </span>
-      <span class="sub num" title="share of gross tender taken today">of gross · {{ fmtMoney(totals.card) }} · {{ fmtMoney(totals.cash) }}</span>
+      <!-- v0.8 QA D-12: gift cards / store credit / the web tender are not "card" -->
+      <span class="sub num" title="share of gross tender moved today (taken and refunded)">of gross · {{ fmtMoney(totals.card) }} · {{ fmtMoney(totals.cash) }}<template v-if="totals.other_tender"> · other {{ fmtMoney(totals.other_tender) }}</template></span>
     </div>
     <div class="kpi">
-      <span class="label">Avg ticket</span>
-      <span class="display value"><AnimatedNumber :value="totals.avg_ticket" :format="fmtMoney" /></span>
-      <span class="sub num" aria-hidden="true"></span>
+      <!-- v0.8 QA D-4: the average *sale* (returns excluded on both sides), labelled as such -->
+      <span class="label">Avg sale</span>
+      <span class="display value" data-testid="avg-sale"><AnimatedNumber :value="totals.avg_ticket" :format="fmtMoney" /></span>
+      <span class="sub num" title="average sale, returns excluded">excl. returns</span>
     </div>
     <div class="kpi" :class="{ warn: (totals.returns ?? 0) > 0 }">
       <span class="label">Returns</span>

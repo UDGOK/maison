@@ -1,0 +1,43 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "a store manager is refused the warehouse-admin endpoint \"wall\"",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Warehouse admin role required",
+   "severity": ""
+  },
+  {
+   "step": "a store manager is refused the warehouse-admin endpoint \"warehouse stock\"",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Warehouse admin role required",
+   "severity": ""
+  },
+  {
+   "step": "a store manager is refused the warehouse-admin endpoint \"vendor POs\"",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Warehouse admin role required",
+   "severity": ""
+  },
+  {
+   "step": "a store manager opening /warehouse gets the permission gate, not the desk",
+   "ok": true,
+   "detail": "\"WAREHOUSE ADMIN ROLE REQUIRED ok.jenks.manager@cloudchaserz.example is not a Maison Warehouse Admin SIGN IN AS ANOTHER USER\"",
+   "severity": ""
+  },
+  {
+   "step": "a store manager opening /warehouse-wall gets the permission gate",
+   "ok": true,
+   "detail": "WAREHOUSE ADMIN ROLE REQUIRED ok.jenks.manager@cloudchaserz.example is not a Maison Warehouse Admin SIGN IN",
+   "severity": ""
+  },
+  {
+   "step": "the board is back to empty at the end of the run",
+   "ok": true,
+   "detail": "CLOUDCHASERZ WAREHOUSE WALL · HOU-WH - CCZ 0 IN TRANSIT 8 RECEIVED TODAY 0 DISCREPANCIES LIVE 15:48 CDT PENDING APPROVAL 0 · 0 U NOTHING HERE TO PICK 0 · 0 U NOTHING HERE PACKING 0 · 0 U NOTHING HERE ",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

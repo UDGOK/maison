@@ -1,0 +1,65 @@
+{
+  "when": "2026-08-23T19:44:37.581Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "7.3 find the sale by scanning the receipt QR link",
+      "ok": true,
+      "detail": "pasted https://cloudchaserz.frappe.cloud/r/mGE9swmTPgbSuLgm → invoice \"ACC-SINV-2026-03056\"",
+      "sev": ""
+    },
+    {
+      "step": "7.2b an already-returned line is flagged and cannot be returned again",
+      "ok": true,
+      "detail": "Rolling Tray — Medium Metal · ACC-011 $8.99 USB-C Cable 3ft · ACC-0151 RETURNED $6.99",
+      "sev": ""
+    },
+    {
+      "step": "7.2 full return of the remaining line, refunded in cash",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03058: {\"grand_total\":-9.73,\"is_return\":1,\"return_against\":\"ACC-SINV-2026-03056\",\"maison_refund_method\":\"Cash\"}",
+      "sev": ""
+    },
+    {
+      "step": "7.2c original invoice after both returns",
+      "ok": null,
+      "detail": "{\"status\":\"Credit Note Issued\",\"outstanding_amount\":0}"
+    },
+    {
+      "step": "7.10 points for a fully-returned sale are removed",
+      "ok": true,
+      "detail": "Loyalty Point Entry rows for ACC-SINV-2026-03056 = [{\"invoice\":\"ACC-SINV-2026-03056\",\"loyalty_points\":0,\"purchase_amount\":0}]; all rows for Andre Baptiste = [{\"invoice\":\"ACC-SINV-2026-03056\",\"loyalty_points\":0,\"purchase_amount\":0},{\"invoice\":\"ACC-SINV-2026-03052\",\"loyalty_points\":8,\"purchase_amount\":8.99},{\"invoice\":\"ACC-SINV-2026-03051\",\"loyalty_points\":8,\"purchase_amount\":8.99}]",
+      "sev": ""
+    },
+    {
+      "step": "7.4b find the sale by client name",
+      "ok": true,
+      "detail": "search \"Andre Baptiste\" → 4 results, opened \"ACC-SINV-2026-03059\"",
+      "sev": ""
+    },
+    {
+      "step": "7.7 refund as store credit is booked on the client account",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03060: {\"maison_refund_method\":\"Store Credit\",\"outstanding_amount\":-16.23,\"grand_total\":-16.23,\"is_return\":1}; screen=\"RETURNS CloudChaserz Montrose · refunds within 30 days · manager above $2,500.00 1 FIND 2 ITEMS 3 REFUND 4 DONE CREDIT NOTE ACC-SINV-2026-03060 AGAINST ACC-SINV-2026-03059 Stash Jar — UV Glass 250ml ×\"",
+      "sev": ""
+    },
+    {
+      "step": "7.5b a Damaged return lands in the store Damaged warehouse, not on the sales floor",
+      "ok": false,
+      "detail": "HOU-MTR Damaged - CCZ: 0 → 1; HOU-MTR - CCZ: 16 → 16 (1 sold, 1 returned damaged)",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03058",
+    "ACC-SINV-2026-03059",
+    "ACC-SINV-2026-03060"
+  ]
+}

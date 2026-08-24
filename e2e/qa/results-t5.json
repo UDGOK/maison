@@ -1,0 +1,77 @@
+{
+  "when": "2026-08-23T19:35:18.886Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "5.4 valid manual DOB passes and the parked item is added",
+      "ok": false,
+      "detail": "lines=1",
+      "sev": ""
+    },
+    {
+      "step": "5.9 one passed check covers the rest of the transaction",
+      "ok": false,
+      "detail": "gate=0 lines=2",
+      "sev": ""
+    },
+    {
+      "step": "5.7 the age check is stored on the invoice",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03053: {\"maison_age_verified\":1,\"maison_age_method\":\"Manual\",\"maison_age_dob_year_ok\":1,\"maison_age_check\":\"2seu900bk3\",\"maison_age_checked_by\":\"hou.mtr.a1@cloudchaserz.example\",\"maison_age_checked_at\":\"2026-08-23 14:34:59.061684\"}",
+      "sev": ""
+    },
+    {
+      "step": "5.7b the audit row is linked back to the invoice and stores only masked fields",
+      "ok": true,
+      "detail": "{\"sales_invoice\":\"ACC-SINV-2026-03053\",\"outcome\":\"Verified\",\"method\":\"Manual\",\"age_years\":36,\"dob_year\":1990,\"initials\":\"AQ\",\"issuer\":null,\"associate\":\"hou.mtr.a1@cloudchaserz.example\"}",
+      "sev": ""
+    },
+    {
+      "step": "5.7c the receipt records that the ID was checked",
+      "ok": true,
+      "detail": "CLOUDCHASERZ CLOUDCHASERZ MONTROSE 2037 W Alabama St Houston, TX 77098 (281) 974-3712 INVOICE ACC-SINV-2026-03053 DATE Aug 23, 2026, 14:35 ASSOCIATE Dante Ruiz GEEK BAR PULSE 15K — SOUR APPLE ICE 1 X 24.99 21.24 DISCOUNT -3.75 GEEK BAR PULSE 15K — STRAWBERRY MANGO 1 X 24.99 21.24 DISCOUNT -3.75 SUBT",
+      "sev": ""
+    },
+    {
+      "step": "5.10 the check does not leak into the next transaction (gate reopens)",
+      "ok": true,
+      "detail": "gate=1",
+      "sev": ""
+    },
+    {
+      "step": "5.5 AAMVA PDF417 scan passes and the item is added",
+      "ok": true,
+      "detail": "gate=0 lines=1",
+      "sev": ""
+    },
+    {
+      "step": "5.5b a non-licence payload is rejected with a clear message",
+      "ok": true,
+      "detail": "error=\"That is not a driver’s licence barcode — scan the PDF417 on the back of the ID\"",
+      "sev": ""
+    },
+    {
+      "step": "5.5c a scan-verified sale records method = Scan",
+      "ok": true,
+      "detail": "ACC-SINV-2026-03054: {\"maison_age_verified\":1,\"maison_age_method\":\"Scan\",\"maison_age_check\":\"bsk45g4e8h\"}",
+      "sev": ""
+    },
+    {
+      "step": "5.11 the server refuses a restricted sale posted without an age check",
+      "ok": true,
+      "detail": "submit_batch result/err = {\"results\":[{\"offline_uuid\":\"qa1-agebypass-1787513718625\",\"status\":\"error\",\"error\":\"Age verification (21+) is required for: DSP-004\",\"error_code\":\"AGE_VERIFICATION\"}]}; invoices created = []",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "pos",
+      "type": "warning",
+      "text": "Another connection wants to delete database 'maison_pos'. Closing db now to resume the delete request."
+    }
+  ],
+  "created": [
+    "ACC-SINV-2026-03053",
+    "ACC-SINV-2026-03054"
+  ]
+}

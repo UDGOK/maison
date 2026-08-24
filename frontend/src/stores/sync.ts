@@ -14,7 +14,7 @@ export interface SyncNotice {
   detail?: string
   offline_uuid?: string
   /** optional action button (v0.2: "Search" on unknown scans; v0.3: "Undo" on a recognition) */
-  action?: { label: string; action: 'search' | 'queue' | 'undo-recognition' }
+  action?: { label: string; action: 'search' | 'queue' | 'undo-recognition' | 'sign-in' }
 }
 
 interface SyncState {
@@ -30,6 +30,11 @@ interface SyncState {
   /** v0.2 — queued product-image uploads */
   uploadsPending: number
   uploadsReplaying: boolean
+  /**
+   * v0.8 POS D5 — the till's server session expired. The queue keeps its sales (they are fine);
+   * the operator has to sign in again before they can drain.
+   */
+  sessionExpired: boolean
 }
 
 export const replayer = new QueueReplayer(db, api)
@@ -46,7 +51,8 @@ export const useSyncStore = defineStore('sync', {
     heartbeatTimer: null,
     replayTimer: null,
     uploadsPending: 0,
-    uploadsReplaying: false
+    uploadsReplaying: false,
+    sessionExpired: false
   }),
   getters: {
     online: (s) => s.browserOnline && s.serverReachable,
@@ -101,6 +107,7 @@ export const useSyncStore = defineStore('sync', {
         const wasOffline = !this.serverReachable
         this.serverReachable = true
         this.lastHeartbeat = new Date().toISOString()
+        this.sessionExpired = false // v0.8 POS D5 — the heartbeat only succeeds with a live session
         if (wasOffline) {
           void this.replay()
           void useCatalogStore().refresh()
@@ -131,6 +138,16 @@ export const useSyncStore = defineStore('sync', {
         await this.loadQueue()
         if (out.offline) this.serverReachable = false
         else if (out.sent) this.serverReachable = true
+        // --- v0.8 POS D5 — signed out: the sales stay queued, say so once and offer the sign-in ---
+        if (out.authExpired) {
+          if (!this.sessionExpired)
+            this.notify('warn', 'Signed out — sign in again to sync', `${this.queued} sale${this.queued === 1 ? '' : 's'} waiting; nothing has been lost.`, undefined, {
+              label: 'Sign in',
+              action: 'sign-in'
+            })
+          this.sessionExpired = true
+        } else if (out.sent) this.sessionExpired = false
+        // --- end v0.8 POS D5 ---
         for (const q of this.queue) {
           const prev = before.get(q.offline_uuid)
           if (prev !== q.status && q.status === 'error')

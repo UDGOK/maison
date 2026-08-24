@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { liveQuery } from 'dexie'
 import { db, type QueueRow } from '@/db'
+import { api } from '@/api' // v0.8 POS D4
 import { useSyncStore } from '@/stores/sync'
 import { usePrinterStore } from '@/stores/printer'
 import { useSessionStore } from '@/stores/session'
@@ -45,7 +46,16 @@ async function copyLink() {
 const printed = ref<'reader' | 'epos' | 'browser' | null>(null)
 const emailOpen = ref(false)
 const email = ref('')
-const emailSent = ref(false)
+// --- v0.8 POS D4 — a truthful state machine for "Email receipt" ---
+// The button used to flip to "Email queued" while writing the address into the local queue row of
+// a sale that had already been sent: nothing ever re-posted it, no Email Queue row was ever made
+// and the client never got a receipt. Now it calls the server and reports what actually happened.
+const emailState = ref<'idle' | 'sending' | 'sent' | 'error'>('idle')
+const emailError = ref('')
+/** The receipt link only exists once the sale has synced — there is nothing to e-mail before that. */
+const canEmail = computed(() => !!(row.value?.receipt_token || row.value?.invoice_name))
+const emailLabel = computed(() => (emailState.value === 'sent' ? 'Email sent' : emailState.value === 'sending' ? 'Sending' : 'Email receipt'))
+// --- end v0.8 POS D4 ---
 
 let sub: { unsubscribe(): void } | null = null
 // --- v0.5 K: thank-you on the client display (receipt QR once the server issued the token) ---
@@ -97,13 +107,22 @@ async function print() {
   if (!row.value) return
   printed.value = await printer.print(row.value)
 }
-function sendEmail() {
-  // Email delivery is server-side (Frappe sends the Maison Receipt print format on sync).
-  // Here we record the intent in notes so the backend can pick it up.
-  if (!row.value) return
-  void db.queue.update(row.value.offline_uuid, { invoice: { ...row.value.invoice, notes: `email:${email.value}` } })
-  emailSent.value = true
-  emailOpen.value = false
+/** v0.8 POS D4 — send it, and say what happened (including "mail is not set up"). */
+async function sendEmail() {
+  const r = row.value
+  const ref = r?.receipt_token || r?.invoice_name
+  if (!ref || emailState.value === 'sending') return
+  emailState.value = 'sending'
+  emailError.value = ''
+  try {
+    await api.sales.email_receipt(ref, email.value.trim())
+    emailState.value = 'sent'
+    emailOpen.value = false
+    sync.notify('good', 'Receipt e-mailed', email.value.trim())
+  } catch (e) {
+    emailState.value = 'error'
+    emailError.value = (e as Error).message || 'The receipt could not be e-mailed.'
+  }
 }
 function done() {
   router.push({ name: 'sell' })
@@ -133,7 +152,8 @@ function done() {
           <button class="btn btn-big" :disabled="printer.printing" @click="print">
             {{ printer.printing ? 'Printing' : printed ? 'Print again' : 'Print receipt' }}
           </button>
-          <button class="btn btn-big" @click="email = ''; emailOpen = true">{{ emailSent ? 'Email queued' : 'Email receipt' }}</button>
+          <!-- v0.8 POS D4 -->
+          <button class="btn btn-big" :disabled="!canEmail" :title="canEmail ? '' : 'Available once the sale has synced'" @click="email = ''; emailError = ''; emailState = 'idle'; emailOpen = true">{{ emailLabel }}</button>
           <button class="btn btn-primary btn-big" @click="done">Done</button>
         </div>
         <div class="link-card card">
@@ -149,6 +169,8 @@ function done() {
           <div v-if="printer.effectiveIp">Printer {{ printer.effectiveIp }} ({{ session.boutique?.printer_model || 'ePOS' }})</div>
           <div v-else class="warn">No printer configured; Print uses the browser dialog.</div>
           <div v-if="printer.lastError" class="warn">{{ printer.lastError }}</div>
+          <div v-if="emailState === 'sent'" class="good">Receipt e-mailed.</div>
+          <div v-else-if="!canEmail" class="dim">Email receipt is available once the sale has synced.</div>
           <div v-if="printed === 'epos'" class="good">Sent to printer.</div>
           <div v-else-if="printed === 'reader'" class="good">Printed on {{ printer.reader?.label || 'reader' }}.</div>
         </div>
@@ -167,8 +189,12 @@ function done() {
         <label class="label">Email address</label>
         <input v-model="email" class="input" inputmode="email" placeholder="client@example.com" />
       </div>
+      <!-- v0.8 POS D4 — a failure is shown, never swallowed -->
+      <div v-if="emailError" class="crit" style="margin-top: 12px; font-size: 13px">{{ emailError }}</div>
       <template #footer>
-        <button class="btn btn-primary" :disabled="!email.includes('@')" @click="sendEmail">Send on sync</button>
+        <button class="btn btn-primary" :disabled="!email.includes('@') || emailState === 'sending'" @click="sendEmail">
+          {{ emailState === 'sending' ? 'Sending' : 'Send receipt' }}
+        </button>
       </template>
     </Modal>
   </div>

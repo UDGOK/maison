@@ -1,0 +1,42 @@
+{
+  "when": "2026-08-23T22:46:02.660Z",
+  "base": "https://cloudchaserz.frappe.cloud",
+  "results": [
+    {
+      "step": "A · an enquiry on an age-restricted product reaches the chosen store",
+      "ok": true,
+      "detail": "{\"name\":\"MWE-2026-00001\",\"boutique\":\"OK-BA\",\"item_code\":\"DSP-001\",\"status\":\"New\",\"customer_name\":\"QA4 Enquirer QA4A\"}",
+      "sev": ""
+    },
+    {
+      "step": "A · the enquiry shows in the store's POS queue",
+      "ok": true,
+      "detail": "1 enquiries · counts={\"New\":2,\"Picking\":0,\"Ready\":0,\"Collected\":2}",
+      "sev": ""
+    },
+    {
+      "step": "A · the enquiry does not leak into another store's queue",
+      "ok": true,
+      "detail": "OK-OWA enquiries=0",
+      "sev": ""
+    },
+    {
+      "step": "A · an associate can answer the enquiry",
+      "ok": true,
+      "detail": "{\"status\":\"Contacted\",\"response\":\"QA4 QA4A test response\"}",
+      "sev": ""
+    },
+    {
+      "step": "A · mobile 390×844: bag, checkout and order history do not scroll sideways",
+      "ok": false,
+      "detail": "cart:0 checkout:104 orders:0",
+      "sev": ""
+    }
+  ],
+  "consoleLog": [],
+  "created": {
+    "enquiries": [
+      "MWE-2026-00001"
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "BUG: the desk \"Waiting\" column is offset by the site's UTC offset (browser-local parsing of a site-local timestamp)",
+   "ok": false,
+   "detail": "MRR-2026-00050 requested_at=2026-08-23 15:39:26.446179 (site America/Chicago); server age_seconds=254s (~4m); desk row shows \"5h 04m\" (tier class \"num warn\"); browser TZ=UTC. WarehouseDesk.vue:207 does now - new Date(x.requested_at) on a timestamp with no zone.",
+   "severity": "medium"
+  },
+  {
+   "step": "the desk Shipments tab lists carrier, tracking, age and status",
+   "ok": true,
+   "detail": "[\"MSH-2026-00053 AUG 23, 2026, 15:39 OK-JENKS CLOUDCHASERZ JENKS 50 — — 4m PENDING OPEN\",\"MSH-2026-00051 AUG 23, 2026, 15:39 OK-JENKS CLOUDCHASERZ JENKS 2 — — 4m PENDING OPEN\",\"MSH-2026-00034 AUG 23, 2026, 15:29 OK-JENKS CLOUDCHASERZ JENKS 4 — — 14m PENDING OPEN\"]",
+   "severity": ""
+  },
+  {
+   "step": "the Shipments tab age column uses the SERVER age and is therefore correct",
+   "ok": true,
+   "detail": "e.g. \"MSH-2026-00053 AUG 23, 2026, 15:39 OK-JENKS CLOUDCHASERZ JENKS 50 — — 4m PENDING OPEN\" — WarehouseDesk.vue:248 uses liveAge(server age_seconds), unlike the Requests tab",
+   "severity": "observation"
+  },
+  {
+   "step": "the desk Discrepancies tab shows the resolved short/over/damaged records",
+   "ok": true,
+   "detail": "[\"MRD-2026-00039 AUG 23, 2026, 15:31 · OK.JENKS.MANAGER@CLOUDCHASERZ.EXAMPLE MSH-2026-00036 OK-JENKS Zig-Zag Orange 1¼ Papers ROL-006 DAMAGED \",\"MRD-2026-00038 AUG 23, 2026, 15:31 · OK.JENKS.MANAGER@CLOUDCHASERZ.EXAMPLE MSH-2026-00036 OK-JENKS BIC Lighter — Classic ACC-002 OVER 4 5 1 \",\"MRD-2026-00037 AUG 23, 2026, 15:31 · OK.JENKS.MANAGER@CLOUDCHASERZ.EXAMPLE MSH-2026-00036 OK-JENKS RAW Classic King Size Slim Papers ROL-002\"]",
+   "severity": ""
+  },
+  {
+   "step": "the desk Stock tab lists warehouse on-hand with low-stock highlighting",
+   "ok": true,
+   "detail": "156 rows rendered",
+   "severity": ""
+  },
+  {
+   "step": "warehouse stock search filters by item code",
+   "ok": false,
+   "detail": "[\"stock-search\",\"stock-ACC-001\",\"stock-ACC-002\",\"stock-ACC-003\",\"stock-ACC-004\"]",
+   "severity": ""
+  },
+  {
+   "step": "the desk Vendor POs tab shows POs addressed to the main warehouse",
+   "ok": true,
+   "detail": "INBOUND VENDOR PURCHASE ORDERS · HOU-WH - CCZ REFRESH NO OPEN PURCHASE ORDERS ADDRESSED TO THE WAREHOUSE.",
+   "severity": "observation"
+  },
+  {
+   "step": "the shipment sheet shows the pick list with bin locations for a 50-line consignment",
+   "ok": true,
+   "detail": "OK-JENKS CLOUDCHASERZ JENKS 50 ITEMS · 50 UNITS · EST. 27.21 KG · HOU-WH - CCZ → OK-JENKS - CCZ PENDING 4M PICK LIST PACK LABEL TRACKING PRINT PACKING LIST BIN ITEM BARCODE ON HAND QTY PICKED A-01-1 Vaporesso XROS 4 Kit ",
+   "severity": ""
+  },
+  {
+   "step": "the rate chooser lists the carriers cheapest-first with CHEAPEST / FASTEST badges",
+   "ok": true,
+   "detail": "[\"8 RATES · SIMULATED · TEST MODE CHEAPEST FASTEST USPS Ground Advantage 3 BUSINESS DAYS · C\",\"USPS Ground Advantage 3 BUSINESS DAYS · CHEAPEST $165.85\",\"UPS Ground 3 BUSINESS DAYS $223.45\",\"FedEx Home Delivery 3 BUSINESS DAYS $230.23\"]",
+   "severity": ""
+  },
+  {
+   "step": "the \"Fastest\" toggle moves the selection to the quickest service",
+   "ok": true,
+   "detail": "[{\"t\":\"USPS Priority Mail Express 1 BUSINESS DAY · FASTEST $634.96\",\"on\":true}] | all=[\"8 RATES · SIMULATED · TEST MODE CHEAPEST\",\"USPS Ground Advantage 3 BUSINESS DAYS · \",\"UPS Ground 3 BUSINESS DAYS $223.45\",\"FedEx Home Delivery 3 BUSINESS DAYS $230\",\"USPS Priority Mail 2 BUSINESS DAYS $263.\",\"FedEx 2Day 2 BUSINESS DAYS $505.32\",\"UPS 2nd Day Air 2 BUSINESS DAYS $514.48\",\"USPS Prior",
+   "severity": ""
+  },
+  {
+   "step": "the POS Cycle count screen loads for the store",
+   "ok": true,
+   "detail": "CYCLE COUNT OK-JENKS - CCZ · system as of Aug 23, 2026, 15:44 RELOAD CAMERA SCAN SERIALS 0 / 0 REMAINING 0 UNEXPECTED 0 QTY ITEMS COUNTED 0 / 155 SERIALS QUANTITIES ADD REVIEW UNACCOUNTED 0 UNEXPECTED 0 QTY DIFFERENCES 0 Serial discrepancie",
+   "severity": ""
+  },
+  {
+   "step": "the cycle count screen offers the scan entry point",
+   "ok": true,
+   "detail": "\"CYCLE COUNT OK-JENKS - CCZ · system as of Aug 23, 2026, 15:44 RELOAD CAMERA SCAN SERIALS 0 / 0 REMAINING 0 UNEXPECTED 0 \"",
+   "severity": ""
+  },
+  {
+   "step": "no \"Frappe\"/\"ERPNext\" text visible on the Cycle count screen",
+   "ok": true,
+   "detail": "475 chars",
+   "severity": ""
+  },
+  {
+   "step": "a rejected request is shown on the Receive screen with the rejection reason",
+   "ok": true,
+   "detail": "\"MRR-2026-00022 · 1 item · 7 u REJECTED AUG 23, 2026, 15:22 · QA2 DISCONTINUED — ORDER THE 20K INSTEAD\"",
+   "severity": ""
+  }
+ ],
+ "console": [
+  {
+   "tag": "pos",
+   "type": "requestfailed",
+   "text": "https://cloudchaserz.frappe.cloud/api/method/maison_pos.api.session.me? net::ERR_ABORTED"
+  }
+ ]
+}

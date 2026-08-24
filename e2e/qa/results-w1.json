@@ -1,0 +1,127 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "store": "OK-JENKS",
+ "results": [
+  {
+   "step": "fixture: store stock pushed below reorder level",
+   "ok": true,
+   "detail": "{\"KRT-001\":{\"store\":12,\"hq\":60},\"HKA-004\":{\"store\":14,\"hq\":80}} -> {\"KRT-001\":{\"store\":2,\"hq\":70},\"HKA-004\":{\"store\":3,\"hq\":91}} via MAT-STE-2026-00048",
+   "severity": ""
+  },
+  {
+   "step": "inventory.low_stock_scan runs (Scheduled Job Type)",
+   "ok": true,
+   "detail": "job log status=Complete",
+   "severity": ""
+  },
+  {
+   "step": "an Open alert exists for each low item at the right store/warehouse",
+   "ok": true,
+   "detail": "KRT-001: [[\"MSA-2026-00016\",\"Open\",2,3,\"OK-JENKS\"]] ; HKA-004: [[\"MSA-2026-00015\",\"Open\",3,4,\"OK-JENKS\"]]",
+   "severity": ""
+  },
+  {
+   "step": "alert qty/level match the Bin and the Item Reorder row",
+   "ok": true,
+   "detail": "KRT-001 alert.qty=2 bin=2 level=3 ; HKA-004 alert.qty=3 bin=3 level=4",
+   "severity": ""
+  },
+  {
+   "step": "no alert for an item still above its level",
+   "ok": true,
+   "detail": "ROL-001 @ OK-JENKS - CCZ: 0 open",
+   "severity": ""
+  },
+  {
+   "step": "no alert raised on an unaffected store",
+   "ok": true,
+   "detail": "KRT-001 @ OK-YALE: 0 open",
+   "severity": ""
+  },
+  {
+   "step": "re-running the scan creates no duplicate alert",
+   "ok": true,
+   "detail": "KRT-001: 1 open (MSA-2026-00016) ; HKA-004: 1 open (MSA-2026-00015)",
+   "severity": ""
+  },
+  {
+   "step": "re-run refreshes last_seen on the existing alert",
+   "ok": false,
+   "detail": "last_seen undefined -> undefined",
+   "severity": ""
+  },
+  {
+   "step": "the new alerts were flagged notified (desk bell)",
+   "ok": true,
+   "detail": "notified=1",
+   "severity": ""
+  },
+  {
+   "step": "Notification Log entries created for the store manager / head office",
+   "ok": true,
+   "detail": "2 logs; users=ok.jenks.manager@cloudchaserz.example, hq@cloudchaserz.example; subject=\"Low stock at OK-JENKS: 2 item(s)\"",
+   "severity": ""
+  },
+  {
+   "step": "store manager sees their own alerts",
+   "ok": true,
+   "detail": "2 alerts, counts={\"OK-JENKS\":2}",
+   "severity": ""
+  },
+  {
+   "step": "another store's manager is refused the alerts of my store",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: You are not permitted to act on boutique OK-JENKS",
+   "severity": ""
+  },
+  {
+   "step": "manager acknowledges an alert",
+   "ok": true,
+   "detail": "{\"name\":\"MSA-2026-00016\",\"status\":\"Acknowledged\"}",
+   "severity": ""
+  },
+  {
+   "step": "acknowledged_by / acknowledged_at recorded",
+   "ok": true,
+   "detail": "{\"status\":\"Acknowledged\",\"acknowledged_by\":\"ok.jenks.manager@cloudchaserz.example\",\"acknowledged_at\":\"2026-08-23 15:17:01.785753\"}",
+   "severity": ""
+  },
+  {
+   "step": "a re-scan keeps an Acknowledged alert acknowledged (no re-open, no duplicate)",
+   "ok": true,
+   "detail": "1 acknowledged: MSA-2026-00016; scan=Complete",
+   "severity": ""
+  },
+  {
+   "step": "manager resolves an alert by hand",
+   "ok": true,
+   "detail": "{\"name\":\"MSA-2026-00015\",\"status\":\"Resolved\"}",
+   "severity": ""
+  },
+  {
+   "step": "an associate may not resolve an alert",
+   "ok": true,
+   "detail": "403 frappe.exceptions.PermissionError: Only managers may resolve stock alerts",
+   "severity": ""
+  },
+  {
+   "step": "an associate MAY acknowledge an alert (by design)",
+   "ok": true,
+   "detail": "{\"name\":\"MSA-2026-00016\",\"status\":\"Acknowledged\"}",
+   "severity": ""
+  },
+  {
+   "step": "a hand-resolved alert comes back on the next scan while stock is still low",
+   "ok": true,
+   "detail": "new=MSA-2026-00017 old=MSA-2026-00015; scan=Complete",
+   "severity": ""
+  },
+  {
+   "step": "open counts endpoint reports my store's open+acknowledged alerts",
+   "ok": true,
+   "detail": "{\"OK-JENKS\":2}",
+   "severity": ""
+  }
+ ],
+ "console": []
+}

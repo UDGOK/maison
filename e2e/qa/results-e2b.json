@@ -1,0 +1,17 @@
+[
+ {
+  "name": "sortable column headers present",
+  "ok": true,
+  "detail": "15 sortable of 15: Store[boutique] | Net today↓[net] | vs LW[vs_last_week_pct] | WTD[wtd_net] | WTD vs LW[wtd_vs_lw_pct] | MTD[mtd_net] | Tickets[invoices] | Avg ticket[avg_ticket] | Conv.[mtd_conversion] | Returns[returns_pct] | Stock[stock_value] | Low[low_stock] | On shift[on_shift] | Status[status] | 14 d[sparkline]"
+ },
+ {
+  "name": "every sortable column sorts correctly (desc + asc toggle)",
+  "ok": false,
+  "detail": "boutique:ok ; net:ok ; vs_last_week_pct:ok ; wtd_net:ok ; wtd_vs_lw_pct:ok ; mtd_net:ok ; invoices:ok ; avg_ticket:ok ; mtd_conversion:ok ; returns_pct:ok ; stock_value:ok ; low_stock:ok ; on_shift:ok ; status: desc-match=false asc-match=false reversal=false got1=HOU-MTR,OK-BIX,OK-ETUL,OK-OWA want1=HOU-MTR,OK-BA,OK-BIX,OK-ETUL ; sparkline:ok"
+ },
+ {
+  "name": "no console errors",
+  "ok": true,
+  "detail": ""
+ }
+]

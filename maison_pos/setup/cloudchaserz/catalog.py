@@ -11,10 +11,10 @@ import random
 from typing import Any, Optional
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import cint, flt
 
 from maison_pos.identifiers import ean13_for
-from maison_pos.setup.cloudchaserz import ABBR, COMPANY, CURRENCY, DEMO_STOCK_REMARK, PRICE_LIST
+from maison_pos.setup.cloudchaserz import ABBR, COMPANY, CURRENCY, DEMO_PASSWORD, DEMO_STOCK_REMARK, PRICE_LIST
 from maison_pos.setup.install_v06 import AGE_RESTRICTED_GROUPS
 
 ITEM_GROUPS: list[str] = [
@@ -468,8 +468,10 @@ def seed_webshop() -> dict[str, Any]:
 		return {"skipped": "webshop not installed"}
 	from maison_pos.setup import demo_v04_webshop as web
 
-	saved = (web.COMPANY, web.ABBR)
+	saved = (web.COMPANY, web.ABBR, web.WEB_USER, web.WEB_USER_CUSTOMER, web.DEMO_PASSWORD)
 	web.COMPANY, web.ABBR = COMPANY, ABBR
+	web.WEB_USER, web.WEB_USER_CUSTOMER, web.DEMO_PASSWORD = WEB_SHOPPER, WEB_SHOPPER_CUSTOMER, DEMO_PASSWORD
+	web_user = None
 	try:
 		web.create_webshop_custom_fields()
 		web.ensure_web_mode_of_payment_account()
@@ -478,8 +480,23 @@ def seed_webshop() -> dict[str, Any]:
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "cloudchaserz webshop settings")
 		gateway_account = None
+	try:
+		# --- v0.8 QA A1 — the shop could not take an order from a new customer ---
+		# `Website Settings.disable_signup = 1`, no `Portal Settings.default_role` and not one
+		# Website User: `/cart` and `/shop/checkout` both redirect to a `/login` that offered no
+		# way to register. The Maison seed has always created a shopper and set the portal role
+		# (`demo_v04_webshop.ensure_web_user`); this seed simply never called it.
+		from maison_pos.webshop.setup import ensure_portal_signup
+
+		ensure_portal_signup()
+		_ensure_web_shopper_customer()
+		web_user = web.ensure_web_user()
+		# --- end v0.8 QA A1 ---
+	except Exception:
+		# a missing payment gateway must not cost the storefront its sign-up (v0.8 QA A1)
+		frappe.log_error(frappe.get_traceback(), "cloudchaserz webshop shopper")
 	finally:
-		web.COMPANY, web.ABBR = saved
+		web.COMPANY, web.ABBR, web.WEB_USER, web.WEB_USER_CUSTOMER, web.DEMO_PASSWORD = saved
 	for group in WEB_GROUPS:
 		if frappe.db.exists("Item Group", group):
 			doc = frappe.get_doc("Item Group", group)
@@ -526,4 +543,25 @@ def seed_webshop() -> dict[str, Any]:
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "cloudchaserz website items")
 	frappe.clear_cache(doctype="Webshop Settings")
-	return {"published": published, "gateway_account": gateway_account}
+	return {"published": published, "gateway_account": gateway_account, "web_user": web_user, "signup_enabled": not cint(frappe.db.get_single_value("Website Settings", "disable_signup"))}
+
+
+# --- v0.8 QA A1 — the demo shopper the storefront signs in as ---
+WEB_SHOPPER = "shopper@cloudchaserz.example"
+WEB_SHOPPER_CUSTOMER = "Jordan Vance"
+WEB_SHOPPER_MOBILE = "+1 918 555 0180"
+
+
+def _ensure_web_shopper_customer() -> str:
+	"""The Customer behind the demo web shopper (a rewards member, like any online client)."""
+	from maison_pos.setup import demo
+	from maison_pos.setup.cloudchaserz import LOYALTY_PROGRAM
+	from maison_pos.setup.cloudchaserz.users import ensure_profile
+
+	customer = demo.ensure_customer(WEB_SHOPPER_CUSTOMER, WEB_SHOPPER_MOBILE, WEB_SHOPPER)
+	if frappe.db.exists("Loyalty Program", LOYALTY_PROGRAM) and frappe.db.get_value("Customer", customer, "loyalty_program") != LOYALTY_PROGRAM:
+		frappe.db.set_value("Customer", customer, "loyalty_program", LOYALTY_PROGRAM, update_modified=False)
+	ensure_profile(customer, "1992-09-12", "OK-BA")
+	demo.ensure_client_numbers()
+	return customer
+# --- end v0.8 QA A1 ---
