@@ -1,0 +1,46 @@
+(node:15286) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+=== 1. Logins + launcher ===========================================
+PASS  hq (hq@cloudchaserz.example) lands on /start — landed /start · "Signed in as Hunter Quinn · Sign out"
+PASS  hq: the launcher lists exactly the screens the role allows — roles [AWANZ Head Office] → shown /pos /awanz-dashboard /warehouse /warehouse-wall /salon /shop /rewards /app · expected /pos /awanz-dashboard /warehouse /warehouse-wall /salon /shop /rewards /app
+PASS  warehouse (warehouse@cloudchaserz.example) lands on /start — landed /start · "Signed in as Walter Hines · CloudChaserz Main Warehouse · Sign out"
+PASS  warehouse: the launcher lists exactly the screens the role allows — roles [AWANZ Warehouse Admin, AWANZ Manager] → shown /pos /warehouse /warehouse-wall /salon /shop /rewards · expected /pos /warehouse /warehouse-wall /salon /shop /rewards
+PASS  manager (hou.mtr.manager@cloudchaserz.example) lands on /start — landed /start · "Signed in as Marisol Vega · CloudChaserz Montrose · Sign out"
+PASS  manager: the launcher lists exactly the screens the role allows — roles [AWANZ Manager] → shown /pos /salon /shop /rewards · expected /pos /salon /shop /rewards
+PASS  associate (hou.mtr.a1@cloudchaserz.example) lands on /start — landed /start · "Signed in as Dante Ruiz · CloudChaserz Montrose · Sign out"
+PASS  associate: the launcher lists exactly the screens the role allows — roles [AWANZ Associate] → shown /pos /salon /shop /rewards · expected /pos /salon /shop /rewards
+PASS  /start carries the "Powered by Futonix" credit — "POWERED BY FUTONIX"
+  shot fa-start.png
+NOTE  the /start footer offers "Admin desk" (/app) to every signed-in user — the role-gated card list correctly hides it from an associate, but the footer link row is unconditional (maison_pos/www/start.html) — an associate taps it and lands on the desk. Footer: "Online store Rewards Admin desk"
+PASS  regional (regional.ok@cloudchaserz.example) lands on /start — landed /start · "Signed in as Rosa Kingfisher · Sign out"
+PASS  regional: the launcher lists exactly the screens the role allows — roles [AWANZ Regional] → shown /pos /awanz-dashboard /salon /shop /rewards · expected /pos /awanz-dashboard /salon /shop /rewards
+
+=== 9. Branding audit ==============================================
+  /                        200  "CloudChaserz — Elevate Your Smoking Experience" text=3782 hits=0 · Futonix credit
+  /login                   200  "CloudChaserz - Login" text=152 hits=0
+  /start                   200  "AWANZ POS by CloudChaserz" text=467 hits=0 · Futonix credit
+  /shop                    200  "CloudChaserz — Elevate Your Smoking Experience" text=3782 hits=0 · Futonix credit
+  /shop/collection         200  "All products — CloudChaserz" text=10601 hits=0 · Futonix credit
+  /shop/register           200  "Create an account — CloudChaserz" text=1057 hits=0 · Futonix credit
+  /shop/boutiques          200  "Stores — CloudChaserz" text=2338 hits=0 · Futonix credit
+  /rewards                 200  "CloudChaserz Rewards — CloudChaserz" text=3508 hits=0 · Futonix credit
+  /salon                   200  "CloudChaserz Salon" text=223 hits=0
+  /r/hg_z74ji8Y00WSMZ      200  "CloudChaserz · ACC-SINV-2026-00001" text=586 hits=0 · Futonix credit
+  /pos                     200  "AWANZ POS by CloudChaserz" text=213 hits=0
+  /awanz-dashboard         200  "CLOUDCHASERZ · Command" text=1872 hits=0
+  /warehouse               200  "CloudChaserz - Warehouse" text=293 hits=0
+  /warehouse-wall          200  "CloudChaserz - Warehouse Wall" text=269 hits=0
+  /no-such-page-at-all     404  "CloudChaserz - Page not found" text=258 hits=0 · Futonix credit
+PASS  no route renders "Maison", "Frappe" or "ERPNext" in its visible text — 15 routes audited: / /login /start /shop /shop/collection /shop/register /shop/boutiques /rewards /salon /r/hg_z74ji8Y00WSMZ /pos /awanz-dashboard /warehouse /warehouse-wall /no-such-page-at-all
+PASS  "Powered by Futonix" is present in the website footer and on /start — rendered on: /, /start, /shop, /shop/collection, /shop/register, /shop/boutiques, /rewards, /r/hg_z74ji8Y00WSMZ, /no-such-page-at-all
+PASS  Website Settings.footer_powered carries the tenant credit (what /login and standard web pages print) — <span class="text-muted"><a class="text-muted" href="https://cloudchaserzworld.com" target="_blank" rel="noreferrer">AWANZ POS by CloudChaserz</a> &middot; Powered by <a class="awanz-dev-credit" href=
+
+=== 10. Security ===================================================
+PASS  a store manager cannot list another store's invoices — frappe.client.get_list(Sales Invoice, boutique != HOU-MTR) → 200, 0 rows
+PASS  …while their own store's invoices are still readable — 5 own-store rows
+PASS  a store manager cannot promote themselves through AWANZ Associate.role — set_value(role=HeadOffice) → 403 "frappe.exceptions.PermissionError"; record still role=Manager; frappe roles [AWANZ Manager]
+PASS  a store manager cannot read pin_hash — 3 rows readable, pin_hash values: undefined
+PASS  the associate list a manager can read is scoped to their own store — 3 rows, stores HOU-MTR
+
+19/19 checks passed; 1 notes

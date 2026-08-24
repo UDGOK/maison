@@ -1,0 +1,158 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "run": "EQSQX",
+ "store": "HOU-MTR",
+ "tax_rate": 8.25,
+ "topped_up": [
+  "HKA-017",
+  "ACC-011",
+  "HKA-012"
+ ],
+ "artifacts": {
+  "invoices": [
+   "ACC-SINV-2026-03126",
+   "ACC-SINV-2026-03127",
+   "ACC-SINV-2026-03128",
+   "ACC-SINV-2026-03129",
+   "ACC-SINV-2026-03130"
+  ],
+  "credit_notes": [
+   "ACC-SINV-2026-03131"
+  ],
+  "age_checks": [
+   "c2tgpb44ia"
+  ],
+  "shots": [
+   "fa-pos-age-gate.png",
+   "fa-pos-sell.png",
+   "fa-receipt.png",
+   "fa-pos-card-ready.png",
+   "fa-pos-split-tender.png",
+   "fa-receipt-split.png",
+   "fa-pos-multiline-discount.png",
+   "fa-pos-offline-queued.png",
+   "fa-pos-offline-drained.png",
+   "fa-pos-return.png",
+   "fa-pos-return-receipt.png"
+  ]
+ },
+ "results": [
+  {
+   "step": "catalogue loads and the PIN unlocks the till",
+   "ok": true,
+   "detail": "160 tiles in 3.5 s · top bar \"CLOUDCHASERZ AWANZ HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE \""
+  },
+  {
+   "step": "a 21+ item raises the age gate before it reaches the basket",
+   "ok": true,
+   "detail": "\"CHECK ID · 21+\" (basket still 1 line(s))"
+  },
+  {
+   "step": "a valid 21+ AAMVA scan passes the gate and the restricted item rings up",
+   "ok": true,
+   "detail": "WALK-IN SEARCH CLIENT № MC FIND ✦ 1 PROMO −$3.75 CocoUrth Coconut Coals 72 pc (flats) 2 × $12.99 $25.98 − 2 + Geek Bar Pulse 15K — Blue Razz"
+  },
+  {
+   "step": "a client is attached to the basket by client number",
+   "ok": true,
+   "detail": "MC459222 → \"CARLOS MENDOZA\""
+  },
+  {
+   "step": "cash sale completes and syncs",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03126 device $51.12 invoice $51.12"
+  },
+  {
+   "step": "the cash invoice total is exactly the device total",
+   "ok": true,
+   "detail": "device $51.12 vs invoice $51.12"
+  },
+  {
+   "step": "the receipt carries the QR, the public link and the rewards points line",
+   "ok": true,
+   "detail": "qr=data:image/png;base64,… link=https://cloudchaserz.frappe.cloud/r/LvJbOn1ym6JhMUZG earned=47 balance=358"
+  },
+  {
+   "step": "guest GET /r/<token> is 200 and renders the receipt",
+   "ok": true,
+   "detail": "200 len=343101"
+  },
+  {
+   "step": "card sale on the simulated reader completes and syncs",
+   "ok": true,
+   "detail": "SIMULATED READER: Synced ACC-SINV-2026-03127 ref=pi_sim_e01880b23d173ff4 device $28.12 invoice $28.12 · Card $28.12"
+  },
+  {
+   "step": "the card tender carries the brand / last four / approval code from the reader (v0.8 POS D7)",
+   "ok": true,
+   "detail": "{\"brand\":\"Visa\",\"last4\":\"4242\",\"ref\":\"pi_sim_e01880b23d173ff4\"}"
+  },
+  {
+   "step": "the split screen splits the amount due into a cash part and a card part",
+   "ok": true,
+   "detail": "total $28.12 = cash 10 + card $18.12"
+  },
+  {
+   "step": "the split tender books two payment rows (cash + card) that add up to the invoice",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03128 $28.12 = Cash $10 + Card $18.12 (device $28.12)"
+  },
+  {
+   "step": "the basket is one that used to diverge (pre-v0.8 device model disagrees with ERPNext)",
+   "ok": true,
+   "detail": "4 lines, quantities 3/3/3/3, $1.49 discount on ACC-009 (unit 6.4933) → ERPNext $115.16, pre-v0.8 device $115.18 (0.02)"
+  },
+  {
+   "step": "the device shows the total ERPNext will book",
+   "ok": true,
+   "detail": "device $115.16 vs ERPNext model $115.16; lines: Boveda 62% 8g 4-pack 3 × $6.99 −$1.49 $19.47 − 3 + | CocoUrth Coconut Coals 72 pc (flats) 3 × $12.99 $38.97 − 3 + | Hookah Mouth Tips 100 pc 3 × $6.99 $20.97 − 3 + | Rolling Tray — Medium Metal 3 × $8.99 $26.97 − 3 +"
+  },
+  {
+   "step": "the multi-line discounted sale completes and the invoice total matches the device to the cent",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03129 device $115.16 → invoice net $106.38 + tax $8.78 = $115.16"
+  },
+  {
+   "step": "offline, the age gate still runs on the device and the 21+ item rings up",
+   "ok": true,
+   "detail": "WALK-IN SEARCH CLIENT № MC FIND Offline — cached clients only ✦ 1 PROMO −$3.75 Geek Bar Pulse 15K — Blue Razz Ice 1 × $2"
+  },
+  {
+   "step": "the offline sale is queued on the device",
+   "ok": true,
+   "detail": "pill \"Queued offline\" · topbar \"OFFLINE · 1 QUEUED\""
+  },
+  {
+   "step": "nothing reached the server while offline",
+   "ok": true,
+   "detail": "no invoice yet"
+  },
+  {
+   "step": "back online the queue drains and the age-restricted offline sale becomes a real invoice",
+   "ok": true,
+   "detail": "Synced ACC-SINV-2026-03130 $22.99 (device $22.99) · topbar \"ONLINE\""
+  },
+  {
+   "step": "the drained invoice carries the age check taken offline (reason=offline) and a parsed checked_at",
+   "ok": true,
+   "detail": "invoice.maison_age_checked_at=2026-08-24 10:46:56 · {\"name\":\"c2tgpb44ia\",\"outcome\":\"Verified\",\"method\":\"Scan\",\"reason\":\"offline\",\"age_years\":41,\"initials\":\"DO\",\"sales_invoice\":\"ACC-SINV-2026-03130\",\"offline_uuid\":\"db81b583-78dd-4bc1-a22c-7ed5328dfa28\",\"ts\":\"2026-08-24 10:47:29.620489\"}"
+  },
+  {
+   "step": "a line of the card sale is returned and a credit note is booked",
+   "ok": true,
+   "detail": "ACC-SINV-2026-03131 against ACC-SINV-2026-03127 $-14.06 · summary \"CREDIT ITEMS 1 SUBTOTAL $12.99 TAX 8.25% $1.07 REFUND $14.06 REFUND TO ORIGINAL CARD Visa •••• 4242 CASH from the drawer\""
+  },
+  {
+   "step": "the return receipt prints",
+   "ok": true,
+   "detail": "\"Printed on Counter 1 · V660p\" · reader bitmap data:image/png;base64,iVBORw0KGgoAAAANSU… (PNG data URL)"
+  },
+  {
+   "step": "the points earned on the returned line are reversed",
+   "ok": true,
+   "detail": "Carlos Mendoza: 383 → 370 points (cash sale earned from 311)"
+  }
+ ],
+ "notes": [],
+ "console": []
+}

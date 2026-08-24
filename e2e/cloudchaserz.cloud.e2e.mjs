@@ -277,8 +277,10 @@ await pos.waitForFunction(() => (document.querySelectorAll('.unlock select.input
 const unlockMark = (await pos.locator('[data-testid=unlock-wordmark]').innerText()).trim()
 const storeOptions = await pos.$$eval('.unlock select.input >> nth=0 >> option', (os) => os.map((o) => o.textContent.trim()))
 // an associate is scoped to one store, so the picker offers exactly that one — by its full name
+// v0.7 polish "distinct store names": the picker prints the store's own name + city, without the
+// brand prefix (a chain of 11 "CloudChaserz …" rows was unreadable), e.g. "Montrose — Houston, TX 77098".
 record('unlock screen is branded CLOUDCHASERZ and offers the associate their own store by name',
-  unlockMark === 'CLOUDCHASERZ' && storeOptions.length >= 1 && storeOptions.some((t) => /CloudChaserz Montrose/i.test(t)),
+  unlockMark === 'CLOUDCHASERZ' && storeOptions.length >= 1 && storeOptions.some((t) => /Montrose/i.test(t)),
   `${unlockMark} · ${storeOptions.length} store(s) offered to ${ASSOC_A.usr}: ${storeOptions.join(' | ')}`)
 const unlockBox = await pos.evaluate(() => {
   const right = document.querySelector('.unlock .right')?.getBoundingClientRect()
@@ -832,9 +834,9 @@ if (cardCodes.includes('HOU-WH')) {
   note('DEFECT (cosmetic): the HOU-WH warehouse boutique is listed as a 12th "store" card on the Live tab',
     'maison_pos/api/dashboard.py::_live_summary uses get_allowed_boutiques() without filtering is_warehouse / boutique_type="Warehouse" (maison_pos/api/rewards.py:583 does filter it). It always reads $0 / no sale, which reads as a dead store on the wall.')
 }
-// v0.6 N brand system: window.maison_brand is served with the page — the SPA must use it
+// v0.6 N brand system: window.awanz_brand is served with the page (renamed from maison_brand in v0.9) — the SPA must use it
 const dashBrand = await dash.evaluate(() => ({
-  injected: window.maison_brand || null,
+  injected: window.awanz_brand || null,
   wordmark: document.querySelector('.top .wordmark')?.textContent?.trim() || '',
   scope: document.querySelector('.top .scope')?.textContent?.trim() || '',
   tabs: [...document.querySelectorAll('.view-tab')].map((e) => e.textContent.trim()).join(' · ')
@@ -842,11 +844,13 @@ const dashBrand = await dash.evaluate(() => ({
 record('the Command dashboard is branded CloudChaserz and speaks the tenant\'s store noun',
   dashBrand.wordmark.toUpperCase() === (dashBrand.injected?.wordmark_text || '').toUpperCase() &&
   !/boutique/i.test(dashBrand.scope) && !/boutique/i.test(dashBrand.tabs),
-  `wordmark rendered "${dashBrand.wordmark}" but window.maison_brand.wordmark_text = "${dashBrand.injected?.wordmark_text}" (store_noun "${dashBrand.injected?.store_noun}"); scope "${dashBrand.scope}"; tabs ${dashBrand.tabs}`)
+  `wordmark "${dashBrand.wordmark}" vs window.awanz_brand.wordmark_text "${dashBrand.injected?.wordmark_text}" (store_noun "${dashBrand.injected?.store_noun}"); scope "${dashBrand.scope}"; tabs ${dashBrand.tabs}`)
 
 const cardBody = (await dash.locator(`[data-testid="live-cards"] .bcard[data-boutique="${STORE_A}"]`).innerText()).replace(/\s+/g, ' ').trim()
+// BoutiqueCard.vue renders storeShortName(row.name, brand.name) — "CloudChaserz Montrose" is
+// printed as "Montrose" (the full name is the title attribute), so assert on the short name.
 record('the store cards carry real numbers (code, city name, net, tickets, last sale)',
-  /HOU-MTR/.test(cardBody) && /CloudChaserz Montrose/i.test(cardBody) &&
+  /HOU-MTR/.test(cardBody) && /Montrose/i.test(cardBody) &&
   /-?[\d,]+(\.\d+)?/.test(cardBody) && /(Sold|Return|No sale yet)/i.test(cardBody),
   cardBody.slice(0, 180))
 await shot(dash, 'dashboard-live-1920')
@@ -1001,10 +1005,20 @@ try {
     Math.abs(salonTotal - posTotal) < 0.01 && (await salon.locator('[data-testid=basket-lines] li').count()) >= 1,
     `focus="${focusName}" salon $${salonTotal} vs POS $${posTotal}`)
   await shot(salon, 'salon-basket-mirror-1024')
+  // v0.7 polish put every clock on the site's timezone; compare against the site's own clock
+  // (`live_summary.generated_at`), not an arbitrary stored row, and only report a real drift.
   const salonClock = (await salon.locator('[data-testid=salon-clock]').innerText().catch(() => '')).trim()
-  const serverNow = String((await admin.list('AWANZ Age Check', {}, ['ts'], 1))[0]?.ts || '')
-  note('the Salon (and dashboard) clock is browser-local, not store-local',
-    `Salon shows "${salonClock}" while the site clock is ${serverNow} — the greeting ("Good morning/evening") is derived from it, so a client display in a different timezone to the browser greets the wrong part of the day. Same class as the v0.1 dashboard-clock observation.`)
+  const serverNow = String((await admin.get('maison_pos.api.dashboard.live_summary', { nocache: 1 }))?.generated_at || '')
+  const siteHHMM = serverNow.slice(11, 16)
+  const browserHHMM = await salon.evaluate(() => new Date().toTimeString().slice(0, 5))
+  if (salonClock.slice(0, 5) !== siteHHMM && salonClock.slice(0, 5) === browserHHMM) {
+    note('the Salon clock is browser-local, not store-local',
+      `Salon shows "${salonClock}" while the site clock is ${siteHHMM} and this browser is ${browserHHMM}.`)
+  } else {
+    record('the Salon clock runs on the site timezone, not the browser\'s',
+      salonClock.slice(0, 5) === siteHHMM,
+      `Salon "${salonClock}" · site ${siteHHMM} · this browser ${browserHHMM}`)
+  }
 } catch (e) {
   record('/salon pairs with the POS and mirrors a basket', false, String(e).slice(0, 400))
   await shot(salon, 'salon-failure').catch(() => {})

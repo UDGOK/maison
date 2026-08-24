@@ -1,0 +1,28 @@
+(node:27331) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+shop item HKA-012 (CocoUrth Coconut Coals 72 pc (flats)) at /hookah-shisha/cocourth-coconut-coals-72-pc-flats-oxc9n · stock 37
+
+=== 7. Shop — guest registration + click & collect ==================
+PASS  a guest who opens the bag lands on the storefront sign-up page, not a dead end — /shop/cart → /shop/register?redirect-to=/shop/cart
+  shot fa-shop-register.png
+PASS  the guest can create a storefront account and is signed straight in — fa.shopper.f5s52@test.example (Website User) → /shop/cart, session logged-in
+PASS  the new shopper can put an item in the bag — CLOUDCHASERZ AWANZ ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & P
+  shot fa-shop-checkout.png
+PASS  the shopper places a click & collect order paid online — SAL-ORD-2026-00007 To Deliver and Bill/New Click & Collect at HOU-MTR · $14.06 paid $14.06 · Final Acceptance F5S52
+  shot fa-shop-order-placed.png
+PASS  /rewards carries the exact programme copy — Earn 1 point for every $1 you spend. Redeem your points for money off at the counter, get a birthday gift, hear about every monthly promotion and new arrival first, enter product g
+
+--- POS web-order queue ---
+PASS  the web order appears in the POS web-order queue — Final Acceptance F5S52 NEW SAL-ORD-2026-00007 · 1 piece · 0 min ago · Paid online $14.06
+  shot fa-pos-web-orders.png
+PASS  the store collects the order at the counter and it becomes a Sales Invoice — amount due at the counter $0.00 (paid online) → SYNCED ACC-SINV-2026-03133; order now Collected (Completed, billed 100%)
+  shot fa-pos-web-order-collected.png
+
+=== 6. Dashboard ===================================================
+PASS  the Live tab shows 11 store cards and no warehouse row — 11 cards: HOU-MTR, OK-SAP, OK-BIX, OK-BA, OK-ETUL, OK-JENKS, OK-MINGO, OK-MUS, OK-OWA, OK-STUL, OK-YALE
+PASS  the hourly chart names the real peak of the day (v0.8 QA D-1) — chart "PEAK 10:00 · 1,419" vs data peak 10:00 $1419.28; traded hours 9,10
+PASS  the chart window follows the data (and the current hour), not the old hard-coded 09:00–21:00 — x labels [06:00 07:00 08:00 09:00 10:00 11:00 12:00 13:00] = window derived from hours that traded (9,10) + site hour 10; old code would have drawn 09:00–21:00. Hours trading outside 09–21 today: none
+  shot fa-dashboard-live.png
+NOTE  the hourly chart's "current hour" comes from the browser clock, not the site clock — same board, same data: a browser in America/Chicago draws [06:00 07:00 08:00 09:00 10:00 11:00 12:00 13:00] and one in UTC draws [08:00 09:00 10:00 11:00 12:00 13:00 14:00 15:00] — LiveView.vue computes `new Date(d.now).getHours()` (d.now is Date.now()), so the window is padded to the viewer's hour 
+
+10/10 checks passed; 1 notes

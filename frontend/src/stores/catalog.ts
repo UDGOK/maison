@@ -237,6 +237,33 @@ export const useCatalogStore = defineStore('catalog', {
         return false
       }
     },
+    /**
+     * v0.9 — refresh only the brand tokens from the server.
+     *
+     * A till caches the whole catalogue in IndexedDB, brand included, so a rebrand (or a change
+     * to the developer credit / rewards name) stayed invisible until someone pressed "Load".
+     * This is one cheap call on start-up when online: the screens re-render under the new name
+     * without touching stock, prices or the offline queue. Silent on failure — an offline till
+     * keeps the cached brand and carries on selling.
+     */
+    async refreshBrand() {
+      const session = useSessionStore()
+      if (!session.boutique?.name || typeof navigator !== 'undefined' && !navigator.onLine) return
+      try {
+        const b = await api.catalog.bootstrap(session.boutique.name)
+        const next = normalizeBrand(b.brand)
+        if (JSON.stringify(next) === JSON.stringify(this.brand)) return
+        this.brand = next
+        if (b.settings) {
+          this.settings = normalizeSettings(b.settings)
+          this.age = normalizeAge(b.settings as unknown as Partial<AgeGateSettings>)
+        }
+        if (b.reward_tiers) this.reward_tiers = b.reward_tiers
+        await this.persist()
+      } catch {
+        // offline or unauthenticated — the cached brand stays
+      }
+    },
     /** Optimistically remove a sold serial / decrement stock so the grid stays accurate offline. */
     consume(item_code: string, qty: number, serial_no?: string) {
       if (serial_no && this.serials[item_code]) this.serials[item_code] = this.serials[item_code].filter((s) => s !== serial_no)

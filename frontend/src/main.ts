@@ -56,6 +56,7 @@ async function boot() {
   scan.startWedge()
   void useSyncStore().start()
   void useSalonPosStore().restore() // v0.5 K — client display pairing + mirror
+  void useCatalogStore().refreshBrand() // v0.9 — a rebrand reaches a cached till without a manual reload
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) void registerServiceWorker()
 }

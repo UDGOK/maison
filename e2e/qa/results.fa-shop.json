@@ -1,0 +1,199 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "run": "f5s52",
+ "shopper": "fa.shopper.f5s52@test.example",
+ "artifacts": {
+  "orders": [
+   "SAL-ORD-2026-00007"
+  ],
+  "invoices": [
+   "ACC-SINV-2026-03133"
+  ],
+  "users": [
+   "fa.shopper.f5s52@test.example"
+  ],
+  "customers": [
+   "Final Acceptance F5S52"
+  ]
+ },
+ "results": [
+  {
+   "step": "a guest who opens the bag lands on the storefront sign-up page, not a dead end",
+   "ok": true,
+   "detail": "/shop/cart → /shop/register?redirect-to=/shop/cart"
+  },
+  {
+   "step": "the guest can create a storefront account and is signed straight in",
+   "ok": true,
+   "detail": "fa.shopper.f5s52@test.example (Website User) → /shop/cart, session logged-in"
+  },
+  {
+   "step": "the new shopper can put an item in the bag",
+   "ok": true,
+   "detail": "CLOUDCHASERZ AWANZ ALL PRODUCTS ACCESSORIES CBD & HEMP DEVICES & MODS DISPOSABLES E-LIQUID GLASS & RIGS HOOKAH & SHISHA KRATOM PODS & COILS PRODUCTS ROLLING & P"
+  },
+  {
+   "step": "the shopper places a click & collect order paid online",
+   "ok": true,
+   "detail": "SAL-ORD-2026-00007 To Deliver and Bill/New Click & Collect at HOU-MTR · $14.06 paid $14.06 · Final Acceptance F5S52"
+  },
+  {
+   "step": "/rewards carries the exact programme copy",
+   "ok": true,
+   "detail": "Earn 1 point for every $1 you spend. Redeem your points for money off at the counter, get a birthday gift, hear about every monthly promotion and new arrival first, enter product g"
+  },
+  {
+   "step": "the web order appears in the POS web-order queue",
+   "ok": true,
+   "detail": "Final Acceptance F5S52 NEW SAL-ORD-2026-00007 · 1 piece · 0 min ago · Paid online $14.06"
+  },
+  {
+   "step": "the store collects the order at the counter and it becomes a Sales Invoice",
+   "ok": true,
+   "detail": "amount due at the counter $0.00 (paid online) → SYNCED ACC-SINV-2026-03133; order now Collected (Completed, billed 100%)"
+  },
+  {
+   "step": "the Live tab shows 11 store cards and no warehouse row",
+   "ok": true,
+   "detail": "11 cards: HOU-MTR, OK-SAP, OK-BIX, OK-BA, OK-ETUL, OK-JENKS, OK-MINGO, OK-MUS, OK-OWA, OK-STUL, OK-YALE"
+  },
+  {
+   "step": "the hourly chart names the real peak of the day (v0.8 QA D-1)",
+   "ok": true,
+   "detail": "chart \"PEAK 10:00 · 1,419\" vs data peak 10:00 $1419.28; traded hours 9,10"
+  },
+  {
+   "step": "the chart window follows the data (and the current hour), not the old hard-coded 09:00–21:00",
+   "ok": true,
+   "detail": "x labels [06:00 07:00 08:00 09:00 10:00 11:00 12:00 13:00] = window derived from hours that traded (9,10) + site hour 10; old code would have drawn 09:00–21:00. Hours trading outside 09–21 today: none"
+  }
+ ],
+ "notes": [
+  {
+   "step": "the hourly chart's \"current hour\" comes from the browser clock, not the site clock",
+   "detail": "same board, same data: a browser in America/Chicago draws [06:00 07:00 08:00 09:00 10:00 11:00 12:00 13:00] and one in UTC draws [08:00 09:00 10:00 11:00 12:00 13:00 14:00 15:00] — LiveView.vue computes `new Date(d.now).getHours()` (d.now is Date.now()), so the window is padded to the viewer's hour and the \"current\" column is highlighted in the viewer's zone, while the header clock beside it is rendered in the site zone by dashboard/src/lib/time.ts (header shows \"10:58:01\nCDT\" / \"10:58:01\nCDT\"). Cosmetic, but the two disagree on one screen and the chart draws empty future hours."
+  }
+ ],
+ "hours": [
+  {
+   "hour": 0,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 1,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 2,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 3,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 4,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 5,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 6,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 7,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 8,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 9,
+   "net": 98.48,
+   "invoices": 1
+  },
+  {
+   "hour": 10,
+   "net": 1419.28,
+   "invoices": 32
+  },
+  {
+   "hour": 11,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 12,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 13,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 14,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 15,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 16,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 17,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 18,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 19,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 20,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 21,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 22,
+   "net": 0,
+   "invoices": 0
+  },
+  {
+   "hour": 23,
+   "net": 0,
+   "invoices": 0
+  }
+ ]
+}

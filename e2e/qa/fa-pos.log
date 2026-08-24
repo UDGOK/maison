@@ -1,0 +1,48 @@
+(node:14775) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
+store HOU-MTR · tax 8.25% · client Carlos Mendoza MC459222 · open HKA-012 (16 on hand) · 21+ DSP-002 (33)
+  topped up HKA-017, ACC-011, HKA-012
+
+=== 2. POS ==========================================================
+PASS  catalogue loads and the PIN unlocks the till — 160 tiles in 3.5 s · top bar "CLOUDCHASERZ AWANZ HOU-MTR SELL CLIENT RETURNS WEB COUNT RCV QUEUE SHIFT SETTINGS Dante Ruiz ASSOCIATE ONLINE "
+PASS  a 21+ item raises the age gate before it reaches the basket — "CHECK ID · 21+" (basket still 1 line(s))
+  shot fa-pos-age-gate.png
+PASS  a valid 21+ AAMVA scan passes the gate and the restricted item rings up — WALK-IN SEARCH CLIENT № MC FIND ✦ 1 PROMO −$3.75 CocoUrth Coconut Coals 72 pc (flats) 2 × $12.99 $25.98 − 2 + Geek Bar Pulse 15K — Blue Razz
+PASS  a client is attached to the basket by client number — MC459222 → "CARLOS MENDOZA"
+  shot fa-pos-sell.png
+PASS  cash sale completes and syncs — Synced ACC-SINV-2026-03126 device $51.12 invoice $51.12
+PASS  the cash invoice total is exactly the device total — device $51.12 vs invoice $51.12
+PASS  the receipt carries the QR, the public link and the rewards points line — qr=data:image/png;base64,… link=https://cloudchaserz.frappe.cloud/r/LvJbOn1ym6JhMUZG earned=47 balance=358
+  shot fa-receipt.png
+PASS  guest GET /r/<token> is 200 and renders the receipt — 200 len=343101
+  shot fa-pos-card-ready.png
+PASS  card sale on the simulated reader completes and syncs — SIMULATED READER: Synced ACC-SINV-2026-03127 ref=pi_sim_e01880b23d173ff4 device $28.12 invoice $28.12 · Card $28.12
+PASS  the card tender carries the brand / last four / approval code from the reader (v0.8 POS D7) — {"brand":"Visa","last4":"4242","ref":"pi_sim_e01880b23d173ff4"}
+PASS  the split screen splits the amount due into a cash part and a card part — total $28.12 = cash 10 + card $18.12
+  shot fa-pos-split-tender.png
+PASS  the split tender books two payment rows (cash + card) that add up to the invoice — Synced ACC-SINV-2026-03128 $28.12 = Cash $10 + Card $18.12 (device $28.12)
+  shot fa-receipt-split.png
+
+=== 3a. v0.8 POS D1 — cent parity ===================================
+PASS  the basket is one that used to diverge (pre-v0.8 device model disagrees with ERPNext) — 4 lines, quantities 3/3/3/3, $1.49 discount on ACC-009 (unit 6.4933) → ERPNext $115.16, pre-v0.8 device $115.18 (0.02)
+PASS  the device shows the total ERPNext will book — device $115.16 vs ERPNext model $115.16; lines: Boveda 62% 8g 4-pack 3 × $6.99 −$1.49 $19.47 − 3 + | CocoUrth Coconut Coals 72 pc (flats) 3 × $12.99 $38.97 − 3 + | Hookah Mouth Tips 100 pc 3 × $6.99 $20.97 − 3 + | Rolling Tray — Medium Metal 3 × $8.99 $26.97 − 3 +
+  shot fa-pos-multiline-discount.png
+PASS  the multi-line discounted sale completes and the invoice total matches the device to the cent — Synced ACC-SINV-2026-03129 device $115.16 → invoice net $106.38 + tax $8.78 = $115.16
+
+=== 3b. v0.8 POS D2 — offline age-restricted sale ====================
+PASS  offline, the age gate still runs on the device and the 21+ item rings up — WALK-IN SEARCH CLIENT № MC FIND Offline — cached clients only ✦ 1 PROMO −$3.75 Geek Bar Pulse 15K — Blue Razz Ice 1 × $2
+PASS  the offline sale is queued on the device — pill "Queued offline" · topbar "OFFLINE · 1 QUEUED"
+  shot fa-pos-offline-queued.png
+PASS  nothing reached the server while offline — no invoice yet
+PASS  back online the queue drains and the age-restricted offline sale becomes a real invoice — Synced ACC-SINV-2026-03130 $22.99 (device $22.99) · topbar "ONLINE"
+PASS  the drained invoice carries the age check taken offline (reason=offline) and a parsed checked_at — invoice.maison_age_checked_at=2026-08-24 10:46:56 · {"name":"c2tgpb44ia","outcome":"Verified","method":"Scan","reason":"offline","age_years":41,"initials":"DO","sales_invoice":"ACC-SINV-2026-03130","offline_uuid":"db81b583-78dd-4bc1-a22c-7ed5328dfa28","ts":"2026-08-24 10:47:29.620489"}
+  shot fa-pos-offline-drained.png
+
+=== 4. Returns ======================================================
+  shot fa-pos-return.png
+PASS  a line of the card sale is returned and a credit note is booked — ACC-SINV-2026-03131 against ACC-SINV-2026-03127 $-14.06 · summary "CREDIT ITEMS 1 SUBTOTAL $12.99 TAX 8.25% $1.07 REFUND $14.06 REFUND TO ORIGINAL CARD Visa •••• 4242 CASH from the drawer"
+PASS  the return receipt prints — "Printed on Counter 1 · V660p" · reader bitmap data:image/png;base64,iVBORw0KGgoAAAANSU… (PNG data URL)
+  shot fa-pos-return-receipt.png
+PASS  the points earned on the returned line are reversed — Carlos Mendoza: 383 → 370 points (cash sale earned from 311)
+
+23/23 checks passed; 0 notes; console issues: 0

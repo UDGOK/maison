@@ -1,0 +1,57 @@
+{
+ "cancelled": [
+  "ACC-SINV-2026-03138",
+  "ACC-SINV-2026-03131",
+  "ACC-SINV-2026-03125",
+  "ACC-SINV-2026-03103",
+  "ACC-SINV-2026-03139",
+  "ACC-SINV-2026-03137",
+  "ACC-SINV-2026-03136",
+  "ACC-SINV-2026-03135",
+  "ACC-SINV-2026-03134",
+  "ACC-SINV-2026-03133",
+  "ACC-SINV-2026-03132",
+  "ACC-SINV-2026-03130",
+  "ACC-SINV-2026-03129",
+  "ACC-SINV-2026-03128",
+  "ACC-SINV-2026-03127",
+  "ACC-SINV-2026-03126",
+  "ACC-SINV-2026-03124",
+  "ACC-SINV-2026-03123",
+  "ACC-SINV-2026-03122",
+  "ACC-SINV-2026-03121",
+  "ACC-SINV-2026-03120",
+  "ACC-SINV-2026-03119",
+  "ACC-SINV-2026-03118",
+  "ACC-SINV-2026-03117",
+  "ACC-SINV-2026-03116",
+  "ACC-SINV-2026-03115",
+  "ACC-SINV-2026-03114",
+  "ACC-SINV-2026-03113",
+  "ACC-SINV-2026-03112",
+  "ACC-SINV-2026-03111",
+  "ACC-SINV-2026-03110",
+  "ACC-SINV-2026-03109",
+  "ACC-SINV-2026-03108",
+  "ACC-SINV-2026-03107",
+  "ACC-SINV-2026-03106",
+  "ACC-SINV-2026-03105",
+  "ACC-SINV-2026-03104",
+  "ACC-SINV-2026-03102",
+  "ACC-SINV-2026-03101",
+  "ACC-SINV-2026-03100",
+  "ACC-SINV-2026-03099"
+ ],
+ "failed": [
+  {
+   "doc": "SAL-ORD-2026-00006",
+   "err": "frappe.exceptions.LinkExistsError: Cannot delete or cancel because Sales Order <a href=\"https://cloudchaserz.frappe.cloud/app/sales-order/SAL-ORD-2026-00006\">SAL-ORD-2026-00006</a>"
+  },
+  {
+   "doc": "SAL-ORD-2026-00007",
+   "err": "frappe.exceptions.LinkExistsError: Cannot delete or cancel because Sales Order <a href=\"https://cloudchaserz.frappe.cloud/app/sales-order/SAL-ORD-2026-00007\">SAL-ORD-2026-00007</a>"
+  }
+ ],
+ "disabled": [],
+ "stock": []
+}

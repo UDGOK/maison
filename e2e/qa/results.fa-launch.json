@@ -1,0 +1,228 @@
+{
+ "base": "https://cloudchaserz.frappe.cloud",
+ "results": [
+  {
+   "step": "hq (hq@cloudchaserz.example) lands on /start",
+   "ok": true,
+   "detail": "landed /start · \"Signed in as Hunter Quinn · Sign out\""
+  },
+  {
+   "step": "hq: the launcher lists exactly the screens the role allows",
+   "ok": true,
+   "detail": "roles [AWANZ Head Office] → shown /pos /awanz-dashboard /warehouse /warehouse-wall /salon /shop /rewards /app · expected /pos /awanz-dashboard /warehouse /warehouse-wall /salon /shop /rewards /app"
+  },
+  {
+   "step": "warehouse (warehouse@cloudchaserz.example) lands on /start",
+   "ok": true,
+   "detail": "landed /start · \"Signed in as Walter Hines · CloudChaserz Main Warehouse · Sign out\""
+  },
+  {
+   "step": "warehouse: the launcher lists exactly the screens the role allows",
+   "ok": true,
+   "detail": "roles [AWANZ Warehouse Admin, AWANZ Manager] → shown /pos /warehouse /warehouse-wall /salon /shop /rewards · expected /pos /warehouse /warehouse-wall /salon /shop /rewards"
+  },
+  {
+   "step": "manager (hou.mtr.manager@cloudchaserz.example) lands on /start",
+   "ok": true,
+   "detail": "landed /start · \"Signed in as Marisol Vega · CloudChaserz Montrose · Sign out\""
+  },
+  {
+   "step": "manager: the launcher lists exactly the screens the role allows",
+   "ok": true,
+   "detail": "roles [AWANZ Manager] → shown /pos /salon /shop /rewards · expected /pos /salon /shop /rewards"
+  },
+  {
+   "step": "associate (hou.mtr.a1@cloudchaserz.example) lands on /start",
+   "ok": true,
+   "detail": "landed /start · \"Signed in as Dante Ruiz · CloudChaserz Montrose · Sign out\""
+  },
+  {
+   "step": "associate: the launcher lists exactly the screens the role allows",
+   "ok": true,
+   "detail": "roles [AWANZ Associate] → shown /pos /salon /shop /rewards · expected /pos /salon /shop /rewards"
+  },
+  {
+   "step": "/start carries the \"Powered by Futonix\" credit",
+   "ok": true,
+   "detail": "\"POWERED BY FUTONIX\""
+  },
+  {
+   "step": "regional (regional.ok@cloudchaserz.example) lands on /start",
+   "ok": true,
+   "detail": "landed /start · \"Signed in as Rosa Kingfisher · Sign out\""
+  },
+  {
+   "step": "regional: the launcher lists exactly the screens the role allows",
+   "ok": true,
+   "detail": "roles [AWANZ Regional] → shown /pos /awanz-dashboard /salon /shop /rewards · expected /pos /awanz-dashboard /salon /shop /rewards"
+  },
+  {
+   "step": "no route renders \"Maison\", \"Frappe\" or \"ERPNext\" in its visible text",
+   "ok": true,
+   "detail": "15 routes audited: / /login /start /shop /shop/collection /shop/register /shop/boutiques /rewards /salon /r/hg_z74ji8Y00WSMZ /pos /awanz-dashboard /warehouse /warehouse-wall /no-such-page-at-all"
+  },
+  {
+   "step": "\"Powered by Futonix\" is present in the website footer and on /start",
+   "ok": true,
+   "detail": "rendered on: /, /start, /shop, /shop/collection, /shop/register, /shop/boutiques, /rewards, /r/hg_z74ji8Y00WSMZ, /no-such-page-at-all"
+  },
+  {
+   "step": "Website Settings.footer_powered carries the tenant credit (what /login and standard web pages print)",
+   "ok": true,
+   "detail": "<span class=\"text-muted\"><a class=\"text-muted\" href=\"https://cloudchaserzworld.com\" target=\"_blank\" rel=\"noreferrer\">AWANZ POS by CloudChaserz</a> &middot; Powered by <a class=\"awanz-dev-credit\" href="
+  },
+  {
+   "step": "a store manager cannot list another store's invoices",
+   "ok": true,
+   "detail": "frappe.client.get_list(Sales Invoice, boutique != HOU-MTR) → 200, 0 rows"
+  },
+  {
+   "step": "…while their own store's invoices are still readable",
+   "ok": true,
+   "detail": "5 own-store rows"
+  },
+  {
+   "step": "a store manager cannot promote themselves through AWANZ Associate.role",
+   "ok": true,
+   "detail": "set_value(role=HeadOffice) → 403 \"frappe.exceptions.PermissionError\"; record still role=Manager; frappe roles [AWANZ Manager]"
+  },
+  {
+   "step": "a store manager cannot read pin_hash",
+   "ok": true,
+   "detail": "3 rows readable, pin_hash values: undefined"
+  },
+  {
+   "step": "the associate list a manager can read is scoped to their own store",
+   "ok": true,
+   "detail": "3 rows, stores HOU-MTR"
+  }
+ ],
+ "notes": [
+  {
+   "step": "the /start footer offers \"Admin desk\" (/app) to every signed-in user",
+   "detail": "the role-gated card list correctly hides it from an associate, but the footer link row is unconditional (maison_pos/www/start.html) — an associate taps it and lands on the desk. Footer: \"Online store Rewards Admin desk\""
+  }
+ ],
+ "brand": [
+  {
+   "route": "/",
+   "status": 200,
+   "title": "CloudChaserz — Elevate Your Smoking Experience",
+   "hits": [],
+   "textLen": 3782,
+   "footerCredit": true
+  },
+  {
+   "route": "/login",
+   "status": 200,
+   "title": "CloudChaserz - Login",
+   "hits": [],
+   "textLen": 152,
+   "footerCredit": false
+  },
+  {
+   "route": "/start",
+   "status": 200,
+   "title": "AWANZ POS by CloudChaserz",
+   "hits": [],
+   "textLen": 467,
+   "footerCredit": true
+  },
+  {
+   "route": "/shop",
+   "status": 200,
+   "title": "CloudChaserz — Elevate Your Smoking Experience",
+   "hits": [],
+   "textLen": 3782,
+   "footerCredit": true
+  },
+  {
+   "route": "/shop/collection",
+   "status": 200,
+   "title": "All products — CloudChaserz",
+   "hits": [],
+   "textLen": 10601,
+   "footerCredit": true
+  },
+  {
+   "route": "/shop/register",
+   "status": 200,
+   "title": "Create an account — CloudChaserz",
+   "hits": [],
+   "textLen": 1057,
+   "footerCredit": true
+  },
+  {
+   "route": "/shop/boutiques",
+   "status": 200,
+   "title": "Stores — CloudChaserz",
+   "hits": [],
+   "textLen": 2338,
+   "footerCredit": true
+  },
+  {
+   "route": "/rewards",
+   "status": 200,
+   "title": "CloudChaserz Rewards — CloudChaserz",
+   "hits": [],
+   "textLen": 3508,
+   "footerCredit": true
+  },
+  {
+   "route": "/salon",
+   "status": 200,
+   "title": "CloudChaserz Salon",
+   "hits": [],
+   "textLen": 223,
+   "footerCredit": false
+  },
+  {
+   "route": "/r/hg_z74ji8Y00WSMZ",
+   "status": 200,
+   "title": "CloudChaserz · ACC-SINV-2026-00001",
+   "hits": [],
+   "textLen": 586,
+   "footerCredit": true
+  },
+  {
+   "route": "/pos",
+   "status": 200,
+   "title": "AWANZ POS by CloudChaserz",
+   "hits": [],
+   "textLen": 213,
+   "footerCredit": false
+  },
+  {
+   "route": "/awanz-dashboard",
+   "status": 200,
+   "title": "CLOUDCHASERZ · Command",
+   "hits": [],
+   "textLen": 1872,
+   "footerCredit": false
+  },
+  {
+   "route": "/warehouse",
+   "status": 200,
+   "title": "CloudChaserz - Warehouse",
+   "hits": [],
+   "textLen": 293,
+   "footerCredit": false
+  },
+  {
+   "route": "/warehouse-wall",
+   "status": 200,
+   "title": "CloudChaserz - Warehouse Wall",
+   "hits": [],
+   "textLen": 269,
+   "footerCredit": false
+  },
+  {
+   "route": "/no-such-page-at-all",
+   "status": 404,
+   "title": "CloudChaserz - Page not found",
+   "hits": [],
+   "textLen": 258,
+   "footerCredit": true
+  }
+ ]
+}

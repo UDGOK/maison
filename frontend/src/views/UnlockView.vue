@@ -175,6 +175,12 @@ function fail() {
       </div>
       <div class="left-foot">
         <div class="label label-dim">{{ sync.browserOnline ? 'Network available' : 'No network' }}</div>
+        <!-- v0.9 — platform developer credit; brand-driven, hidden when `developer_name` is cleared -->
+        <div v-if="brand.developerName" class="label label-dim dev-credit">
+          Powered by
+          <a v-if="brand.developerWebsite" :href="brand.developerWebsite" target="_blank" rel="noreferrer noopener">{{ brand.developerName }}</a>
+          <span v-else>{{ brand.developerName }}</span>
+        </div>
         <div v-if="IS_MOCK" class="label label-dim">Mock data &middot; PIN 1234 (manager) / 1111 (associate)</div>
       </div>
     </div>
@@ -254,6 +260,15 @@ function fail() {
 </template>
 
 <style scoped>
+.dev-credit a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+}
+.dev-credit a:hover {
+  border-color: var(--accent);
+}
+
 .no-store {
   display: flex;
   flex-direction: column;
