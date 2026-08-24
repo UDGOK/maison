@@ -194,6 +194,32 @@ def guard(
 		_reject(window)
 
 
+def clear(endpoint: Optional[str] = None) -> int:
+	"""Drop the counters for *endpoint* (or every endpoint). **Tests only.**
+
+	The limiter buckets by client address, and every test in a suite comes from 127.0.0.1 — so the
+	sixth guest sign-up in a ten-minute run is throttled by design, and a test that reads the body
+	of that 429 sees ``None``. That is the limiter working, not a hole, but it made
+	``test_v0_7_security`` non-deterministic depending on how many sign-ups ran before it. Reset in
+	``setUp`` rather than weakening the limit.
+	"""
+	cache = frappe.cache()
+	patterns = [f"awanz_rl:{endpoint}:*", f"awanz_rl_all:{endpoint}"] if endpoint else ["awanz_rl:*", "awanz_rl_all:*"]
+	dropped = 0
+	for pattern in patterns:
+		try:
+			keys = cache.get_keys(pattern)
+		except Exception:  # pragma: no cover — cache backends differ
+			continue
+		for key in keys or []:
+			name = key.decode() if isinstance(key, bytes) else str(key)
+			# `get_keys` returns fully-qualified keys; `delete_value` re-qualifies, so strip first
+			prefix = cache.make_key("").decode() if isinstance(cache.make_key(""), bytes) else cache.make_key("")
+			cache.delete_value(name[len(prefix):] if prefix and name.startswith(prefix) else name)
+			dropped += 1
+	return dropped
+
+
 def rate_limited(endpoint: str, limit: int, seconds: int = 60, *, global_limit: Optional[int] = None, global_seconds: Optional[int] = None):
 	"""Decorator form of :func:`guard` for whitelisted endpoints."""
 

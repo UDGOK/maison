@@ -586,3 +586,62 @@ Screenshots: `e2e/shots-v06/` (Receive, warehouse desk, approval, wall 1920×108
 count sheet, receipt confirmation, POS 1366×1024, age gate / blocked / passed, POS iPhone 390×844,
 Salon ID-check, `/rewards`).
 <!-- end v0.6 N/O/P/Q -->
+
+<!-- v1.0 Procurement -->
+## v1.0 — Procurement (2026-08-24)
+
+New: `maison_pos/api/purchasing.py`, `maison_pos/purchasing/{vendors,orders,receiving,demand}.py`,
+doctypes `AWANZ Item Vendor` (child of Item, field `maison_vendors`) and `AWANZ Purchase Suggestion`,
+`setup/install_v10_purchasing.py`, four Script Reports, print format `AWANZ Purchase Order`,
+`setup/cloudchaserz/purchasing.py` (12 vendors, 294 catalogue rows, 155 reorder levels);
+frontend `src/api/purchasing.ts`, `src/stores/purchasing.ts`, `src/warehouse/{buying,inbound}.ts`,
+`src/warehouse/components/purchasing/**`, the five-section `/warehouse` nav and the wall's Inbound
+column; `e2e/purchasing.e2e.mjs`; `docs/purchasing.md`.
+
+```bash
+bench --site cc.localhost migrate
+bench --site cc.localhost execute maison_pos.setup.cloudchaserz.purchasing.seed_purchasing --kwargs "{'commit': True}"
+bench --site maison.localhost run-tests --app maison_pos          # Ran 434 tests — OK
+cd frontend && npx vue-tsc --noEmit && npx vitest run && npm run build   # 25 files, 360 tests
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc.localhost:8001 ADMIN_PWD=admin node e2e/purchasing.e2e.mjs   # 36/36
+```
+
+### Settings this release changes on the tenant
+
+| Setting | Value | Why |
+|---|---|---|
+| `Stock Settings.valuation_method` + every stock `Item.valuation_method` | **Moving Average** | `Company.default_valuation_method` does not exist in ERPNext v15, so it has to be pinned in both places |
+| `Buying Settings.maintain_same_rate` | **off** | on by default, and it *refuses* a Purchase Receipt whose rate differs from the order — which is exactly the manual cost override the client asked for |
+| freight account | `Company.expenses_included_in_valuation` | where the Actual + Valuation charge posts |
+
+### Things that cost time
+
+| # | Symptom | Fix |
+|---|---|---|
+| 1 | `distribute_charges_based_on` rejected on the freight row | it is a Landed Cost Voucher field; an `Actual` + `Valuation` charge is already distributed by net amount |
+| 2 | The receive sheet's moving-average preview was ~7 % out on a mixed receipt | it split freight **evenly per unit**; ERPNext spreads an Actual/Valuation charge **by line amount** (`buying_controller.update_valuation_rate`). `buying.ts::freightAllocation` now mirrors the posting |
+| 3 | `final=1` raised the shorts but left the order *To Receive* on Inbound for ever | `receiving.py::_close_if_final`. Note a fully-received order rests at *To Bill* here — we never bill — so it needs closing too |
+| 4 | A tap on an alternative vendor was swallowed right after typing a quantity | the note paragraph was `v-if` and unmounted on blur, moving the buttons 46 px between mousedown and mouseup. It is always mounted now |
+| 5 | The store read `CBD-003 × undefined` after a drop-ship receipt | `ReceiveView.vue` printed `lines[].qty`, a key the server never returns; it reads `accepted_qty`, and `PurchaseReceiptResult` now matches the payload |
+| 6 | A bare `YYYY-MM-DD` rendered a day early west of UTC | `utils/time.ts::parseServer` treated only *datetime* strings as site-zone-naive; a Frappe Date column fell through to `new Date()` = UTC midnight. Affected every screen rendering a date |
+| 7 | `test_v0_7_security` guest-signup oracle test failed for weeks | not an app defect: `HTTPLIB2_CA_CERTS` pointed at a file the `claude` user cannot read, so any request that creates a Contact 500'd **inside `bench serve`**. Start the server with `env -u HTTPLIB2_CA_CERTS`. The test now asserts the status codes, so a 500 shows as a 500 |
+| 8 | `test_insights` rebalance failed on demo-data drift | it insisted the source was CHI-OAK while the assertion two lines above accepted CHI-OAK **or** MIA-DD. It now asserts the real invariant: a source is never the destination and holds what it is sending |
+
+### Deploying to Frappe Cloud — read this before deploying
+
+Two behaviours have bitten this project once each. Neither is documented by Frappe Cloud:
+
+1. **Poll for the new bench by build ID, never by guessing the next number.** A previous release
+   polled for `…-000013` while the build had produced `…-000014`, so the deploy looked finished
+   while the site was still on the old bench.
+2. **Frappe Cloud does an "Update Site *Pull*" — no migrate — when `__version__` is unchanged.**
+   That is how a release's patches silently never ran. `maison_pos/__init__.py` carries a comment
+   saying so; **bump it every release**, and call `press.api.site.migrate` explicitly afterwards
+   rather than trusting the update to have migrated.
+
+**API access, as of this release:** the team API key authenticates (`press.api.site.all` and
+`press.api.bench.all` answer), but every `@protected` method — `site.get`, `bench.get`,
+`bench.deploy_information`, `site.migrate` — answers *"Name not found, API access not permitted"*.
+The key is scoped. Either widen it in Frappe Cloud (Settings → API access) or drive the deploy from
+the dashboard: **Release group → Deploy**, wait for the build, **Site → Update**, then
+**Site → Migrate**.

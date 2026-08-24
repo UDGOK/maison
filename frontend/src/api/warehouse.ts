@@ -242,6 +242,43 @@ export interface WallEvent {
   discrepancies?: string[]
 }
 
+/**
+ * What `inventory.receive_po` / `purchasing.receive` actually return (see
+ * `maison_pos/purchasing/receiving.py::receive_purchase_order`). The old shape declared here said
+ * `{item_code, qty}`, which no line ever carries — so the store's receipt panel printed
+ * "CBD-003 × undefined" after every drop-ship delivery.
+ */
+export interface PurchaseReceiptLine {
+  item_code: string
+  item_name?: string
+  /** what was counted */
+  received_qty: number
+  /** what the receipt posted (capped by the over-receipt allowance) */
+  posted_qty: number
+  /** what went into good stock — posted less damaged */
+  accepted_qty: number
+  damaged_qty: number
+  short_qty: number
+  over_qty: number
+  rate: number
+  po_rate: number
+  warehouse: string
+}
+
+export interface PurchaseReceiptResult {
+  /** null when nothing was postable — a `final` receipt that only raised shorts */
+  purchase_receipt: string | null
+  purchase_order: string
+  supplier?: string
+  warehouse?: string
+  boutique?: string | null
+  freight?: number
+  final?: boolean
+  closed?: boolean
+  lines: PurchaseReceiptLine[]
+  discrepancies?: string[]
+}
+
 export interface WarehouseMe {
   user: string
   full_name?: string
@@ -342,7 +379,7 @@ export interface WarehouseApi {
     requests(boutique: string, status?: string, limit?: number): Promise<{ requests: ReplenishmentRequest[]; count: number }>
     inbound(boutique: string): Promise<Inbound>
     receive_shipment(args: { shipment: string; lines: ReceiveLine[]; final?: 0 | 1; device_id?: string; notes?: string }): Promise<ReceiveResult>
-    receive_po(args: { po: string; lines: { item_code?: string; name?: string; qty: number }[]; boutique: string }): Promise<{ purchase_receipt: string; purchase_order: string; lines: { item_code: string; qty: number; warehouse: string }[] }>
+    receive_po(args: { po: string; lines: { item_code?: string; name?: string; qty: number; damaged_qty?: number; rate?: number }[]; boutique: string; freight?: number; final?: 0 | 1; notes?: string }): Promise<PurchaseReceiptResult>
     shipment(name: string): Promise<ShipmentDetail>
   }
   admin: {
@@ -791,7 +828,31 @@ export const mockWarehouse: WarehouseApi = {
     async receive_po(args) {
       await guard()
       state.seq += 1
-      return { purchase_receipt: `MAT-PRE-2026-${String(state.seq).padStart(5, '0')}`, purchase_order: args.po, lines: args.lines.map((l) => ({ item_code: l.item_code || l.name || '', qty: l.qty, warehouse: MOCK_STORES[args.boutique]?.warehouse || '' })) }
+      const warehouse = MOCK_STORES[args.boutique]?.warehouse || ''
+      return {
+        purchase_receipt: `MAT-PRE-2026-${String(state.seq).padStart(5, '0')}`,
+        purchase_order: args.po,
+        warehouse,
+        boutique: args.boutique,
+        final: !!args.final,
+        closed: !!args.final,
+        lines: args.lines.map((l) => {
+          const damaged = Number(l.damaged_qty) || 0
+          return {
+            item_code: l.item_code || l.name || '',
+            received_qty: l.qty,
+            posted_qty: l.qty,
+            accepted_qty: Math.max(0, l.qty - damaged),
+            damaged_qty: damaged,
+            short_qty: 0,
+            over_qty: 0,
+            rate: Number(l.rate) || 0,
+            po_rate: Number(l.rate) || 0,
+            warehouse
+          }
+        }),
+        discrepancies: []
+      }
     },
     async shipment(name) {
       await guard()

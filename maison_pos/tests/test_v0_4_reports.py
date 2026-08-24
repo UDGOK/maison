@@ -128,7 +128,15 @@ class TestReports(FrappeTestCase):
 		listed = reports.list_reports()["reports"]
 		# v0.8 QA D-6: Commission Statement / Promotion Performance / Campaign Performance were
 		# missing from `REPORTS`, so head office could neither open nor export them
-		self.assertEqual(len(listed), 11)
+		# --- v1.0 procurement — the catalogue grew by the four buying reports; assert against the
+		# registry rather than a literal, so adding a report never fails this test again.
+		# (Administrator may run every report, including the role-gated buying ones.)
+		self.assertEqual(len(listed), len(reports.REPORTS))
+		self.assertLessEqual(
+			{"AWANZ Purchase by Vendor", "AWANZ Item Purchase History", "AWANZ Open Purchase Orders", "AWANZ Drop-ship Deliveries"},
+			{r["name"] for r in listed},
+		)
+		# --- end v1.0 procurement ---
 		self.assertLessEqual(
 			{"AWANZ Commission Statement", "AWANZ Promotion Performance", "AWANZ Campaign Performance"},
 			{r["name"] for r in listed},

@@ -765,8 +765,17 @@ def receive_shipment(shipment: str, lines: Any = None, final: int = 1, device_id
 
 
 @frappe.whitelist()
-def receive_po(po: str, lines: Any = None, boutique: Optional[str] = None) -> dict[str, Any]:
-	"""Vendor-direct delivery at the store: Purchase Receipt against the PO (``lines = [{item_code, qty}]``)."""
+def receive_po(po: str, lines: Any = None, boutique: Optional[str] = None, freight: Any = None, final: Any = 0, notes: Optional[str] = None) -> dict[str, Any]:
+	"""Vendor-direct delivery at the store: Purchase Receipt against the PO (``lines = [{item_code, qty}]``).
+
+	--- v1.0 procurement ---
+	This *is* the drop-ship receiving path: a drop-ship Purchase Order points at the store's own
+	warehouse, so it already appears in ``inbound()`` and is received here. v1.0 adds the same
+	extras the warehouse Inbound screen got — ``rate`` per line (manual unit-cost override),
+	``damaged_qty`` into the store's Damaged warehouse, an optional ``freight`` adjustment, and
+	``final=1`` to close the delivery and raise a *Short* discrepancy against the vendor.
+	--- end v1.0 procurement ---
+	"""
 	from maison_pos.api.shipping import receive_purchase_order
 
 	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
@@ -774,4 +783,4 @@ def receive_po(po: str, lines: Any = None, boutique: Optional[str] = None) -> di
 	warehouse = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
 	if frappe.db.get_value("Purchase Order", po, "set_warehouse") != warehouse:
 		frappe.throw(_("Purchase Order {0} is not addressed to {1}").format(po, boutique), frappe.PermissionError)
-	return receive_purchase_order(po, lines, warehouse=warehouse)
+	return receive_purchase_order(po, lines, warehouse=warehouse, freight=freight, final=final, notes=notes, boutique=boutique)

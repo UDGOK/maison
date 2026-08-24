@@ -259,6 +259,12 @@ def after_install() -> None:
 
 	setup_v06_shipping()
 	# --- end v0.6 O/P ---
+	# --- v1.0 procurement — Moving Average, vendor/PO custom fields, freight account,
+	# purchasing DocPerms and the AWANZ Purchase Order print format (all idempotent) ---
+	from maison_pos.setup.install_v10_purchasing import setup_v10_purchasing
+
+	setup_v10_purchasing()
+	# --- end v1.0 procurement ---
 	# v0.8 QA U1 — the stored website footer line follows the brand's developer credit
 	from maison_pos.setup.whitelabel import refresh_footer_credit
 
@@ -312,6 +318,12 @@ def after_migrate() -> None:
 
 	setup_v06_shipping()
 	# --- end v0.6 O/P ---
+	# --- v1.0 procurement — Moving Average, vendor/PO custom fields, freight account,
+	# purchasing DocPerms and the AWANZ Purchase Order print format (all idempotent) ---
+	from maison_pos.setup.install_v10_purchasing import setup_v10_purchasing
+
+	setup_v10_purchasing()
+	# --- end v1.0 procurement ---
 	# v0.8 QA U1 — the stored website footer line follows the brand's developer credit, so an
 	# already-white-labelled site picks up "Powered by <developer>" on its next deploy
 	from maison_pos.setup.whitelabel import refresh_footer_credit

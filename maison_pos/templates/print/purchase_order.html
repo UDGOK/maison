@@ -1,0 +1,121 @@
+{#- AWANZ Purchase Order (v1.0 §D) — the PDF e-mailed to the vendor's rep. Monolith Gold, black on white. -#}
+{%- set ctx = purchase_order_context(doc) -%}
+{%- set brand = ctx.brand -%}
+{%- set cur = ctx.currency or "USD" -%}
+<style>
+  .mpo { font-family: "Jost", Helvetica, Arial, sans-serif; color: #000; font-size: 11px; width: 190mm; margin: 0 auto; }
+  .mpo * { box-sizing: border-box; }
+  .mpo .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 8px; }
+  .mpo .wordmark { font-family: "Unbounded", "Arial Black", sans-serif; font-weight: 900; font-size: 22px; letter-spacing: .18em; text-transform: uppercase; }
+  .mpo .sub { font-size: 9px; letter-spacing: .25em; text-transform: uppercase; color: #444; margin-top: 2px; }
+  .mpo .title { font-family: "Unbounded", "Arial Black", sans-serif; font-weight: 800; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; text-align: right; }
+  .mpo .no { font-family: "Unbounded", monospace; font-weight: 800; font-size: 20px; text-align: right; }
+  .mpo .meta { text-align: right; font-size: 10px; color: #333; }
+  .mpo .addr { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 14px 0; }
+  .mpo .label { font-size: 8.5px; letter-spacing: .25em; text-transform: uppercase; color: #555; margin-bottom: 4px; }
+  .mpo .big { font-family: "Unbounded", "Arial Black", sans-serif; font-weight: 800; font-size: 15px; }
+  .mpo table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .mpo th { text-align: left; font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase; border-bottom: 1px solid #000; padding: 6px 4px; }
+  .mpo td { padding: 7px 4px; border-bottom: 1px solid #ccc; vertical-align: top; }
+  .mpo td.num, .mpo th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mpo td.qty { font-family: "Unbounded", "Arial Black", sans-serif; font-weight: 800; font-size: 14px; text-align: right; }
+  .mpo .sku { font-family: monospace; font-size: 9.5px; letter-spacing: .05em; }
+  .mpo .dim { color: #666; font-size: 9.5px; }
+  .mpo .totals { margin-top: 12px; margin-left: auto; width: 62mm; }
+  .mpo .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+  .mpo .totals .grand { border-top: 2px solid #000; margin-top: 4px; padding-top: 6px; font-family: "Unbounded", "Arial Black", sans-serif; font-weight: 800; font-size: 14px; }
+  .mpo .terms { margin-top: 16px; border-top: 1px solid #000; padding-top: 8px; font-size: 9.5px; color: #333; }
+  .mpo .sig { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .mpo .sig div { border-top: 1px solid #000; padding-top: 4px; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: #444; }
+  .mpo .flag { display: inline-block; border: 1px solid #000; padding: 2px 8px; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; }
+  @media print { .mpo { width: auto; } }
+</style>
+<div class="mpo">
+  <div class="head">
+    <div>
+      <div class="wordmark">{{ brand.wordmark_text or brand.brand_name or "CloudChaserz" }}</div>
+      <div class="sub">{{ brand.legal_name or brand.brand_name }} · Purchase order</div>
+    </div>
+    <div>
+      <div class="title">Purchase order</div>
+      <div class="no">{{ doc.name }}</div>
+      <div class="meta">Ordered {{ frappe.utils.formatdate(doc.transaction_date, "dd MMM yyyy") }}</div>
+      {% if doc.schedule_date %}<div class="meta">Required by {{ frappe.utils.formatdate(doc.schedule_date, "dd MMM yyyy") }}</div>{% endif %}
+      {% if ctx.vendor.account_number %}<div class="meta">Our account: <strong>{{ ctx.vendor.account_number }}</strong></div>{% endif %}
+    </div>
+  </div>
+
+  <div class="addr">
+    <div>
+      <div class="label">Vendor</div>
+      <div class="big">{{ ctx.vendor.supplier_name or ctx.vendor.name }}</div>
+      {% if ctx.vendor.rep_name %}<div>Attn: {{ ctx.vendor.rep_name }}</div>{% endif %}
+      {% if ctx.vendor.rep_email %}<div>{{ ctx.vendor.rep_email }}</div>{% endif %}
+      {% if ctx.vendor.rep_phone %}<div>{{ ctx.vendor.rep_phone }}</div>{% endif %}
+    </div>
+    <div>
+      <div class="label">{{ ctx.ship_to.label }}</div>
+      <div class="big">{{ ctx.ship_to.company or ctx.ship_to.name }}</div>
+      {% if ctx.ship_to.name and ctx.ship_to.name != ctx.ship_to.company %}<div>Attn: {{ ctx.ship_to.name }}</div>{% endif %}
+      <div>{{ ctx.ship_to.street1 }}{% if ctx.ship_to.street2 %}, {{ ctx.ship_to.street2 }}{% endif %}</div>
+      <div>{{ ctx.ship_to.city }}{% if ctx.ship_to.state %}, {{ ctx.ship_to.state }}{% endif %} {{ ctx.ship_to.zip }}</div>
+      {% if ctx.ship_to.phone %}<div>{{ ctx.ship_to.phone }}</div>{% endif %}
+      {% if doc.maison_dropship_store %}<div style="margin-top:6px"><span class="flag">Drop-ship</span></div>{% endif %}
+    </div>
+    <div>
+      <div class="label">Bill to</div>
+      <div class="big">{{ ctx.ship_from.company or brand.legal_name }}</div>
+      <div>{{ ctx.ship_from.street1 }}{% if ctx.ship_from.street2 %}, {{ ctx.ship_from.street2 }}{% endif %}</div>
+      <div>{{ ctx.ship_from.city }}{% if ctx.ship_from.state %}, {{ ctx.ship_from.state }}{% endif %} {{ ctx.ship_from.zip }}</div>
+      {% if ctx.ship_from.email %}<div>{{ ctx.ship_from.email }}</div>{% endif %}
+      {% if ctx.ship_from.phone %}<div>{{ ctx.ship_from.phone }}</div>{% endif %}
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:24px">#</th>
+        <th style="width:90px">Item</th>
+        <th>Description</th>
+        <th style="width:110px">Vendor SKU</th>
+        <th class="num" style="width:60px">Qty</th>
+        <th class="num" style="width:80px">Unit</th>
+        <th class="num" style="width:90px">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in ctx.lines %}
+      <tr>
+        <td>{{ l.idx }}</td>
+        <td class="sku">{{ l.item_code }}</td>
+        <td>{{ l.item_name }}{% if l.schedule_date and l.schedule_date != doc.schedule_date %}<div class="dim">required {{ frappe.utils.formatdate(l.schedule_date, "dd MMM yyyy") }}</div>{% endif %}</td>
+        <td class="sku">{{ l.vendor_sku or "—" }}</td>
+        <td class="qty">{{ "{:g}".format(l.qty) }}</td>
+        <td class="num">{{ frappe.utils.fmt_money(l.rate, currency=cur) }}</td>
+        <td class="num">{{ frappe.utils.fmt_money(l.amount, currency=cur) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div><span>Units</span><span>{{ "{:g}".format(ctx.units) }}</span></div>
+    <div><span>Net total</span><span>{{ frappe.utils.fmt_money(ctx.net_total, currency=cur) }}</span></div>
+    {% if ctx.freight %}<div><span>Freight</span><span>{{ frappe.utils.fmt_money(ctx.freight, currency=cur) }}</span></div>{% endif %}
+    <div class="grand"><span>Total</span><span>{{ frappe.utils.fmt_money(ctx.landed_total, currency=cur) }}</span></div>
+  </div>
+
+  <div class="terms">
+    <strong>Terms.</strong> Please confirm receipt of this order and advise any line you cannot ship in full.
+    Quote <strong>{{ doc.name }}</strong>{% if ctx.vendor.account_number %} and account <strong>{{ ctx.vendor.account_number }}</strong>{% endif %}
+    on your packing list and invoice. Deliveries are counted on arrival; short, over and damaged quantities are
+    reported back to your rep. Invoices go to {{ ctx.ship_from.email or brand.support_email or "accounts payable" }}.
+    {% if doc.maison_dropship_store %}This order ships <strong>direct to our store</strong> at the address above — do not consolidate it with warehouse stock.{% endif %}
+  </div>
+
+  <div class="sig">
+    <div>Ordered by {{ doc.owner }}</div>
+    <div>Vendor confirmation / date</div>
+  </div>
+</div>

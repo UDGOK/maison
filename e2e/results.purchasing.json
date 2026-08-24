@@ -1,0 +1,219 @@
+{
+ "base": "http://cc.localhost:8001",
+ "warehouse": "HOU-WH - CCZ",
+ "vendor": "Green Roads Wholesale",
+ "items": {
+  "moving_average": "CBD-005",
+  "short": "CBD-004",
+  "swapped": "CBD-003",
+  "dropship": "HKA-002"
+ },
+ "alternative_vendor": "Southern Smoke Wholesale",
+ "orders": {
+  "main": "PUR-ORD-2026-00015",
+  "alternative": "PUR-ORD-2026-00014",
+  "dropship": "PUR-ORD-2026-00016"
+ },
+ "moving_average": {
+  "item": "CBD-005",
+  "qty_before": 40,
+  "rate_before": 15,
+  "received_qty": 12,
+  "unit_cost_override": 16.5,
+  "freight_on_receipt": 45,
+  "freight_share_on_this_line": 24.3443,
+  "landed_unit_rate": 18.5287,
+  "expected_rate": 15.8143,
+  "actual_rate": 15.8142,
+  "sheet_preview_after": 15.81
+ },
+ "results": [
+  {
+   "step": "the Buying board opens on /warehouse and lists the demand engine's suggestions",
+   "ok": true,
+   "detail": "11 rows rendered, server built 11 (run a13adb648b)"
+  },
+  {
+   "step": "every suggestion carries a source badge and every badge is one of the three sources",
+   "ok": true,
+   "detail": "11 badges: TRENDING | LOW STOCK +1"
+  },
+  {
+   "step": "a typed quantity snaps up to a whole case of the vendor's case pack",
+   "ok": true,
+   "detail": "typed 8 → 12 (case pack 6, MOQ 12) · \"Rounded 8 up to 12 — 6 per case · MOQ 12.\""
+  },
+  {
+   "step": "tapping an alternative vendor straight after typing a quantity registers on the first tap",
+   "ok": true,
+   "detail": "Southern Smoke Wholesale selected on the first tap"
+  },
+  {
+   "step": "the row moves to the alternative vendor and the unit cost moves with it",
+   "ok": true,
+   "detail": "CBD-003: Green Roads Wholesale $20 → Southern Smoke Wholesale $21.09 · chip \"+$1.09 / UNIT\" · \"Your 12 was entered against the previous case pack — 20 is Southern Smoke Wholesale's (20 per case · MOQ 20).\""
+  },
+  {
+   "step": "the footer plans one order per vendor before anything is written",
+   "ok": true,
+   "detail": "CREATE 2 ORDERS ACROSS 2 VENDORS · SELECTED 3 UNITS 42 VALUE $1,001.80 Deliver to Houston warehouse Drop-ship direct to HOU-MTR Drop-ship direct to OK-BA Drop-ship direct to OK-BIX Drop-ship direct to OK-ETUL Drop-ship direct to OK-JENKS Drop-ship direct to OK-MINGO Drop-ship direct to OK-MUS Drop-ship direct to OK-OWA Drop-ship direct to OK-SAP Drop-ship direct to OK-STUL Drop-ship direct to OK-YALE CREATE 2 ORDERS ACROSS 2 VENDORS"
+  },
+  {
+   "step": "Create orders returns one draft Purchase Order per vendor, and nothing else",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00014=Southern Smoke Wholesale(1 lines, docstatus 0), PUR-ORD-2026-00015=Green Roads Wholesale(2 lines, docstatus 0) · banner \"2 draft orders created — PUR-ORD-2026-00014, PUR-ORD-2026-00015 OPEN PUR-ORD-2026-00014 DISMISS\""
+  },
+  {
+   "step": "the swapped line was bought from the alternative vendor at the alternative vendor's cost",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00014: CBD-003 ×20 @ $21.09 from Southern Smoke Wholesale (preferred Green Roads Wholesale was $20)"
+  },
+  {
+   "step": "the hand-typed line rate is what the server stored (client decision 4)",
+   "ok": true,
+   "detail": "CBD-004: catalogue $40 → stored $42 (×6); CBD-005 ×12 @ $15"
+  },
+  {
+   "step": "the hand-entered freight is stored and posted as one Actual/Valuation charge (decision 3)",
+   "ok": true,
+   "detail": "maison_freight_amount=45; 1 tax row(s): Actual/Valuation/Add \"Freight (AWANZ)\" $45 → Expenses Included In Valuation - CCZ"
+  },
+  {
+   "step": "landed total = net + freight, on the screen and on the document",
+   "ok": true,
+   "detail": "net $432 + freight $45 = landed $477; screen showed $477.00 (expected $477.00)"
+  },
+  {
+   "step": "submitting the order moves it out of draft on the server",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00015 docstatus=1 status=To Receive and Bill expected 2026-09-01"
+  },
+  {
+   "step": "“sent by phone” stamps sent_on / sent_by / sent_method and fires no e-mail",
+   "ok": true,
+   "detail": "Phone on 2026-08-24 17:58:32.707340 by warehouse@cloudchaserz.example; e-mail queue 0→0; screen \"Sent Aug 24, 2026, 17:58 by Phone · warehouse@cloudchaserz.example\""
+  },
+  {
+   "step": "the wall board carries an Inbound column and the submitted order lands on it",
+   "ok": true,
+   "detail": "col-inbound count=3; card for PUR-ORD-2026-00015: true · INBOUND 3 · 200 U SOUTHERN SMOKE WHOLESALE In 2 d PUR-ORD-2026-00009 5 LINES 180 UNITS Aug 26 SOUTHERN SMOKE WHOLESALE HOU-WH - CCZ GREEN ROADS WHOLESALE In 8 d"
+  },
+  {
+   "step": "the submitted order is on Inbound as expected stock, with an ETA",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00015 ETA pill \"IN 8 D\" · GREEN ROADS WHOLESALE PUR-ORD-2026-00015 · TO RECEIVE AND BILL ETA Sep 01, 2026 IN 8 D UNITS EXPECTED 18 2 LINES OF 18 ORDERED RECEIVED 0% FREIGHT $45.00 LANDED"
+  },
+  {
+   "step": "scanning a barcode counts one unit onto the line it belongs to",
+   "ok": true,
+   "detail": "2005258374185 ×12 → 12; 2008619421702 ×4 → 4 (ordered 6) · \"COUNTED · 2008619421702\""
+  },
+  {
+   "step": "the sheet flags the short line before anything is posted",
+   "ok": true,
+   "detail": "CBD-004: \"SHORT 2\" (ordered 6, counted 4)"
+  },
+  {
+   "step": "posting the receipt creates a Purchase Receipt and raises received_qty on the order",
+   "ok": true,
+   "detail": "MAT-PRE-2026-00011 · CBD-005 received 12/12, CBD-004 received 4/6 · per_received 88.888889%"
+  },
+  {
+   "step": "the missing units raise a Short AWANZ Receiving Discrepancy against the vendor",
+   "ok": true,
+   "detail": "MRD-2026-00208: Short 2 of CBD-004 vs Green Roads Wholesale (Open) on MAT-PRE-2026-00011; all raised: Short×2"
+  },
+  {
+   "step": "“this is the whole delivery” closes the order, the way the sheet says it will",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00015 is Closed at 88.89% received and off the Inbound expected list (CBD-004 left 2 outstanding, already settled as a Short against Green Roads Wholesale). receiving.receive_purchase_order raises the discrepancies for final=1 but never calls update_status(\"Closed\")"
+  },
+  {
+   "step": "the freight travels onto the Purchase Receipt as its own valuation charge",
+   "ok": true,
+   "detail": "MAT-PRE-2026-00011: 1 tax row(s) — Actual/Valuation/Add $45 → Expenses Included In Valuation - CCZ"
+  },
+  {
+   "step": "the item's moving-average valuation rate moved to the value this run computed, freight included",
+   "ok": true,
+   "detail": "CBD-005: 40 @ $15 + 12 @ $16.5 (+$24.34 of the $45 freight, shared by line amount → landed $18.5287) ⇒ expected $15.8143 on 52; server says $15.8142 on 52 (drift $0.000082)"
+  },
+  {
+   "step": "freight really is inside that valuation — the same receipt without it lands somewhere else",
+   "ok": true,
+   "detail": "with freight $15.8143 vs without $15.3462 — server booked $15.8142"
+  },
+  {
+   "step": "the moving-average preview the sheet showed is the move that actually happened",
+   "ok": true,
+   "detail": "sheet previewed \"$15.00 → $15.81\" (after $15.81); the receipt actually moved CBD-005 to $15.8142"
+  },
+  {
+   "step": "the short line put nothing extra into stock beyond what was counted",
+   "ok": true,
+   "detail": "CBD-004: 20 → 24 (counted 4 of the 6 ordered)"
+  },
+  {
+   "step": "the Stock board values HOU-WH at the new moving average and shows cover days",
+   "ok": true,
+   "detail": "CBD-005 row \"CBD Muscle Balm 1000mg CBD-005 · 2005258374185 CBD & Hemp 52 $15.81 $822.34 23.1 d — 14\" · cover \"23.1 d\" · STOCK VALUE $117,942.60 AT MOVING AVERAGE ITEMS 155 17,499 UNITS ON HAND LOW STOCK 1 AT OR UNDER REORDER LEVEL ON ORDER "
+  },
+  {
+   "step": "the Vendors board opens a vendor and shows the catalogue we buy from them",
+   "ok": true,
+   "detail": "Green Roads Wholesale: 8 catalogue rows on screen, 8 on the server; 12-month spend cell \"$486.00\""
+  },
+  {
+   "step": "a drop-ship order is raised against the vendor but addressed to the store",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00016 → OK-BA"
+  },
+  {
+   "step": "the drop-ship order ships every line to the store's own warehouse and is submitted",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00016: dropship_store=OK-BA set_warehouse=OK-BA - CCZ lines→OK-BA - CCZ docstatus=1 · screen said \"Every line on this order is delivered to OK-BA instead of the Houston warehouse. That store receives it on their own Rec\""
+  },
+  {
+   "step": "the OK-BA manager receives the drop-ship on their own Receive screen",
+   "ok": true,
+   "detail": "MAT-PRE-2026-00012 into OK-BA - CCZ; HKA-002 at OK-BA 1→7 · scanned 2000935438686 ×6 → 6 | PURCHASE RECEIPT MAT-PRE-2026-00012 DISMISS HKA-002 × 6"
+  },
+  {
+   "step": "the store is told, line by line, what the receipt actually booked",
+   "ok": true,
+   "detail": "panel reads \"PURCHASE RECEIPT MAT-PRE-2026-00012 DISMISS HKA-002 × 6\" — expected \"HKA-002 × 6\""
+  },
+  {
+   "step": "/warehouse offers a store manager nothing — the desk gates them out",
+   "ok": true,
+   "detail": "gate: \"WAREHOUSE ADMIN ROLE REQUIRED ok.ba.manager@cloudchaserz.example is not an AWANZ Warehouse Admin SIGN IN AS ANOTHER USER\"; buying board rendered: 0"
+  },
+  {
+   "step": "a deep link straight to /warehouse/buying is gated the same way",
+   "ok": true,
+   "detail": "desk-gate=1 buying-board=0"
+  },
+  {
+   "step": "every purchasing endpoint answers a store manager with 403 over plain HTTP",
+   "ok": true,
+   "detail": "suggestions=403 stock=403 vendors=403 create_order=403"
+  },
+  {
+   "step": "and the refusal says why, rather than leaking a stack trace",
+   "ok": true,
+   "detail": "[\"{\\\"message\\\": \\\"Purchasing is centralised: warehouse admin or head office only\\\", \\\"title\\\": \\\"Message\\\", \\\"indicator\\\": \\\"red\\\", \\\"raise_exception\\\": 1, \\\"__frappe_exc_id\\\": \\\"a113cb903e127510e6a30"
+  },
+  {
+   "step": "the one purchasing right a store keeps: read its own drop-ship order, and nothing else",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00016 (addressed to OK-BA) → 200; PUR-ORD-2026-00015 (Houston) → 403"
+  }
+ ],
+ "console": [
+  {
+   "tag": "store",
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 403 (FORBIDDEN)"
+  }
+ ]
+}

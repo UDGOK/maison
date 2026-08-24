@@ -326,6 +326,15 @@ class TestGuestSignupHTTP(SecurityHTTPCase):
 		_purge_test_customers()
 		super().tearDownClass()
 
+	def setUp(self):
+		# every test here posts from 127.0.0.1, so they share one rate-limit bucket: the sixth
+		# sign-up in a ten-minute run is throttled by design and its body is not a signup answer.
+		# Reset the counter instead of lowering the guard — see `maison_pos/ratelimit.py::clear`.
+		from maison_pos.ratelimit import clear
+
+		clear("rewards.signup")
+		super().setUp()
+
 	def test_guest_signup_cannot_overwrite_or_reveal_an_existing_client(self):
 		"""S3: the audit renamed a client ORIG→HIJACKED and got their client number back."""
 		guest = self.client()
@@ -350,9 +359,11 @@ class TestGuestSignupHTTP(SecurityHTTPCase):
 	def test_the_answer_is_the_same_whether_the_client_exists_or_not(self):
 		"""Otherwise the form is an oracle: "is this address one of your customers?"."""
 		guest = self.client()
-		existing = message(guest.post("maison_pos.api.rewards.signup", name=f"{TAG} A", email=VICTIM_EMAIL, consent=1))
+		r1 = guest.post("maison_pos.api.rewards.signup", name=f"{TAG} A", email=VICTIM_EMAIL, consent=1)
 		fresh_email = f"qa.v07.new.{frappe.generate_hash(length=8)}@example.test"
-		created = message(guest.post("maison_pos.api.rewards.signup", name=f"{TAG} New Member", email=fresh_email, consent=1))
+		r2 = guest.post("maison_pos.api.rewards.signup", name=f"{TAG} New Member", email=fresh_email, consent=1)
+		self.assertEqual((r1.status_code, r2.status_code), (200, 200), f"{r1.text[:200]} || {r2.text[:200]}")
+		existing, created = message(r1), message(r2)
 		self.assertEqual(existing, created)
 		self.assertTrue(created["ok"])
 		self.assertTrue(created["message"])

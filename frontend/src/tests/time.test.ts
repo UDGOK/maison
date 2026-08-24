@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { clockHM, formatInSiteZone, parseServer, setSiteTimeZone, siteTimeZone, zoneLabel } from '@/utils/time'
-import { fmtDateTime, todayISO } from '@/utils/device'
+import { fmtDate, fmtDateTime, todayISO } from '@/utils/device'
 
 /**
  * v0.6 R — one clock per chain. The suite runs with TZ unset (the container is UTC), which is
@@ -48,6 +48,22 @@ describe('site timezone', () => {
     expect(fmtDateTime('')).toBe('—')
     expect(fmtDateTime('not a date')).toBe('—')
     expect(parseServer(new Date('nope'))).toBeNull()
+  })
+
+  it('reads a bare date as a site-zone calendar day, not UTC midnight (v1.0)', () => {
+    // Frappe Date columns (`schedule_date`, `transaction_date`, `posting_date`, `valid_from`,
+    // `last_purchase_date`) have no time part. `new Date('2026-08-27')` is UTC midnight, which
+    // renders as Aug 26 anywhere west of UTC — a purchase order's ETA off by a day.
+    setSiteTimeZone('America/Chicago')
+    expect(fmtDate('2026-08-27')).toBe('Aug 27, 2026')
+    expect(fmtDate('2026-01-01')).toBe('Jan 01, 2026')
+    setSiteTimeZone('Pacific/Niue') // UTC−11, the worst case
+    expect(fmtDate('2026-08-27')).toBe('Aug 27, 2026')
+    setSiteTimeZone('Pacific/Kiritimati') // UTC+14, the other side
+    expect(fmtDate('2026-08-27')).toBe('Aug 27, 2026')
+    // and a datetime still means site-zone wall time
+    setSiteTimeZone('America/Chicago')
+    expect(fmtDate('2026-08-27 23:30:00')).toBe('Aug 27, 2026')
   })
 
   it('answers "today" on the store clock, not the device clock', () => {

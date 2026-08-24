@@ -114,6 +114,10 @@ def status() -> dict[str, Any]:
 
 	return {
 		"seeded": is_seeded(),
+		# --- v1.0 procurement ---
+		"vendors": frappe.db.count("Supplier", {"maison_active": 1}),
+		"purchase_orders": frappe.db.count("Purchase Order", {"company": COMPANY}),
+		# --- end v1.0 procurement ---
 		"company": COMPANY,
 		"brand_name": frappe.db.get_single_value("AWANZ POS Settings", "brand_name"),
 		"stores": frappe.get_all("AWANZ Store", filters={"company": COMPANY, "enabled": 1}, pluck="name"),
@@ -162,6 +166,12 @@ def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
 		summary_ops = users.seed_operations()
 		summary_web = catalog.seed_webshop()
 		summary_salon = salon.seed_salon()  # v0.8 QA C2 — the ambient screen had nothing to show
+		# --- v1.0 procurement — vendors, item ↔ vendor catalogue, reorder levels at HOU-WH,
+		# a short order history at drifting costs and two open orders (one drop-ship to OK-BA) ---
+		from maison_pos.setup.cloudchaserz import purchasing as purchasing_seed
+
+		summary_purchasing = purchasing_seed.seed_purchasing()
+		# --- end v1.0 procurement ---
 
 	if commit:
 		frappe.db.commit()
@@ -178,6 +188,9 @@ def seed(commit: bool = True, history: bool = False) -> dict[str, Any]:
 		"operations": summary_ops,
 		"webshop": summary_web,
 		"salon": summary_salon,
+		# --- v1.0 procurement ---
+		"purchasing": summary_purchasing,
+		# --- end v1.0 procurement ---
 	}
 	if history:
 		from maison_pos.setup.cloudchaserz.history import seed_history

@@ -424,7 +424,17 @@ class TestRebalance(InsightsTestCase):
 		self.assertIsNotNone(move, data["rebalance"])
 		self.assertIn(move["from_boutique"], ("CHI-OAK", "MIA-DD"))
 		self.assertGreater(move["qty"], 0)
-		self.assertTrue(any(s["from_boutique"] == "CHI-OAK" for s in data["rebalance"] if s["item_code"] == "AC-012"))
+		# Every source proposed for AC-012 must be a store that can actually give: not the
+		# destination, and holding more than it is sending. (This used to insist on CHI-OAK
+		# specifically, contradicting the `assertIn(..., ("CHI-OAK", "MIA-DD"))` two lines above
+		# and failing whenever the shared demo data drifted so MIA-DD was the better source.)
+		sources = [s for s in data["rebalance"] if s["item_code"] == "AC-012"]
+		self.assertTrue(sources)
+		for s in sources:
+			self.assertNotEqual(s["from_boutique"], s["to_boutique"])
+			from_wh = frappe.db.get_value("AWANZ Store", s["from_boutique"], "warehouse")
+			on_hand = flt(frappe.db.get_value("Bin", {"item_code": "AC-012", "warehouse": from_wh}, "actual_qty"))
+			self.assertGreaterEqual(on_hand, s["qty"], f"{s['from_boutique']} cannot send {s['qty']}")
 
 		res = perf.compute_rebalance_suggestions(90)
 		self.assertGreater(res["suggestions"], 0)

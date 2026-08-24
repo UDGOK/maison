@@ -3,14 +3,58 @@
  * from a flat list of shipments / requests, age tiers (warn 4 h / crit 24 h), card ordering
  * (priority first, oldest first), rate selection (cheapest / fastest), and the diff that decides when
  * to play the sound / flash and which documents to auto-print.
+ *
+ * v1.0 §F — plus the **Inbound** column: the vendor deliveries the floor is waiting for, as a third
+ * kind of card on the same union, ordered and tiered by how overdue they are.
  */
+import type { PurchaseOrderWithItems } from '@/api/purchasing'
 import type { Rate, ReplenishmentRequest, Shipment, WallColumn, WallData, WallEvent } from '@/api/warehouse'
+import { etaOf, overdueDays } from './inbound'
 
-export type WallCard = (ReplenishmentRequest | Shipment) & { kind: 'request' | 'shipment' }
+/**
+ * v1.0 §F — one expected vendor delivery on the wall.
+ *
+ * It carries `boutique` / `boutique_name` / `items` / `units` / `status` like the other two kinds so
+ * the three share one union (and one card anatomy); `boutique` is where the delivery is *going* —
+ * the warehouse, or the store a drop-ship order is addressed to — not the vendor, which has its own
+ * `supplier` fields.
+ */
+export interface InboundCard {
+  kind: 'inbound'
+  /** the Purchase Order */
+  name: string
+  supplier: string
+  supplier_name?: string | null
+  /** destination code: the warehouse, or a drop-ship store */
+  boutique: string
+  boutique_name?: string
+  status: string
+  /** lines still outstanding */
+  items: number
+  /** units still outstanding */
+  units: number
+  /** ordered units, for the progress figure */
+  units_ordered: number
+  per_received: number
+  /** `YYYY-MM-DD`, the promised date or today + the vendor's lead time */
+  eta: string
+  /** whole days past the ETA; 0 when it is not yet due */
+  overdue_days: number
+  /** seconds overdue — what `sortCards` and `ageTier` read */
+  age_seconds?: number
+  priority?: string | null
+  dropship_store?: string | null
+}
+
+export type WallCard = ((ReplenishmentRequest | Shipment) & { kind: 'request' | 'shipment' }) | InboundCard
 export type AgeTier = 'ok' | 'warn' | 'crit'
 
 export const DEFAULT_WARN_S = 4 * 3600
 export const DEFAULT_CRIT_S = 24 * 3600
+
+/** A delivery is amber the day after its ETA and red three days late — hours mean nothing here. */
+export const INBOUND_WARN_S = 24 * 3600
+export const INBOUND_CRIT_S = 3 * 24 * 3600
 
 export function isShipment(card: WallCard | ReplenishmentRequest | Shipment): card is Shipment & { kind: 'shipment' } {
   return (card as Shipment).kind === 'shipment' || 'to_warehouse' in card && 'est_weight' in card
@@ -79,6 +123,62 @@ export function fmtAge(seconds: number): string {
 /** Age right now, given the age the server reported and when it reported it (cards tick locally). */
 export function liveAge(card: { age_seconds?: number }, fetchedAt: number, now = Date.now()): number {
   return (card.age_seconds || 0) + Math.max(0, Math.floor((now - fetchedAt) / 1000))
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.0 §F — the Inbound column
+// ---------------------------------------------------------------------------------------------
+/** Seconds an expected delivery is overdue: whole days past its ETA, 0 while it is still due. */
+export function overdueSeconds(eta: string, today: string): number {
+  return overdueDays(eta, today) * 86400
+}
+
+/** `ok` until the ETA passes, `warn` a day late, `crit` three days late — through the same tierer. */
+export function inboundTier(card: Pick<InboundCard, 'age_seconds'>): AgeTier {
+  return ageTier(card.age_seconds || 0, INBOUND_WARN_S, INBOUND_CRIT_S)
+}
+
+/**
+ * Turn the expected vendor orders (`purchasing.inbound().expected`) into wall cards. Quantities are
+ * what is still **outstanding**, not what was ordered — the floor is waiting for the rest, not for
+ * the part that already landed.
+ */
+export function inboundCards(orders: PurchaseOrderWithItems[], opts: { leadTimes?: Record<string, number>; today: string; warehouse?: string } = { today: '' }): InboundCard[] {
+  const today = opts.today
+  const cards: InboundCard[] = []
+  for (const order of orders || []) {
+    const lines = (order.items || []).filter((l) => Number(l.pending_qty) > 0)
+    const eta = etaOf(order, opts.leadTimes || {}, today || new Date())
+    const late = overdueDays(eta, today)
+    cards.push({
+      kind: 'inbound',
+      name: order.name,
+      supplier: order.supplier,
+      supplier_name: order.supplier_name ?? null,
+      boutique: order.dropship_store || opts.warehouse || order.set_warehouse || '',
+      boutique_name: order.supplier_name || order.supplier,
+      status: order.status,
+      items: lines.length,
+      units: lines.reduce((sum, l) => sum + Number(l.pending_qty || 0), 0),
+      units_ordered: Number(order.units || 0),
+      per_received: Number(order.per_received || 0),
+      eta,
+      overdue_days: late,
+      age_seconds: late * 86400,
+      priority: null,
+      dropship_store: order.dropship_store ?? null
+    })
+  }
+  return sortInboundCards(cards)
+}
+
+/**
+ * Most overdue first, then the soonest ETA. `sortCards` orders by priority then age; a pre-sort on
+ * the ETA gives the not-yet-due cards (all age 0) a meaningful order under its stable sort.
+ */
+export function sortInboundCards(cards: InboundCard[]): InboundCard[] {
+  const byEta = [...(cards || [])].sort((a, b) => (a.eta || '').localeCompare(b.eta || '') || a.name.localeCompare(b.name))
+  return sortCards(byEta)
 }
 
 // ---------------------------------------------------------------------------------------------

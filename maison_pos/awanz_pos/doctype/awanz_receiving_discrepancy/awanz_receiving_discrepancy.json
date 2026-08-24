@@ -5,13 +5,16 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "shipment", "boutique", "item_code", "item_name", "column_break_main", "type", "status", "reported_by", "reported_at",
+  "shipment", "supplier", "purchase_order", "purchase_receipt", "boutique", "item_code", "item_name", "column_break_main", "type", "status", "reported_by", "reported_at",
   "section_qty", "shipped_qty", "received_qty", "damaged_qty", "column_break_qty", "short_qty", "over_qty",
   "section_resolution", "resolution", "resolved_by", "resolved_at", "stock_entry", "notes"
  ],
  "fields": [
-  {"fieldname": "shipment", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Shipment", "options": "AWANZ Shipment", "reqd": 1, "search_index": 1},
-  {"fieldname": "boutique", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Store", "options": "AWANZ Store", "reqd": 1, "search_index": 1},
+  {"fieldname": "shipment", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Shipment", "options": "AWANZ Shipment", "search_index": 1, "description": "Warehouse shipment this discrepancy came from (empty for a vendor delivery)"},
+  {"fieldname": "supplier", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Vendor", "options": "Supplier", "search_index": 1, "description": "v1.0: set when the short / over / damaged units came from a vendor delivery"},
+  {"fieldname": "purchase_order", "fieldtype": "Link", "label": "Purchase Order", "options": "Purchase Order", "search_index": 1},
+  {"fieldname": "purchase_receipt", "fieldtype": "Link", "label": "Purchase Receipt", "options": "Purchase Receipt"},
+  {"fieldname": "boutique", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Store", "options": "AWANZ Store", "search_index": 1},
   {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Item", "options": "Item", "reqd": 1},
   {"fetch_from": "item_code.item_name", "fieldname": "item_name", "fieldtype": "Data", "label": "Item Name", "read_only": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},

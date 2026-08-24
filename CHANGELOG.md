@@ -1,9 +1,230 @@
 # Changelog
 
 All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the app version lives in
-`maison_pos/__init__.py`, `frontend/package.json` and `dashboard/package.json`.
+`maison_pos/__init__.py`, `frontend/package.json` and `dashboard/package.json` — **bump all three on
+every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
+site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
-## 0.9.0 — unreleased
+## 1.0.0 — 2026-08-24 "Procurement"
+
+Centralised buying for the Houston warehouse: vendors and their negotiated price lists, a demand
+engine that says what to buy, purchase orders with drop-ship and hand-entered freight, receiving
+with an editable unit cost, four buying reports, and a five-section `/warehouse` desk. Contract
+`SPEC_v1.0.md`; the working document is `docs/purchasing.md`.
+
+> **0.7.0, 0.8.0 and 0.9.0 shipped without their version numbers moving.**
+> `maison_pos/__init__.py` read `0.6.0` through all three. Frappe Cloud compares `__version__`
+> between benches and does an **"Update Site *Pull*"** — assets only, **no migrate** — when it is
+> unchanged, so a site pulled from a 0.6.0 bench onto any of those benches ran no patches at all:
+> not `patches/v0_7/associate_hardening.py`, not the `[pre_model_sync]`
+> `patches/v0_9/rename_to_awanz.py`, and none of the `after_migrate` install glue. 1.0.0 is the
+> first bench since 0.6.0 whose `__version__` differs, so this is the update that finally migrates
+> them; every patch is idempotent and `patches.txt` runs them in order. `maison_pos/__init__.py`
+> now carries a comment saying this, next to the number, so the next release does not repeat it.
+
+### The six locked client decisions, and what each one is in the software
+
+1. **Moving Average, chain-wide.** `purchasing.ensure_moving_average()` (install + every migrate,
+   idempotent) pins `Stock Settings.valuation_method` **and** `Item.valuation_method` on every
+   stock item. SPEC_v1.0 says `Company.default_valuation_method`; **there is no such field in
+   ERPNext v15** — `erpnext.stock.utils.get_valuation_method` resolves
+   `Item.valuation_method or Stock Settings.valuation_method or "FIFO"` — so both places are
+   pinned instead, which is the same intent and stronger: existing items are set explicitly, not
+   just new ones. The per-item write goes through `frappe.db.set_value` because `Item.validate`
+   refuses to change a valuation method once the item has stock ledger entries, and this is a
+   chain-wide policy, not a per-item one. This is what makes "same product, two vendors, two
+   costs" come out right — 10 at $10 and 10 at $14 is $12 a unit, not whichever queue FIFO pops.
+2. **Negotiated per-vendor price lists, and no RFQ.** Every vendor owns a buying price list
+   `<Supplier> Buying`, created on their first save; negotiated rates are ordinary `Item Price`
+   rows on it (`buying = 1`, `supplier` set), and a PO for that vendor defaults its
+   `buying_price_list` to it. There is no Request for Quotation and no quote comparison: rates are
+   agreed with the rep on the phone and stored. A buyer who wants to compare sees both vendors'
+   costs on the suggestion row and picks one.
+3. **Freight by hand, into valuation.** `Purchase Order.maison_freight_amount` maintains exactly
+   one row in `taxes` — `charge_type = Actual`, `category = Valuation`, `add_deduct_tax = Add`,
+   against the company's *Expenses Included In Valuation* account — from a `before_validate` doc
+   event, so it behaves the same on the Buying screen and in the desk. Setting it to 0 removes the
+   row. The receipt carries its own freight the same way. That is what puts freight into
+   moving-average cost with no Landed Cost Voucher. `distribute_charges_based_on` is a **Landed
+   Cost Voucher** field and does not exist on `Purchase Taxes and Charges` in v15; the behaviour
+   it names is what ERPNext already does with an Actual valuation charge, so the row is written
+   without it.
+4. **Every rate manually overridable** — the PO line rate, the freight, the receipt unit cost.
+   Which is why `Buying Settings.maintain_same_rate` (*Maintain Same Rate Throughout the Purchase
+   Cycle*) is switched **off** by `setup.install_v10_purchasing.ensure_buying_settings()`. It is
+   **on by default in ERPNext**, and with it on a receipt at a cost different from the order is
+   refused outright — which is exactly the case the override exists for, the vendor having charged
+   something else on the day. The drift is not lost: it lands in moving average and prints in
+   `AWANZ Item Purchase History`.
+5. **Store selling prices keep the existing workflow.** The `AWANZ Price Change Request` →
+   `AWANZ Price Approval` → warehouse-scoped Pricing Rule path is unchanged since v0.2. v1.0 adds
+   no second mechanism; it only exposes that one to the new screens as
+   `purchasing.price_change_requests` / `.request_price_change` / `.approve_price_change`. Buying
+   cost and store selling price stay separate decisions taken by different people.
+6. **Buying is centralised in Houston.** Stores never raise a purchase order — the endpoints
+   refuse them, and it is proved over plain HTTP both ways in `tests/test_v1_0_purchasing_http.py`.
+   A store's need reaches a vendor only through the warehouse admin, either as stock shipped from
+   `HOU-WH` or as a **drop-ship** addressed to that store. Drop-ship is the only way a vendor
+   delivers to a store.
+
+### Added
+
+- **Vendors** — ERPNext `Supplier` plus `maison_lead_time_days`, `maison_min_order_value`,
+  `maison_dropship_capable`, `maison_order_method` (Email / Portal / Phone / EDI),
+  `maison_portal_url`, `maison_account_number` (the number *they* know us by; it prints on the
+  PO), `maison_rep_name` / `_phone` / `_email`, `maison_notes`, `maison_active`. Deactivate, never
+  delete — every order, receipt and cost attached to a vendor stays. `api/purchasing.vendors` /
+  `vendor` / `save_vendor` / `set_vendor_active`.
+- **`AWANZ Item Vendor`** — a child table on Item (`Item.maison_vendors`): vendor, their SKU, case
+  pack, MOQ, negotiated cost, lead time, preferred flag, and read-only `last_purchase_date` /
+  `last_purchase_rate` stamped on receipt submit. Exactly one preferred vendor per item is
+  enforced in validate (ticking a new one clears the rest; with none ticked the first row becomes
+  preferred, so the demand engine is never ambiguous); `cost` writes through to that vendor's
+  `Item Price`, which is how the PO picks it up; a row may carry **no** cost, meaning "buy at
+  whatever they quote that day".
+- **`AWANZ Purchase Suggestion` and the demand engine** (`purchasing/demand.py`) — three sources,
+  deduped by item: **Low stock** (HOU-WH at or below its `Item Reorder` level), **Store demand**
+  (open replenishment requests the warehouse cannot fill from HOU-WH stock — the shortfall only),
+  **Trending** (items `insights/trends.py` flags trending-up whose HOU-WH cover is under
+  `AWANZ POS Settings.purchase_cover_days`, default 21). An item in more than one source is bought
+  once, for the largest of the three needs, less what is already on order, rounded **up** to the
+  preferred vendor's case pack and never below their MOQ; the badge is the most urgent source and
+  all of them are listed. A run is cached so a buyer can work the list across a session, rebuilt at
+  06:00 site time (`demand.daily_run`) and on demand; a dismissed item stays off for 14 days.
+  `create_orders(lines)` groups the chosen lines by (vendor, drop-ship store) into one draft
+  Purchase Order each.
+- **Purchase orders** — native `Purchase Order` plus `maison_dropship_store`,
+  `maison_freight_amount`, `maison_source_request` and the `maison_sent_on` / `_by` / `_method`
+  stamps. `create_order` → edit → `submit_order` → `send_order` → receive → `close_order`.
+  **Drop-ship** sets `set_warehouse` and every line's `warehouse` to that store's warehouse and
+  stamps the header; nothing else changes, because the store's existing v0.6 Receive screen
+  already lists vendor POs addressed to it and posts the receipt. On submit every line must point
+  at that one store's enabled warehouse or the order is refused; on a submitted order the
+  destination is fixed — the vendor has the paperwork and ERPNext has booked the quantity.
+  `send_order` e-mails the `AWANZ Purchase Order` PDF to the rep or records a phone / portal / EDI
+  order; with no outgoing e-mail account it still stamps and returns a `warning` rather than
+  claiming to have sent. `delete_order` bins a **draft** (Close needs `docstatus == 1`) and puts
+  its suggestions back on the buying list rather than letting them fall out of it.
+- **Receiving** — one code path (`purchasing/receiving.py`) behind both doors: `purchasing.receive`
+  at HOU-WH and `inventory.receive_po` at a store. Per line: received, damaged, and **an editable
+  unit cost** defaulting to the PO rate; optional freight adjustment on the receipt; then submit →
+  Purchase Receipt. Damaged units book as the receipt's rejected quantity into the receiving
+  store's `<code> Damaged` warehouse. Short / over / damaged raise an `AWANZ Receiving
+  Discrepancy` **against the vendor** — that doctype gained a nullable `supplier` (plus
+  `purchase_order` / `purchase_receipt`), and `shipment` became nullable so store-shipment and
+  vendor discrepancies share one queue. `AWANZ Shipment.source_purchase_order` closes the loop
+  from "arrived from a vendor" to "shipped on to a store".
+- **Reports** — `AWANZ Purchase by Vendor` (spend, orders, units, average lead time, on-time %),
+  `AWANZ Item Purchase History` (every receipt of an item with unit cost, freight share, landed
+  cost and the running average — the cost drift moving average is averaging),
+  `AWANZ Open Purchase Orders` (ageing, expected date), `AWANZ Drop-ship Deliveries` (by store,
+  with receipt status and discrepancies). All four are in `api/reports.REPORTS`, so they run in
+  the desk, render in the dashboard's Reports section and export as CSV, and all four are
+  role-gated — buying figures are not shop-floor information.
+- **Screens** — `/warehouse` gains a five-section nav: **Outbound** · **Inbound** · **Buying** ·
+  **Vendors** · **Stock**. Outbound is the v0.6 board unchanged, now with its three former
+  top-level tabs (Requests / Shipments / Discrepancies) as sub-tabs. Buying is the suggestion list
+  (source badge, editable quantity and vendor with the alternatives and their costs visible,
+  "Create orders") and then the order list and order sheet, where every rate and the freight are
+  editable before submit and send. Inbound is expected deliveries, receive-by-scan and the
+  discrepancy queue. Stock is HOU-WH on hand — qty, value at moving average, cover days, on order,
+  reorder level, low first. The 1920×1080 **wall** gains an **Inbound** column so the floor sees
+  what is arriving. Monolith Gold throughout, no new design system, ≥48 px targets.
+- **Seed** — `setup/cloudchaserz/purchasing.seed_purchasing()`: 12 vendors each with a buying
+  price list, an item-vendor row on all 160 catalogue items (~85 % dual-sourced with the second
+  vendor 4–12 % dearer, exactly one preferred), reorder levels at HOU-WH, eight received orders at
+  drifting costs so on-time % and the cost-drift report are real numbers, and two open orders —
+  one to HOU-WH, one drop-ship to OK-BA. Idempotent; order creation only runs when the company has
+  no purchase orders yet.
+- **Route compatibility** — `/warehouse/:tab?` still answers to every key the flat v0.6 desk
+  answered to, because there are bookmarks, role home pages and e2e specs pointing at them.
+  `resolveTab` (`warehouse/inbound.ts`) owns the mapping: `requests` / `shipments` /
+  `discrepancies` open Outbound on that board and the URL is left alone; `stock` is Stock; the
+  five new section keys are themselves; anything unrecognised lands on Outbound · Requests. The
+  one retired key is **`vendor`** — the v0.6 "Vendor POs" tab split in two, receiving into Inbound
+  and ordering into Buying — so it resolves to **Inbound** and the URL is rewritten to
+  `/warehouse/inbound`. Outbound writes its *sub-tab* key back to the URL, so `/warehouse/shipments`
+  still means what it meant in v0.6.
+- **Tests** — `tests/test_v1_0_purchasing.py` (41) and `tests/test_v1_0_purchasing_http.py` (7,
+  over real HTTP sessions, both directions); frontend `src/tests/purchasing.test.ts`,
+  `purchasing_screens.test.ts` and `inbound_stock.test.ts`; `e2e/purchasing.e2e.mjs` (36 checks
+  against a live bench, screenshots in `e2e/shots-v10/`).
+
+### Fixed
+
+Four checks in `e2e/purchasing.e2e.mjs` failed on its first run, each on a real defect. All four
+are fixed and the checks stand as their regression tests; the maths ones are pinned again in
+`frontend/src/tests/inbound_stock.test.ts` ("v1.0 e2e defects").
+
+- **Freight was previewed evenly per unit, but posts by line amount** — `warehouse/inbound.ts`
+  divided freight by total units, while the row the server writes is an Actual + Valuation charge,
+  which ERPNext distributes across lines **in proportion to net amount**
+  (`buying_controller.update_valuation_rate`). On the run's receipt — 12 units at $6.05 beside 4 at
+  $73.50, sharing $45 of freight — the moving-average preview the receive sheet showed the manager
+  was about 7 % away from the move that actually posted. `buying.ts::freightAllocation` now
+  allocates the way the posting will ($8.91 to the cheap line and $36.09 to the dear one, not
+  $2.81 a unit to both), and `freightShareForLine` feeds that into the preview. The blunt
+  per-unit figure survives as `freightSharePerUnit` for the order's headline "about $x a unit",
+  which is all it was ever right for. This one mattered: the preview is what a manager decides on, and a cheap
+  line and an expensive one do not carry the same freight.
+- **"This is the whole delivery" did not close the order** — `receive_purchase_order(final=1)`
+  raised the Short discrepancies and stopped there, so a delivery already settled with the vendor
+  kept sitting on Inbound as still expected, contradicting both the toggle's own copy and
+  `receiveOutcome`'s. `_close_if_final` closes it now (as Administrator, never failing the
+  receipt if closing fails). Left alone, every finished order would have stayed on the expected
+  list for ever and the list would only have grown.
+- **A tap on an alternative vendor was swallowed** — `BuySuggestRow.vue` committed the quantity on
+  blur and cleared its note; the note paragraph unmounted, the vendor buttons jumped ~46 px, and
+  the tap that caused the blur landed on nothing. The note is now always mounted, so nothing moves
+  under a finger.
+- **The store was told "× undefined"** — `ReceiveView.vue` printed `prResult.lines[].qty`, a key
+  `receive_purchase_order` has never returned, so a store manager receiving a drop-ship read
+  "CBD-003 × undefined". It reads `accepted_qty` — what actually went into their stock — and the
+  client type now matches the server's payload.
+
+And one that was not the e2e's to find, but showed up on the new screens first:
+
+- **A bare `YYYY-MM-DD` rendered a day early west of UTC** — Frappe **Date** columns
+  (`schedule_date`, `transaction_date`, `posting_date`, `valid_from`, `last_purchase_date`) come
+  back with no time part, and `new Date('2026-08-27')` is **UTC midnight**, which formats as
+  *Aug 26* in any zone behind UTC — which is every US timezone. `utils/time.ts::parseServer` now reads a
+  date-only string as site-zone midnight through the same `wallToEpoch` path as a naive datetime.
+  This is the v0.8 timezone bug in a new shape, and it was **not** confined to the new screens: it
+  affected every screen in the product that renders a date, which is why the fix is in `time.ts`
+  and not in a purchasing component.
+
+### Not built, on purpose
+
+From SPEC_v1.0's out-of-scope list, recorded here and in `docs/purchasing.md` §16 so nobody goes
+looking for them:
+
+- **No Request for Quotation and no quote comparison.** Rates are negotiated per vendor and stored
+  (decision 2); the comparison a buyer actually needs is the two costs already on the suggestion row.
+- **No three-way invoice matching and no AP.** Purchase invoices stay in the client's accounting
+  package. We record what was ordered and what arrived, at what cost; we do not record what was
+  billed or paid. One consequence is worth knowing: with `per_billed` never moving, an ERPNext
+  Purchase Order never reaches *Completed* — a fully received order rests at *To Bill*, which is
+  why closing it is a step the warehouse takes rather than something ERPNext does.
+- **No Landed Cost Voucher.** Freight is a maintained Actual / Valuation charge on the order and
+  the receipt (decision 3): one document, entered once, by the person who knows the number.
+- **No EDI and no vendor portal integrations.** `maison_order_method` records how we place an
+  order with each vendor; placing it is a human action — the PDF by e-mail, or their portal.
+- **No store-initiated purchasing.** A store asks the warehouse (`AWANZ Replenishment Request`);
+  the warehouse decides whether that becomes a transfer from HOU-WH or a purchase (decision 6).
+
+### Changed
+
+- Version **1.0.0** across `maison_pos/__init__.py`, `frontend/package.json`,
+  `dashboard/package.json`.
+- `Buying Settings.maintain_same_rate` is switched **off** on install and migrate (decision 4).
+- `AWANZ Receiving Discrepancy` — `supplier`, `purchase_order` and `purchase_receipt` added;
+  `shipment` is nullable, so a vendor discrepancy and a store-shipment discrepancy share a queue.
+  A vendor discrepancy resolves *Accepted* or *Write off* only: there is no in-transit leg to send
+  anything back on, the conversation is with the vendor.
+- The v0.6 `/warehouse` tab strip became the Outbound section's sub-tabs (see route compatibility
+  above). Nothing was removed.
+
+## 0.9.0 — 2026-08-24 "AWANZ"
 
 ### The product is AWANZ
 
@@ -51,20 +272,9 @@ idempotent, and every step checks `exists(old) and not exists(new)` first.
 - **`app_title`** is now `AWANZ POS`, so the desk, the launcher and the About dialog name the
   product correctly.
 
-## 0.7.0 — unreleased
+## 0.8.0 — 2026-08-24 "QA sweep"
 
-### Security — the QA audit's six holes (`e2e/qa/security-ux-report.md`, `docs/security.md`)
-- **S1/S5 Privilege escalation through `AWANZ Associate` (critical)** — a store manager could `frappe.client.set_value` their own `role` to `HeadOffice` (the `on_update` role sync then granted the Frappe role with `ignore_permissions`), promote their own staff, or re-point their `boutique` at another store. `user` / `boutique` / `role` are now **permlevel 1** (writable by Regional / Head Office / System Manager only); `scoping.associate_has_permission` refuses the write *before* the framework's permlevel reset so the caller gets a real 403; `AWANZAssociate._guard_privileged_fields` re-checks inside `validate`; and `_sync_user_role` can no longer grant a rank above the granting user's own **and** takes the old Frappe role back on a demotion (it used to be add-only). Managers keep their shop floor through the new `maison_associate.upsert` (own store, Associate level) plus `reset_pin`.
-- **S2 PIN hashes readable chain-wide (critical)** — `frappe.client.get_list("AWANZ Associate", fields=[…,"pin_hash"])` returned every associate of every store, managers included; the hash walks past the 5-attempt lockout. `pin_hash` is now a **`Password` field** (encrypted into `__Auth`; the column holds only `*****`, which also kills the `like`-filter oracle Frappe's permlevels do not cover), the PIN fields are **permlevel 2** (System Manager only), and `AWANZ Associate` rows are scoped to the caller's own store by `permission_query_conditions` / `has_permission`. PBKDF2-SHA256 iterations 120 000 → **600 000** with a transparent re-hash on unlock. `session.associates` / `catalog.bootstrap` (the unlock screen) are unchanged.
-- **S3 Anonymous rewards sign-up hijacked an existing client (high)** — `rewards.signup` elevated to Administrator and called `customers.upsert`, which matches an existing Customer by e-mail/phone and overwrites it, returning the victim's client number. A guest sign-up now never writes to an existing record and never reveals that it exists: the acknowledgement is identical either way and carries no client number (input is validated before the lookup so even the error paths match). Genuine new members are still created and enrolled — without elevating to Administrator. A **signed-in member of staff** keeps the linking behaviour, and it is audited.
-- **S4 Rate limiting was a no-op (medium-high)** — `rewards.signup` set `frappe.rate_limit = None` (nothing reads that), and the Salon counted on `frappe.local.request_ip`, i.e. the *first* `X-Forwarded-For` hop, which the client writes. New `maison_pos/ratelimit.py`: `client_ip()` resolves the caller from the trusted end of the proxy chain (`maison_client_ip_header` / `maison_trusted_proxy_hops` / right-most public hop, IPv6 bucketed by `/64`), every counter is an atomic redis counter, and **every endpoint also has a global ceiling** with no identity in the key. Applied to rewards signup + program, all Salon guest endpoints, webshop guest endpoints, `sales.receipt`, feedback, and the authenticated `verify_pin`. Rejections are a clean **429** with a human sentence and no traceback. Off switch: `bench set-config -g awanz_rate_limits 0`.
-- **S6 Chain-wide client PII readable from any till (low-medium)** — `Customer` list queries (`frappe.client.get_list`, `/api/resource/Customer`) are scoped for Manager / Associate to the clients of *their* store (bought there, created there, or homed there). Service is untouched: `customers.search` / `lookup` / `get` still cross the chain by exact-ish match — 3-character minimum, prefix instead of substring matching, a 25-row cap, an empty query listing the store's own clients — and every cross-store hit is written to `logs/awanz_security.log` (`maison_pos/audit.py`).
-- `customers.upsert` no longer blanks a field that was simply not sent (an omitted `mobile_no` used to clear the stored one; `""` still clears it).
-- **Migration** — `patches/v0_7/associate_hardening.py` moves existing PIN hashes out of the doctype table, mirrors the new permlevels into Custom DocPerm where a site uses those (re-asserted on every migrate), and re-syncs every associate's Frappe roles to what their record says, removing anything extra and logging each correction.
-- **Tests** — `maison_pos/tests/test_v0_7_security.py`: 31 tests, HTTP-level where the exploit was (real sessions against the running bench), each one reproducing the audit's exploit path and asserting both that it now fails *and* that the legitimate use of the same endpoint still works.
-- **Docs** — `docs/security.md`: the role model, the three scoping layers, what each fix changes, the rate-limit table, the demo-PIN caveat, and what is deliberately left open (single-document `Customer` reads, `User` enumeration, void thresholds, Salon linking) with the reasoning.
-
-### Web shop, rewards, Salon, warehouse, dashboard & UX — the rest of the QA sweep (`e2e/qa/*.md`)
+### Web shop, rewards, Salon, warehouse, dashboard & UX — the rest of the audit (`e2e/qa/*.md`)
 
 <!-- v0.8 QA — web shop -->
 - **A1 The shop could not take an order from a new customer (critical)** — `Website Settings.disable_signup = 1`, no `Portal Settings.default_role` and not one Website User: `/cart` and `/shop/checkout` are behind a login, so the storefront was browse-only. `webshop/setup.ensure_portal_signup()` asserts sign-up + the `Customer` portal role wherever the webshop glue runs (install, **migrate**, both seeds), the CloudChaserz seed now calls `ensure_web_user` like the AWANZ one (demo shopper `shopper@cloudchaserz.example` / `cloud123`), and a new storefront route **`/shop/register`** takes the registration itself (`api/webshop.register`): the shopper picks their own password, gets the portal role, the Customer/Contact wiring webshop's cart needs, and is signed straight in — Frappe's own sign-up mails a random password, which a site with no outgoing Email Account can never deliver. The sign-in wall (`www/shop/_common.require_login`) now lands on that page, which offers both halves (create an account · sign in). Website User only, portal default role only, the platform password policy still applies, an existing address is never touched, rate-limited like every other public write.
@@ -109,6 +319,19 @@ idempotent, and every step checks `exists(old) and not exists(new)` first.
 - **U5** — the two rewards consent checkboxes carry a programmatic label.
 <!-- end v0.8 QA — UX -->
 - **Tests** — `maison_pos/tests/test_v0_8_qa_defects.py` (34), `dashboard/src/lib/hourly.test.ts` (8) + `dashboard/src/qa_v08.test.ts` (4), `frontend/src/tests/qa_v08.test.ts` (6); the assertions that encoded the old behaviour were updated in `test_webshop.py`, `test_v0_4_reports.py`, `test_v0_5_campaigns.py` and `dashboard/src/lib/aggregate.test.ts`.
+
+## 0.7.0 — 2026-08-24 "Security"
+
+### The QA audit's six holes (`e2e/qa/security-ux-report.md`, `docs/security.md`)
+- **S1/S5 Privilege escalation through `AWANZ Associate` (critical)** — a store manager could `frappe.client.set_value` their own `role` to `HeadOffice` (the `on_update` role sync then granted the Frappe role with `ignore_permissions`), promote their own staff, or re-point their `boutique` at another store. `user` / `boutique` / `role` are now **permlevel 1** (writable by Regional / Head Office / System Manager only); `scoping.associate_has_permission` refuses the write *before* the framework's permlevel reset so the caller gets a real 403; `AWANZAssociate._guard_privileged_fields` re-checks inside `validate`; and `_sync_user_role` can no longer grant a rank above the granting user's own **and** takes the old Frappe role back on a demotion (it used to be add-only). Managers keep their shop floor through the new `maison_associate.upsert` (own store, Associate level) plus `reset_pin`.
+- **S2 PIN hashes readable chain-wide (critical)** — `frappe.client.get_list("AWANZ Associate", fields=[…,"pin_hash"])` returned every associate of every store, managers included; the hash walks past the 5-attempt lockout. `pin_hash` is now a **`Password` field** (encrypted into `__Auth`; the column holds only `*****`, which also kills the `like`-filter oracle Frappe's permlevels do not cover), the PIN fields are **permlevel 2** (System Manager only), and `AWANZ Associate` rows are scoped to the caller's own store by `permission_query_conditions` / `has_permission`. PBKDF2-SHA256 iterations 120 000 → **600 000** with a transparent re-hash on unlock. `session.associates` / `catalog.bootstrap` (the unlock screen) are unchanged.
+- **S3 Anonymous rewards sign-up hijacked an existing client (high)** — `rewards.signup` elevated to Administrator and called `customers.upsert`, which matches an existing Customer by e-mail/phone and overwrites it, returning the victim's client number. A guest sign-up now never writes to an existing record and never reveals that it exists: the acknowledgement is identical either way and carries no client number (input is validated before the lookup so even the error paths match). Genuine new members are still created and enrolled — without elevating to Administrator. A **signed-in member of staff** keeps the linking behaviour, and it is audited.
+- **S4 Rate limiting was a no-op (medium-high)** — `rewards.signup` set `frappe.rate_limit = None` (nothing reads that), and the Salon counted on `frappe.local.request_ip`, i.e. the *first* `X-Forwarded-For` hop, which the client writes. New `maison_pos/ratelimit.py`: `client_ip()` resolves the caller from the trusted end of the proxy chain (`maison_client_ip_header` / `maison_trusted_proxy_hops` / right-most public hop, IPv6 bucketed by `/64`), every counter is an atomic redis counter, and **every endpoint also has a global ceiling** with no identity in the key. Applied to rewards signup + program, all Salon guest endpoints, webshop guest endpoints, `sales.receipt`, feedback, and the authenticated `verify_pin`. Rejections are a clean **429** with a human sentence and no traceback. Off switch: `bench set-config -g awanz_rate_limits 0`.
+- **S6 Chain-wide client PII readable from any till (low-medium)** — `Customer` list queries (`frappe.client.get_list`, `/api/resource/Customer`) are scoped for Manager / Associate to the clients of *their* store (bought there, created there, or homed there). Service is untouched: `customers.search` / `lookup` / `get` still cross the chain by exact-ish match — 3-character minimum, prefix instead of substring matching, a 25-row cap, an empty query listing the store's own clients — and every cross-store hit is written to `logs/awanz_security.log` (`maison_pos/audit.py`).
+- `customers.upsert` no longer blanks a field that was simply not sent (an omitted `mobile_no` used to clear the stored one; `""` still clears it).
+- **Migration** — `patches/v0_7/associate_hardening.py` moves existing PIN hashes out of the doctype table, mirrors the new permlevels into Custom DocPerm where a site uses those (re-asserted on every migrate), and re-syncs every associate's Frappe roles to what their record says, removing anything extra and logging each correction.
+- **Tests** — `maison_pos/tests/test_v0_7_security.py`: 31 tests, HTTP-level where the exploit was (real sessions against the running bench), each one reproducing the audit's exploit path and asserting both that it now fails *and* that the legitimate use of the same endpoint still works.
+- **Docs** — `docs/security.md`: the role model, the three scoping layers, what each fix changes, the rate-limit table, the demo-PIN caveat, and what is deliberately left open (single-document `Customer` reads, `User` enumeration, void thresholds, Salon linking) with the reasoning.
 
 ## 0.6.0 — 2026-08-23 "CloudChaserz"
 

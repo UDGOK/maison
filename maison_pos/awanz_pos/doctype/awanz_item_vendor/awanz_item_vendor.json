@@ -1,0 +1,32 @@
+{
+ "actions": [],
+ "creation": "2026-08-24 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["supplier", "supplier_name", "vendor_sku", "cost", "case_pack", "moq", "lead_time_days", "is_preferred", "last_purchase_date", "last_purchase_rate", "notes"],
+ "fields": [
+  {"fieldname": "supplier", "fieldtype": "Link", "in_list_view": 1, "label": "Vendor", "options": "Supplier", "reqd": 1, "columns": 2},
+  {"fetch_from": "supplier.supplier_name", "fieldname": "supplier_name", "fieldtype": "Data", "label": "Vendor Name", "read_only": 1},
+  {"fieldname": "vendor_sku", "fieldtype": "Data", "in_list_view": 1, "label": "Vendor SKU", "columns": 2},
+  {"fieldname": "cost", "fieldtype": "Currency", "in_list_view": 1, "label": "Cost", "columns": 1, "description": "Negotiated unit cost. Writes through to the vendor's buying price list; leave empty to buy at whatever they quote."},
+  {"default": "1", "fieldname": "case_pack", "fieldtype": "Int", "in_list_view": 1, "label": "Case Pack", "columns": 1},
+  {"fieldname": "moq", "fieldtype": "Int", "label": "MOQ", "columns": 1, "in_list_view": 1},
+  {"fieldname": "lead_time_days", "fieldtype": "Int", "label": "Lead Time (days)"},
+  {"default": "0", "fieldname": "is_preferred", "fieldtype": "Check", "in_list_view": 1, "label": "Preferred", "columns": 1},
+  {"fieldname": "last_purchase_date", "fieldtype": "Date", "label": "Last Purchase Date", "read_only": 1},
+  {"fieldname": "last_purchase_rate", "fieldtype": "Currency", "label": "Last Purchase Rate", "read_only": 1},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AWANZ POS",
+ "name": "AWANZ Item Vendor",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

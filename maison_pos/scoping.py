@@ -632,3 +632,77 @@ def customer_is_known_to_store(customer: str, user: Optional[str] = None) -> boo
 	)
 	return bool(row)
 # --- end v0.7 S6 ---
+
+
+# --- v1.0 procurement ---------------------------------------------------------------------
+# Buying is centralised in Houston (SPEC_v1.0 "Client decisions" 6): only **AWANZ Warehouse
+# Admin** and **AWANZ Head Office** (plus System Manager / Administrator) may touch a purchasing
+# endpoint. `AWANZ Regional` is deliberately *not* on that list even though it is otherwise
+# unrestricted — a regional manager reads the chain's numbers, they do not spend its money.
+#
+# A store manager keeps exactly one purchasing right: **read** a Purchase Order addressed to
+# their own store, so the v0.6 Receive screen can post the drop-ship receipt. The desk / REST
+# side of that is already `purchase_order_query` + `purchase_order_has_permission` above.
+PURCHASING_ROLES = frozenset({"Administrator", "System Manager", "AWANZ Head Office", WAREHOUSE_ADMIN_ROLE})
+
+
+def is_purchasing_admin(user: Optional[str] = None) -> bool:
+	user = _user(user)
+	if user == "Administrator":
+		return True
+	return bool(PURCHASING_ROLES & set(frappe.get_roles(user)))
+
+
+def assert_purchasing_admin(user: Optional[str] = None) -> None:
+	"""Raise unless the user may buy (warehouse admin / head office / System Manager)."""
+	user = _user(user)
+	if user == "Guest":
+		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
+	if not is_purchasing_admin(user):
+		frappe.throw(_("Purchasing is centralised: warehouse admin or head office only"), frappe.PermissionError)
+
+
+def purchase_order_store(po: str) -> Optional[str]:
+	"""The store a Purchase Order is addressed to (drop-ship stamp, else its warehouse's store)."""
+	row = frappe.db.get_value("Purchase Order", po, ["maison_dropship_store", "set_warehouse"], as_dict=True)
+	if not row:
+		return None
+	if row.get("maison_dropship_store"):
+		return row["maison_dropship_store"]
+	return frappe.db.get_value("AWANZ Store", {"warehouse": row.get("set_warehouse")}, "name") if row.get("set_warehouse") else None
+
+
+def can_read_purchase_order(po: str, user: Optional[str] = None) -> bool:
+	if is_purchasing_admin(user):
+		return True
+	own = get_user_boutique(user)
+	return bool(own) and purchase_order_store(po) == own
+
+
+def assert_purchase_order_read(po: str, user: Optional[str] = None) -> str:
+	"""Read access to one order: purchasing admins always, a store manager only for their store."""
+	user = _user(user)
+	if user == "Guest":
+		frappe.throw(_("Authentication required"), frappe.AuthenticationError)
+	if not frappe.db.exists("Purchase Order", po):
+		frappe.throw(_("Purchase Order {0} does not exist").format(po), frappe.DoesNotExistError)
+	if not can_read_purchase_order(po, user):
+		frappe.throw(_("You are not permitted to read purchase order {0}").format(po), frappe.PermissionError)
+	return po
+
+
+def purchase_suggestion_query(user: Optional[str] = None) -> str:
+	"""Nobody but a purchasing admin lists the buying suggestions (vendor costs live on them)."""
+	return "" if is_purchasing_admin(user) else "1=0"
+
+
+def item_vendor_query(user: Optional[str] = None) -> str:
+	"""The negotiated cost per vendor is buying information, not shop-floor information.
+
+	ERPNext hands every ``Stock User`` read on Item (a store manager needs it to sell and to
+	count), and a child table is listable through ``frappe.client.get_list`` with ``parent=Item``.
+	This closes the bulk read of ``AWANZ Item Vendor`` — where the negotiated costs live — to the
+	people who may buy.
+	"""
+	return "" if is_purchasing_admin(user) else "1=0"
+# --- end v1.0 procurement ---

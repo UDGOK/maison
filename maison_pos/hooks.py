@@ -172,6 +172,29 @@ doc_events = {
 	"Stock Entry": {
 		"on_submit": "maison_pos.api.crm.on_stock_entry_submit",
 	},
+	# --- v1.0 procurement ---
+	# `before_validate` (not `validate`): ERPNext's own `validate` is what calculates the taxes,
+	# so the maintained freight row has to be in place before it runs, or the Actual / Valuation
+	# charge never reaches the lines.
+	"Purchase Order": {
+		"before_validate": "maison_pos.purchasing.orders.before_validate",
+		"before_submit": "maison_pos.purchasing.orders.before_submit",
+	},
+	"Purchase Receipt": {
+		"before_validate": "maison_pos.purchasing.receiving.before_validate",
+		"on_submit": "maison_pos.purchasing.receiving.on_submit",
+	},
+	# every vendor owns a `<Supplier> Buying` price list, created on first save
+	"Supplier": {
+		"after_insert": "maison_pos.purchasing.vendors.on_supplier_update",
+		"on_update": "maison_pos.purchasing.vendors.on_supplier_update",
+	},
+	# one preferred vendor per item; the negotiated cost writes through to that vendor's Item Price
+	"Item": {
+		"validate": "maison_pos.purchasing.vendors.validate_item_vendors",
+		"on_update": "maison_pos.purchasing.vendors.sync_item_vendor_prices",
+	},
+	# --- end v1.0 procurement ---
 	"Customer": {
 		"before_insert": "maison_pos.events.customer.before_insert",
 		"validate": "maison_pos.events.customer.validate",
@@ -195,6 +218,9 @@ scheduler_events = {
 		# --- v0.5 L: AWANZ Product Trend refreshed every 15 min (dashboard Products tab reads it) ---
 		"*/15 * * * *": ["maison_pos.insights.trends.compute_trends"],
 		# --- end v0.5 L ---
+		# --- v1.0 procurement — the buying list is rebuilt every morning at 06:00 site time ---
+		"0 6 * * *": ["maison_pos.purchasing.demand.daily_run"],
+		# --- end v1.0 procurement ---
 	},
 	# v0.4 D — hourly low-stock scan (Item Reorder levels -> AWANZ Stock Alert, idempotent)
 	"hourly": [
@@ -282,6 +308,12 @@ permission_query_conditions = {
 	# (single-client service lookups keep working through `customers.search` / `customers.lookup`).
 	"Customer": "maison_pos.scoping.customer_query",
 	# --- end v0.7 ---
+	# --- v1.0 procurement — buying suggestions and the item ↔ vendor catalogue carry the
+	# negotiated costs; nobody but a purchasing admin lists them, whatever DocPerms a site
+	# has grown (a store manager holds ERPNext's `Stock User`, which reads Item).
+	"AWANZ Purchase Suggestion": "maison_pos.scoping.purchase_suggestion_query",
+	"AWANZ Item Vendor": "maison_pos.scoping.item_vendor_query",
+	# --- end v1.0 procurement ---
 }
 
 has_permission = {
@@ -319,6 +351,9 @@ jinja = {
 		"maison_pos.utils.receipt_qr_svg",
 		# v0.6 P — packing list (shipment QR, line barcodes)
 		"maison_pos.api.shipping.packing_list_context",
+		# --- v1.0 procurement — the vendor-facing purchase order PDF ---
+		"maison_pos.purchasing.orders.purchase_order_context",
+		# --- end v1.0 procurement ---
 		# v0.4 G — storefront templates (header cart count, boutiques, money formatting)
 		"maison_pos.webshop.context.shop_context",
 		"maison_pos.webshop.context.shop_money",

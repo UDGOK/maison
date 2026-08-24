@@ -1,6 +1,6 @@
 # AWANZ POS
 
-A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v0.6 "CloudChaserz"** (see `CHANGELOG.md`).
+A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.0 "Procurement"** (see `CHANGELOG.md`).
 
 The platform is **tenant-branded**: every user-facing string — wordmark, product name, receipt
 header, "Store" vs "Boutique", the rewards programme name — comes from brand settings, while the
@@ -21,11 +21,13 @@ verification) and the **Jewellery** profile it grew up as.
 | POS PWA | `frontend/` → `maison_pos/public/pos` | Vue 3 offline-first iPad / iPhone point of sale served at `/pos` |
 | Head-office dashboard | `dashboard/` → `maison_pos/public/dashboard` | "Command" wall for 40–100 boutiques at `/awanz-dashboard`: Live / Boutiques / Products / Clients / Insights / Reports over Frappe realtime (see `docs/dashboard.md`) |
 | Web shop | `maison_pos/webshop/`, `www/shop/*` | Monolith Gold storefront on Frappe Webshop (`/shop`, click & collect) |
-| Warehouse & wall | `maison_pos/shipping/`, `frontend/src/warehouse/` | head-office desk at `/warehouse` and the 55" kanban wall at `/warehouse-wall` (see `docs/shipping.md`) |
+| Warehouse & wall | `maison_pos/shipping/`, `frontend/src/warehouse/` | head-office desk at `/warehouse` — Outbound · Inbound · Buying · Vendors · Stock — and the 55" kanban wall at `/warehouse-wall` (see `docs/shipping.md`) |
+| Purchasing | `maison_pos/purchasing/`, `maison_pos/api/purchasing.py` | vendors and their negotiated buying price lists, the demand engine, purchase orders with drop-ship and freight, receiving at `HOU-WH`, four buying reports (see `docs/purchasing.md`) |
 | Dev environment | `docker/` | docker-compose stack (MariaDB, Redis, Frappe/ERPNext v15, nginx) |
 
 Design system: **Monolith Gold** — Unbounded + Jost on deep black `#0B0B0A`, gold accent; it carries the
-CloudChaserz wordmark as readily as the jewellery one. See `SPEC.md` … `SPEC_v0.6.md`.
+CloudChaserz wordmark as readily as the jewellery one. See `SPEC.md` … `SPEC_v0.6.md` and
+`SPEC_v1.0.md`; 0.7–0.9 were audit and rename releases and carry no spec of their own.
 
 ## Apps
 
@@ -71,6 +73,30 @@ Install order on a site: `erpnext`, `payments`, `webshop`, `hrms`, `crm`, **then
 - **O Store scoping & receiving** — store managers are scoped server-side *and* in desk list views; a manager gets 403 on another store's data over plain HTTP. New POS **Receive** screen: inbound shipments and vendor POs, scan or tap to count, discrepancies highlighted, partial receipts, and one-tap "Request from warehouse" from the low-stock list.
 - **P Warehouse & shipping** — replenishment request → warehouse approval (edit quantities or reject with a reason) → `AWANZ Shipment` picked, packed, labelled and shipped, with an in-transit stock leg so nothing is ever "nowhere". Rate shopping behind one adapter (Simulated by default, **Shippo** implemented for real, EasyPost as the alternative — Pirate Ship has no public API); cheapest auto-selected. `/warehouse` desk and the 1920×1080 `/warehouse-wall` kanban with age timers, realtime updates and silent auto-printing of packing lists and labels under Chrome kiosk mode. `docs/shipping.md`.
 - **Q CloudChaserz Rewards** — $1 = 1 point; fixed tiers $5/100, $10/200, $15/300, offered only when affordable and reversed on return; birthday coupon, monthly promotion calendar, weekly new-arrivals campaign, seeded auditable giveaways and event invites; public `/rewards` page and sign-up, with points, balance and next reward on every receipt. `docs/rewards.md`.
+
+**v0.7 — Security.** The QA audit's six holes closed: privilege escalation through `AWANZ Associate` (permlevels + a real 403 before the framework's permlevel reset), PIN hashes out of the doctype table into `__Auth` at 600 000 PBKDF2 rounds, an anonymous rewards sign-up that could overwrite an existing client, rate limiting that was a no-op (`maison_pos/ratelimit.py`, a trusted-proxy client IP and a global ceiling per endpoint), and chain-wide client PII readable from any till. `docs/security.md` records what is deliberately left open, and why.
+
+**v0.8 — QA sweep.** The rest of the audit: the web shop could not take an order from a new customer (`/shop/register` now takes the registration itself), phone-width overflow on three storefront pages, a sale that could not be returned once its points had been spent, a replenishment request that could never be rejected, a warehouse desk clock wrong by the site's UTC offset, and a dashboard that hid 86 % of the trading day and named the wrong peak. One definition each for "avg ticket" and "net sales", applied and labelled everywhere.
+
+**v0.9 — AWANZ.** The rename, in one `[pre_model_sync]` patch that moves the tables rather than growing a second set beside them: 47 doctypes, five roles, 11 reports, the print formats, the workflows, the desk module and the dashboard route (`/maison-dashboard` 301s to `/awanz-dashboard`). See the callout at the top of this file for what deliberately did *not* move.
+
+**v1.0 — Procurement.** Centralised buying for the Houston warehouse — see the section below and `docs/purchasing.md`.
+
+## Procurement
+
+**v1.0.** Buying is centralised in Houston. The warehouse can now:
+
+- keep a **vendor master** (ERPNext `Supplier` plus lead time, MOQ, order method, account number, rep) with a **negotiated buying price list per vendor**, and an item ↔ vendor catalogue (`AWANZ Item Vendor`: their SKU, case pack, MOQ, cost, one preferred vendor per item);
+- work a **buying list** the demand engine builds every morning from three sources — HOU-WH below its reorder level, store replenishment requests the warehouse cannot fill, and items trending up with thin cover — with quantity and vendor editable on every row and the alternatives' costs beside them;
+- raise **purchase orders**, one draft per vendor, with every rate overridable by hand, **freight entered manually** (it lands in moving-average cost, no Landed Cost Voucher), an optional **drop-ship** destination so a vendor delivers straight to one store, and e-mail of the `AWANZ Purchase Order` PDF or a record that it was ordered by phone or portal;
+- **receive** against a scan with an editable unit cost per line, damaged units to the Damaged warehouse, short / over / damaged raising an `AWANZ Receiving Discrepancy` against the vendor;
+- read four buying reports — `AWANZ Purchase by Vendor`, `AWANZ Item Purchase History` (the cost drift moving average is averaging), `AWANZ Open Purchase Orders`, `AWANZ Drop-ship Deliveries`.
+
+All of it lives in the existing `/warehouse` desk, which gains a section nav — **Outbound · Inbound · Buying · Vendors · Stock** — and an **Inbound** column on the 1920×1080 wall. Every legacy `/warehouse/:tab` link still resolves.
+
+**Who may do it: `AWANZ Warehouse Admin` and `AWANZ Head Office` only.** A store manager may *read* a purchase order addressed to their own store — that is what makes their Receive screen work — and nothing else: the vendor catalogue, the costs, the buying list and the orders all refuse them (one residual is recorded honestly in `docs/purchasing.md` §11). `AWANZ Regional` is deliberately off the list too; a regional manager reads the chain's numbers, they do not spend its money. Enforced in three independent places and proved over plain HTTP both ways in `maison_pos/tests/test_v1_0_purchasing_http.py`.
+
+Store **selling** prices are unchanged: they still go through the `AWANZ Price Change Request` → `AWANZ Price Approval` workflow from v0.1. Full detail, including what v1.0 deliberately does **not** do (no RFQ, no invoice matching or AP, no Landed Cost Voucher, no EDI, no vendor portals, no store-initiated purchasing): **`docs/purchasing.md`**.
 
 ## Quick start (existing bench)
 ```bash
@@ -125,12 +151,15 @@ cd docker && ./setup.sh        # see docker/README.md
 cd frontend  && npm i && npm run models && VITE_MOCK=1 npm run dev   # POS with mock API
 cd dashboard && npm i && VITE_MOCK=1 npm run dev                     # dashboard with simulated sales stream
 npm test && npx vue-tsc --noEmit && npm run lint && npm run build     # in either folder
-bench --site yoursite run-tests --app maison_pos                      # 248 backend tests
+bench --site yoursite run-tests --app maison_pos                      # the whole backend suite
+bench --site yoursite run-tests --module maison_pos.tests.test_v1_0_purchasing   # v1.0 only, 41 tests
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://yoursite:8000 ADMIN_PWD=admin BENCH=/path/to/bench \
   node e2e/pos.v04.e2e.mjs        # also pos.e2e / pos.v02 / pos.v03 / webshop / salon / dashboard.v05
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc-site:8000 ADMIN_PWD=admin \
   node e2e/warehouse.e2e.mjs && node e2e/cloudchaserz.e2e.mjs         # against a CloudChaserz site
+PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc-site:8000 ADMIN_PWD=admin \
+  node e2e/purchasing.e2e.mjs     # v1.0 buying loop, 36 checks, shots in e2e/shots-v10/
 ```
 
 ## Docs
-`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **security**, **white-label**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`
+`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **security**, **white-label**, **purchasing**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`

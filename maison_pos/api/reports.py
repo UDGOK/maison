@@ -19,7 +19,11 @@ from frappe.utils import cint, flt, nowdate
 from maison_pos.reports import normalize_filters, period_bounds, period_totals
 from maison_pos.scoping import ALL_AWANZ_ROLES, assert_roles, get_retail_boutiques, is_unrestricted
 
-REPORTS: list[dict[str, str]] = [
+# --- v1.0 procurement — who may run a buying report ---
+PURCHASING_REPORT_ROLES = ("AWANZ Warehouse Admin", "AWANZ Head Office")
+# --- end v1.0 procurement ---
+
+REPORTS: list[dict[str, Any]] = [
 	{"name": "AWANZ Sales Tax Summary", "group": "Tax", "description": "Taxable vs non-taxable sales, tax collected, returns netted — by boutique / jurisdiction. CSV for filings."},
 	{"name": "AWANZ Daily Sales", "group": "Sales", "description": "Per boutique per day: gross, discounts, returns, net, tax, cash, card, tickets, avg ticket, items/ticket."},
 	{"name": "AWANZ Sales by Item", "group": "Sales", "description": "By item, item group or department (group_by filter); returns netted."},
@@ -36,14 +40,38 @@ REPORTS: list[dict[str, str]] = [
 	{"name": "AWANZ Promotion Performance", "group": "Marketing", "description": "Pricing rules and coupons: redemptions, discount given, revenue and discount rate."},
 	{"name": "AWANZ Campaign Performance", "group": "Marketing", "description": "Campaigns: sends, opens, clicks, direct and assisted attributed revenue."},
 	# --- end v0.8 QA D-6 ---
+	# --- v1.0 procurement — buying reports. `roles` narrows them to the people who may buy:
+	# vendor costs, landed cost and cost drift are not shop-floor information.
+	{"name": "AWANZ Purchase by Vendor", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "description": "Per vendor: spend, orders, units, average lead time and on-time %."},
+	{"name": "AWANZ Item Purchase History", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "description": "Every receipt of an item: date, vendor, qty, unit cost, freight share and landed cost — the cost drift moving average is averaging."},
+	{"name": "AWANZ Open Purchase Orders", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "description": "Submitted orders not yet fully received, with ageing and expected date."},
+	{"name": "AWANZ Drop-ship Deliveries", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "description": "Vendor orders shipped straight to a store: receipt status and discrepancies by store."},
+	# --- end v1.0 procurement ---
 ]
 REPORT_NAMES = {r["name"] for r in REPORTS}
 
 
+def _report_meta(report: str) -> dict[str, Any]:
+	return next((r for r in REPORTS if r["name"] == report), {})
+
+
+def _may_run(report: str) -> bool:
+	"""v1.0: a report may carry its own ``roles``; everything else stays open to every AWANZ role."""
+	roles = _report_meta(report).get("roles")
+	if frappe.session.user == "Administrator":
+		return True
+	held = set(frappe.get_roles())
+	return bool(set(roles or ALL_AWANZ_ROLES) & held) or "System Manager" in held
+
+
 def _check(report: str) -> str:
-	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager", *PURCHASING_REPORT_ROLES)
 	if report not in REPORT_NAMES:
 		frappe.throw(_("Unknown report {0}").format(report), frappe.DoesNotExistError)
+	# --- v1.0 procurement — per-report role gate ---
+	if not _may_run(report):
+		frappe.throw(_("You are not permitted to run {0}").format(report), frappe.PermissionError)
+	# --- end v1.0 procurement ---
 	if not frappe.db.exists("Report", report):
 		frappe.throw(_("Report {0} is not installed (run bench migrate)").format(report), frappe.DoesNotExistError)
 	return report
@@ -63,11 +91,13 @@ def _run(report: str, filters: dict[str, Any]) -> dict[str, Any]:
 @frappe.whitelist()
 def list_reports() -> dict[str, Any]:
 	"""Catalogue of AWANZ reports with desk links (for the dashboard Reports section)."""
-	assert_roles(*ALL_AWANZ_ROLES, "System Manager")
+	assert_roles(*ALL_AWANZ_ROLES, "System Manager", *PURCHASING_REPORT_ROLES)
 	return {
 		"reports": [
 			{**r, "installed": bool(frappe.db.exists("Report", r["name"])), "url": f"/app/query-report/{r['name'].replace(' ', '%20')}", "csv": f"/api/method/maison_pos.api.reports.export?report={r['name'].replace(' ', '%20')}"}
+			# --- v1.0 procurement — a report the caller may not run is not listed either ---
 			for r in REPORTS
+			if _may_run(r["name"])
 		]
 	}
 

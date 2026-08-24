@@ -961,6 +961,12 @@ def discrepancy_dict(doc) -> dict[str, Any]:
 	return {
 		"name": doc.name,
 		"shipment": doc.shipment,
+		# --- v1.0 procurement — a discrepancy can now come from a vendor delivery ---
+		"supplier": doc.get("supplier"),
+		"purchase_order": doc.get("purchase_order"),
+		"purchase_receipt": doc.get("purchase_receipt"),
+		"source": "Vendor" if doc.get("supplier") else "Warehouse",
+		# --- end v1.0 procurement ---
 		"boutique": doc.boutique,
 		"item_code": doc.item_code,
 		"item_name": doc.item_name,
@@ -1009,6 +1015,29 @@ def resolve_discrepancy(discrepancy: str, resolution: str, notes: Optional[str] 
 		frappe.throw(_("Already resolved"), frappe.ValidationError)
 	if resolution not in ("Write off", "Returned to warehouse", "Re-ship", "Accepted"):
 		frappe.throw(_("Unknown resolution {0}").format(resolution), frappe.ValidationError)
+	# --- v1.0 procurement — a vendor discrepancy has no shipment behind it ---
+	# Nothing ever left our own stock: the units were short / damaged / over **on arrival from the
+	# vendor**, so there is no in-transit leg to write off or send back. The resolution is a
+	# commercial one with the vendor, recorded here; `Accepted` closes it, `Write off` records that
+	# we are not chasing it. Re-ship / Returned to warehouse are refused.
+	if not doc.get("shipment"):
+		if resolution not in ("Accepted", "Write off"):
+			frappe.throw(
+				_("A vendor discrepancy can only be Accepted or written off — take it up with {0}").format(doc.get("supplier") or _("the vendor")),
+				frappe.ValidationError,
+			)
+		doc.resolution = resolution
+		doc.status = "Resolved"
+		doc.resolved_by = frappe.session.user
+		doc.resolved_at = now_datetime()
+		if notes:
+			doc.notes = ((doc.notes or "") + "\n" + notes).strip()
+		doc.flags.ignore_permissions = True
+		doc.save()
+		out = discrepancy_dict(doc)
+		out["reship_request"] = None
+		return out
+	# --- end v1.0 procurement ---
 	sh = frappe.get_doc("AWANZ Shipment", doc.shipment)
 	qty = flt(doc.short_qty) if doc.type == "Short" else flt(doc.damaged_qty) if doc.type == "Damaged" else flt(doc.over_qty)
 	se_name = None
@@ -1109,54 +1138,36 @@ def vendor_pos() -> dict[str, Any]:
 	return {"warehouse": wh, "purchase_orders": open_purchase_orders(wh)}
 
 
-def receive_purchase_order(po_name: str, lines: Any, warehouse: Optional[str] = None) -> dict[str, Any]:
-	"""Purchase Receipt against *po_name* for ``lines = [{item_code|name, qty}]`` (submitted as Administrator, owner = caller)."""
-	from erpnext.buying.doctype.purchase_order.purchase_order import make_purchase_receipt
+# --- v1.0 procurement ---
+# The Purchase Receipt path moved to `maison_pos.purchasing.receiving` so the warehouse Inbound
+# screen and the store's drop-ship Receive share one implementation (editable unit cost per line,
+# freight adjustment, damaged into the Damaged warehouse, `AWANZ Receiving Discrepancy` raised
+# against the vendor, `last_purchase_*` stamped). This wrapper keeps the v0.6 signature.
+def receive_purchase_order(
+	po_name: str,
+	lines: Any,
+	warehouse: Optional[str] = None,
+	freight: Any = None,
+	final: Any = 0,
+	notes: Optional[str] = None,
+	boutique: Optional[str] = None,
+) -> dict[str, Any]:
+	"""Purchase Receipt against *po_name* — see ``maison_pos.purchasing.receiving``."""
+	from maison_pos.purchasing.receiving import receive_purchase_order as _receive
 
-	po = frappe.get_doc("Purchase Order", po_name)
-	if po.docstatus != 1:
-		frappe.throw(_("Purchase Order {0} is not submitted").format(po_name), frappe.ValidationError)
-	wanted: dict[str, float] = {}
-	for raw in _loads(lines, []) or []:
-		key = raw.get("name") or raw.get("item_code") or raw.get("item")
-		if key:
-			wanted[key] = flt(raw.get("qty", raw.get("received_qty")))
-	if not wanted:
-		frappe.throw(_("Nothing to receive"), frappe.ValidationError)
-	user = frappe.session.user
-	frappe.set_user("Administrator")
-	try:
-		pr = make_purchase_receipt(po_name)
-		keep = []
-		for row in pr.items:
-			qty = wanted.get(row.purchase_order_item, wanted.get(row.item_code))
-			if qty is None or qty <= 0:
-				continue
-			row.qty = qty
-			row.received_qty = qty
-			row.stock_qty = qty * flt(row.conversion_factor or 1)
-			if warehouse:
-				row.warehouse = warehouse
-			keep.append(row)
-		if not keep:
-			frappe.throw(_("No matching Purchase Order lines"), frappe.ValidationError)
-		pr.items = keep
-		if warehouse:
-			pr.set_warehouse = warehouse
-		pr.owner = user
-		pr.flags.ignore_permissions = True
-		pr.insert()
-		pr.submit()
-	finally:
-		frappe.set_user(user)
-	return {"purchase_receipt": pr.name, "purchase_order": po_name, "lines": [{"item_code": r.item_code, "qty": flt(r.qty), "warehouse": r.warehouse} for r in pr.items]}
+	return _receive(po_name, lines, warehouse=warehouse, freight=freight, final=final, notes=notes, boutique=boutique)
 
 
 @frappe.whitelist()
-def receive_vendor_po(po: str, lines: Any) -> dict[str, Any]:
-	"""Warehouse admin receives a vendor PO at the main warehouse (scan / count)."""
+def receive_vendor_po(po: str, lines: Any, freight: Any = None, final: Any = 0, notes: Optional[str] = None) -> dict[str, Any]:
+	"""Warehouse admin receives a vendor PO at the main warehouse (scan / count).
+
+	v1.0: a line may carry ``rate`` (the manual unit-cost override, defaulting to the PO rate) and
+	``damaged_qty``; ``freight`` adjusts the receipt's freight; ``final=1`` closes the delivery and
+	turns anything outstanding into a *Short* discrepancy against the vendor.
+	"""
 	assert_supply_admin()
-	return receive_purchase_order(po, lines, warehouse=get_main_warehouse())
+	return receive_purchase_order(po, lines, warehouse=get_main_warehouse(), freight=freight, final=final, notes=notes)
 
 
 # ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@
   "priority",
   "replenishment_request",
   "material_request",
+  "source_purchase_order",
   "created_by",
   "section_lines",
   "lines",
@@ -132,6 +133,13 @@
    "label": "Material Request",
    "options": "Material Request",
    "read_only": 1
+  },
+  {
+   "description": "v1.0: the vendor order these units arrived on \u2014 'arrived from vendor \u2192 shipped on to store' end to end",
+   "fieldname": "source_purchase_order",
+   "fieldtype": "Link",
+   "label": "Source Purchase Order",
+   "options": "Purchase Order"
   },
   {
    "fieldname": "created_by",

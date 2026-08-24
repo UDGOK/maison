@@ -37,8 +37,9 @@ record('the desk Stock tab lists warehouse on-hand with low-stock highlighting',
 await desk.fill('[data-testid=stock-search]', 'KRT-001'); await sleep(1500)
 const filtered = await desk.$$eval('[data-testid^=stock-]', es => es.map(e => e.getAttribute('data-testid')))
 record('warehouse stock search filters by item code', filtered.filter(f => f !== 'stock-search').every(f => /KRT/.test(f)) && filtered.length > 1, JSON.stringify(filtered.slice(0, 5)))
-await desk.click('[data-testid=tab-vendor]'); await sleep(2000); await shot(desk, 'desk-vendor-pos-tab')
-record('the desk Vendor POs tab shows POs addressed to the main warehouse', true,
+// v1.0 — the old flat "Vendor POs" tab is now the Inbound section (receiving) of the five-section nav
+await desk.click('[data-testid=tab-inbound]'); await sleep(2000); await shot(desk, 'desk-inbound-tab')
+record('the desk Inbound section shows vendor orders expected at the main warehouse', true,
   (await desk.locator('.card, [data-testid^=po-]').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 200), 'observation')
 
 // shipment sheet: pick list + rate chooser

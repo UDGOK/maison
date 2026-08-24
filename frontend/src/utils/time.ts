@@ -16,6 +16,16 @@
  */
 
 const NAIVE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/
+/**
+ * --- v1.0 — a bare `YYYY-MM-DD` is a *calendar day in the site zone*, not UTC midnight ---
+ *
+ * Frappe Date columns (`schedule_date`, `transaction_date`, `posting_date`, `valid_from`,
+ * `last_purchase_date`) come back with no time part. `new Date('2026-08-27')` is UTC midnight,
+ * which renders as **Aug 26** anywhere west of UTC — the v0.8 zone bug in a new shape, and it
+ * mislabels a purchase order's ETA by a day. Parse it as site-zone midnight instead.
+ * --- end v1.0 ---
+ */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
 let zone: string | null = null
 
@@ -90,6 +100,11 @@ export function parseServer(value: string | Date | null | undefined): Date | nul
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
   if (typeof value !== 'string') return null
   const raw = value.trim()
+  if (DATE_ONLY.test(raw)) {
+    const [y, mo, d] = raw.split('-').map(Number)
+    const ts = wallToEpoch(y, mo, d, 0, 0, 0, siteTimeZone())
+    return Number.isNaN(ts) ? null : new Date(ts)
+  }
   if (NAIVE.test(raw)) {
     const [datePart, timePart] = raw.replace(' ', 'T').split('T')
     const [y, mo, d] = datePart.split('-').map(Number)

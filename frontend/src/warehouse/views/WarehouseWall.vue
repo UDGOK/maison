@@ -4,23 +4,37 @@
  * big type, live age timers, ⚑ priority, sound/flash on a newly approved shipment, realtime + 10 s polling,
  * auto-print of packing list / label through a hidden iframe (`window.__awanzLastWallPrint`).
  * Tap a card → Pick / Packed / Buy label / Print / Ship.
+ *
+ * v1.0 §F — a sixth column, **Inbound**: the vendor deliveries the floor is waiting for, soonest
+ * first, anything past its ETA flagged. Read-only (receiving happens on the desk, where the counts
+ * and costs are), and refreshed on the same tick as the rest of the board, throttled so the extra
+ * read never costs the wall a frame.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { WALL_COLUMNS, type WallColumn } from '@/api/warehouse'
 import { useWarehouseStore } from '@/stores/warehouse'
-import { sortCards, totalUnits, type WallCard } from '../wall'
+import { usePurchasingStore } from '@/stores/purchasing'
+import { inboundCards, inboundTier, sortCards, totalUnits, type WallCard } from '../wall'
 import WallCardView from '../components/WallCard.vue'
 import VirtualColumn from '../components/VirtualColumn.vue'
 import ShipmentSheet from '../components/ShipmentSheet.vue'
 import ApproveSheet from '../components/ApproveSheet.vue'
 import { clockHM, setSiteTimeZone, zoneLabel } from '@/utils/time' // v0.6 R
+import { fmtDate, todayISO } from '@/utils/device'
+import { atNoon, etaStatus } from '../inbound'
+
+/** The wall polls every 10 s; the inbound read rides that tick at most this often. */
+const INBOUND_TTL_MS = 30_000
 
 const wh = useWarehouseStore()
+const pur = usePurchasingStore()
 const now = ref(Date.now())
 const openShipment = ref<string | null>(null)
 const openRequest = ref<string | null>(null)
 const toast = ref('')
+const today = ref(todayISO())
 let tick: number | null = null
+let inboundAt = 0
 
 const columns = computed(() =>
   WALL_COLUMNS.map((c) => {
@@ -28,6 +42,31 @@ const columns = computed(() =>
     return { ...c, cards, units: totalUnits(cards) }
   })
 )
+
+/** vendor → lead time, so an order with no promised date still shows an honest ETA */
+const leadTimes = computed(() => {
+  const map: Record<string, number> = {}
+  for (const v of pur.vendors) map[v.name] = Number(v.lead_time_days) || 0
+  return map
+})
+const inbound = computed(() =>
+  inboundCards(pur.inbound?.expected || [], { leadTimes: leadTimes.value, today: today.value, warehouse: wh.me?.main_warehouse || undefined })
+)
+const inboundUnits = computed(() => totalUnits(inbound.value))
+
+/** "Aug 27" — the ETA in the site zone, without the year the board does not need. */
+function shortEta(eta: string): string {
+  return fmtDate(atNoon(eta)).replace(/,\s*\d{4}$/, '')
+}
+
+async function refreshInbound(force = false) {
+  if (!wh.allowed) return
+  const at = Date.now()
+  if (!force && at - inboundAt < INBOUND_TTL_MS) return
+  inboundAt = at
+  today.value = todayISO()
+  await pur.loadInbound()
+}
 // v0.6 R — the board hangs in the warehouse: it shows the *site* clock, not the browser's.
 const clock = computed(() => clockHM(new Date(now.value)))
 const zone = computed(() => zoneLabel(new Date(now.value)))
@@ -66,10 +105,20 @@ function onApproved(shipment?: string) {
   }
 }
 
+watch(
+  () => wh.wall?.server_time,
+  () => void refreshInbound()
+)
+
 onMounted(async () => {
   await wh.loadMe()
   setSiteTimeZone(wh.me?.time_zone) // v0.6 R — the site zone rides on `shipping.me`
-  if (wh.allowed) wh.start(true)
+  if (wh.allowed) {
+    wh.start(true)
+    // lead times are read once: they only matter for an order with no promised date
+    void pur.loadVendors(undefined, false)
+    void refreshInbound(true)
+  }
   tick = window.setInterval(() => (now.value = Date.now()), 1000)
 })
 onBeforeUnmount(() => {
@@ -121,6 +170,39 @@ onBeforeUnmount(() => {
         <VirtualColumn v-else :items="c.cards" :item-height="cardHeight" :gap="12">
           <template #default="{ item }">
             <WallCardView :card="item" :column="c.key as WallColumn" :fetched-at="wh.fetchedAt" :now="now" :warn="wh.wall?.warn_seconds || 14400" :crit="wh.wall?.crit_seconds || 86400" :flash="wh.flash === item.name" :busy="wh.busy === item.name" @open="open" @action="act" />
+          </template>
+        </VirtualColumn>
+      </section>
+
+      <!-- v1.0 §F — what is arriving. Read-only: receiving happens on the desk. -->
+      <section class="col" data-testid="col-inbound" :data-count="inbound.length">
+        <div class="col-head">
+          <div class="col-title display">Inbound</div>
+          <div class="col-count num">{{ inbound.length }}<span class="label label-dim"> · {{ inboundUnits }} u</span></div>
+        </div>
+        <div v-if="!inbound.length" class="empty label label-dim">Nothing on its way</div>
+        <VirtualColumn v-else :items="inbound" :item-height="cardHeight" :gap="12">
+          <template #default="{ item }">
+            <div class="icard" :class="inboundTier(item)" :data-testid="`wall-inbound-${item.name}`" :data-tier="inboundTier(item)">
+              <div class="top">
+                <!-- the vendor leads, because `Supplier.name` is a code on some sites and the
+                     company's own name on others — the name is what the floor says out loud -->
+                <div class="code display" :title="item.supplier_name || item.supplier">
+                  {{ item.supplier_name || item.supplier }}<span v-if="item.overdue_days" class="flag" title="past its ETA">⚑</span>
+                </div>
+                <div class="age num" :class="inboundTier(item)" :title="fmtDate(atNoon(item.eta))" :data-testid="`eta-${item.name}`">{{ etaStatus(item.eta, today).text }}</div>
+              </div>
+              <div class="store ellipsis">{{ item.name }}<span v-if="item.per_received"> · {{ Math.round(item.per_received) }}% in</span></div>
+              <div class="meta">
+                <span class="num">{{ item.items }} <span class="label label-dim">{{ item.items === 1 ? 'line' : 'lines' }}</span></span>
+                <span class="num">{{ item.units }} <span class="label label-dim">{{ item.units === 1 ? 'unit' : 'units' }}</span></span>
+                <span class="eta">{{ shortEta(item.eta) }}</span>
+              </div>
+              <div class="bottom">
+                <span class="label label-dim ellipsis">{{ item.supplier }}</span>
+                <span class="label label-dim ellipsis dest">{{ item.dropship_store ? `→ ${item.dropship_store}` : item.boutique }}</span>
+              </div>
+            </div>
           </template>
         </VirtualColumn>
       </section>
@@ -218,7 +300,8 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* v1.0 §F — five workflow columns plus a slimmer Inbound, so the original five keep their room */
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 0.8fr);
   gap: 16px;
   padding: 18px 24px 24px;
 }
@@ -237,15 +320,18 @@ onBeforeUnmount(() => {
   border-bottom: var(--line-w) solid var(--line-strong);
 }
 .col-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
+  min-width: 0;
 }
 .col-count {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--accent);
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .empty {
   padding: 28px 16px;
@@ -253,6 +339,94 @@ onBeforeUnmount(() => {
 }
 .col :deep(.vcol) {
   padding: 12px;
+}
+
+/* v1.0 §F — the Inbound card. Same anatomy as `WallCard.vue` (whose styles are scoped to it):
+   big code, name, meta row, footer — tiered on how overdue the delivery is rather than on age. */
+.icard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: var(--line-w) solid var(--line);
+  border-left: 5px solid var(--line-strong);
+  user-select: none;
+}
+.icard.warn {
+  border-left-color: var(--warn);
+}
+.icard.crit {
+  border-left-color: var(--crit);
+  background: rgba(196, 115, 106, 0.08);
+}
+.icard .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.icard .code {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.12;
+  min-width: 0;
+  /* a vendor name is longer than a store code: two lines, then clip */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.icard .flag {
+  color: var(--crit);
+  margin-left: 8px;
+  font-size: 20px;
+}
+.icard .age {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.icard .age.warn {
+  color: var(--warn);
+}
+.icard .age.crit {
+  color: var(--crit);
+}
+.icard .store {
+  font-size: 16px;
+  color: var(--muted);
+  flex: 0 0 auto;
+  line-height: 1.4;
+  padding-bottom: 1px;
+}
+.icard .meta {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  font-size: 18px;
+  min-width: 0;
+}
+.icard .eta {
+  font-size: 15px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.icard .bottom {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.icard .dest {
+  flex: 0 0 auto;
+  max-width: 45%;
 }
 .gate {
   flex: 1;
@@ -306,6 +480,18 @@ onBeforeUnmount(() => {
   }
   .col :deep(.wcard .meta) {
     font-size: 30px;
+  }
+  .col :deep(.icard) {
+    font-size: 1.5em;
+  }
+  .col :deep(.icard .code) {
+    font-size: 30px;
+  }
+  .col :deep(.icard .age) {
+    font-size: 24px;
+  }
+  .col :deep(.icard .meta) {
+    font-size: 26px;
   }
 }
 </style>

@@ -7,7 +7,7 @@
  * (status, rejection reason) and a manual "Request from warehouse".
  */
 import { computed, onMounted, ref } from 'vue'
-import { warehouseApi, type Inbound, type PurchaseOrder, type ReceiveResult, type ReplenishmentRequest, type Shipment } from '@/api/warehouse'
+import { warehouseApi, type Inbound, type PurchaseOrder, type PurchaseReceiptResult, type ReceiveResult, type ReplenishmentRequest, type Shipment } from '@/api/warehouse'
 import { useSessionStore } from '@/stores/session'
 import { useSyncStore } from '@/stores/sync'
 import { useScanStore } from '@/stores/scan'
@@ -15,6 +15,7 @@ import { useCatalogStore } from '@/stores/catalog'
 import { useInventoryStore } from '@/stores/inventory'
 import { fmtDateTime, fmtDateTimeZoned } from '@/utils/device'
 import { plural } from '@/utils/text' // v0.6 R
+import { fmtInt } from '@/utils/money'
 import CountSheet, { type Counted } from '@/warehouse/components/CountSheet.vue'
 import Modal from '@/components/Modal.vue'
 
@@ -32,7 +33,7 @@ const busy = ref(false)
 const openShipment = ref<Shipment | null>(null)
 const openPo = ref<PurchaseOrder | null>(null)
 const result = ref<ReceiveResult | null>(null)
-const prResult = ref<{ purchase_receipt: string; lines: { item_code: string; qty: number }[] } | null>(null)
+const prResult = ref<PurchaseReceiptResult | null>(null)
 const requesting = ref(false)
 const reqLines = ref<{ item_code: string; qty: number }[]>([])
 const reqSearch = ref('')
@@ -153,12 +154,12 @@ async function sendRequest() {
           <span v-if="result.discrepancies.length" class="warn"> · {{ result.discrepancies.length }} discrepancy(ies): {{ result.discrepancies.join(', ') }}</span>
         </div>
       </div>
-      <div v-if="prResult" class="card block result">
+      <div v-if="prResult" class="card block result" data-testid="pr-result">
         <div class="between">
-          <div class="section-title">Purchase Receipt {{ prResult.purchase_receipt }}</div>
+          <div class="section-title">Purchase Receipt <span data-testid="pr-result-name">{{ prResult.purchase_receipt }}</span></div>
           <button class="btn btn-ghost" @click="prResult = null">Dismiss</button>
         </div>
-        <div class="muted" style="font-size: 14px">{{ prResult.lines.map((l) => `${l.item_code} × ${l.qty}`).join(' · ') }}</div>
+        <div class="muted" style="font-size: 14px">{{ prResult.lines.filter((l) => l.accepted_qty > 0).map((l) => `${l.item_code} × ${fmtInt(l.accepted_qty)}`).join(' · ') || 'Nothing was booked into stock.' }}</div>
       </div>
 
       <div class="cols">
