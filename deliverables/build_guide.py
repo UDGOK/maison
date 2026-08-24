@@ -1,0 +1,1586 @@
+#!/usr/bin/env python3
+"""Build the AWANZ POS by CloudChaserz — Training & Access Guide (PDF).
+
+Credential and store tables are parsed out of the repository source with `ast`
+(maison_pos/setup/cloudchaserz/users.py and stores.py) so nothing is transcribed by hand.
+"""
+from __future__ import annotations
+
+import ast
+import html
+import os
+import subprocess
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+SETUP = os.path.join(REPO, "maison_pos", "setup", "cloudchaserz")
+DIAGRAMS = os.path.join(HERE, "diagrams")
+
+BUILD_DATE = "24 August 2026"
+SITE = "https://cloudchaserz.frappe.cloud"
+PASSWORD = "cloud123"
+DOMAIN = "cloudchaserz.example"
+
+
+# --------------------------------------------------------------- source data
+def _find(path: str, name: str):
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign) and getattr(node.target, "id", None) == name:
+            return node.value
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if getattr(t, "id", None) == name:
+                    return node.value
+    raise KeyError(f"{name} not found in {path}")
+
+
+def literal(path: str, name: str, env: dict | None = None):
+    """literal_eval, but resolving module-level Name references and simple f-strings."""
+    env = env or {}
+
+    def ev(n):
+        if isinstance(n, ast.Name):
+            if n.id in env:
+                return env[n.id]
+            return literal(path, n.id, env)
+        if isinstance(n, ast.Constant):
+            return n.value
+        if isinstance(n, ast.JoinedStr):
+            return "".join(str(ev(v.value)) if isinstance(v, ast.FormattedValue) else ev(v) for v in n.values)
+        if isinstance(n, ast.Dict):
+            return {ev(k): ev(v) for k, v in zip(n.keys, n.values)}
+        if isinstance(n, (ast.List, ast.Tuple, ast.Set)):
+            vals = [ev(x) for x in n.elts]
+            return tuple(vals) if isinstance(n, ast.Tuple) else (set(vals) if isinstance(n, ast.Set) else vals)
+        return ast.literal_eval(n)
+
+    return ev(_find(path, name))
+
+
+USERS_PY = os.path.join(SETUP, "users.py")
+STORES_PY = os.path.join(SETUP, "stores.py")
+
+MANAGER_PINS = literal(USERS_PY, "MANAGER_PINS")
+STAFF = literal(USERS_PY, "STAFF")
+STORES = literal(STORES_PY, "STORES")
+WAREHOUSE_SPEC = literal(STORES_PY, "WAREHOUSE_SPEC")
+
+assert len(STORES) == 11, len(STORES)
+assert set(MANAGER_PINS) == {s["code"] for s in STORES}
+assert set(STAFF) == {s["code"] for s in STORES}
+
+
+def prefix(code: str) -> str:
+    return code.lower().replace("-", ".")
+
+
+def hours_text(h: dict) -> str:
+    if not h:
+        return "—"
+    default = h.get("default", "")
+    extra = [f"{k.capitalize()} {v}" for k, v in h.items() if k != "default"]
+    txt = default.replace("-", "–")
+    if extra:
+        txt += "; " + ", ".join(e.replace("-", "–") for e in extra)
+    return txt
+
+
+# ------------------------------------------------------------------ helpers
+def e(s) -> str:
+    return html.escape(str(s), quote=False)
+
+
+def rows_store_logins() -> str:
+    out = []
+    for s in STORES:
+        code, pre = s["code"], prefix(s["code"])
+        staff = {k: (f, l) for k, f, l in STAFF[code]}
+        mgr_f, mgr_l = staff["Mgr"]
+        a1_f, a1_l = staff["A1"]
+        a2_f, a2_l = staff["A2"]
+        out.append(
+            f'<tr class="grp"><td class="code"><b>{e(code)}</b><br><span class="dim">{e(s["name"])}</span></td>'
+            f'<td>Store manager</td><td class="mono">{e(pre)}.manager@{DOMAIN}</td>'
+            f'<td>{e(mgr_f)} {e(mgr_l)}</td><td class="pin"><b>{e(MANAGER_PINS[code])}</b></td></tr>'
+        )
+        out.append(
+            f'<tr><td class="code sub">{e(code)}</td><td>Associate</td><td class="mono">{e(pre)}.a1@{DOMAIN}</td>'
+            f'<td>{e(a1_f)} {e(a1_l)}</td><td class="pin">2580</td></tr>'
+        )
+        out.append(
+            f'<tr><td class="code sub">{e(code)}</td><td>Associate</td><td class="mono">{e(pre)}.a2@{DOMAIN}</td>'
+            f'<td>{e(a2_f)} {e(a2_l)}</td><td class="pin">1357</td></tr>'
+        )
+    return "\n".join(out)
+
+
+def rows_store_directory() -> str:
+    out = []
+    for s in STORES:
+        hq = ' <span class="tag">HQ store</span>' if s["code"] == "HOU-MTR" else ""
+        out.append(
+            f'<tr><td class="mono nw">{e(s["code"])}</td><td>{e(s["name"])}{hq}</td>'
+            f'<td>{e(s["address_line"])}, {e(s["city"])}</td><td class="nw">{e(s["phone"])}</td>'
+            f'<td>{e(s["region"])}</td><td class="nw">{e(hours_text(s["hours"]))}</td>'
+            f'<td class="num">{s["tax_rate"]}%</td></tr>'
+        )
+    w = WAREHOUSE_SPEC
+    out.append(
+        f'<tr class="wh"><td class="mono nw">{e(w["code"])}</td><td>{e(w["name"])} <span class="tag">not a store</span></td>'
+        f'<td>{e(w["address_line"])}, {e(w["city"])}</td><td class="nw">{e(w["phone"])}</td>'
+        f'<td>{e(w["region"])}</td><td class="nw">{e(hours_text(w["hours"]))}</td><td class="num">—</td></tr>'
+    )
+    return "\n".join(out)
+
+
+def manager_pin_strip() -> str:
+    return " · ".join(f'<b>{e(c)}</b>&nbsp;{e(MANAGER_PINS[c])}' for c in [s["code"] for s in STORES])
+
+
+FIGS = [
+    ("fig1-system-map.svg", "Figure 1 — System map: the stores, the cloud platform, Houston, and the public web."),
+    ("fig2-sale-and-offline.svg", "Figure 2 — A sale, from the counter to the books, and what changes when the network drops."),
+    ("fig3-returns-and-replenishment.svg", "Figure 3 — Returns and exchanges at the till; the replenishment loop with Houston."),
+    ("fig4-online-and-rewards.svg", "Figure 4 — A web order collected in store, and the life of a rewards point."),
+]
+
+
+def figure_pages() -> str:
+    out = []
+    for i, (fn, cap) in enumerate(FIGS):
+        path = os.path.join(DIAGRAMS, fn)
+        assert os.path.exists(path), path
+        out.append(f'<div class="figpage"><img src="{e(path)}" alt="{e(cap)}"></div>')
+    return "\n".join(out)
+
+
+# =============================================================== the document
+CSS = """
+@font-face { font-family: 'Unbounded'; src: url('file:///root/.fonts/unbounded-400.ttf'); font-weight: 400 }
+@font-face { font-family: 'Unbounded'; src: url('file:///root/.fonts/unbounded-300.ttf'); font-weight: 300 }
+@font-face { font-family: 'Unbounded'; src: url('file:///root/.fonts/f5.ttf'); font-weight: 700 }
+@font-face { font-family: 'Unbounded'; src: url('file:///root/.fonts/f6.ttf'); font-weight: 900 }
+@font-face { font-family: 'JostG'; src: url('file:///root/.fonts/f3.ttf'); font-weight: 400 }
+@font-face { font-family: 'JostG'; src: url('file:///root/.fonts/f4.ttf'); font-weight: 300 }
+@font-face { font-family: 'JostG'; src: url('file:///root/.fonts/f2.ttf'); font-weight: 500 }
+@font-face { font-family: 'JostG'; src: url('file:///root/.fonts/f1.ttf'); font-weight: 600 }
+
+:root {}
+
+@page {
+  size: letter;
+  margin: 62pt 54pt 62pt 54pt;
+  @top-left {
+    content: string(sectiontitle);
+    font-family: 'JostG', sans-serif; font-size: 7.6pt; color: #8C877A;
+    letter-spacing: 0.4pt; padding-bottom: 6pt;
+  }
+  @top-right {
+    content: "AWANZ POS by CloudChaserz";
+    font-family: 'JostG', sans-serif; font-size: 7.6pt; color: #B7B0A0; padding-bottom: 6pt;
+  }
+  @bottom-left {
+    content: "AWANZ POS by CloudChaserz  ·  Powered by Futonix.com";
+    font-family: 'JostG', sans-serif; font-size: 7.4pt; color: #8C877A; padding-top: 8pt;
+  }
+  @bottom-right {
+    content: counter(page);
+    font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 8.5pt; color: #8F7118; padding-top: 8pt;
+  }
+}
+@page cover { margin: 0; @top-left { content: none } @top-right { content: none }
+              @bottom-left { content: none } @bottom-right { content: none } }
+@page landscape { size: letter landscape; margin: 0;
+              @top-left { content: none } @top-right { content: none }
+              @bottom-left { content: none } @bottom-right { content: none } }
+
+html { font-family: 'JostG', 'DejaVu Sans', sans-serif; font-size: 9.6pt; color: #1C1B16; line-height: 1.45; }
+body { margin: 0 }
+
+h1, h2, h3, h4 { font-family: 'Unbounded', sans-serif; color: #14140F; margin: 0; }
+h1 { font-size: 19pt; font-weight: 700; line-height: 1.12; letter-spacing: -0.3pt; }
+h2 { font-size: 12.4pt; font-weight: 700; line-height: 1.2; margin: 0 0 4pt 0; }
+h3 { font-size: 9.8pt; font-weight: 700; margin: 15pt 0 4pt 0; color: #14140F; }
+h4 { font-size: 8.8pt; font-weight: 700; margin: 11pt 0 3pt 0; color: #6B5410; letter-spacing: 0.2pt; }
+p  { margin: 0 0 7pt 0; }
+a  { color: #6B5410; text-decoration: none; }
+b, strong { font-weight: 600 }
+.dim { color: #6B675C }
+.nw  { white-space: nowrap }
+.num { text-align: right; font-variant-numeric: tabular-nums }
+.mono { font-family: 'DejaVu Sans Mono', monospace; font-size: 7.6pt; letter-spacing: -0.2pt }
+code { font-family: 'DejaVu Sans Mono', monospace; font-size: 0.86em; display: inline-block;
+       background: #F4F1E8; padding: 0.5pt 2.5pt; border-radius: 2pt; color: #4A4535 }
+.routes { font-family: 'DejaVu Sans Mono', monospace; font-size: 7.4pt; color: #4A4535;
+          line-height: 1.7; white-space: nowrap }
+
+/* ---- cover ---- */
+.cover { page: cover; height: 792pt; position: relative; }
+.cover .bar { height: 14pt; background: #8F7118 }
+.cover .inner { padding: 92pt 62pt 0 62pt }
+.cover .wordmark { font-family: 'Unbounded', sans-serif; font-weight: 900; font-size: 40pt;
+                   letter-spacing: -1pt; color: #14140F; line-height: 1 }
+.cover .submark { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 12pt;
+                  letter-spacing: 5pt; color: #8F7118; margin-top: 8pt }
+.cover .tagline { font-size: 10.5pt; color: #6B675C; margin-top: 4pt; letter-spacing: 0.6pt }
+.cover .rule { height: 2pt; background: #14140F; margin: 34pt 0 26pt 0; width: 150pt }
+.cover .doctitle { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 30pt;
+                   line-height: 1.08; letter-spacing: -0.6pt; color: #14140F }
+.cover .docsub { font-size: 11.5pt; color: #4A4535; margin-top: 12pt; max-width: 400pt; line-height: 1.5 }
+.cover .meta { position: absolute; left: 62pt; right: 62pt; bottom: 96pt; }
+.cover .meta table { width: 100%; border-collapse: collapse; }
+.cover .meta td { font-size: 9pt; padding: 4pt 0; border-bottom: 0.5pt solid #DDD8CA; vertical-align: top }
+.cover .meta td.k { color: #8C877A; width: 122pt; letter-spacing: 0.3pt }
+.cover .foot { position: absolute; left: 62pt; right: 62pt; bottom: 46pt;
+               display: flex; justify-content: space-between; font-size: 9pt; color: #6B675C }
+.cover .powered { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 9pt; color: #8F7118; letter-spacing: 0.6pt }
+
+/* ---- section chrome ---- */
+.section { break-before: page; string-set: sectiontitle attr(data-title); }
+.section > .shead { border-top: 2.5pt solid #8F7118; padding-top: 9pt; margin-bottom: 14pt; }
+.snum { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 8.5pt; color: #8F7118;
+        letter-spacing: 1.4pt; display: block; margin-bottom: 5pt }
+.slead { font-size: 10pt; color: #4A4535; margin-top: 6pt; line-height: 1.5 }
+
+/* ---- toc ---- */
+.toc { break-after: page; string-set: sectiontitle "Contents"; }
+.toc h2 { border-top: 2.5pt solid #8F7118; padding-top: 9pt; margin-bottom: 12pt }
+.toc ol { list-style: none; margin: 0; padding: 0; column-count: 2; column-gap: 26pt }
+.toc li { margin: 0; padding: 2.6pt 0; border-bottom: 0.5pt dotted #DDD8CA; font-size: 8.9pt;
+          line-height: 1.25; break-inside: avoid }
+.toc li.l1 { font-weight: 600; padding-top: 5pt }
+.toc li.l2 { padding-left: 13pt; font-size: 8.2pt; color: #4A4535; border-bottom: none;
+             padding-top: 1.2pt; padding-bottom: 1.2pt }
+.toc a { display: block; color: inherit }
+.toc a::after { content: target-counter(attr(href), page); float: right;
+                font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 8pt; color: #8F7118 }
+.toc li.l2 a::after { font-weight: 400; color: #8C877A }
+
+/* ---- tables ---- */
+table.t { width: 100%; border-collapse: collapse; margin: 7pt 0 10pt 0; font-size: 8.3pt }
+table.t th { text-align: left; font-family: 'JostG', sans-serif; font-weight: 600; font-size: 7.4pt;
+             letter-spacing: 0.5pt; text-transform: uppercase; color: #6B5410;
+             border-bottom: 1.2pt solid #8F7118; padding: 4pt 5pt 4pt 0; vertical-align: bottom }
+table.t td { padding: 4pt 5pt 4pt 0; border-bottom: 0.5pt solid #E4DFD1; vertical-align: top; line-height: 1.35 }
+table.t tr.grp td { border-top: 0.9pt solid #CFC9BA }
+table.t td.code { width: 74pt }
+table.t td.code.sub { font-size: 7.2pt; color: #A8A294; letter-spacing: 0.2pt }
+table.t td.pin { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.6pt; letter-spacing: 1pt; width: 40pt }
+table.t tr.wh td { background: #FAF8F3 }
+table.t thead { display: table-header-group }
+table.t tr { break-inside: avoid }
+.tag { font-size: 6.6pt; letter-spacing: 0.5pt; text-transform: uppercase; color: #8F7118;
+       border: 0.5pt solid #D9CFA8; border-radius: 2pt; padding: 0.5pt 3pt; white-space: nowrap }
+
+/* ---- callouts ---- */
+.box { border: 1pt solid #D9D3C2; border-radius: 4pt; padding: 9pt 11pt; margin: 9pt 0 11pt 0;
+       background: #FBFAF6; font-size: 8.9pt; break-inside: avoid }
+.box .bt { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 8pt; letter-spacing: 0.6pt;
+           color: #6B5410; display: block; margin-bottom: 4pt }
+.box p:last-child { margin-bottom: 0 }
+.box.warn { border-color: #A32B1F; background: #FCF3F1 }
+.box.warn .bt { color: #A32B1F }
+.box.gold { border-color: #C9AC55; background: #FCF8EC }
+.box.plain { background: #F6F4ED; border-color: #E0DACA }
+
+/* ---- steps ---- */
+ol.steps { margin: 4pt 0 10pt 0; padding-left: 0; list-style: none; counter-reset: st }
+ol.steps > li { counter-increment: st; position: relative; padding-left: 20pt; margin-bottom: 5pt;
+                font-size: 9.2pt; line-height: 1.45; break-inside: avoid }
+ol.steps > li::before { content: counter(st); position: absolute; left: 0; top: 0.6pt;
+                        font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 7.4pt;
+                        color: #FFFFFF; background: #8F7118; width: 13pt; height: 13pt; border-radius: 7pt;
+                        text-align: center; line-height: 13pt }
+ol.steps ul { margin: 3pt 0 0 0; padding-left: 12pt }
+ol.steps ul li { font-size: 8.6pt; color: #4A4535; margin-bottom: 1.5pt }
+ul.plain { margin: 3pt 0 9pt 0; padding-left: 13pt }
+ul.plain li { margin-bottom: 3pt }
+
+.kv { font-size: 8.8pt }
+.lead-in { font-family: 'JostG'; font-weight: 600; color: #14140F }
+
+.colophon { break-before: page; text-align: center; padding-top: 96pt }
+.colophon .cwordmark { font-family: 'Unbounded', sans-serif; font-weight: 900; font-size: 26pt;
+                       letter-spacing: -0.6pt; color: #14140F; line-height: 1 }
+.colophon .csub { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 8.5pt;
+                  letter-spacing: 4pt; color: #8F7118; margin-top: 6pt }
+.colophon .crule { width: 90pt; height: 1.6pt; background: #14140F; margin: 26pt auto }
+.colophon .ctitle { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 13pt;
+                    color: #14140F; margin: 0 0 12pt 0 }
+.colophon .cmeta { font-size: 9pt; color: #6B675C; line-height: 1.6; margin: 0 0 22pt 0 }
+.colophon .cbox { border: 1pt solid #A32B1F; background: #FCF3F1; border-radius: 4pt;
+                  padding: 10pt 14pt; margin: 0 auto 24pt auto; max-width: 340pt;
+                  font-size: 8.6pt; line-height: 1.5; text-align: left; color: #1C1B16 }
+.colophon .cpowered { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 8.5pt;
+                      letter-spacing: 1.2pt; color: #8F7118; margin-top: 30pt }
+
+.figpage { page: landscape; break-before: page; }
+.figpage img { display: block; width: 792pt; height: 612pt }
+.figcap { font-size: 8.6pt; color: #4A4535; margin: 2pt 0 12pt 0 }
+
+.twocol { column-count: 2; column-gap: 20pt }
+.avoid { break-inside: avoid }
+"""
+
+
+def section(num, anchor, title, lead, body, data_title=None) -> str:
+    dt = data_title or f"{num} · {title}"
+    return f"""
+<section class="section" id="{anchor}" data-title="{e(dt)}">
+  <div class="shead">
+    <span class="snum">SECTION {num}</span>
+    <h1>{title}</h1>
+    <p class="slead">{lead}</p>
+  </div>
+  {body}
+</section>"""
+
+
+def build_html() -> str:
+    store_rows = rows_store_logins()
+    dir_rows = rows_store_directory()
+
+    # ---------------------------------------------------------------- cover
+    cover = f"""
+<div class="cover">
+  <div class="bar"></div>
+  <div class="inner">
+    <div class="wordmark">CLOUDCHASERZ</div>
+    <div class="submark">AWANZ&nbsp;POS</div>
+    <div class="tagline">Elevate Your Smoking Experience</div>
+    <div class="rule"></div>
+    <div class="doctitle">Training &amp;<br>Access Guide</div>
+    <div class="docsub">Everything a store associate, a store manager, the warehouse admin
+      and head office need to open the till, run the day and close it — with every login, every
+      screen and every step written out.</div>
+  </div>
+  <div class="meta">
+    <table>
+      <tr><td class="k">PRODUCT</td><td>AWANZ POS by CloudChaserz &nbsp;·&nbsp; release v0.9</td></tr>
+      <tr><td class="k">LIVE SITE</td><td>{SITE}</td></tr>
+      <tr><td class="k">ESTATE</td><td>11 stores across Houston and Oklahoma, plus the <b>HOU-WH</b> Houston main warehouse</td></tr>
+      <tr><td class="k">AUDIENCE</td><td>Store associates · store managers · warehouse admin · head office</td></tr>
+      <tr><td class="k">ISSUED</td><td>{BUILD_DATE}</td></tr>
+      <tr><td class="k">TENANT</td><td>CloudChaserz World LLC &nbsp;·&nbsp; support@cloudchaserzworld.com</td></tr>
+    </table>
+  </div>
+  <div class="foot">
+    <span>Training &amp; Access Guide · {BUILD_DATE}</span>
+    <span class="powered">POWERED BY FUTONIX.COM</span>
+  </div>
+</div>"""
+
+    # ------------------------------------------------------------------ toc
+    toc_items = [
+        ("l1", "#s1", "1 · Before you start"),
+        ("l2", "#s1-1", "What this guide is, and who it is for"),
+        ("l2", "#s1-2", "The estate in one paragraph"),
+        ("l2", "#s1-3", "Conventions used here"),
+        ("l1", "#s2", "2 · Every login"),
+        ("l2", "#s2-1", "How the accounts are named"),
+        ("l2", "#s2-2", "The 11 stores — managers and associates"),
+        ("l2", "#s2-3", "Head office, warehouse and regional"),
+        ("l2", "#s2-4", "The storefront shopper"),
+        ("l2", "#s2-5", "What the PIN is, and what happens when it is wrong"),
+        ("l2", "#s2-6", "Security — read before the first real sale"),
+        ("l1", "#s3", "3 · The screens and their URLs"),
+        ("l2", "#s3-1", "/start — the launcher, and why you land there"),
+        ("l2", "#s3-2", "The URL table"),
+        ("l2", "#s3-3", "Who can open what"),
+        ("l1", "#s4", "4 · Associate — how to"),
+        ("l2", "#s4-1", "Open the till"),
+        ("l2", "#s4-2", "Ring a sale"),
+        ("l2", "#s4-3", "Scan a barcode"),
+        ("l2", "#s4-4", "Age-verify a 21+ item"),
+        ("l2", "#s4-5", "Attach a client by number or phone"),
+        ("l2", "#s4-6", "Take cash, card, or a split"),
+        ("l2", "#s4-7", "Print and e-mail the receipt"),
+        ("l2", "#s4-8", "Take a return"),
+        ("l2", "#s4-9", "Do an exchange"),
+        ("l2", "#s4-10", "Work offline — and what the queue means"),
+        ("l2", "#s4-11", "Clock in and clock out"),
+        ("l2", "#s4-12", "End of day — the X and Z report"),
+        ("l1", "#s5", "5 · Store manager — how to"),
+        ("l2", "#s5-1", "Approve a price change"),
+        ("l2", "#s5-2", "Request stock from the warehouse"),
+        ("l2", "#s5-3", "Receive a delivery by scanning"),
+        ("l2", "#s5-4", "Run a cycle count"),
+        ("l2", "#s5-5", "Approve a return over the threshold"),
+        ("l2", "#s5-6", "Manage your associates and reset a PIN"),
+        ("l1", "#s6", "6 · Warehouse admin — how to"),
+        ("l2", "#s6-1", "Approve, edit the quantity, or reject"),
+        ("l2", "#s6-2", "Pick, pack, buy the cheapest label, ship"),
+        ("l2", "#s6-3", "The 55-inch wall and its auto-printing"),
+        ("l2", "#s6-4", "Discrepancies, cancellations and stuck shipments"),
+        ("l1", "#s7", "7 · Head office — how to"),
+        ("l2", "#s7-1", "Live"),
+        ("l2", "#s7-2", "Stores"),
+        ("l2", "#s7-3", "Products"),
+        ("l2", "#s7-4", "Clients"),
+        ("l2", "#s7-5", "Insights"),
+        ("l2", "#s7-6", "Reports and CSV export"),
+        ("l2", "#s7-7", "Promotions and coupons"),
+        ("l2", "#s7-8", "Campaigns"),
+        ("l1", "#s8", "8 · Rewards — what to say at the counter"),
+        ("l1", "#s9", "9 · Troubleshooting"),
+        ("l1", "#s10", "10 · How the system fits together"),
+        ("l1", "#sa", "Appendix A · Store directory"),
+        ("l1", "#sb", "Appendix B · Where to read more"),
+    ]
+    toc = ('<div class="toc"><h2>Contents</h2><ol>'
+           + "".join(f'<li class="{c}"><a href="{h}">{e(t)}</a></li>' for c, h, t in toc_items)
+           + "</ol></div>")
+
+    # ------------------------------------------------------------- section 1
+    s1 = section("1", "s1", "Before you start",
+        "What this guide covers, the shape of the business it describes, and how to read it.", f"""
+<h3 id="s1-1">1.1 &nbsp;What this guide is, and who it is for</h3>
+<p>This is the working manual for <b>AWANZ POS by CloudChaserz</b> — the point-of-sale, warehouse and
+head-office platform running at <a href="{SITE}">{SITE}</a>. It is written to be used at the counter:
+every procedure is a numbered list you can follow with a customer standing in front of you.</p>
+<p>Four audiences, four sections. <b>Store associates</b> need Section 4. <b>Store managers</b> need
+Section 4 and Section 5. The <b>warehouse admin</b> in Houston needs Section 6. <b>Head office</b>
+needs Section 7. Everyone needs Sections 2, 3, 8 and 9 — the logins, the URLs, the rewards programme
+and what to do when something goes wrong.</p>
+
+<h3 id="s1-2">1.2 &nbsp;The estate in one paragraph</h3>
+<p>CloudChaserz runs <b>eleven stores</b> — one in Houston (Montrose, which is also the head-office
+store) and ten across the Tulsa metro and wider Oklahoma — plus one <b>main warehouse</b>,
+<code>HOU-WH</code>, at the Houston head office. All of them run on a single cloud site. A store sells;
+the warehouse ships to stores and never sells. Head office watches the chain from the Command
+dashboard. Customers can also buy online at <code>/shop</code> and collect in a store. Everything the
+customer or an associate reads — the wordmark, the product name, the rewards copy — comes from the
+tenant's brand settings, which is why every screen says CloudChaserz.</p>
+
+<h3 id="s1-3">1.3 &nbsp;Conventions used here</h3>
+<ul class="plain">
+  <li>A path in <code>this typeface</code> is a URL on the site, an e-mail address, a document type or
+      a field name. Type it exactly as printed.</li>
+  <li><b>&ldquo;Tap&rdquo;</b> is used throughout because the till is a touchscreen; on a laptop it means click.</li>
+  <li>A <b>store code</b> such as <code>OK-BIX</code> identifies a store everywhere in the system — in
+      logins, in stock records, in the dashboard and on shipping labels.</li>
+  <li><b>Store</b>, not &ldquo;boutique&rdquo;. Some older screens and reports still carry the word
+      <i>boutique</i> in field names; it means the same thing.</li>
+  <li>Money is US dollars, times are <b>America/Chicago</b>, and every store's day boundary is the
+      site's, not the device's.</li>
+</ul>
+<div class="box plain">
+  <span class="bt">A NOTE ON ACCURACY</span>
+  <p>Every credential, PIN, URL, threshold and screen name in this guide was taken from the platform's
+  own source and from the final acceptance run carried out on the live site on {BUILD_DATE}
+  (124 of 124 checks passed). Where a behaviour has a limit or a caveat, it is printed with the
+  behaviour rather than left out.</p>
+</div>""")
+
+    # ------------------------------------------------------------- section 2
+    s2 = section("2", "s2", "Every login",
+        "One password for every demo account, one PIN per person at the till. Read 2.6 before "
+        "you trade for real.", f"""
+<div class="box warn">
+  <span class="bt">⚠ THESE ARE SHARED DEMO CREDENTIALS</span>
+  <p>Every account below uses the same password, <code>{PASSWORD}</code>, and the PINs are seeded
+  constants that are identical on every CloudChaserz site. <b>They are a convenience for training,
+  not credentials.</b> A site holding these logins must not hold real customer data, and this site
+  must be re-credentialed before the first real sale — see <b>2.6</b>.</p>
+</div>
+
+<h3 id="s2-1">2.1 &nbsp;How the accounts are named</h3>
+<p>Every store login is built from the store code, <b>lower-cased with the dash replaced by a dot</b>,
+then the role. So <code>OK-SAP</code> becomes <code>ok.sap</code>, and its manager is
+<code>ok.sap.manager@{DOMAIN}</code>. The two associates are <code>.a1</code> and <code>.a2</code>.
+Head office, the warehouse and the two regionals have plain names. Below, <b>[store]</b> stands for that
+lower-cased code.</p>
+<table class="t">
+  <thead><tr><th style="width:34%">Pattern</th><th style="width:22%">Role</th><th>PIN</th></tr></thead>
+  <tbody>
+  <tr><td class="mono">[store].manager@{DOMAIN}</td><td>AWANZ Manager</td><td>unique to each store — see 2.2</td></tr>
+  <tr><td class="mono">[store].a1@{DOMAIN}</td><td>AWANZ Associate</td><td class="pin">2580</td></tr>
+  <tr><td class="mono">[store].a2@{DOMAIN}</td><td>AWANZ Associate</td><td class="pin">1357</td></tr>
+  </tbody>
+</table>
+<p class="kv dim">Password for all of them: <code>{PASSWORD}</code></p>
+
+<h3 id="s2-2">2.2 &nbsp;The 11 stores — managers and associates</h3>
+<p>Thirty-three store logins. <b>Each manager has their own PIN</b>; the two associate PINs are the
+same in every store, which means an associate PIN identifies the <i>seat</i>, and the name you tap on
+the unlock screen identifies the <i>person</i>. Tap the wrong name and the PIN will be refused.</p>
+<table class="t">
+  <thead><tr><th style="width:19%">Store</th><th style="width:14%">Role</th><th style="width:33%">E-mail (username)</th>
+  <th style="width:20%">Name</th><th style="width:11%">POS PIN</th></tr></thead>
+  <tbody>
+{store_rows}
+  </tbody>
+</table>
+<div class="box gold">
+  <span class="bt">MANAGER PINS AT A GLANCE</span>
+  <p class="kv">{manager_pin_strip()}</p>
+</div>
+
+<h3 id="s2-3">2.3 &nbsp;Head office, warehouse and regional</h3>
+<table class="t">
+  <thead><tr><th style="width:23%">E-mail</th><th style="width:12%">Name</th><th style="width:22%">Role</th>
+  <th style="width:35%">What they can open</th><th style="width:8%">PIN</th></tr></thead>
+  <tbody>
+  <tr><td class="mono">hq@{DOMAIN}</td><td>Hunter Quinn</td>
+      <td>AWANZ Head Office<br><span class="dim">+ Sales, Accounts and Stock Manager</span></td>
+      <td>Everything.<br><span class="routes">/pos · /awanz-dashboard<br>/warehouse · /warehouse-wall<br>/salon · /shop · /rewards · /app</span></td>
+      <td class="pin">0000</td></tr>
+  <tr><td class="mono">warehouse@{DOMAIN}</td><td>Walter Hines</td>
+      <td>AWANZ Warehouse Admin<br><span class="dim">+ Stock User, Stock Manager, Purchase User</span></td>
+      <td><b>Cannot sell.</b><br><span class="routes">/warehouse · /warehouse-wall<br>/pos · /salon · /shop · /rewards</span></td>
+      <td class="pin">0000</td></tr>
+  <tr><td class="mono">regional.ok@{DOMAIN}</td><td>Rosa Kingfisher</td>
+      <td>AWANZ Regional (Oklahoma + Tulsa Metro)<br><span class="dim">+ Sales Manager</span></td>
+      <td>Their region, read-only.<br><span class="routes">/pos · /awanz-dashboard<br>/salon · /shop · /rewards</span></td>
+      <td class="pin">0000</td></tr>
+  <tr><td class="mono">regional.tx@{DOMAIN}</td><td>Ray Torres</td>
+      <td>AWANZ Regional (Houston)<br><span class="dim">+ Sales Manager</span></td>
+      <td>Their region, read-only.<br><span class="routes">/pos · /awanz-dashboard<br>/salon · /shop · /rewards</span></td>
+      <td class="pin">0000</td></tr>
+  </tbody>
+</table>
+<p class="kv dim">Password <code>{PASSWORD}</code> for all four. These four accounts are not meant to
+ring sales — they exist to approve, watch and ship — but the seed does give each of them a POS record
+with the PIN <code>0000</code>, so they can unlock a till if they have to. Change these first.</p>
+
+<h3 id="s2-4">2.4 &nbsp;The storefront shopper</h3>
+<table class="t">
+  <thead><tr><th style="width:30%">E-mail</th><th style="width:18%">Name</th><th style="width:16%">Password</th><th>What it is for</th></tr></thead>
+  <tbody>
+  <tr><td class="mono">shopper@{DOMAIN}</td><td>Jordan Vance</td><td><code>{PASSWORD}</code></td>
+      <td>A customer account on the public storefront: sign in at <code>/shop</code>, fill the bag,
+      check out with click &amp; collect, and watch the order appear in a store's <b>Web orders</b>
+      queue. Real shoppers create their own account at <code>/shop/register</code>, which signs them
+      in immediately — no e-mail server needed.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="s2-5">2.5 &nbsp;What the PIN is, and what happens when it is wrong</h3>
+<ul class="plain">
+  <li>The <b>password</b> signs you in to the site. The <b>PIN</b> unlocks the till for one person, so
+      every sale carries the name of who rang it.</li>
+  <li>PINs are 4 to 6 digits and are stored hashed. Nobody — not a manager, not head office — can read
+      a PIN back out of the system; a forgotten PIN is <i>reset</i>, never looked up.</li>
+  <li><b>Five wrong attempts locks the PIN.</b> The screen then says <i>&ldquo;PIN locked after too many
+      failed attempts; ask a manager to reset it&rdquo;</i> — which is a different message from
+      &ldquo;incorrect PIN&rdquo;. A manager clears it with a reset (5.6).</li>
+  <li>Guessing is also rate limited: 20 attempts per associate per five minutes.</li>
+</ul>
+
+<h3 id="s2-6">2.6 &nbsp;Security — read before the first real sale</h3>
+<div class="box warn">
+  <span class="bt">⚠ RE-CREDENTIAL THIS SITE BEFORE REAL TRADING</span>
+  <p>The passwords and PINs in this guide are shared constants that ship with the demo seed and are
+  the same on every CloudChaserz site. Anyone who knows a person's role knows their credential.
+  Before the site takes a real customer's money or holds a real customer's details:</p>
+  <ol class="steps" style="margin-top:6pt">
+    <li><b>Give every person a new password.</b> Head office resets them from the admin desk
+        (<code>/app</code> → User), or each person sets their own from the forgot-password link.</li>
+    <li><b>Give every associate a new PIN</b> — a manager can do this for their own store's associates
+        from the POS (see 5.6); head office can do it for anyone.</li>
+    <li><b>Change the site administrator password</b> and remove any account nobody uses.</li>
+    <li><b>Delete or disable the four demo shopper and test-customer accounts</b> so they cannot be
+        used to place orders.</li>
+    <li><b>Confirm the tax rates with the CPA</b> before the first live sale — see the warning in
+        Appendix A.</li>
+  </ol>
+  <p style="margin-top:6pt">The full permission model — who may do what, what is deliberately not
+  locked down, and why — is documented in <code>docs/security.md</code> in the platform repository.
+  Read it before granting anyone the Head Office role.</p>
+</div>
+<h4>Three things the platform already does for you</h4>
+<ul class="plain">
+  <li><b>A store manager cannot promote themselves.</b> The role, the store and the user on an
+      associate record are protected fields; an attempt to change them over the API returns
+      <b>403</b>, and nobody can grant a rank above their own.</li>
+  <li><b>A store user cannot read another store's data.</b> Every endpoint checks the caller's store,
+      and so do desk list views and single-document reads. A manager asking for another store's
+      invoices gets an empty list, not somebody else's numbers.</li>
+  <li><b>PIN hashes are unreadable.</b> They are encrypted out of the table entirely, so they cannot
+      be listed, filtered on, or taken away to be cracked offline.</li>
+</ul>""")
+
+    # ------------------------------------------------------------- section 3
+    s3 = section("3", "s3", "The screens and their URLs",
+        "Nine addresses. Everyone only needs to remember the first one.", f"""
+<h3 id="s3-1">3.1 &nbsp;/start — the launcher, and why you land there</h3>
+<p>Sign in at <code>{SITE}/login</code> with your e-mail and password. <b>Whoever you are, you land on
+<code>/start</code>.</b> That is deliberate: the underlying framework would otherwise drop a shop-floor
+associate into the accounting desk. <code>/start</code> is a branded launcher that lists <i>exactly</i>
+the screens your account may open, names the store you work in, and carries
+&ldquo;Powered by Futonix.com&rdquo; at the foot.</p>
+<p>Teach staff one URL: <b>{SITE}/start</b>. Add it to the home screen of the till. Everything else is
+one tap from there.</p>
+<div class="box plain">
+  <span class="bt">TIP — ADD THE TILL TO THE HOME SCREEN</span>
+  <p>On the iPad or iPhone, open <code>/pos</code> in Safari and use <b>Share → Add to Home Screen</b>.
+  The point of sale then opens full-screen as an app and keeps its offline catalogue between shifts.
+  Do the same on the client-facing iPad for <code>/salon</code>, and on the wall PC for
+  <code>/warehouse-wall</code>.</p>
+</div>
+
+<h3 id="s3-2">3.2 &nbsp;The URL table</h3>
+<table class="t">
+  <thead><tr><th style="width:20%">URL</th><th style="width:22%">What it is</th><th>What you do there</th></tr></thead>
+  <tbody>
+  <tr><td class="mono">/start</td><td><b>The launcher</b></td>
+      <td>Where signing in lands you. Lists only the screens your role may open, and names your store.</td></tr>
+  <tr><td class="mono">/pos</td><td><b>Point of sale</b></td>
+      <td>The till. Sell, take returns and exchanges, receive deliveries, run cycle counts, handle
+      web orders, clock in and out, close the day. Works offline.</td></tr>
+  <tr><td class="mono">/awanz-dashboard</td><td><b>Command dashboard</b></td>
+      <td>The head-office wall: Live, Stores, Products, Clients, Insights, Reports.
+      Head Office and Regional only. <span class="dim">The old <code>/maison-dashboard</code> address still redirects here.</span></td></tr>
+  <tr><td class="mono">/warehouse</td><td><b>Warehouse desk</b></td>
+      <td>Houston: approve or reject store replenishment requests, pick, pack, buy labels, ship,
+      and resolve receiving discrepancies. Warehouse Admin and Head Office only.</td></tr>
+  <tr><td class="mono">/warehouse-wall</td><td><b>The 55-inch shipping wall</b></td>
+      <td>A five-column kanban board for the packing floor, with age timers and silent auto-printing
+      of packing lists and labels. Runs unattended in kiosk mode.</td></tr>
+  <tr><td class="mono">/shop</td><td><b>The online store</b></td>
+      <td>Public storefront: browse, bag, check out, and choose a store to collect from. Public.</td></tr>
+  <tr><td class="mono">/rewards</td><td><b>CloudChaserz Rewards</b></td>
+      <td>The public programme page, the giveaways and events running now, and the join form. Public.</td></tr>
+  <tr><td class="mono">/salon</td><td><b>Client display</b></td>
+      <td>The customer-facing second screen at the counter. Pair it to the till with a six-digit code;
+      it mirrors the basket, the payment and the receipt. Public URL, but useless until it is paired.</td></tr>
+  <tr><td class="mono">/app</td><td><b>Admin desk</b></td>
+      <td>Accounting, stock, price approvals, campaigns, coupons, settings and the report library.
+      Head Office and System Manager only.</td></tr>
+  </tbody>
+</table>
+<p class="kv dim">Two more addresses staff will see but never type: <code>/r/&lt;token&gt;</code> — the
+public receipt behind the QR on every printed receipt — and <code>/shop/register</code>, where a new
+shopper creates an account.</p>
+
+<h3 id="s3-3">3.3 &nbsp;Who can open what</h3>
+<table class="t">
+  <thead><tr><th style="width:22%">Role</th><th>Screens listed on <code>/start</code></th></tr></thead>
+  <tbody>
+  <tr><td><b>AWANZ Associate</b></td><td class="routes">/pos · /salon · /shop · /rewards</td></tr>
+  <tr><td><b>AWANZ Manager</b></td><td class="routes">/pos · /salon · /shop · /rewards</td></tr>
+  <tr><td><b>AWANZ Warehouse Admin</b></td><td class="routes">/pos · /warehouse · /warehouse-wall · /salon · /shop · /rewards</td></tr>
+  <tr><td><b>AWANZ Regional</b></td><td class="routes">/pos · /awanz-dashboard · /salon · /shop · /rewards</td></tr>
+  <tr><td><b>AWANZ Head Office</b></td><td class="routes">/pos · /awanz-dashboard · /warehouse · /warehouse-wall<br>/salon · /shop · /rewards · /app</td></tr>
+  </tbody>
+</table>
+<p class="kv dim">A manager and an associate see the same list — the difference between them is not which
+screens they can open, but what those screens let them do (approvals, staff, price changes) and, in the
+manager's case, the reports for their own store.</p>
+<div class="box plain">
+  <span class="bt">ABOUT THE ADMIN DESK LINK</span>
+  <p>The card grid on <code>/start</code> correctly hides the <b>Admin desk</b> card from associates and
+  store managers — but the footer link row below it currently shows the link to everyone. That is a
+  known cosmetic inconsistency, not a data leak: a store user who opens <code>/app</code> sees only
+  their own store's records, and none of the underlying framework's own branding.</p>
+  <p><b>Store managers legitimately need it</b> — a price change request is raised there (5.1). Tell
+  associates they have no reason to open it.</p>
+</div>""")
+
+    # ------------------------------------------------------------- section 4
+    s4 = section("4", "s4", "Associate — how to",
+        "The counter, start to finish. Follow these with a customer in front of you.", f"""
+<h3 id="s4-1">4.1 &nbsp;Open the till</h3>
+<ol class="steps">
+  <li>Open <code>{SITE}/start</code> and sign in with your e-mail and password
+      (<code>{PASSWORD}</code> on this training site). Tap <b>Point of sale</b>.</li>
+  <li>The first time on a new device, pick your <b>store</b> from the list. The device remembers it.</li>
+  <li>Wait for the <b>catalogue</b> to load. It downloads once and is then cached on the device —
+      around 160 items with prices, tax and reward tiers. You will see the tiles fill in.</li>
+  <li>Tap <b>your own name</b> in the associate list. Not a colleague's — the PIN belongs to the name.</li>
+  <li>Key your <b>4-digit PIN</b>. The till unlocks on the Sell screen.</li>
+</ol>
+<div class="box gold">
+  <span class="bt">CLOCK IN AT THE SAME TIME</span>
+  <p>The unlock screen has a three-way switch: <b>Unlock · Clock in · Clock out</b>. Choose
+  <b>Clock in</b> before keying the PIN and the same PIN both starts your shift and opens the till.
+  See 4.11.</p>
+</div>
+
+<h3 id="s4-2">4.2 &nbsp;Ring a sale</h3>
+<ol class="steps">
+  <li><b>Add the items.</b> Tap a tile, use the search box (<i>Search name, code or serial</i>), filter by
+      department, or scan the barcode (4.3).</li>
+  <li>Change the <b>quantity</b> on the basket line, or give a <b>line discount</b> by tapping the
+      amount field on the line.</li>
+  <li>If a promotion is running it applies automatically and shows in the <b>Promotions</b> chip. Type
+      or scan a <b>coupon code</b> in the same sheet.</li>
+  <li>Attach the customer if they are a member (4.5) — do this <b>before</b> you take payment, or the
+      points are lost for that sale.</li>
+  <li>Tap the total to go to <b>Pay</b>.</li>
+</ol>
+
+<h3 id="s4-3">4.3 &nbsp;Scan a barcode</h3>
+<p>Two ways, and both land in whatever screen is open — Sell, Returns, Cycle count or Receive.</p>
+<ul class="plain">
+  <li><b>A Bluetooth or USB scanner</b> (Socket Mobile S740, Zebra CS6080, Inateck and the like) types
+      the code straight into the till. Nothing to press: just scan.</li>
+  <li><b>The device camera</b> — tap the scan button and hold the code in the frame.</li>
+</ul>
+<p>The till understands four kinds of label: <b>EAN-13</b> on an item ticket, <b>Code-128</b> on a serial
+label, a <b>QR</b> on a customer's card (adds the client), and the <b>QR on a receipt</b> (opens that
+sale in Returns).</p>
+<div class="box plain">
+  <span class="bt">IF THE SCAN TYPES INTO THE SEARCH BOX</span>
+  <p>The wedge listener deliberately ignores scans while the cursor is in a text field. Tap somewhere
+  outside the box and scan again.</p>
+</div>
+
+<h3 id="s4-4">4.4 &nbsp;Age-verify a 21+ item</h3>
+<p>Every product in a restricted group is flagged. The moment you add one, the till stops and shows
+<b>CHECK ID · 21+</b> — <b>before</b> the item reaches the basket. Nothing is sold until it passes.</p>
+<ol class="steps">
+  <li>Ask for the customer's driver's licence or state ID.</li>
+  <li><b>Scan ID</b> — scan the PDF417 barcode on the <i>back</i> of the licence. The date of birth,
+      the expiry, the initials and the issuing state are read on the device.</li>
+  <li>Or <b>Enter DOB</b> — read the date of birth off the ID yourself and key it, with the expiry if
+      you have it and the customer's two initials.</li>
+  <li>The result is one of: <b>Verified</b> (the item goes in the basket) · <b>Underage</b> ·
+      <b>Expired</b> · <b>Unreadable</b> · <b>Declined</b>.</li>
+  <li>Underage or expired means <b>refused</b>. Say so plainly and remove the item. Do not sell it.</li>
+</ol>
+<div class="box warn">
+  <span class="bt">WHAT THE SYSTEM KEEPS — AND WHAT IT DOES NOT</span>
+  <p>The record stores only the <b>outcome</b>: verified or not, the reason, whether you scanned or
+  keyed it, the two initials, the issuing state, the store, who checked and when. The barcode payload,
+  the full name, the licence number, the address and the exact date of birth are <b>never written to
+  the database</b>. Tell customers that if they ask — it is printed on the screen under the scan box.</p>
+  <p>The receipt prints <b>ID CHECKED · 21+ VERIFIED</b>, and the client display shows
+  &ldquo;Please present your ID&rdquo; while the check is open. The minimum age is 21, everywhere,
+  regardless of state law.</p>
+</div>
+<p><b>The age gate also runs offline.</b> If the network is down the check still happens on the device
+and the audit record is written when the sale syncs. There is no way to sell a 21+ item without it.</p>
+
+<h3 id="s4-5">4.5 &nbsp;Attach a client by number or phone</h3>
+<ol class="steps">
+  <li>On the basket, tap the <b>client</b> area to open the keypad, or tap <b>Client</b> in the bottom bar.</li>
+  <li>Key the customer's <b>client number</b> — six digits, printed on their receipt as
+      <code>MC######</code> — or their <b>mobile number</b>. Or scan the QR on their card.</li>
+  <li>Or search by <b>name, client number, mobile or e-mail</b> on the Client screen and tap
+      <b>Attach to sale</b>.</li>
+  <li>The basket now shows their name, their tier and their point balance, and the reward tiers they can
+      afford appear at Pay.</li>
+  <li>Not a member yet? Tap <b>New client</b> and take their name, mobile and e-mail — see Section 8.</li>
+</ol>
+<p class="kv dim">A search needs at least three characters. You can find a customer who normally shops
+at another store — the chain is one customer book — but a bulk list of the chain's customers is not
+something a store login can pull.</p>
+
+<h3 id="s4-6">4.6 &nbsp;Take cash, card, or a split</h3>
+<h4>Cash</h4>
+<ol class="steps">
+  <li>Tap <b>Cash</b>. Key what the customer handed you in <b>Cash taken</b>.</li>
+  <li>The till shows the <b>Change</b> to give back. Tap <b>Complete cash sale</b>.</li>
+</ol>
+<h4>Card</h4>
+<ol class="steps">
+  <li>Tap <b>Card</b>. The amount goes to the <b>Verifone V660p</b> reader paired to this device.</li>
+  <li>Ask the customer to tap, insert or swipe. Do not hand them your phone — the reader is the
+      customer-facing device.</li>
+  <li>Wait for the approval. The tender is stored with the card brand, the last four digits and the
+      approval reference.</li>
+</ol>
+<h4>Split</h4>
+<ol class="steps">
+  <li>Tap <b>Split</b>. Key the <b>cash</b> part first; the till shows what is left.</li>
+  <li>Take the remainder on the card. The invoice books two payment rows that add up to the total.</li>
+</ol>
+<div class="box plain">
+  <span class="bt">IF THE CUSTOMER IS REDEEMING A REWARD</span>
+  <p>The Pay screen shows only the tiers they can actually afford — <b>$5 off at 100 points</b>,
+  <b>$10 at 200</b>, <b>$15 at 300</b> — and how far away the next one is. One reward per transaction.
+  The reward comes off the total after tax.</p>
+</div>
+
+<h3 id="s4-7">4.7 &nbsp;Print and e-mail the receipt</h3>
+<ol class="steps">
+  <li>The receipt prints by itself as soon as the sale completes. The till tries, in order: the
+      <b>reader's own printer</b>, then the <b>counter printer</b> over the store network, then the
+      browser's print dialog. If one route fails it falls through to the next.</li>
+  <li>To reprint, tap <b>Print</b> on the receipt screen.</li>
+  <li>To e-mail it, type the address in <b>E-mail address</b> on the same screen and send. The customer
+      gets a link to the public receipt.</li>
+  <li>The customer can also scan the <b>QR on the paper receipt</b>, which opens the same page — their
+      lines, their points, their balance, and a private 1&ndash;5 rating of the visit.</li>
+</ol>
+
+<h3 id="s4-8">4.8 &nbsp;Take a return</h3>
+<ol class="steps">
+  <li>From the Sell screen open <b>Returns</b>.</li>
+  <li><b>Find the sale</b> — scan the QR on their receipt, type the invoice number, or search the
+      customer by name, phone or client number.</li>
+  <li><b>Tick the lines</b> coming back. Set the quantity (or pick the serial), then a <b>reason</b>
+      (Change of mind, Defect, Sizing, Gift return, Other) and a <b>condition</b>:
+      <b>Sellable</b> goes back on the floor, <b>Damaged</b> goes to the store's damaged stock and
+      cannot be sold again.</li>
+  <li>Choose the <b>refund</b>: <b>Original card</b> (only if the sale was paid by card, and never more
+      than was charged), <b>Cash</b> from the drawer, or <b>Store credit</b> (needs a named customer).</li>
+  <li>If the refund is over <b>$2,500</b> including tax, or the sale is more than <b>30 days</b> old,
+      the till opens the <b>Manager PIN</b> sheet. Fetch a manager. If a manager is the one signed in,
+      it is approved automatically.</li>
+  <li>Confirm. The credit note is created, the money goes back, and the <b>return receipt</b> prints with
+      a RETURN banner, the original sale, the approver and the reason.</li>
+</ol>
+<p class="kv"><b>What happens behind the scenes:</b> the points the customer earned on those lines
+disappear — the balance never goes below zero — and the commission reverses against whoever originally
+sold it, not against you.</p>
+
+<h3 id="s4-9">4.9 &nbsp;Do an exchange</h3>
+<ol class="steps">
+  <li>Start exactly as a return: find the sale and tick the lines coming back (4.8, steps 1&ndash;3).</li>
+  <li>Instead of choosing a refund, tap <b>Exchange</b>. The selected lines carry across.</li>
+  <li><b>Pick the new items</b> from the catalogue on the Exchange screen.</li>
+  <li>The till works out the settlement itself and shows one of three things:
+    <ul>
+      <li><b>Client pays</b> — take the difference on card or cash.</li>
+      <li><b>Refund to client</b> — give the remainder back on card, cash or store credit.</li>
+      <li><b>Even exchange</b> — nothing changes hands.</li>
+    </ul>
+  </li>
+  <li>One tap writes both documents. The exchange window is <b>60 days</b>; past that, a manager PIN.</li>
+</ol>
+
+<h3 id="s4-10">4.10 &nbsp;Work offline — and what the queue means</h3>
+<p>The till is built to keep trading when the internet is not there. This is normal, not an emergency.</p>
+<h4>What still works</h4>
+<ul class="plain">
+  <li>The whole catalogue, prices, tax and tiles — they are cached on the device.</li>
+  <li>Scanning, discounts, promotions already loaded, and the <b>21+ age gate</b>.</li>
+  <li>Taking <b>cash</b>, completing the sale, and printing the receipt.</li>
+</ul>
+<h4>What does not</h4>
+<ul class="plain">
+  <li>Charging a card on the reader, clocking in or out, looking up a sale for a return, searching for
+      a customer who is not already on the screen, and web orders. All of these need the server.</li>
+</ul>
+<h4>What to do</h4>
+<ol class="steps">
+  <li>The top bar turns to <b>OFFLINE</b>. Carry on selling; take cash.</li>
+  <li>Each completed sale is written into the device's <b>queue</b> and the bar reads
+      <b>OFFLINE · 1 QUEUED</b>, then 2, and so on.</li>
+  <li>The receipt still prints. The QR link on it will not open until that sale has synced.</li>
+  <li>When the connection comes back the queue <b>sends itself</b>. Open <b>Queue</b> to watch the rows
+      go from pending to ok, and to press <b>Retry</b> on anything stuck.</li>
+</ol>
+<div class="box warn">
+  <span class="bt">THE ONE RULE</span>
+  <p><b>A queued sale is a real sale. Never ring it again.</b> Every queued sale carries its own
+  identifier, and if it is sent twice the server recognises it and returns the invoice it already made
+  — so a customer can never be charged twice by a replay. But ringing the <i>same basket</i> a second
+  time by hand creates a genuine second sale, and that has to be voided by a manager.</p>
+</div>
+<p class="kv dim">Head-office numbers, point balances and stock levels do not move until the queue has
+drained. If the dashboard looks light and a store's bar says QUEUED, that is why.</p>
+
+<h3 id="s4-11">4.11 &nbsp;Clock in and clock out</h3>
+<ol class="steps">
+  <li>On the unlock screen choose <b>Clock in</b>, tap your name and key your PIN. Your shift starts.</li>
+  <li>Tap <b>Shift</b> during the day to start or end a <b>break</b>; the break minutes are tracked
+      separately from worked minutes.</li>
+  <li>At the end, choose <b>Clock out</b> on the unlock screen and key your PIN.
+      <b>Clocking out never opens the till.</b></li>
+</ol>
+<p class="kv dim">Clocking needs a connection — it writes to the server immediately. If the till is
+offline, clock in as soon as it is back and tell your manager the real time you started.</p>
+
+<h3 id="s4-12">4.12 &nbsp;End of day — the X and Z report</h3>
+<p>Both live on the <b>Shift</b> screen. An <b>X report</b> is a look at the day so far and changes
+nothing. A <b>Z report</b> is the close: you count the drawer and record the variance.</p>
+<ol class="steps">
+  <li>Open <b>Shift</b>. The day summary shows <b>Gross</b>, <b>Net sales</b>, <b>Tax</b>,
+      <b>Invoices</b>, <b>Avg ticket</b>, the <b>Tenders</b> broken down by cash and card, and
+      <b>Device sales</b>.</li>
+  <li>Read it during the day as often as you like — that is the X report.</li>
+  <li>At close, count the drawer and key the total into <b>Counted cash</b> under
+      <b>Cash drawer close</b>.</li>
+  <li>The screen shows the <b>Variance</b> against what the till expected — cash taken minus change
+      given. Investigate anything that is not small.</li>
+  <li>Tap <b>Print</b> for the paper copy.</li>
+</ol>
+<p class="kv dim">Returns and voids are already netted off; you do not subtract them yourself. Before you
+close, check the <b>Queue</b> is empty — an unsent sale is not in the numbers yet.</p>""")
+
+    # ------------------------------------------------------------- section 5
+    s5 = section("5", "s5", "Store manager — how to",
+        "Everything in Section 4, plus the six things only you can do. You are scoped to your own "
+        "store: you will not see another store's anything.", f"""
+<h3 id="s5-1">5.1 &nbsp;Approve a price change</h3>
+<p>Prices are not edited on the till. A price change is a <b>request</b> that head office or your
+regional approves, and once approved it becomes a pricing rule that applies to <b>your store only</b>.</p>
+<p class="kv dim">The <b>Admin desk</b> card is not on your launcher, but the link at the foot of
+<code>/start</code> opens it — and the desk shows you only your own store's records.</p>
+<ol class="steps">
+  <li>Open the admin desk at <code>/app</code> and create an <b>AWANZ Price Change Request</b>.</li>
+  <li>Fill in the item, your store, the <b>proposed rate</b> and the dates it should run between.
+      The current rate is filled in for you.</li>
+  <li>Submit it. The request moves to <b>Pending Approval</b> and head office is notified.</li>
+  <li>Head Office or Regional <b>approves</b> or <b>rejects</b> it. On approval the platform creates the
+      pricing rule automatically, scoped to your store's warehouse — no other store is affected.</li>
+  <li>The new price reaches the tills at the next catalogue refresh. Ask your team to pull down to
+      refresh, or reopen the till.</li>
+</ol>
+<p class="kv dim">A request whose proposed rate equals the current rate is refused, and so is a
+zero or negative rate. Cancelling an approved request disables the pricing rule it created.</p>
+<div class="box plain">
+  <span class="bt">A DISCOUNT ON ONE SALE IS NOT A PRICE CHANGE</span>
+  <p>To take money off a single basket, use the line discount on the basket or a coupon code — that
+  needs no approval and is recorded against the sale. A price change request is for a price that should
+  hold for days or weeks.</p>
+</div>
+
+<h3 id="s5-2">5.2 &nbsp;Request stock from the warehouse</h3>
+<ol class="steps">
+  <li>On the till open <b>Receive</b>. The screen has three parts: <b>From the warehouse</b> (what is on
+      its way), <b>Vendor deliveries (POs)</b>, and <b>My requests</b>.</li>
+  <li>Tap <b>Request from warehouse</b>.</li>
+  <li><b>Add item</b> for each line and set the quantity, or search the catalogue.</li>
+  <li>Add a <b>Reason</b> if it helps Houston prioritise, then <b>Send request</b>.</li>
+  <li>The request appears in Houston's approval queue immediately. Watch its status under
+      <b>My requests</b>.</li>
+</ol>
+<p class="kv"><b>The one-tap route:</b> on the <b>Shift</b> screen, anything below its reorder level
+appears under <b>Low stock</b> with a <b>Request from warehouse</b> button beside it. One tap raises the
+request at the suggested quantity. Use this — it is faster and it flags the request as
+&ldquo;low stock&rdquo; priority on the warehouse wall.</p>
+<p class="kv dim">Houston may <b>cut the quantity</b> or <b>reject</b> the request with a reason, and you
+will be told either way. A rejected request is not a lost request — read the reason and raise a new one.</p>
+
+<h3 id="s5-3">5.3 &nbsp;Receive a delivery by scanning</h3>
+<ol class="steps">
+  <li>Open <b>Receive</b> on the till. The shipment appears under <b>From the warehouse</b> with what
+      Houston says is in the box.</li>
+  <li>Tap it to open the count sheet.</li>
+  <li><b>Scan each item</b> as you take it out of the box — one scan per unit — or tap the line and key
+      the quantity. The counted number climbs as you go.</li>
+  <li>Anything that does not match what was sent is <b>highlighted</b>. Do not correct it to make it
+      match: count what is actually there.</li>
+  <li>If the box is only half unpacked, save a <b>partial count</b> and come back to it. The shipment
+      stays open until you confirm the final count.</li>
+  <li>Confirm the receipt. The stock moves into your store and is sellable immediately.</li>
+</ol>
+<p class="kv">Any short, over or damaged line raises a <b>receiving discrepancy</b> that goes back to
+Houston for them to resolve. That is the audit trail — resolve it honestly rather than adjusting
+the count.</p>
+<p class="kv dim">Vendor purchase orders addressed to your store are received on the same screen, under
+<b>Vendor deliveries (POs)</b>.</p>
+
+<h3 id="s5-4">5.4 &nbsp;Run a cycle count</h3>
+<ol class="steps">
+  <li>Open <b>Cycle count</b> from the till (also reachable from the Shift screen).</li>
+  <li>Tap <b>New count</b> and choose what you are counting.</li>
+  <li>For quantity items, key the counted number per line. For serialised items, <b>scan each serial
+      label</b>; the screen tracks <b>Serials scanned</b> against <b>Remaining</b>.</li>
+  <li>Anything you scan that was not expected shows as <b>Unexpected</b>; anything expected that you did
+      not find shows as <b>Unaccounted</b>.</li>
+  <li>Tap <b>Review</b>. The screen tells you either <i>&ldquo;Counted quantities match&rdquo;</i> and
+      <i>&ldquo;Every expected serial was scanned&rdquo;</i>, or it lists the
+      <b>Quantity differences</b> and the <b>Unaccounted serials</b>.</li>
+  <li>Submit. The count is recorded and, where there are differences, a draft stock reconciliation is
+      raised for head office to check and post.</li>
+</ol>
+
+<h3 id="s5-5">5.5 &nbsp;Approve a return over the threshold</h3>
+<p>The till asks for you in exactly two situations: the credit is over <b>$2,500 including tax</b>, or
+the sale is outside its window — <b>30 days</b> for a refund, <b>60 days</b> for an exchange.</p>
+<ol class="steps">
+  <li>The associate reaches the Manager PIN sheet and calls you over.</li>
+  <li>Check the sale yourself: the original invoice, the reason and the condition of the goods.</li>
+  <li>Pick your <b>name</b> from the manager list on the sheet and key <b>your own PIN</b>.
+      Never give your PIN to an associate to type.</li>
+  <li>The return completes and the credit note records that <b>you</b> approved it. That is on the
+      printed return receipt.</li>
+</ol>
+<p class="kv dim">If <i>you</i> are the one signed in to the till, the approval is implicit and no sheet
+opens. Voids also need a manager — and note that a void has no amount limit today, so treat it as a
+policy matter, not a technical one.</p>
+
+<h3 id="s5-6">5.6 &nbsp;Manage your associates and reset a PIN</h3>
+<p>You run your own shop floor: you may create, edit and disable associates <b>in your own store, at
+associate level</b>, and reset their PINs.</p>
+<h4>Reset a PIN</h4>
+<ol class="steps">
+  <li>The associate has locked themselves out after five wrong attempts, or has forgotten their PIN.
+      Nobody can look the old one up — it does not exist in readable form.</li>
+  <li>Open the associate's record and use <b>reset PIN</b>. Choose a new 4-digit PIN and tell them
+      privately.</li>
+  <li>The lockout clears with the reset. They can unlock straight away.</li>
+</ol>
+<h4>Add or disable an associate</h4>
+<ol class="steps">
+  <li>The person needs a site login first — head office creates the user account.</li>
+  <li>Attach them to <b>your store</b> at <b>Associate</b> level and set their opening PIN.</li>
+  <li>When someone leaves, set their record to <b>disabled</b> rather than deleting it, so their past
+      sales, commission and shifts stay intact.</li>
+</ol>
+<div class="box warn">
+  <span class="bt">WHAT YOU CANNOT DO — BY DESIGN</span>
+  <p>You cannot appoint another manager, move somebody between stores, reset another <i>manager's</i>
+  PIN, or give anyone a role above your own. Those are head-office actions. The platform enforces this
+  at four separate levels, so there is no way around it and no point trying — an attempt returns a
+  permission error and is written to the security log.</p>
+</div>""")
+
+    # ------------------------------------------------------------- section 6
+    s6 = section("6", "s6", "Warehouse admin — how to",
+        "Houston, HOU-WH. You are the only role that can approve a store's request, pick it, buy a "
+        "label and ship it. You cannot sell.", f"""
+<h3 id="s6-1">6.1 &nbsp;Approve, edit the quantity, or reject</h3>
+<ol class="steps">
+  <li>Open <code>/warehouse</code>. The <b>Replenishment requests</b> tab lists everything waiting, with
+      the store, the lines, the age of the request and its priority.</li>
+  <li>Open a request. You see what the store asked for and what is on hand at HOU-WH beside it.</li>
+  <li><b>Approve</b> it as asked, or edit the quantity per line first if you cannot fill it in full and
+      then approve.</li>
+  <li>Or tap <b>Reject…</b> and give a <b>rejection reason</b>. The store manager is notified with your
+      reason — write something they can act on.</li>
+  <li>On approval the platform raises an <b>AWANZ Shipment</b> in <b>Pending</b>, and the wall
+      immediately prints the packing list.</li>
+</ol>
+
+<h3 id="s6-2">6.2 &nbsp;Pick, pack, buy the cheapest label, ship</h3>
+<h4>Pick</h4>
+<ol class="steps">
+  <li>Open the shipment. The <b>Pick list</b> names the <b>bin</b> and the on-hand quantity for every line.</li>
+  <li>Tick each line as you pull it. When they are all ticked the sheet says <b>All picked</b>.</li>
+</ol>
+<h4>Pack</h4>
+<ol class="steps">
+  <li>Build the parcels. <b>Add parcel</b> for each box and confirm its weight and dimensions.</li>
+  <li>Weights come from the item records plus the box, and anything missing falls back to a
+      conservative default so a rate can always be quoted — <b>check anything unusual by hand</b>.
+      A four-foot bong is not a default box.</li>
+  <li><b>Save &amp; mark Packed.</b></li>
+</ol>
+<h4>Buy the label</h4>
+<ol class="steps">
+  <li>Tap for rates. Carrier services come back priced by weight and destination — on this site,
+      eight of them.</li>
+  <li>The <b>cheapest is already selected</b>. Toggle <b>Fastest</b>, or pick any row, if the store needs
+      it sooner.</li>
+  <li>Buy it. The tracking number is stored on the shipment and the wall prints the label.</li>
+</ol>
+<div class="box warn">
+  <span class="bt">A LABEL IS MONEY — YOU ONLY GET ONE</span>
+  <p>The platform refuses to buy a second label for a shipment that already has one. If you genuinely
+  need to replace it, use the explicit replace option: the voided label's carrier, service and tracking
+  are written to the shipment's notes so you can find them — and <b>you still have to refund the unused
+  label in the carrier's own dashboard</b>. The platform cannot do that for you.</p>
+</div>
+<h4>Ship</h4>
+<ol class="steps">
+  <li>Tap <b>Ship</b> when the parcel leaves the building.</li>
+  <li>The stock moves out of HOU-WH into that store's <b>In Transit</b> location — so it is never
+      &ldquo;nowhere&rdquo;. It only lands in the store when someone there counts it in.</li>
+  <li>Tracking refreshes on its own; the shipment shows its status on the desk and the wall.</li>
+</ol>
+
+<h3 id="s6-3">6.3 &nbsp;The 55-inch wall and its auto-printing</h3>
+<p><code>/warehouse-wall</code> is the board for the packing floor. Five columns, left to right:</p>
+<table class="t">
+  <thead><tr><th style="width:22%">Column</th><th>What is in it</th></tr></thead>
+  <tbody>
+  <tr><td><b>Pending approval</b></td><td>Store requests nobody has decided on yet.</td></tr>
+  <tr><td><b>To pick</b></td><td>Approved shipments waiting to be pulled.</td></tr>
+  <tr><td><b>Packing</b></td><td>Picked, being boxed.</td></tr>
+  <tr><td><b>Ready to ship</b></td><td>Packed <i>and</i> labelled — waiting for the carrier.</td></tr>
+  <tr><td><b>Shipped today</b></td><td>Gone. Clears itself overnight.</td></tr>
+  </tbody>
+</table>
+<ul class="plain">
+  <li>Cards are ordered by <b>priority</b> first — Urgent, then Low stock — and then by how long they
+      have been waiting, so the oldest is on top.</li>
+  <li>Every card carries an <b>age timer</b>. It turns <b>amber at 4 hours</b> and <b>red at 24</b>.
+      A red card means a store has been waiting a day.</li>
+  <li>A newly approved shipment <b>flashes and sounds</b> so the floor notices without watching.</li>
+  <li>Tap a card to Pick, Pack, Buy a label, Print or Ship without leaving the wall.</li>
+</ul>
+<h4>Auto-printing</h4>
+<p>The wall prints two documents with nobody touching a dialog: the <b>packing list</b> when a shipment
+is approved, and the <b>carrier label</b> when a label is bought. For that to work the machine driving
+the wall must run Chrome in kiosk-printing mode and have a default printer set.</p>
+<div class="box plain">
+  <span class="bt">THE TWO-PRINTER LIMITATION — KNOW THIS BEFORE BUYING HARDWARE</span>
+  <p>Kiosk printing always goes to the machine's <b>default</b> printer, and Chrome offers no way to pick
+  a different printer per document. So one machine cannot send packing lists to the laser
+  <i>and</i> labels to the 4×6 thermal printer.</p>
+  <p>The recommended answer is <b>two machines</b>: the wall PC's default printer is the laser
+  (packing lists), and a second small PC at the pack bench runs its own kiosk browser with the thermal
+  printer as its default. The alternative is to leave label auto-printing off and press
+  <b>Print label</b> by hand, choosing the thermal printer in the normal dialog.</p>
+</div>
+
+<h3 id="s6-4">6.4 &nbsp;Discrepancies, cancellations and stuck shipments</h3>
+<ul class="plain">
+  <li><b>A store reports a short.</b> Their count raises a <b>Receiving discrepancy</b> on your desk.
+      Open it, work out what happened and <b>Resolve</b> it with a reason. That reason is the audit
+      trail — do not delete the row.</li>
+  <li><b>A shipment is stuck in Pending.</b> Nobody has picked it. The wall's timer is telling you:
+      amber at 4 hours, red at 24.</li>
+  <li><b>Rates come back empty.</b> Check the store has a complete address including ZIP, and that the
+      carrier account is configured. If switching to the simulated carrier makes rates appear, the
+      problem is the carrier account, not the platform.</li>
+  <li><b>A shipment has to be cancelled.</b> Cancelling puts the store's request back to
+      <b>Pending Approval</b>, cancels the stock document behind it and notifies the store. Approve it
+      again to raise a fresh shipment, or reject it with a reason.</li>
+  <li><b>Nothing prints.</b> Confirm the browser is running with kiosk <i>printing</i> — not merely
+      kiosk mode — that a default printer is set for that user, and that auto-printing is switched on
+      in settings.</li>
+</ul>""")
+
+    # ------------------------------------------------------------- section 7
+    s7 = section("7", "s7", "Head office — how to",
+        "The Command dashboard at /awanz-dashboard, plus the promotions, coupons and campaigns that "
+        "live in the admin desk.", f"""
+<p>Open <code>/awanz-dashboard</code>. Six tabs across the top: <b>Live · Stores · Products · Clients ·
+Insights · Reports</b>. It is built for a wall screen as well as a laptop and re-scales its type to
+suit, so the same board reads correctly at 1920×1080 and at 4K.</p>
+
+<h3 id="s7-1">7.1 &nbsp;Live</h3>
+<ul class="plain">
+  <li>The <b>KPI strip</b>: net today and how that compares with the same weekday last week, invoices,
+      card versus cash, average ticket, returns, pending approvals, low-stock count, and open feedback
+      rated 2 or below.</li>
+  <li>The <b>chain ticker</b> — the last ten sales across the estate, with no customer details on it.</li>
+  <li><b>One card per store</b>, ranked by net, showing tickets, versus last week, the last thing sold
+      and how long ago. <b>A card pulses when that store rings a sale</b> — within about a second.</li>
+  <li>Filter by region, search, or sort. Tap a card to drill into that store's own item-level feed and
+      its hour-by-hour bars.</li>
+  <li>Below: the chain's hourly chart and the low-stock tile.</li>
+</ul>
+<div class="box plain">
+  <span class="bt">TWO THINGS TO KNOW ABOUT THE LIVE BOARD</span>
+  <p><b>The warehouse is not a store.</b> <code>HOU-WH</code> is deliberately excluded from the store
+  cards and the league table — you will see eleven cards, not twelve.</p>
+  <p><b>The hourly chart's &ldquo;current hour&rdquo; follows the viewer's own timezone</b> while the
+  clock beside it shows store time. On a board in Houston they agree. Viewing from another timezone
+  puts the highlight on the wrong column; the peak label is still correct.</p>
+</div>
+
+<h3 id="s7-2">7.2 &nbsp;Stores</h3>
+<p>A sortable table of the whole estate: net today, week to date and month to date, versus last week,
+tickets, average ticket, conversion (how many tickets had a named customer), returns as a percentage,
+stock value, low-stock count, how many associates are on shift, and a 14-day sparkline. Click any row
+for that store's page — hourly, top items, associates, recent sales, alerts and customer feedback.</p>
+
+<h3 id="s7-3">7.3 &nbsp;Products</h3>
+<ul class="plain">
+  <li><b>Trending in stores</b> — every product ranked by how its velocity has changed: units in the
+      last 7 days against the 7 before, and against a 28-day baseline. Each carries a badge:
+      <b>Trending up</b>, <b>New</b>, <b>Cooling</b> or <b>Steady</b>. Filter by group or badge. The
+      columns also show how many stores are selling it, sell-through and days on hand.</li>
+  <li><b>Top products by store</b> — pick a store or view all, ranked by revenue or by units, with each
+      item's share of that store's sales, plus a group-by-store matrix.</li>
+</ul>
+<p class="kv dim">These read a table the platform recomputes every 15 minutes, which is why the tab
+loads instantly. If you need it up to the minute, recompute it on demand from the tab.</p>
+
+<h3 id="s7-4">7.4 &nbsp;Clients</h3>
+<ul class="plain">
+  <li><b>Churn risk</b> for the top tiers, with <b>Assign call</b> — which creates a follow-up task for
+      an associate.</li>
+  <li><b>Follow-up rate per associate</b>: tasks done against tasks assigned over 30 days.</li>
+  <li><b>Upcoming dates</b> — birthdays and anniversaries coming up, for clienteling.</li>
+  <li><b>Associate performance</b> and <b>campaign performance</b> cards.</li>
+</ul>
+
+<h3 id="s7-5">7.5 &nbsp;Insights</h3>
+<p>The weekly intelligence run: next-best-offer recommendations per customer, customer signals
+(shopping cadence, churn risk, important dates), product performance with <b>rebalance suggestions</b>
+you can act on in one click, and a written weekly narrative.</p>
+
+<h3 id="s7-6">7.6 &nbsp;Reports and CSV export</h3>
+<p>Eleven reports, each of which can be read on screen or downloaded as CSV. The Reports tab also does
+period-over-period comparison.</p>
+<table class="t">
+  <thead><tr><th style="width:12%">Group</th><th style="width:28%">Report</th><th>What it is for</th></tr></thead>
+  <tbody>
+  <tr><td>Tax</td><td><b>Sales Tax Summary</b></td><td>Taxable versus non-taxable sales, tax collected, returns netted, by store and jurisdiction. This is the filing report.</td></tr>
+  <tr><td>Sales</td><td><b>Daily Sales</b></td><td>Per store per day: gross, discounts, returns, net, tax, cash, card, tickets, average ticket, items per ticket.</td></tr>
+  <tr><td>Sales</td><td><b>Sales by Item</b></td><td>By item, item group or department.</td></tr>
+  <tr><td>Sales</td><td><b>Sales by Associate</b></td><td>Tickets, net, average ticket and how often a customer was attached.</td></tr>
+  <tr><td>Sales</td><td><b>Hourly Sales Heatmap</b></td><td>Weekday × hour per store — this is your rostering evidence.</td></tr>
+  <tr><td>Clients</td><td><b>Client Purchases</b></td><td>Recency, frequency, monetary value, tier and lifetime spend per customer.</td></tr>
+  <tr><td>Inventory</td><td><b>Serial Ledger</b></td><td>Every serialised unit: received, sold, returned, transferred, and where it is now.</td></tr>
+  <tr><td>Returns</td><td><b>Returns</b></td><td>Credit notes by reason, store and associate — or line by line.</td></tr>
+  <tr><td>Employees</td><td><b>Commission Statement</b></td><td>Commission per associate with reversals netted. CSV for payroll.</td></tr>
+  <tr><td>Marketing</td><td><b>Promotion Performance</b></td><td>Pricing rules and coupons: redemptions, discount given, revenue, discount rate.</td></tr>
+  <tr><td>Marketing</td><td><b>Campaign Performance</b></td><td>Sends, opens, clicks, and revenue attributed directly and as an assist.</td></tr>
+  </tbody>
+</table>
+<ol class="steps">
+  <li>Open the <b>Reports</b> tab and pick the report.</li>
+  <li>Set the filters — dates, store, grouping.</li>
+  <li>Read it on screen, or download the <b>CSV</b> straight from the tab. The CSV carries the same rows
+      and the same column headings you see.</li>
+</ol>
+<p class="kv dim">Every report is store-scoped: a store manager running the same report gets their own
+store only. Payroll exports for Gusto, ADP, QuickBooks or the built-in HR module are separate and are
+run by head office for a date range.</p>
+
+<h3 id="s7-7">7.7 &nbsp;Promotions and coupons</h3>
+<ul class="plain">
+  <li><b>Promotions</b> are ERPNext pricing rules. They apply themselves on the basket and appear to the
+      associate in the <b>Promotions</b> chip. Create them in the admin desk with the item, group, store
+      and dates they should run.</li>
+  <li><b>Coupons</b> are <b>AWANZ Coupon</b> records: single-use or multi-use, optionally bound to one
+      customer and optionally restricted to an item group. The associate types or scans the code at the
+      till, and the till checks it against the basket before it is accepted.</li>
+  <li>The <b>promotion calendar</b> holds one row per month with that month's rules and featured items;
+      the platform sends it as a campaign on the 1st.</li>
+  <li>Measure both with the <b>Promotion Performance</b> report.</li>
+</ul>
+<div class="box gold">
+  <span class="bt">TELL THE STORES BEFORE YOU CHANGE ANYTHING</span>
+  <p>Tills read promotions, coupons and reward tiers from the platform, so a change made here is live at
+  the next catalogue refresh — which may be mid-shift. Associates will be asked about it at the counter
+  before you have finished writing the e-mail.</p>
+</div>
+
+<h3 id="s7-8">7.8 &nbsp;Campaigns</h3>
+<ol class="steps">
+  <li>Create an <b>AWANZ Campaign</b> in the admin desk: a title, a channel (Email, SMS, Event or Private
+      viewing), a send date, an optional coupon and a cost.</li>
+  <li>Build the <b>segment</b> from tier, store, customer signal, item or item group — the conditions are
+      combined, and leaving them blank means everyone. Preview the count before you send.</li>
+  <li>Add <b>featured products</b> if the campaign is about specific items; that turns on item-level
+      attribution.</li>
+  <li><b>Export the segment</b> as CSV for your e-mail tool, or push it to a mailing group.</li>
+  <li>Touches come back automatically from a connected provider through a signed webhook, or you can
+      record them by hand for an event guest list.</li>
+  <li>Attribution runs nightly: the most recent touch within <b>14 days</b> of a sale is credited as
+      <b>direct</b>, anything else within <b>30 days</b> as an <b>assist</b>, and a campaign that
+      featured an item in the basket is credited for those lines specifically.</li>
+  <li>Read the result in <b>Campaign Performance</b>.</li>
+</ol>""")
+
+    # ------------------------------------------------------------- section 8
+    s8 = section("8", "s8", "CloudChaserz Rewards",
+        "What to say at the counter: the programme in the customer's words, and the five things staff get asked about.", f"""
+<div class="box gold">
+  <span class="bt">THE PROGRAMME, IN ONE BREATH</span>
+  <p style="font-size:10.5pt;line-height:1.55">&ldquo;Earn <b>1 point for every $1</b> you spend. Redeem
+  your points for money off at the counter, get a birthday gift, hear about every monthly promotion and
+  new arrival first, enter product giveaways and receive exclusive event invites.&rdquo;</p>
+</div>
+<table class="t">
+  <thead><tr><th style="width:26%">Question</th><th>What to say</th></tr></thead>
+  <tbody>
+  <tr><td><b>&ldquo;How do I earn?&rdquo;</b></td>
+      <td><b>$1 = 1 point</b>, on what you spend on goods. Points are worked out before sales tax, so the
+      rate is the same in every store.</td></tr>
+  <tr><td><b>&ldquo;What are they worth?&rdquo;</b></td>
+      <td><b>$5 off at 100 points. $10 off at 200. $15 off at 300.</b> One reward per transaction.</td></tr>
+  <tr><td><b>&ldquo;Do they expire?&rdquo;</b></td>
+      <td>Not while the account is active.</td></tr>
+  <tr><td><b>&ldquo;Do I need a card?&rdquo;</b></td>
+      <td>No. Your points are tied to <b>you</b> — your phone number or your e-mail — so there is nothing
+      to lose. Just give us your number.</td></tr>
+  <tr><td><b>&ldquo;What else do I get?&rdquo;</b></td>
+      <td>A <b>birthday discount</b> — 15% off, sent to you a week before your birthday and good for 30
+      days. Every monthly promotion first. New arrivals the week they land. <b>Giveaway entries</b>,
+      one for every $25 you spend. And invitations to in-store events.</td></tr>
+  </tbody>
+</table>
+
+<h3>8.1 &nbsp;Sign someone up at the till</h3>
+<ol class="steps">
+  <li>Open <b>Client</b> on the till and tap <b>New client</b>.</li>
+  <li>Take their <b>name</b>, <b>mobile number</b> and <b>e-mail</b>. Ask for their <b>birthday</b> —
+      say why: &ldquo;so we can send you your birthday discount.&rdquo;</li>
+  <li>Ask, out loud, whether they want to hear from you by e-mail and by text, and set the two consent
+      switches to whatever they actually said. Do not tick them by default.</li>
+  <li>Save, then <b>Attach to sale</b>. They start earning on the basket in front of you.</li>
+  <li>Their <b>client number</b> is on the receipt. Tell them they can quote that number, or just their
+      phone number, next time.</li>
+</ol>
+
+<h3>8.2 &nbsp;Sign up on /rewards</h3>
+<p>Customers can join themselves at <code>{SITE}/rewards</code> — the join form takes name, mobile,
+e-mail, birthday, a home store and the two consent boxes. The page also lists the giveaways and events
+running right now, which is the reason to point people at it. They can also join on the client display
+at the counter while you are ringing the sale.</p>
+<p class="kv dim">If someone signs up online with a phone number or e-mail we already have, the page
+gives a friendly acknowledgement and changes nothing on the existing record. That is deliberate — it
+stops anyone rewriting a stranger's account. If a customer says &ldquo;I signed up but nothing
+happened,&rdquo; look them up at the till: they were probably already a member.</p>
+
+<h3>8.3 &nbsp;Redeem at the counter</h3>
+<ol class="steps">
+  <li>Attach the customer <b>before</b> going to Pay.</li>
+  <li>The Redeem sheet shows <b>only the rewards they can afford right now</b>, and how many points away
+      the next one is. If nothing is listed, they are under 100 points — tell them how close they are.</li>
+  <li>Tap the tier. The basket total drops by $5, $10 or $15.</li>
+  <li>Take the remaining balance as normal. One reward per transaction, and a reward can never be bigger
+      than the bill.</li>
+</ol>
+
+<h3>8.4 &nbsp;When something comes back</h3>
+<p>Returning a sale takes the points back with it. Say it plainly: <i>&ldquo;the points you earned on
+that item come off again.&rdquo;</i> Two things to reassure them about:</p>
+<ul class="plain">
+  <li><b>The balance never goes below zero.</b></li>
+  <li><b>A reward they already used comes back</b> when the sale it was used on is returned.</li>
+</ul>
+<p>Every receipt prints the numbers, so you can always show the customer rather than argue:</p>
+<div class="box plain">
+  <span class="bt">ON EVERY MEMBER'S RECEIPT</span>
+  <p class="mono" style="font-size:8.6pt;line-height:1.7">POINTS EARNED &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;173<br>
+  POINTS BALANCE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;423<br>
+  NEXT REWARD &nbsp;&nbsp;&nbsp;&nbsp;$10 AT 200 PTS<br>
+  GIVEAWAY ENTRIES &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6</p>
+</div>
+
+<h3>8.5 &nbsp;What not to promise</h3>
+<ul class="plain">
+  <li>Do not quote a reward that is not on the screen. The till reads the tiers from the platform, and
+      head office can change them.</li>
+  <li>Do not stack rewards. One tier per transaction.</li>
+  <li>Do not promise a reward larger than the bill — it will be refused.</li>
+  <li>Do not promise a giveaway result. Winners are drawn from a recorded seed so the draw can be
+      audited and reproduced; nobody at a store picks the winner.</li>
+</ul>""")
+
+    # ------------------------------------------------------------- section 9
+    s9 = section("9", "s9", "Troubleshooting",
+        "The nine things that actually happen, what each one means, and what to do about it.", """
+<table class="t">
+  <thead><tr><th style="width:20%">What you see</th><th style="width:34%">What it means</th><th>What to do</th></tr></thead>
+  <tbody>
+  <tr><td><b>The PIN is refused</b></td>
+      <td>Almost always the <b>wrong name</b> is selected on the unlock screen. The two associate PINs
+      are the same in every store, so the PIN only works against the right person.</td>
+      <td>Go back, tap your own name, key the PIN again. Read the message: <i>&ldquo;incorrect
+      PIN&rdquo;</i> means try again; <i>&ldquo;PIN locked after too many failed attempts&rdquo;</i>
+      means five wrong tries have locked it and a manager must reset it (5.6). Guessing is also rate
+      limited, so slow down rather than hammering it.</td></tr>
+
+  <tr><td><b>The catalogue has not loaded</b></td>
+      <td>The device has never had the catalogue, or its cache was cleared. Tiles are blank or the
+      search finds nothing.</td>
+      <td>Check the top bar. If it says <b>ONLINE</b>, pull down to refresh, or go to
+      <b>Settings → Catalog → Refresh cache</b> and wait. If it says <b>OFFLINE</b>, the device has
+      nothing to load from — get a connection, then load the catalogue before opening the store.
+      <b>Load the catalogue on a fresh device while you still have signal.</b></td></tr>
+
+  <tr><td><b>No network</b></td>
+      <td>The top bar reads <b>OFFLINE</b>. The till is still fully usable for cash sales.</td>
+      <td>Keep selling and take cash. You cannot charge a card, clock in or out, look up a sale for a
+      return, or work web orders. See 4.10 for the whole list. Tell your manager; check the store's
+      router and the tablet's Wi-Fi.</td></tr>
+
+  <tr><td><b>&ldquo;OFFLINE · 3 QUEUED&rdquo;</b></td>
+      <td>Three completed sales are waiting on the device to be sent. They are real sales — they are
+      just not on the server yet.</td>
+      <td><b>Do not ring them again.</b> When the connection returns the queue sends itself; open
+      <b>Queue</b> to watch. Anything stuck has a <b>Retry</b> button. If a row still fails, note the
+      time and total and call your manager — do not discard it. Head-office numbers and point balances
+      will not move until the queue is empty, so clear it before you close the day.</td></tr>
+
+  <tr><td><b>The printer is not responding</b></td>
+      <td>The receipt route failed. The till tries the reader's printer, then the counter printer over
+      the network, then the browser.</td>
+      <td>Check the obvious first: paper, lid closed, power. Then <b>Settings → Printer</b> — the
+      printer's IP address must be right, and the receipt route should be <b>Automatic</b>. Use
+      <b>Test reader print</b> to see which route is failing. As a stop-gap, print from the browser
+      dialog or e-mail the receipt to the customer (4.7). <b>The sale is complete either way</b> — a
+      printing problem never costs you the sale.</td></tr>
+
+  <tr><td><b>The card reader is not found</b></td>
+      <td>The device is not paired to a reader, the reader is off the Wi-Fi, or someone picked a reader
+      that is not on this counter.</td>
+      <td>Check the reader is powered and on the store Wi-Fi. Then <b>Settings → Card reader</b> and pick
+      the right one — each store has more than one registered, e.g. <i>Counter 1 · V660p</i> and
+      <i>Counter 2 · S710</i>. The choice is remembered per device. Take cash while you sort it out.</td></tr>
+
+  <tr><td><b>An age-restricted item is blocked</b></td>
+      <td>The check returned <b>Underage</b>, <b>Expired</b>, <b>Unreadable</b> or <b>Declined</b>. The
+      item never entered the basket.</td>
+      <td><b>Underage or expired: the sale does not happen.</b> Remove the item and say so politely; the
+      minimum age is 21 everywhere and there is no override. <b>Unreadable</b> is different — the
+      barcode did not scan. Use <b>Try another ID</b>, or key the date of birth by hand from the front
+      of the licence. Never wave an item through because the scanner is being difficult.</td></tr>
+
+  <tr><td><b>&ldquo;You don't have access to that store&rdquo;</b></td>
+      <td>You are signed in as someone attached to a different store, or the device is still set to a
+      store you no longer work in. Every screen is scoped to one store on purpose.</td>
+      <td>Check the name in the corner is yours. On the till, <b>Settings → Change boutique</b> to your
+      own store; if your store is not in the list, your account is attached elsewhere and head office
+      has to move it — a store manager cannot. If you have genuinely transferred, ask head office to
+      re-point your record.</td></tr>
+
+  <tr><td><b>The dashboard looks empty</b></td>
+      <td>Either nothing has sold yet today, or a store's sales are sitting in an offline queue.</td>
+      <td>Look at the store cards: a store showing <b>NO SALE YET · OFFLINE</b> has not checked in.
+      Ring one sale anywhere and the board moves within a second. If a card shows queued sales, the
+      till has them and has not sent them.</td></tr>
+  </tbody>
+</table>
+<div class="box plain">
+  <span class="bt">WHEN TO ESCALATE</span>
+  <p>Anything that stops you taking money, anything where a customer may have been charged twice, and
+  anything that looks like data from another store, goes to your manager immediately and then to head
+  office. Note the time, the till, the invoice number if there is one, and what the screen said —
+  those four things make the difference between a fix and a guess.</p>
+</div>""")
+
+    # ------------------------------------------------------------ section 10
+    s10 = section("10", "s10", "How the whole system fits together",
+        "Four pictures: the map, a sale, money back and stock in, and online orders and rewards. "
+        "Each is one landscape page and each is also supplied as a standalone file.", """
+<p>The four figures overleaf are the mechanism, not decoration. Read <b>Figure 1</b> to see where data
+goes: the devices in a store, the single cloud site they all talk to, the Houston head office and
+warehouse, and the public storefront. Read <b>Figure 2</b> for the life of one sale, including exactly
+what changes when the network drops. <b>Figure 3</b> is money going back and stock coming in — and it
+marks, in red, every point where somebody has to approve something. <b>Figure 4</b> covers a web order
+collected at a counter, and the life of a rewards point.</p>
+<table class="t">
+  <thead><tr><th style="width:18%">Figure</th><th style="width:34%">What it answers</th><th>Standalone file</th></tr></thead>
+  <tbody>
+  <tr><td><b>1 — System map</b></td><td>What is in a store, what the platform does, what Houston does,
+      and which call carries which data.</td><td class="mono">diagrams/fig1-system-map.svg</td></tr>
+  <tr><td><b>2 — The sale</b></td><td>Counter to books in seven steps, plus the offline queue and why a
+      replayed sale cannot double-post.</td><td class="mono">diagrams/fig2-sale-and-offline.svg</td></tr>
+  <tr><td><b>3 — Money back, stock in</b></td><td>Return and exchange; and request → approve → pick →
+      pack → label → ship → receive.</td><td class="mono">diagrams/fig3-returns-and-replenishment.svg</td></tr>
+  <tr><td><b>4 — Online and rewards</b></td><td>Web order to click &amp; collect; and a point from
+      sign-up to reversal.</td><td class="mono">diagrams/fig4-online-and-rewards.svg</td></tr>
+  </tbody>
+</table>
+<p class="kv dim">All four are also collected in <code>awanz-system-flowchart.pdf</code>, one figure per
+page, for printing at A3 or pinning up in the back office.</p>
+""") + figure_pages()
+
+    # ------------------------------------------------------------ appendices
+    sa = section("A", "sa", "Appendix A · Store directory",
+        "The eleven stores and the Houston main warehouse, as the platform holds them.", f"""
+<table class="t">
+  <thead><tr><th style="width:11%">Code</th><th style="width:18%">Store</th><th style="width:24%">Address</th>
+  <th style="width:12%">Phone</th><th style="width:11%">Region</th><th style="width:15%">Hours</th>
+  <th style="width:9%">Sales tax</th></tr></thead>
+  <tbody>
+{dir_rows}
+  </tbody>
+</table>
+<p class="kv dim">All stores run on <b>America/Chicago</b> time. <code>HOU-WH</code> is a warehouse, not
+a store: it owns stock and appears in the supply flows, but it is excluded from store lists, sales
+league tables and the storefront.</p>
+<div class="box warn">
+  <span class="bt">⚠ TAX RATES — VERIFY WITH THE CPA BEFORE TRADING</span>
+  <p>The rates above are <b>approximate combined state and local sales-tax rates</b>, entered so that
+  demo totals look right. Before the first live sale, have the CPA confirm the exact combined rate for
+  each store's taxing jurisdiction — they change, and the city, county and special-district components
+  differ by <i>address</i>, not by city name.</p>
+  <p><b>Not modelled at all:</b> Oklahoma and Texas <b>vapor and tobacco excise taxes</b>, which are
+  levied separately from sales tax and may apply at wholesale or at retail depending on the product
+  class. Kratom and hemp-derived products have their own state treatment again. Model all of these with
+  the CPA before trading.</p>
+</div>
+<div class="box warn">
+  <span class="bt">⚠ COMPLIANCE — VERIFY WITH COUNSEL</span>
+  <p>The federal minimum age for tobacco and nicotine is <b>21</b> and the platform refuses anything
+  younger regardless of state law. Beyond that: the PACT Act's registration and state-reporting
+  obligations may attach to the business even though warehouse-to-store transfers are business-to-business;
+  Texas and Oklahoma each license retail tobacco and vapor sellers and have their own signage, ID-check
+  and product-registry rules; and kratom and hemp-derived cannabinoid rules are regulated separately and
+  change frequently. <b>The web shop does not sell age-restricted items and that default must not be
+  changed without counsel and a compliant carrier programme.</b> None of this is legal advice — it is a
+  starting point for a conversation with the company's attorney.</p>
+</div>""", data_title="Appendix A · Store directory")
+
+    sb = section("B", "sb", "Appendix B · Where to read more",
+        "The platform documents this guide is drawn from, for whoever administers the site.", """
+<table class="t">
+  <thead><tr><th style="width:30%">Document</th><th>What is in it</th></tr></thead>
+  <tbody>
+  <tr><td class="mono">docs/security.md</td><td><b>Read this before granting anyone a role.</b> The full
+      permission model: who may do what, the three places store scoping is enforced, how PIN material is
+      protected, what the public endpoints will and will not do, rate limits, and what is deliberately
+      left open and why.</td></tr>
+  <tr><td class="mono">docs/cloudchaserz.md</td><td>The tenant: brand settings, the eleven stores and
+      their tax rates, the role and scoping matrix, the demo users, age verification, and how a site is
+      seeded.</td></tr>
+  <tr><td class="mono">docs/rewards.md</td><td>The rewards programme end to end, including the two
+      earning and redemption rates that must not be confused, and the operating notes for when a member
+      says their points are wrong.</td></tr>
+  <tr><td class="mono">docs/shipping.md</td><td>The warehouse: the flow, the carrier integration, the
+      printing setup on the packing floor, and the runbook for stuck shipments, empty rates and wrong
+      labels.</td></tr>
+  <tr><td class="mono">docs/returns.md</td><td>Returns and exchanges: the policy fields, what a return
+      does to stock, tenders, loyalty and commission, and how exchange accounting nets out.</td></tr>
+  <tr><td class="mono">docs/dashboard.md</td><td>The Command dashboard: every tab, what feeds it, and
+      how it stays fast with a hundred stores.</td></tr>
+  <tr><td class="mono">docs/hardware.md</td><td>The Verifone V660p decision, the alternative reader and
+      belt printer, why Clover is not compatible, and the per-reader pairing steps.</td></tr>
+  <tr><td class="mono">docs/scanners.md</td><td>Supported Bluetooth scanners, the mode each one must be
+      put in, prefix and suffix configuration, and the scanner test screen.</td></tr>
+  <tr><td class="mono">docs/webshop.md</td><td>The storefront: install, payment gateway, web modes,
+      routes, the click-and-collect queue, and how to link it from a marketing site.</td></tr>
+  <tr><td class="mono">docs/payroll.md</td><td>Employees, shifts and breaks, commission rules and
+      entries, and the four payroll export formats.</td></tr>
+  <tr><td class="mono">docs/crm.md</td><td>Client profiles, wishlists, interactions and follow-ups, and
+      the clienteling tab on the till.</td></tr>
+  <tr><td class="mono">docs/salon.md</td><td>The client display: pairing, what it shows at each stage of
+      a sale, and the privacy rules about what it is allowed to receive.</td></tr>
+  <tr><td class="mono">docs/biometrics-policy.md</td><td><b>Only relevant if camera-based client
+      recognition is ever switched on</b> — it is off by default. Consent wording, what is stored and
+      what is not, the retention and destruction schedule, and the entrance signage.</td></tr>
+  <tr><td class="mono">docs/white-label.md</td><td>How the brand system works, for anyone changing the
+      wordmark, the product name or the tenant.</td></tr>
+  <tr><td class="mono">e2e/qa/final-acceptance.md</td><td>The acceptance run on the live site: what was
+      tested, what passed, and the three known low-severity defects.</td></tr>
+  </tbody>
+</table>
+<div class="box plain">
+  <span class="bt">KNOWN ISSUES AT THE TIME OF WRITING</span>
+  <p>Three low-severity defects were open at the last acceptance run, none of them blocking. The
+  storefront home page's category tiles show understated product counts and list one empty category.
+  The Command dashboard's hourly chart highlights the current hour in the <i>viewer's</i> timezone
+  rather than the store's. And the <code>/start</code> footer offers an <b>Admin desk</b> link to
+  everyone even though the card above it is correctly role-gated. All three are cosmetic; none affects
+  a sale, a stock movement or a customer's points.</p>
+</div>
+<div class="colophon">
+  <div class="cwordmark">CLOUDCHASERZ</div>
+  <div class="csub">AWANZ&nbsp;POS</div>
+  <div class="crule"></div>
+  <p class="ctitle">Training &amp; Access Guide</p>
+  <p class="cmeta">Issued """ + BUILD_DATE + """ for the site at """ + SITE + """<br>
+     Covers release v0.9 · 11 stores and the HOU-WH main warehouse</p>
+  <div class="cbox">
+    <b>Before this site takes a real customer's money:</b> reset every password, reset every PIN,
+    change the site administrator password, remove the demo shopper accounts, and have the CPA confirm
+    each store's combined sales-tax rate. Section 2.6 and Appendix A.
+  </div>
+  <p class="cmeta">CloudChaserz World LLC · support@cloudchaserzworld.com<br>
+     Platform built by <b>Futonix.com</b></p>
+  <div class="cpowered">POWERED BY FUTONIX.COM</div>
+</div>
+""", data_title="Appendix B · Where to read more")
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>AWANZ POS by CloudChaserz — Training &amp; Access Guide</title>
+<style>{CSS}</style></head><body>
+{cover}
+{toc}
+{s1}{s2}{s3}{s4}{s5}{s6}{s7}{s8}{s9}{s10}{sa}{sb}
+</body></html>"""
+
+
+def main() -> None:
+    from weasyprint import HTML
+
+    tmp = os.path.join(HERE, ".build")
+    os.makedirs(tmp, exist_ok=True)
+    html_path = os.path.join(tmp, "guide.html")
+    pdf_path = os.path.join(HERE, "AWANZ-POS-Training-and-Access-Guide.pdf")
+    with open(html_path, "w", encoding="utf-8") as fh:
+        fh.write(build_html())
+    HTML(html_path, base_url=HERE).write_pdf(pdf_path)
+    print("wrote", pdf_path)
+
+
+if __name__ == "__main__":
+    main()
