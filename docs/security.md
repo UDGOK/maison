@@ -248,3 +248,56 @@ After migrating, check `logs/awanz_security.log` for two events:
   `AWANZ Associate` row at all. The patch deliberately does not touch these (an admin may have
   granted Head Office to somebody who does not stand on a shop floor), but each one is
   unrestricted and unattached, so review the list by hand.
+
+---
+
+## 6. An `AWANZ *` role must stand on its own (v1.1.1)
+
+The report from the field: a regional manager opened the store **Receive** screen, asked the
+warehouse for stock, and got in red across the top
+
+> User regional.tx@… does not have doctype access via role permission for document **Item**
+
+The missing row was real, but the *pattern* is the finding, and it is the one to keep in mind
+whenever a doctype is added to a screen:
+
+**None of the four AWANZ roles held `read` on Item.** Nothing broke because of what the seed
+happens to attach *beside* the AWANZ role — an associate also gets ERPNext's `Sales User`, a store
+manager `Stock User`, and both of those read Item. The app was borrowing the permission. A regional
+is seeded with `Sales Manager`, which does **not** read Item, so the regional was the one seat where
+the borrowing showed — and so is every user a client creates by hand with only an AWANZ role.
+
+ERPNext is what insists on it: `erpnext.stock.get_item_details.get_item_details` calls
+`item.check_permission()` while a Material Request validates, and **no `ignore_permissions` flag on
+the parent document waves that through** — the check is on the Item doc, not on the request. So
+`inventory.replenish` and `inventory.request_transfer`, the two endpoints behind *"ask the warehouse
+for stock"*, were broken for all four roles once the borrowed role was gone.
+
+**The fix.** `("Item", <role>): ("read",)` for all four roles in `setup.install.ROLE_DOCPERMS` —
+so the app's own roles carry the app's own requirements — plus
+`maison_pos/patches/v1_1/awanz_role_item_access.py` so a live site picks it up on `bench migrate`.
+The patch prints what it had to add and names the users who hold an AWANZ role and no ERPNext role
+that reads Item, which is exactly the list of people the grant is carrying.
+
+**What it deliberately is not.**
+
+* `read` and nothing else. The catalogue is still writable only by `AWANZ Warehouse Admin`
+  (`install_v10_purchasing.ROLE_DOCPERMS`), and no AWANZ role gained anything on `Stock Entry`,
+  `Material Request`, `Purchase Receipt` or `Item Price`.
+* **Not** `Stock User` bolted onto the regionals in the seed. That would have made the screen work
+  and cost far more than it fixed: `Stock User` carries write / create / submit / cancel / delete on
+  Stock Entry, Material Request, Purchase Receipt and Serial and Batch Bundle, which turns an
+  oversight seat into one that can post and submit stock movements in every store it can see. The
+  role has to work *without* it; the comment in `setup/cloudchaserz/users.py` says so at the seed.
+* **No change to data scoping.** Opening a *doctype* for a role does not open another region's
+  *documents*: the row-level fence is Frappe's User Permissions plus the
+  `permission_query_conditions` in `maison_pos/scoping.py`, and neither is touched. Item carries no
+  store dimension for a grant to leak in the first place. `AWANZ Item Vendor` is a child table *of
+  Item*, so it becomes listable through `frappe.client.get_list(parent="Item")` the moment Item is
+  readable — which is exactly why v1.0 closed it with `scoping.item_vendor_query` rather than by
+  leaning on Item's DocPerm, and that condition still returns `1=0` for everyone but a buyer.
+
+Regression tests: `maison_pos/tests/test_v1_1_role_permissions.py` (in-process — a user holding
+*only* an AWANZ role, with none of the ERPNext roles that read Item) and
+`maison_pos/tests/test_v1_1_role_permissions_http.py` (the same over real sessions, including a
+regional fenced to one region who still cannot read the other region's documents).

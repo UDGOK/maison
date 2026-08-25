@@ -14,6 +14,7 @@
   "priority",
   "requested_by",
   "requested_at",
+  "warehouse_push",
   "section_lines",
   "lines",
   "section_review",
@@ -94,6 +95,15 @@
    "read_only": 1
   },
   {
+   "default": "0",
+   "description": "Set by AWANZ Distribution when Houston pushes stock to the store; a store's own request leaves it clear.",
+   "fieldname": "warehouse_push",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Warehouse Push",
+   "read_only": 1
+  },
+  {
    "fieldname": "section_lines",
    "fieldtype": "Section Break",
    "label": "Lines"
@@ -154,7 +164,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-08-22 00:00:00.000000",
+ "modified": "2026-08-25 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "AWANZ POS",
  "name": "AWANZ Replenishment Request",

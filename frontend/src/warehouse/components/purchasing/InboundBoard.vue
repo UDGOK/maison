@@ -15,6 +15,7 @@ import { installWedgeListener } from '@/scan/wedge'
 import { fmtDate, fmtDateTime, todayISO } from '@/utils/device'
 import { fmtMoney } from '@/utils/money'
 import ReceiveSheet from './ReceiveSheet.vue'
+import SendToStoresSheet from './SendToStoresSheet.vue'
 
 const emit = defineEmits<{ notice: [msg: string] }>()
 
@@ -23,6 +24,8 @@ const wh = useWarehouseStore()
 
 const openPo = ref<string | null>(null)
 const sheet = ref<InstanceType<typeof ReceiveSheet> | null>(null)
+/** v1.1 §D — straight from the receipt confirmation into the distribution sheet. */
+const sending = ref<{ item_code: string; item_name: string | null } | null>(null)
 const manual = ref('')
 const scanNote = ref<{ text: string; ok: boolean } | null>(null)
 const today = ref(todayISO())
@@ -96,6 +99,15 @@ async function load() {
 }
 function onReceived() {
   scanNote.value = null
+}
+/**
+ * The receipt confirmation asked to send one of the lines out. Close the receive sheet first —
+ * two stacked modals on a phone leaves the manager with two Close buttons and no way to tell
+ * which one they are tapping.
+ */
+function onSendToStores(itemCode: string, itemName: string | null) {
+  openPo.value = null
+  sending.value = { item_code: itemCode, item_name: itemName }
 }
 
 let uninstall: (() => void) | null = null
@@ -241,6 +253,16 @@ onBeforeUnmount(() => uninstall?.())
       @close="openPo = null"
       @notice="emit('notice', $event)"
       @received="onReceived"
+      @send-to-stores="onSendToStores"
+    />
+
+    <SendToStoresSheet
+      v-if="sending"
+      :item-code="sending.item_code"
+      :item-name="sending.item_name"
+      reason="Just landed at Houston"
+      @close="sending = null"
+      @notice="emit('notice', $event)"
     />
   </div>
 </template>

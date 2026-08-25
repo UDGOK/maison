@@ -11,6 +11,11 @@
  *
  * Buying is centralised in Houston (locked decision 6): stores never raise an order, so the only
  * way a vendor delivers to a store is a drop-ship, chosen here before the order is created.
+ *
+ * v1.1 §B/§C add the two ways in that v1.0 had no path for: **New product**, because a rep shows
+ * you a new disposable at the pallet and there is no laptop; and **New order**, because a one-off
+ * trial case of something with no reorder level never appears on the suggestion list. Creating a
+ * product offers *Order it now*, since that is always what happens next.
  */
 import type { PurchaseOrderRow, Suggestion } from '@/api/purchasing'
 import type { OrderPlan } from '../../buying'
@@ -83,6 +88,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BuySuggestRow from './BuySuggestRow.vue'
 import OrderSheet from './OrderSheet.vue'
+import NewOrderSheet from './NewOrderSheet.vue'
+import NewProductSheet from './NewProductSheet.vue'
 import Modal from '@/components/Modal.vue'
 import { usePurchasingStore } from '@/stores/purchasing'
 import { useWarehouseStore } from '@/stores/warehouse'
@@ -119,6 +126,9 @@ const from = ref('')
 const to = ref('')
 const vendorOpts = ref<{ name: string; label: string }[]>([])
 const openOrder = ref<string | null>(null)
+// v1.1 — the two new ways in
+const newProduct = ref(false)
+const newOrder = ref<{ supplier: string | null; itemCode: string | null } | null>(null)
 
 const stores = computed(() => wh.me?.stores || [])
 const rows = computed(() => store.openSuggestions)
@@ -240,6 +250,20 @@ function onOrderChanged() {
   if (tab.value === 'orders') void loadOrders()
 }
 
+// ------------------------------------------------------------------ v1.1 new product / new order
+/** A product was created, and the manager chose to order it. Straight into the order sheet. */
+function orderTheNewProduct(supplier: string, itemCode: string) {
+  newProduct.value = false
+  newOrder.value = { supplier: supplier || null, itemCode: itemCode || null }
+}
+/** The draft exists — hand it to the existing order sheet, where freight and submit live. */
+function onNewOrder(name: string) {
+  newOrder.value = null
+  tab.value = 'orders'
+  void loadOrders()
+  openRow(name)
+}
+
 /** Closing the sheet drops `?order=` again, so a reload does not reopen it. */
 function closeOrderSheet() {
   openOrder.value = null
@@ -258,6 +282,8 @@ function closeOrderSheet() {
       <button class="chip" :class="{ active: tab === 'orders' }" data-testid="buy-tab-orders" @click="tab = 'orders'">Orders</button>
       <div class="spacer"></div>
       <span v-if="tab === 'suggest' && store.asOf" class="label label-dim">List built {{ fmtDateTime(store.asOf) }}</span>
+      <button class="btn" data-testid="buy-new-product" @click="newProduct = true">New product</button>
+      <button class="btn" data-testid="buy-new-order" @click="newOrder = { supplier: null, itemCode: null }">New order</button>
       <button v-if="tab === 'suggest'" class="btn" :disabled="store.loading" data-testid="buy-refresh" @click="loadSuggest(true)">
         {{ store.loading ? 'Working…' : 'Refresh list' }}
       </button>
@@ -364,8 +390,11 @@ function closeOrderSheet() {
       <div v-if="store.loading && !orders.length" class="empty"><div class="label label-dim">Loading orders…</div></div>
       <div v-else-if="!orders.length" class="empty" data-testid="orders-empty">
         <div class="display" style="font-size: 18px">No purchase orders here</div>
-        <div class="muted">Nothing matches this filter. Orders are created from the Suggest tab, one per vendor.</div>
-        <button class="btn" @click="tab = 'suggest'">Go to Suggest</button>
+        <div class="muted">Nothing matches this filter. Orders come off the Suggest tab, one per vendor — or start one from scratch against a vendor's own catalogue.</div>
+        <div class="row">
+          <button class="btn" @click="tab = 'suggest'">Go to Suggest</button>
+          <button class="btn btn-primary" data-testid="orders-empty-new" @click="newOrder = { supplier: null, itemCode: null }">New order</button>
+        </div>
       </div>
       <div v-else class="tablewrap">
         <table class="table orders">
@@ -431,6 +460,17 @@ function closeOrderSheet() {
       </template>
     </Modal>
 
+    <NewProductSheet v-if="newProduct" @close="newProduct = false" @notice="say" @order="orderTheNewProduct" />
+
+    <NewOrderSheet
+      v-if="newOrder"
+      :supplier="newOrder.supplier"
+      :item-code="newOrder.itemCode"
+      @close="newOrder = null"
+      @notice="say"
+      @created="onNewOrder"
+    />
+
     <OrderSheet
       v-if="openOrder"
       :order="openOrder"
@@ -451,6 +491,7 @@ function closeOrderSheet() {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .spacer {
   flex: 1;

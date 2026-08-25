@@ -55,7 +55,9 @@ import { fmtDate } from '@/utils/device'
 import { fmtInt, fmtMoney } from '@/utils/money'
 
 const props = defineProps<{ vendor: string }>()
-const emit = defineEmits<{ close: []; notice: [msg: string]; changed: [] }>()
+// v1.1 §D — "Order from this vendor" is the same New order sheet with the vendor already chosen.
+// The board opens it: a modal inside a modal is a trap on a phone.
+const emit = defineEmits<{ close: []; notice: [msg: string]; changed: []; order: [supplier: string] }>()
 
 const store = usePurchasingStore()
 
@@ -387,6 +389,7 @@ async function removeRow(itemCode: string, rowName?: string) {
         <span v-else></span>
         <div class="row">
           <button class="btn btn-ghost" @click="emit('close')">Close</button>
+          <button v-if="detail.vendor.active" class="btn" data-testid="vendor-order" @click="emit('order', detail.vendor.name)">Order from this vendor</button>
           <button v-if="tab === 'profile'" class="btn btn-primary" :disabled="busy || !dirty" data-testid="vendor-save" @click="save">{{ busy ? 'Saving…' : 'Save vendor' }}</button>
         </div>
       </div>

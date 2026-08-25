@@ -66,21 +66,56 @@ ROLE_DOCPERMS: dict[tuple[str, str], tuple[str, ...]] = {
 	("Serial and Batch Bundle", "AWANZ Associate"): ("read", "write", "create", "submit", "cancel"),
 	("Serial and Batch Bundle", "AWANZ Manager"): ("read", "write", "create", "submit", "cancel", "amend"),
 	("Serial and Batch Bundle", "AWANZ Head Office"): ("read", "write", "create", "submit", "cancel", "amend"),
+	# --- v1.1.1 — every AWANZ role reads the item catalogue on its own -----------------------------
+	# None of the four roles carried `read` on Item. Nobody noticed because of what the seed happens
+	# to attach next to them: an associate gets ERPNext's `Sales User` and a store manager `Stock
+	# User`, and both of those read Item. `AWANZ Regional` is seeded with `Sales Manager`, which does
+	# not — so a regional manager opening the store Receive screen and asking the warehouse for stock
+	# got, in red, *"User <x> does not have doctype access via role permission for document Item"*,
+	# and any hand-made user holding only an AWANZ role hit the same wall whatever their rank.
+	#
+	# It is ERPNext that insists: `erpnext.stock.get_item_details.get_item_details` calls
+	# `item.check_permission()` on the way into a Material Request, and no `ignore_permissions` flag
+	# on the *parent* document waves that through — so `inventory.replenish` and
+	# `inventory.request_transfer` need it for every role that may raise a request (all four).
+	#
+	# `read` only, deliberately. It opens the catalogue a till already shows and nothing else: the
+	# negotiated vendor costs live in `AWANZ Item Vendor` and `AWANZ Purchase Suggestion`, which stay
+	# shut behind `scoping.item_vendor_query` / `purchase_suggestion_query` however Item is permitted,
+	# and buying prices sit in `Item Price`, which no AWANZ role is granted here. Writing the
+	# catalogue stays with `AWANZ Warehouse Admin` (see `install_v10_purchasing.ROLE_DOCPERMS`).
+	("Item", "AWANZ Associate"): ("read",),
+	("Item", "AWANZ Manager"): ("read",),
+	("Item", "AWANZ Regional"): ("read",),
+	("Item", "AWANZ Head Office"): ("read",),
+	# --- end v1.1.1 ---
 }
 
 
-def create_role_permissions() -> None:
-	"""Grant the AWANZ roles access to Sales Invoice / Customer (Custom DocPerm, idempotent)."""
+def create_role_permissions(docperms: dict[tuple[str, str], tuple[str, ...]] | None = None) -> list[str]:
+	"""Grant the AWANZ roles the doctype access the app needs (Custom DocPerm, idempotent).
+
+	*docperms* defaults to the whole :data:`ROLE_DOCPERMS` table; a patch may pass a subset.
+	Returns the ``"<doctype>.<role>.<ptype>"`` grants this call actually had to add, so a patch
+	can report what a site was missing instead of printing an unconditional "done".
+	"""
 	from frappe.permissions import add_permission, update_permission_property
 
-	for (doctype, role), ptypes in ROLE_DOCPERMS.items():
+	granted: list[str] = []
+	for (doctype, role), ptypes in (ROLE_DOCPERMS if docperms is None else docperms).items():
 		if not frappe.db.exists("Role", role) or not frappe.db.exists("DocType", doctype):
 			continue
 		if not frappe.db.exists("Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0}):
 			add_permission(doctype, role, 0)
+			# `add_permission` creates the row with `read = 1`, so the loop below would find that
+			# ptype already set and under-report what this call actually opened.
+			if "read" in ptypes:
+				granted.append(f"{doctype}.{role}.read")
 		for ptype in ptypes:
 			if not frappe.db.get_value("Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0}, ptype):
 				update_permission_property(doctype, role, 0, ptype, 1, validate=False)
+				granted.append(f"{doctype}.{role}.{ptype}")
+	return granted
 
 
 def create_modes_of_payment() -> None:

@@ -21,6 +21,16 @@ store selling price          ``price_change_requests`` ``request_price_change``
                              ``approve_price_change`` — thin wrappers over the **existing**
                              ``AWANZ Price Change Request`` + ``AWANZ Price Approval`` workflow
 ===========================  =========================================================
+
+v1.1 "Onboarding a product" adds the two ways in that the touch screens were missing:
+
+===========================  =========================================================
+§B new product               ``create_product`` (atomic) ``item_groups``
+§C order from scratch        ``vendor_catalogue`` — the vendor's items, searchable by our
+                             code, our name, **their** SKU or the barcode
+===========================  =========================================================
+
+Pushing stock the other way — Houston → the stores — is ``maison_pos.api.distribution``.
 """
 
 from __future__ import annotations
@@ -32,7 +42,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_months, cint, flt, getdate, now_datetime, nowdate
 
-from maison_pos.purchasing import assert_item, main_warehouse
+from maison_pos.purchasing import assert_item, default_company, main_warehouse
 from maison_pos.purchasing import orders as po_lib
 from maison_pos.purchasing import receiving as receiving_lib
 from maison_pos.purchasing import vendors as vendor_lib
@@ -801,3 +811,360 @@ def _chain_velocity(codes: list[str]) -> dict[str, float]:
 	except Exception:  # pragma: no cover
 		return {}
 	return {r.item_code: flt(r.velocity) for r in rows}
+
+
+# ===========================================================================
+# v1.1 §B — a new product, created from the warehouse
+# ===========================================================================
+#: fallback stock UOM when the site has no Stock Settings default
+DEFAULT_STOCK_UOM = "Nos"
+
+
+def selling_price_list() -> str:
+	"""The selling price list a new product's rate goes on — the one the tills read."""
+	for candidate in (frappe.db.get_single_value("Selling Settings", "selling_price_list"), "Standard Selling"):
+		if candidate and frappe.db.exists("Price List", candidate):
+			return candidate
+	return frappe.db.get_value("Price List", {"selling": 1, "enabled": 1}, "name") or "Standard Selling"
+
+
+def default_stock_uom() -> str:
+	uom = frappe.db.get_single_value("Stock Settings", "stock_uom") or DEFAULT_STOCK_UOM
+	return uom if frappe.db.exists("UOM", uom) else DEFAULT_STOCK_UOM
+
+
+def barcode_owner(barcode: str, exclude: Optional[str] = None) -> Optional[str]:
+	"""The item already carrying *barcode*, on either surface a scanner reads.
+
+	Two products sharing a barcode means the till rings up the wrong one and the money is wrong —
+	so both the AWANZ field (``Item.maison_barcode``) and the standard ``Item Barcode`` table are
+	checked before a product is created (``maison_pos.api.catalog`` reads both when scanning).
+	"""
+	barcode = (barcode or "").strip()
+	if not barcode:
+		return None
+	owner = frappe.db.get_value("Item", {"maison_barcode": barcode}, "name")
+	if owner and owner != exclude:
+		return owner
+	row = frappe.db.get_value("Item Barcode", {"barcode": barcode}, "parent")
+	if row and row != exclude:
+		return row
+	return None
+
+
+@frappe.whitelist()
+def item_groups() -> dict[str, Any]:
+	"""The groups a new product can be filed under, so the create sheet does not have to guess."""
+	assert_purchasing_admin()
+	counts = {
+		r["item_group"]: cint(r["items"])
+		for r in frappe.db.sql("select item_group, count(name) as items from `tabItem` where disabled = 0 group by item_group", as_dict=True)
+	}
+	rows = frappe.get_all(
+		"Item Group",
+		filters={"is_group": 0},
+		fields=["name", "item_group_name", "parent_item_group"],
+		order_by="name asc",
+		limit=500,
+	)
+	groups = [
+		{"name": r.name, "label": r.item_group_name or r.name, "parent": r.parent_item_group, "items": cint(counts.get(r.name))}
+		for r in rows
+	]
+	# the group the chain files most of its catalogue under is the sensible default selection
+	busiest = max(groups, key=lambda g: g["items"], default=None)
+	return {"groups": groups, "count": len(groups), "default": busiest["name"] if busiest and busiest["items"] else None}
+
+
+def _catalogue_row(row: Any, item: Any, rate: float = 0.0) -> dict[str, Any]:
+	"""One line of a vendor's catalogue: what we call it, what they call it, what it costs."""
+	case_pack = cint(row.get("case_pack")) or 1
+	return {
+		"name": row.get("name"),
+		"item_code": row.get("parent") or row.get("item_code"),
+		"item_name": item.item_name if item else None,
+		"item_group": item.item_group if item else None,
+		"barcode": item.maison_barcode if item else None,
+		"image": item.image if item else None,
+		"uom": item.stock_uom if item else None,
+		"vendor_sku": row.get("vendor_sku"),
+		"cost": flt(row.get("cost")),
+		"case_pack": case_pack,
+		"moq": cint(row.get("moq")),
+		"lead_time_days": cint(row.get("lead_time_days")),
+		"is_preferred": bool(cint(row.get("is_preferred"))),
+		"last_purchase_date": str(row["last_purchase_date"]) if row.get("last_purchase_date") else None,
+		"last_purchase_rate": flt(row.get("last_purchase_rate")),
+		# what the order sheet starts from: a whole case at the negotiated rate, both editable
+		"default_qty": case_pack,
+		"rate": flt(rate) or flt(row.get("cost")) or flt(row.get("last_purchase_rate")),
+	}
+
+
+def product_dict(item_code: str) -> dict[str, Any]:
+	"""The full payload of a product: what it is, what we pay, when to reorder, what it sells for."""
+	item = frappe.get_doc("Item", item_code)
+	warehouse = main_warehouse()
+	price_list = selling_price_list()
+	reorder = next((r for r in item.get("reorder_levels") or [] if r.warehouse == warehouse), None)
+	rate = frappe.db.get_value("Item Price", {"item_code": item_code, "price_list": price_list, "selling": 1}, "price_list_rate")
+	vendors = [_vendor_row_dict(r) for r in vendor_lib.item_vendor_rows(item_code)]
+	return {
+		"item_code": item.name,
+		"item_name": item.item_name,
+		"item_group": item.item_group,
+		"uom": item.stock_uom,
+		"barcode": item.get("maison_barcode"),
+		"barcodes": [b.barcode for b in item.get("barcodes") or []],
+		"image": item.image,
+		"description": item.description,
+		"is_stock_item": bool(cint(item.is_stock_item)),
+		"disabled": bool(cint(item.disabled)),
+		"valuation_method": item.valuation_method,
+		"company": default_company(),
+		"warehouse": warehouse,
+		"price_list": price_list,
+		"selling_rate": flt(rate),
+		"reorder": {
+			"warehouse": warehouse,
+			"level": flt(reorder.warehouse_reorder_level) if reorder else 0.0,
+			"qty": flt(reorder.warehouse_reorder_qty) if reorder else 0.0,
+		}
+		if reorder
+		else None,
+		"vendors": vendors,
+		"preferred": next((v["supplier"] for v in vendors if v["is_preferred"]), None),
+	}
+
+
+# POST only — it creates an Item, a vendor row, a price and a reorder level (see api/distribution.send)
+@frappe.whitelist(methods=["POST"])
+def create_product(payload: Any) -> dict[str, Any]:
+	"""Create a product from the warehouse screens — one call, one sheet, all or nothing.
+
+	``payload``::
+
+	    {item_code, item_name, item_group, uom?, barcode?, image?, selling_rate?,
+	     vendor: {supplier, vendor_sku?, cost?, case_pack?, moq?, lead_time_days?},
+	     reorder: {level, qty?}}
+
+	Creates the ``Item`` (stock item, Moving Average, the tenant company's defaults), stamps
+	``maison_barcode``, writes the vendor row **through** ``purchasing/vendors.py`` so the
+	vendor's buying price list is maintained exactly as an edit maintains it, marks that vendor
+	preferred (it is the item's first), puts the selling rate on the selling price list and adds
+	the ``Item Reorder`` row for HOU-WH.
+
+	Everything is validated first and the writes run inside a savepoint: if any step fails the
+	item must not be left half-built, so the whole thing is unwound and nothing survives.
+	"""
+	assert_purchasing_admin()
+	data = _loads(payload, {}) or {}
+	vendor_row = _loads(data.get("vendor"), {}) or {}
+	reorder_row = _loads(data.get("reorder"), {}) or {}
+
+	# ---------------------------------------------------------------- validate, write nothing
+	item_code = (data.get("item_code") or "").strip()
+	if not item_code:
+		frappe.throw(_("A product needs an item code"), frappe.ValidationError)
+	if frappe.db.exists("Item", item_code):
+		# 417 like every other refusal in this app — a duplicate is a user error, not a crash
+		frappe.throw(_("Item {0} already exists — open it instead of creating it again").format(item_code), frappe.ValidationError)
+	item_name = (data.get("item_name") or "").strip() or item_code
+	item_group = (data.get("item_group") or "").strip()
+	if not item_group:
+		frappe.throw(_("A product needs an item group"), frappe.ValidationError)
+	if not frappe.db.exists("Item Group", item_group):
+		frappe.throw(_("Item group {0} does not exist").format(item_group), frappe.DoesNotExistError)
+	if cint(frappe.db.get_value("Item Group", item_group, "is_group")):
+		frappe.throw(_("{0} is a group heading — choose the group the product belongs in").format(item_group), frappe.ValidationError)
+	uom = (data.get("uom") or "").strip() or default_stock_uom()
+	if not frappe.db.exists("UOM", uom):
+		frappe.throw(_("Unit of measure {0} does not exist").format(uom), frappe.DoesNotExistError)
+	barcode = (data.get("barcode") or "").strip()
+	if barcode:
+		owner = barcode_owner(barcode)
+		if owner:
+			# the real-money one: two products on one barcode means the till rings up the wrong item
+			frappe.throw(_("Barcode {0} is already on item {1} — two products on one barcode rings up the wrong one").format(barcode, owner), frappe.ValidationError)
+	supplier = (vendor_row.get("supplier") or "").strip()
+	if supplier and not frappe.db.exists("Supplier", supplier):
+		frappe.throw(_("Vendor {0} does not exist").format(supplier), frappe.DoesNotExistError)
+	selling_rate = flt(data.get("selling_rate"))
+	if selling_rate < 0:
+		frappe.throw(_("A selling price cannot be negative"), frappe.ValidationError)
+	if flt(vendor_row.get("cost")) < 0:
+		frappe.throw(_("A vendor cost cannot be negative"), frappe.ValidationError)
+	reorder_level = flt(reorder_row.get("level"))
+	reorder_qty = flt(reorder_row.get("qty"))
+	if reorder_level < 0 or reorder_qty < 0:
+		frappe.throw(_("A reorder level cannot be negative"), frappe.ValidationError)
+	company = default_company()
+	warehouse = main_warehouse()
+
+	# ---------------------------------------------------------------- write, all or nothing
+	save_point = f"awanz_new_item_{frappe.generate_hash(length=8)}"
+	frappe.db.savepoint(save_point)
+	try:
+		doc = frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": item_code,
+				"item_name": item_name,
+				"item_group": item_group,
+				"stock_uom": uom,
+				"is_stock_item": 1,
+				"is_sales_item": 1,
+				"is_purchase_item": 1,
+				"include_item_in_manufacturing": 0,
+				# client decision 1 of v1.0 — same product, two vendors, two costs
+				"valuation_method": "Moving Average",
+				"description": (data.get("description") or "").strip() or item_name,
+				"image": (data.get("image") or "").strip() or None,
+				"maison_barcode": barcode or None,
+				"item_defaults": [{"company": company, "default_warehouse": warehouse}] if company else [],
+			}
+		)
+		if barcode:
+			# barcode_type is left blank on purpose: ERPNext only checks the check digit when a
+			# type is declared, and a vendor's own label is often not a valid EAN-13.
+			doc.append("barcodes", {"barcode": barcode})
+		if reorder_level > 0 or reorder_qty > 0:
+			doc.append(
+				"reorder_levels",
+				{
+					"warehouse": warehouse,
+					"warehouse_reorder_level": reorder_level,
+					"warehouse_reorder_qty": reorder_qty or reorder_level,
+					"material_request_type": "Purchase",
+				},
+			)
+		doc.flags.ignore_permissions = True
+		doc.insert()
+
+		if supplier:
+			# through vendors.py, so the vendor's buying price list is written exactly as an edit
+			# writes it — and preferred, because it is this item's first vendor
+			vendor_lib.add_or_update_row(
+				item_code,
+				{
+					"supplier": supplier,
+					"vendor_sku": (vendor_row.get("vendor_sku") or "").strip() or None,
+					"cost": flt(vendor_row.get("cost")),
+					"case_pack": cint(vendor_row.get("case_pack")) or 1,
+					"moq": cint(vendor_row.get("moq")),
+					"lead_time_days": cint(vendor_row.get("lead_time_days"))
+					or cint(frappe.db.get_value("Supplier", supplier, "maison_lead_time_days")),
+					"notes": (vendor_row.get("notes") or "").strip() or None,
+					"is_preferred": 1,
+				},
+			)
+		if selling_rate > 0:
+			price_list = selling_price_list()
+			price = frappe.get_doc(
+				{
+					"doctype": "Item Price",
+					"item_code": item_code,
+					"price_list": price_list,
+					"price_list_rate": selling_rate,
+					"selling": 1,
+					"buying": 0,
+					"currency": frappe.db.get_value("Price List", price_list, "currency")
+					or frappe.get_cached_value("Company", company, "default_currency")
+					or "USD",
+				}
+			)
+			price.flags.ignore_permissions = True
+			price.insert()
+	except Exception:
+		# nothing half-built: unwind the item, its vendor row, its price and its reorder level
+		frappe.db.rollback(save_point=save_point)
+		frappe.clear_document_cache("Item", item_code)
+		raise
+
+	product = product_dict(item_code)
+	catalogue_row = None
+	if supplier:
+		row = next(
+			(r for r in vendor_lib.item_vendor_rows(item_code) if r.get("supplier") == supplier),
+			None,
+		)
+		if row:
+			meta = frappe.db.get_value("Item", item_code, ["item_name", "item_group", "maison_barcode", "image", "stock_uom"], as_dict=True)
+			catalogue_row = _catalogue_row({**row, "parent": item_code}, meta, vendor_lib.vendor_rate(item_code, supplier))
+	return {"item": product, "catalogue_row": catalogue_row, "item_code": item_code, "created": True}
+
+
+# ===========================================================================
+# v1.1 §C — a purchase order from scratch: the vendor's catalogue, searchable
+# ===========================================================================
+@frappe.whitelist()
+def vendor_catalogue(supplier: str, search: Optional[str] = None, limit: int = 200) -> dict[str, Any]:
+	"""A vendor's items with cost, case pack, MOQ and last purchase rate.
+
+	Searchable by our item code, our item name, **their** SKU, or the barcode — so the buyer can
+	build an order from scratch by typing or by scanning what is on the rep's sheet. Quantities
+	default to a whole case and rates default from the vendor's own buying price list; both stay
+	editable on the order line.
+	"""
+	assert_purchasing_admin()
+	if not supplier or not frappe.db.exists("Supplier", supplier):
+		frappe.throw(_("Vendor {0} does not exist").format(supplier or "?"), frappe.DoesNotExistError)
+	rows = frappe.get_all(
+		"AWANZ Item Vendor",
+		filters={"supplier": supplier, "parenttype": "Item"},
+		fields=["name", "parent", "vendor_sku", "cost", "case_pack", "moq", "lead_time_days", "is_preferred", "last_purchase_date", "last_purchase_rate"],
+		order_by="parent asc",
+		limit=5000,
+	)
+	codes = [r.parent for r in rows]
+	items = {
+		r.name: r
+		for r in frappe.get_all(
+			"Item",
+			filters={"name": ("in", codes or ["__none__"])},
+			fields=["name", "item_name", "item_group", "maison_barcode", "image", "stock_uom", "disabled"],
+			limit=5000,
+		)
+	}
+	price_list = vendor_lib.price_list_name(supplier)
+	prices = {
+		r.item_code: flt(r.price_list_rate)
+		for r in frappe.get_all(
+			"Item Price",
+			filters={"price_list": price_list, "item_code": ("in", codes or ["__none__"])},
+			fields=["item_code", "price_list_rate"],
+			limit=5000,
+		)
+	}
+	on_hand = {
+		r.item_code: flt(r.actual_qty)
+		for r in frappe.get_all(
+			"Bin",
+			filters={"warehouse": main_warehouse(), "item_code": ("in", codes or ["__none__"])},
+			fields=["item_code", "actual_qty"],
+			limit=5000,
+		)
+	}
+	needle = (search or "").strip().lower()
+	out = []
+	for row in rows:
+		item = items.get(row.parent)
+		if not item or cint(item.disabled):
+			continue
+		if needle and needle not in f"{row.parent} {item.item_name or ''} {row.vendor_sku or ''} {item.maison_barcode or ''}".lower():
+			continue
+		line = _catalogue_row(row, item, prices.get(row.parent, 0.0))
+		line["on_hand"] = flt(on_hand.get(row.parent))
+		out.append(line)
+	out.sort(key=lambda r: (not r["is_preferred"], r["item_name"] or r["item_code"]))
+	return {
+		"supplier": supplier,
+		"supplier_name": frappe.db.get_value("Supplier", supplier, "supplier_name"),
+		"price_list": price_list,
+		"currency": frappe.db.get_value("Price List", price_list, "currency"),
+		"lead_time_days": cint(frappe.db.get_value("Supplier", supplier, "maison_lead_time_days")),
+		"search": search or None,
+		"items": out[: cint(limit) or 200],
+		"count": len(out),
+		"total": len(rows),
+	}

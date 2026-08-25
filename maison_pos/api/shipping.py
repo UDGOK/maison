@@ -73,6 +73,9 @@ def request_dict(doc) -> dict[str, Any]:
 		"from_warehouse": doc.from_warehouse,
 		"status": doc.status,
 		"priority": doc.priority,
+		# v1.1 §A — a Houston push, not a store's own ask. Set by `maison_pos.distribution` only,
+		# so a push is distinguishable from a pull in every screen and every report.
+		"warehouse_push": bool(cint(doc.get("warehouse_push"))),
 		"reason": doc.reason,
 		"rejection_reason": doc.rejection_reason,
 		"requested_by": doc.requested_by,
@@ -117,6 +120,9 @@ def shipment_dict(doc, with_lines: bool = True) -> dict[str, Any]:
 		"priority": doc.priority,
 		"replenishment_request": doc.replenishment_request,
 		"material_request": doc.material_request,
+		# v1.1 §A — carried through from the request so the wall and the store's Receive screen can
+		# say "sent by Houston" rather than implying the store asked for it.
+		"warehouse_push": bool(cint(frappe.db.get_value("AWANZ Replenishment Request", doc.replenishment_request, "warehouse_push"))) if doc.replenishment_request else False,
 		"created_by": doc.created_by,
 		"items": len(doc.lines),
 		"units": sum(flt(l.qty) for l in doc.lines),
@@ -217,8 +223,21 @@ def _bin_qty(item_code: str, warehouse: Optional[str]) -> float:
 	return flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"))
 
 
-def create_request(boutique: str, lines: list[dict], reason: Optional[str] = None, priority: Optional[str] = None, from_warehouse: Optional[str] = None) -> Any:
-	"""Insert a ``AWANZ Replenishment Request`` + its draft Material Request. Caller has scoped *boutique*."""
+def create_request(
+	boutique: str,
+	lines: list[dict],
+	reason: Optional[str] = None,
+	priority: Optional[str] = None,
+	from_warehouse: Optional[str] = None,
+	warehouse_push: bool = False,
+) -> Any:
+	"""Insert a ``AWANZ Replenishment Request`` + its draft Material Request. Caller has scoped *boutique*.
+
+	*warehouse_push* (v1.1 §A) marks the request as raised by **Houston** rather than by the store
+	— ``maison_pos.distribution.send`` is the only caller that sets it. It stamps the
+	``warehouse_push`` flag so a push and a pull can be told apart for ever, and skips the
+	"a store is asking for stock" alert to the warehouse admins, who *are* the ones asking.
+	"""
 	b = frappe.get_cached_doc("AWANZ Store", boutique)
 	# v0.6 P — the source must belong to the store's own company (ERPNext forbids cross-company transfers).
 	source = from_warehouse or get_main_warehouse(exclude=b.warehouse, company=b.company)
@@ -254,6 +273,7 @@ def create_request(boutique: str, lines: list[dict], reason: Optional[str] = Non
 			"status": "Pending Approval",
 			"priority": priority,
 			"reason": reason,
+			"warehouse_push": 1 if warehouse_push else 0,
 			"requested_by": frappe.session.user,
 			"requested_at": now_datetime(),
 			"lines": rows,
@@ -284,9 +304,10 @@ def create_request(boutique: str, lines: list[dict], reason: Optional[str] = Non
 	for r in rows:
 		if r.get("stock_alert") and frappe.db.exists("AWANZ Stock Alert", r["stock_alert"]):
 			frappe.db.set_value("AWANZ Stock Alert", r["stock_alert"], {"material_request": mr.name, "status": "Acknowledged"}, update_modified=False)
-	publish_wall("request", request=req.name, boutique=boutique, priority=priority)
-	for admin in frappe.get_all("Has Role", filters={"role": "AWANZ Warehouse Admin", "parenttype": "User"}, pluck="parent"):
-		_notify(admin, _("{0} requests {1} unit(s) from the warehouse").format(boutique, int(req.units_requested)), "AWANZ Replenishment Request", req.name)
+	publish_wall("request", request=req.name, boutique=boutique, priority=priority, warehouse_push=bool(warehouse_push))
+	if not warehouse_push:
+		for admin in frappe.get_all("Has Role", filters={"role": "AWANZ Warehouse Admin", "parenttype": "User"}, pluck="parent"):
+			_notify(admin, _("{0} requests {1} unit(s) from the warehouse").format(boutique, int(req.units_requested)), "AWANZ Replenishment Request", req.name)
 	return req
 
 

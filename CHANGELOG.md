@@ -5,6 +5,148 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.1.0 — 2026-08-25 "Onboarding a product"
+
+Walking the client through *"a brand-new product arrives, get it to the eleven stores"* hit three
+dead ends. The important one was a genuine hole in the model: **there was no way for Houston to
+push stock to a store.** Every shipment began with a store raising a request, which is backwards
+for a product no store knows exists. Contract `SPEC_v1.1.md`; the working documents are
+`docs/shipping.md` §1b (the push) and `docs/purchasing.md` §18 (the new product, and ordering from
+scratch).
+
+### §A Houston pushes stock to the stores
+
+`maison_pos/distribution.py` (logic) + `maison_pos/api/distribution.py` (whitelisted).
+
+* **One creation path, not two.** `send` composes the existing
+  `shipping.create_request` → `shipping.approve`. The wall, the pick list, the packing step, the
+  label purchase and the store's Receive screen see an ordinary shipment and are not asked to know
+  the difference. `create_request` gained one optional keyword, `warehouse_push`, which stamps the
+  new flag at insert and skips the *"a store is asking for stock"* alert to the warehouse admins —
+  who are the ones asking. Nothing else about it changed.
+* **New field** `AWANZ Replenishment Request.warehouse_push` (Check, default 0, read-only, in the
+  standard filter). Set by `maison_pos.distribution` and by nothing else, so a push and a store's
+  own pull are told apart for ever. It is carried on `request_dict` **and** `shipment_dict`, so
+  every list, the wall and the store's Receive screen can say who started it.
+* **Created and approved in one action** (client decision 2): the warehouse admin is both
+  requester and approver, so a Pending step would be theatre. The record still says plainly that
+  Houston initiated it — the flag, `requested_by`, and a stamped reason (*Warehouse push from
+  Houston*) when the admin does not type one.
+* **One shipment per store** (client decision 3). Separate parcels, separate labels, never batched.
+* **Never allocate stock Houston does not have** (client decision 4). `send` validates
+  **everything before writing anything** — every store enabled and a real shop, every item a stock
+  item, every quantity above zero, and the total per item at or under HOU-WH's *available* on hand,
+  where available subtracts what is already committed to shipments raised but not yet shipped
+  (Pending / Picking / Packed still sit in the bin, so without that subtraction the same units get
+  promised twice). A failure names the shortfall **per item** and writes nothing at all; the write
+  phase additionally runs inside a savepoint, so an unexpected failure on the fourth store cannot
+  leave the first three on the wall. A half-sent distribution leaves phantom shipments the floor
+  will pick and ship, which is worse than a refused one.
+* **`plan(item_codes)`** — HOU-WH on hand, what is committed, what is available, and a row per
+  store with its on-hand, its 28-day velocity, its days of cover and whether it has **ever** sold
+  the item. That last column is what separates *restock what moves* from *introduce something new
+  here*.
+* **`suggest_split(item_code, qty, mode)`** — `even` (equal, remainder to the busiest),
+  `velocity` (weighted by 28-day sales, minimum one each) and `topup` (bring every store to a
+  target days-of-cover). The allocation maths is pure and unit-tested on plain rows, so the sheet
+  never re-implements it. Two edge cases are decided rather than left to the caller: fewer units
+  than stores gives the busiest what there is, and a product nobody has ever sold falls back to an
+  even split rather than piling the lot on one store.
+* Houston cannot push to itself: `store_rows()` drops the head-office warehouse row **and** any
+  store whose warehouse *is* the source warehouse, so a seed with no dedicated warehouse row
+  cannot turn a push into a store-to-store transfer.
+* **AWANZ Warehouse Admin / AWANZ Head Office only**, proven both ways over HTTP. A store manager
+  calling `send` for their **own** store is refused — pushing is Houston's.
+
+### §B A new product, from the warehouse
+
+`purchasing.create_product(payload)` — Item + `AWANZ Item Vendor` row + the vendor's buying price
+list + the selling `Item Price` + the `Item Reorder` row for HOU-WH, in one call. The vendor row
+goes **through `purchasing/vendors.py`**, so the price list is maintained exactly as an edit
+maintains it and the next order for that vendor picks the rate up by itself. That vendor is marked
+preferred, being the item's first.
+
+**All or nothing**: everything is validated first and the writes run inside a savepoint, so a
+failure leaves no orphan item, price row or reorder level behind. Two refusals matter — an
+existing `item_code`, and a **barcode already on another item**. The second is a real-money bug: a
+shared barcode means the till rings up the wrong product at the wrong price and both items' stock
+figures drift. Both surfaces the scanner reads are checked (`Item.maison_barcode` and the standard
+`Item Barcode` table). `assert_purchasing_admin()` — creating a product is a purchasing-admin act
+(client decision 5). `purchasing.item_groups()` feeds the sheet's group picker.
+
+### §C A purchase order from scratch
+
+No new order backend — `create_order` already did it. What was missing was the way in:
+`purchasing.vendor_catalogue(supplier, search)` returns that vendor's items with cost, case pack,
+MOQ, lead time, last purchase rate and HOU-WH on-hand, searchable by **our** item code, **our**
+item name, **their** SKU or the barcode, so the buyer can build an order by typing or scanning the
+rep's own sheet. Quantities default to a whole case (`default_qty`) and rates default from the
+vendor's price list (`rate`); both stay editable on the line.
+
+### Notes for whoever picks this up next
+
+* **`suggest_split` needed two arguments the contract does not list.** `even` is specified as
+  "equal across the chosen stores", which requires knowing *which* stores, and `topup` needs a
+  target; both are optional (`boutiques` defaults to every pushable store, `cover_days` to 21).
+* **`suggest_split` is a calculator, not a gate.** It returns `available` and
+  `left_at_warehouse` so the sheet's footer can turn red *before* the send; `send` is what refuses
+  over-allocation for real.
+* **`frappe.DuplicateEntryError` is not usable over HTTP.** It subclasses `NameError` and carries
+  no `http_status_code`, so it would surface as a 500. Both duplicate refusals raise
+  `frappe.ValidationError` (417) instead, like every other refusal in this app.
+* **An orphan `Website Item` breaks re-creating an item with the same code.** webshop's
+  `crud_events/item/update_website_item.execute` reads `doc.get_doc_before_save().get(field)`,
+  which is `None` on an insert, and only guards on whether a `Website Item` for that code exists.
+  Delete an item that had been published and create it again and the insert 500s inside webshop.
+  Not ours to fix; `test_v1_1_distribution_http` clears the orphan in its fixture, and it is worth
+  knowing before a support call.
+
+### Fixed — the AWANZ roles now own the access their screens need
+
+Reported from the live site: a regional manager opened a store's **Receive** screen and got
+*"User regional.tx@cloudchaserz.example does not have doctype access via role permission for
+document Item"* — nothing loaded.
+
+The cause was broader than one missing grant. **None of the four AWANZ roles had read on `Item`.**
+It had never surfaced because the seed attaches ERPNext's `Stock User` to managers and `Sales User`
+to associates, and both of those carry it; regionals get `Sales Manager`, which does not. A
+hand-made user of *any* rank hits the same wall. The trigger is
+`erpnext.stock.get_item_details.get_item_details`, which calls `item.check_permission()` while a
+Material Request validates — `ignore_permissions` on the parent does not wave that through, because
+the check is on the `Item` document.
+
+* `("Item", role): ("read",)` for all four AWANZ roles in `setup/install.py::ROLE_DOCPERMS`. Read
+  only; every stock doctype stays closed to writing, and the associate gains nothing it did not
+  already hold through `Sales User`.
+* Patch `v1_1/awanz_role_item_access.py` (`[post_model_sync]`, idempotent) so the live site picks
+  it up on `bench migrate`. It reports what it granted and names any user holding an AWANZ role and
+  no ERPNext role that reads Item.
+* **`Stock User` was deliberately not attached to regionals instead.** It would have fixed the
+  screen and turned an oversight seat into one that writes, submits and cancels stock movements in
+  every store it can see. `setup/cloudchaserz/users.py` carries a comment saying so.
+* Row-level scoping is untouched and proved so: a Texas regional still cannot read an Oklahoma
+  store's documents after the grant (`Item` carries no store field, so there is no region to leak).
+* `maison_pos/tests/test_v1_1_role_permissions.py` (20) and `_http.py` (9), and `docs/security.md`
+  §6 on the pattern — a role that works only because of which ERPNext role the seed happened to
+  attach is a role that will break on the first hand-made user.
+
+### Fixed — "Weight by sales" no longer claims a weighting that did not happen
+
+`split_by_velocity` falls back to an even split when every candidate store's velocity is zero,
+which is right — there is no signal to weight by. The sheet's note derived its label from the mode
+alone, so it announced *"Weighted by sales"* over a brand-new product with no sales anywhere: a
+claim about history that does not exist, in exactly the case this release was built for. It now
+says what actually happened, and the same for the milder case where there are fewer units than
+stores. Caught by `e2e/distribution.e2e.mjs` against a live bench.
+
+### Tests
+
+`maison_pos/tests/test_v1_1_distribution.py` (34) and
+`maison_pos/tests/test_v1_1_distribution_http.py` (5). The headline one is
+`test_over_allocation_is_refused_and_nothing_is_written`: it attempts an over-allocation across
+every store and then asserts no `AWANZ Replenishment Line`, no `AWANZ Shipment Line` and no
+`Material Request Item` exists for those items afterwards.
+
 ## 1.0.0 — 2026-08-24 "Procurement"
 
 Centralised buying for the Houston warehouse: vendors and their negotiated price lists, a demand

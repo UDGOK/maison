@@ -5,12 +5,16 @@
  * The successor to the v0.6 `warehouse_stock` tab: same rows, plus the valuation rate, the stock
  * value, how many days of cover it buys and what is already on order — so the buyer can see why an
  * item is on the Buying list without leaving the desk.
+ *
+ * v1.1 §D — and the way **out**: every row opens the distribution sheet, because "Houston is
+ * holding 288 of these" is the moment you decide where they should be instead.
  */
 import { computed, onMounted, ref } from 'vue'
 import { usePurchasingStore } from '@/stores/purchasing'
 import { useWarehouseStore } from '@/stores/warehouse'
 import { filterStock, fmtCover, stockGroups, stockTotals } from '@/warehouse/inbound'
 import { fmtInt, fmtMoney } from '@/utils/money'
+import SendToStoresSheet from './SendToStoresSheet.vue'
 
 const emit = defineEmits<{ notice: [msg: string] }>()
 
@@ -20,6 +24,8 @@ const wh = useWarehouseStore()
 const q = ref('')
 const group = ref('')
 const lowOnly = ref(false)
+/** v1.1 — the item whose distribution sheet is open. */
+const sending = ref<{ item_code: string; item_name?: string | null } | null>(null)
 
 const warehouse = computed(() => store.stockSummary?.warehouse || wh.me?.main_warehouse || 'HOU-WH')
 const groups = computed(() => stockGroups(store.stock))
@@ -43,6 +49,14 @@ function reset() {
   q.value = ''
   void load()
   emit('notice', 'Stock filters cleared')
+}
+
+function sendToStores(row: { item_code: string; item_name?: string }) {
+  sending.value = { item_code: row.item_code, item_name: row.item_name ?? null }
+}
+/** Sending moves units into `committed`, so what Houston has available has changed underneath. */
+function onSent() {
+  void load()
 }
 
 onMounted(() => void load())
@@ -126,6 +140,7 @@ onMounted(() => void load())
               <th class="num">Cover</th>
               <th class="num">On order</th>
               <th class="num">Reorder</th>
+              <th class="send-col"><span class="vh">Send to stores</span></th>
             </tr>
           </thead>
           <tbody>
@@ -144,11 +159,31 @@ onMounted(() => void load())
               </td>
               <td class="num" :class="r.on_order ? 'accent' : 'muted'">{{ r.on_order ? fmtInt(r.on_order) : '—' }}</td>
               <td class="num muted">{{ r.reorder_level ? fmtInt(r.reorder_level) : '—' }}</td>
+              <td class="send-col">
+                <button
+                  class="btn btn-send"
+                  :disabled="r.actual_qty <= 0 || (!store.allowed && !!wh.me)"
+                  :title="r.actual_qty <= 0 ? 'Nothing at Houston to send' : `Send ${r.item_code} out to the stores`"
+                  :data-testid="`stock-send-${r.item_code}`"
+                  @click="sendToStores(r)"
+                >
+                  Send to stores
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
+
+    <SendToStoresSheet
+      v-if="sending"
+      :item-code="sending.item_code"
+      :item-name="sending.item_name"
+      @close="sending = null"
+      @notice="emit('notice', $event)"
+      @sent="onSent"
+    />
   </div>
 </template>
 
@@ -236,6 +271,25 @@ onMounted(() => void load())
 .wide {
   max-width: 320px;
 }
+.send-col {
+  width: 1%;
+  white-space: nowrap;
+}
+.btn-send {
+  padding: 0 14px;
+  min-height: var(--touch);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+/* the header is for a screen reader; the buttons already say what they do */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 tr.low td {
   background: rgba(211, 165, 91, 0.06);
 }
@@ -275,6 +329,9 @@ tr.low td {
   }
   .wide {
     max-width: 180px;
+  }
+  .btn-send {
+    padding: 0 10px;
   }
 }
 </style>

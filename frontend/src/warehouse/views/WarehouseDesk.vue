@@ -369,7 +369,7 @@ onBeforeUnmount(() => {
       <!-- ============================================================ v1.0 sections -->
       <InboundBoard v-else-if="section === 'inbound'" @notice="say" />
       <BuyingBoard v-else-if="section === 'buying'" @notice="say" @open-order="onOpenOrder" />
-      <VendorsBoard v-else-if="section === 'vendors'" @notice="say" />
+      <VendorsBoard v-else-if="section === 'vendors'" @notice="say" @open-order="onOpenOrder" />
       <StockBoard v-else-if="section === 'stock'" @notice="say" />
     </div>
 

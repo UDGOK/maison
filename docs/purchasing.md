@@ -552,6 +552,9 @@ no second mechanism; it only exposes that workflow to the new screens as
 | `inbound(warehouse)` / `receive(po, lines, freight, final, notes)` | the warehouse **Inbound** area |
 | `stock(q, limit)` | HOU-WH on hand: qty, value at moving average, cover days, on order, reorder level |
 | `price_change_requests` / `request_price_change` / `approve_price_change` | the **existing** store-price workflow |
+| `item_groups()` | v1.1 — the groups a new product can be filed under, with how many items each already holds, so the create sheet does not have to guess |
+| `create_product(payload)` | v1.1 — one call, one sheet: Item + vendor row + vendor price list + selling price + reorder level, **atomically** |
+| `vendor_catalogue(supplier, search, limit)` | v1.1 — that vendor's items with cost, case pack, MOQ and last purchase rate, searchable by our code, our name, **their** SKU or the barcode |
 
 Store side, unchanged from v0.6 and now carrying the v1.0 extras:
 `maison_pos.api.inventory.inbound` and `.receive_po(po, lines, boutique, freight, final, notes)`.
@@ -622,6 +625,8 @@ Recorded here so nobody goes looking for them:
   order with each vendor; placing it is a human action (e-mail with the PDF, or their portal).
 * **No store-initiated purchasing.** A store asks the warehouse (`AWANZ Replenishment Request`);
   the warehouse decides whether that becomes a transfer from HOU-WH or a purchase.
+* **No purchase-order approval workflow** (v1.1). Houston's buyer is trusted; a second pair of
+  eyes is a v2 conversation.
 
 ---
 
@@ -698,3 +703,89 @@ also be **enabled**; submit refuses a drop-ship to a disabled store. If the orde
 screen is still empty, it is a permission problem, not a data one: a store manager gets read on a
 Purchase Order addressed to their own store from the v0.6 warehouse narrowing plus the v1.0
 `Custom DocPerm` — re-run `setup.install_v10_purchasing.create_docperms`.
+
+---
+
+## 18. New in v1.1 — onboarding a product
+
+Walking the client through *"a brand-new product arrives, get it to the eleven stores"* found
+three places where the touch screens dead-ended into the branded desk. Two of them are here; the
+third — Houston pushing stock out to the stores — is `docs/shipping.md` §1b.
+
+### Creating a product from the warehouse
+
+A rep shows the warehouse manager a new disposable. Before v1.1 there was no way to add it without
+going to a laptop. Now: **Buying → New product**, one sheet, one call.
+
+```python
+maison_pos.api.purchasing.create_product({
+    "item_code": "CC-DISPO-14", "item_name": "Nebula 12k Blue Razz",
+    "item_group": "Disposables", "uom": "Nos",
+    "barcode": "0712345678901", "image": "/files/nebula-12k.jpg",
+    "selling_rate": 24.99,
+    "vendor": {"supplier": "Gulf Coast Distribution", "vendor_sku": "GC-NB12-BR",
+               "cost": 11.50, "case_pack": 10, "moq": 50, "lead_time_days": 5},
+    "reorder": {"level": 120, "qty": 240},
+})
+```
+
+What it does, in order:
+
+1. creates the **Item** — stock item, Moving Average, the tenant company's defaults
+   (company + `HOU-WH` as the default warehouse), `maison_barcode` **and** a standard
+   `Item Barcode` row, because the scanner reads both;
+2. writes the `AWANZ Item Vendor` row **through `purchasing/vendors.py`**, so the vendor's
+   `<Supplier> Buying` price list is maintained exactly as an edit maintains it — the next
+   purchase order for that vendor picks the rate up by itself;
+3. marks that vendor **preferred**, because it is the item's first;
+4. puts `selling_rate` on the selling price list the tills read as a standard `Item Price`;
+5. adds the `Item Reorder` row for `HOU-WH`, so the item joins the buying list the moment it runs
+   low.
+
+**All or nothing.** Everything is validated before a single row is written, and the writes run
+inside a savepoint: if any step fails the item must not be left half-built, so the whole thing is
+unwound and nothing survives — no orphan item, no price row, no reorder level.
+
+Two refusals matter:
+
+* **a duplicate `item_code`** — *"Item CC-DISPO-14 already exists — open it instead of creating it
+  again"*;
+* **a barcode already on another item** — *"Barcode 0712345678901 is already on item CC-DISPO-09 —
+  two products on one barcode rings up the wrong one"*. This one is a real-money bug: a shared
+  barcode means the till sells the wrong product at the wrong price and the stock figures for both
+  drift. Both surfaces the scanner reads are checked (`Item.maison_barcode` and `Item Barcode`).
+
+`assert_purchasing_admin()` — **AWANZ Warehouse Admin** and **AWANZ Head Office** only. Creating a
+product is a purchasing-admin act (client decision 5); store managers and associates may not.
+
+`item_groups()` feeds the sheet's group picker: every non-group `Item Group` with how many items it
+already holds, and the busiest one as the suggested default.
+
+### A purchase order from scratch
+
+Buying built orders from the suggestion list only, so a one-off trial case of something with no
+reorder level had no path. The backend already had `create_order` — what was missing was the way
+in, and that is `vendor_catalogue`:
+
+```python
+maison_pos.api.purchasing.vendor_catalogue("Gulf Coast Distribution", search="GC-NB12")
+```
+
+One row per item the vendor sells us, searchable by **our** item code, **our** item name,
+**their** SKU or the barcode — so the buyer can build an order by typing or by scanning what is on
+the rep's own sheet. Each row carries `cost`, `case_pack`, `moq`, `lead_time_days`,
+`last_purchase_date` / `last_purchase_rate`, `on_hand` at HOU-WH, plus the two defaults the order
+sheet starts from:
+
+* `default_qty` — a whole case;
+* `rate` — the vendor's own buying price list, falling back to the negotiated cost and then to the
+  last purchase rate.
+
+Both stay editable on the line, as every rate in v1.0 does. Preferred-vendor rows sort first.
+
+### The walk-through, end to end
+
+**Buying → New product** → *Order it now* (`vendor_catalogue` → `create_order` → the existing
+`OrderSheet`) → **Inbound** receives it at HOU-WH → *Send to stores*
+(`maison_pos.api.distribution`, `docs/shipping.md` §1b) → each store's Receive screen counts it in.
+That is the whole of v1.1.

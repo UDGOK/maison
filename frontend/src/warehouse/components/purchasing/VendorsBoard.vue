@@ -48,11 +48,12 @@ export function sortVendors(vendors: Vendor[]): Vendor[] {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Modal from '@/components/Modal.vue'
 import VendorSheet, { dayStamp } from './VendorSheet.vue'
+import NewOrderSheet from './NewOrderSheet.vue'
 import { usePurchasingStore } from '@/stores/purchasing'
 import { ORDER_METHODS, type VendorInput } from '@/api/purchasing'
 import { fmtDate } from '@/utils/device'
 
-const emit = defineEmits<{ (e: 'notice', msg: string): void }>()
+const emit = defineEmits<{ (e: 'notice', msg: string): void; (e: 'open-order', name: string): void }>()
 
 const store = usePurchasingStore()
 
@@ -60,6 +61,8 @@ const q = ref('')
 const activeOnly = ref(true)
 const open = ref<string | null>(null)
 const adding = ref(false)
+/** v1.1 §D — "Order from this vendor": the New order sheet, vendor pre-chosen. */
+const ordering = ref<string | null>(null)
 const draft = ref<VendorInput>({ supplier_name: '', supplier_group: 'Distributor', order_method: 'Email', lead_time_days: 0, active: true })
 const formError = ref('')
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -69,6 +72,16 @@ const since = ref('')
 
 function say(msg: string) {
   if (msg) emit('notice', msg)
+}
+/** The vendor sheet asked for an order. Close it first — a sheet on a sheet is a trap on a phone. */
+function orderFrom(supplier: string) {
+  open.value = null
+  ordering.value = supplier
+}
+/** The draft exists; the desk takes it to Buying → Orders and opens it. */
+function onOrderCreated(name: string) {
+  ordering.value = null
+  emit('open-order', name)
 }
 function drain() {
   if (store.notice) {
@@ -221,7 +234,9 @@ async function addVendor() {
       </template>
     </Modal>
 
-    <VendorSheet v-if="open" :vendor="open" @close="open = null" @notice="say" @changed="load" />
+    <VendorSheet v-if="open" :vendor="open" @close="open = null" @notice="say" @changed="load" @order="orderFrom" />
+
+    <NewOrderSheet v-if="ordering" :supplier="ordering" @close="ordering = null" @notice="say" @created="onOrderCreated" />
   </div>
 </template>
 

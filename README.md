@@ -1,6 +1,6 @@
 # AWANZ POS
 
-A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.0 "Procurement"** (see `CHANGELOG.md`).
+A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.1 "Onboarding a product"** (see `CHANGELOG.md`).
 
 The platform is **tenant-branded**: every user-facing string — wordmark, product name, receipt
 header, "Store" vs "Boutique", the rewards programme name — comes from brand settings, while the
@@ -22,12 +22,13 @@ verification) and the **Jewellery** profile it grew up as.
 | Head-office dashboard | `dashboard/` → `maison_pos/public/dashboard` | "Command" wall for 40–100 boutiques at `/awanz-dashboard`: Live / Boutiques / Products / Clients / Insights / Reports over Frappe realtime (see `docs/dashboard.md`) |
 | Web shop | `maison_pos/webshop/`, `www/shop/*` | Monolith Gold storefront on Frappe Webshop (`/shop`, click & collect) |
 | Warehouse & wall | `maison_pos/shipping/`, `frontend/src/warehouse/` | head-office desk at `/warehouse` — Outbound · Inbound · Buying · Vendors · Stock — and the 55" kanban wall at `/warehouse-wall` (see `docs/shipping.md`) |
-| Purchasing | `maison_pos/purchasing/`, `maison_pos/api/purchasing.py` | vendors and their negotiated buying price lists, the demand engine, purchase orders with drop-ship and freight, receiving at `HOU-WH`, four buying reports (see `docs/purchasing.md`) |
+| Purchasing | `maison_pos/purchasing/`, `maison_pos/api/purchasing.py` | vendors and their negotiated buying price lists, the demand engine, purchase orders with drop-ship and freight, receiving at `HOU-WH`, four buying reports, and creating a product from the warehouse (see `docs/purchasing.md`) |
+| Distribution | `maison_pos/distribution.py`, `maison_pos/api/distribution.py` | Houston pushes stock **out** to the stores: plan, split, send — one shipment per store, on the existing shipping rails (see `docs/shipping.md` §1b) |
 | Dev environment | `docker/` | docker-compose stack (MariaDB, Redis, Frappe/ERPNext v15, nginx) |
 
 Design system: **Monolith Gold** — Unbounded + Jost on deep black `#0B0B0A`, gold accent; it carries the
-CloudChaserz wordmark as readily as the jewellery one. See `SPEC.md` … `SPEC_v0.6.md` and
-`SPEC_v1.0.md`; 0.7–0.9 were audit and rename releases and carry no spec of their own.
+CloudChaserz wordmark as readily as the jewellery one. See `SPEC.md` … `SPEC_v0.6.md`,
+`SPEC_v1.0.md` and `SPEC_v1.1.md`; 0.7–0.9 were audit and rename releases and carry no spec of their own.
 
 ## Apps
 
@@ -82,6 +83,8 @@ Install order on a site: `erpnext`, `payments`, `webshop`, `hrms`, `crm`, **then
 
 **v1.0 — Procurement.** Centralised buying for the Houston warehouse — see the section below and `docs/purchasing.md`.
 
+**v1.1 — Onboarding a product.** Houston can push stock to the stores, add a product from the warehouse screens, and start a purchase order from scratch — see the section below, `docs/shipping.md` §1b and `docs/purchasing.md` §18.
+
 ## Procurement
 
 **v1.0.** Buying is centralised in Houston. The warehouse can now:
@@ -97,6 +100,17 @@ All of it lives in the existing `/warehouse` desk, which gains a section nav —
 **Who may do it: `AWANZ Warehouse Admin` and `AWANZ Head Office` only.** A store manager may *read* a purchase order addressed to their own store — that is what makes their Receive screen work — and nothing else: the vendor catalogue, the costs, the buying list and the orders all refuse them (one residual is recorded honestly in `docs/purchasing.md` §11). `AWANZ Regional` is deliberately off the list too; a regional manager reads the chain's numbers, they do not spend its money. Enforced in three independent places and proved over plain HTTP both ways in `maison_pos/tests/test_v1_0_purchasing_http.py`.
 
 Store **selling** prices are unchanged: they still go through the `AWANZ Price Change Request` → `AWANZ Price Approval` workflow from v0.1. Full detail, including what v1.0 deliberately does **not** do (no RFQ, no invoice matching or AP, no Landed Cost Voucher, no EDI, no vendor portals, no store-initiated purchasing): **`docs/purchasing.md`**.
+
+## Onboarding a product
+
+**v1.1.** Walking the client through *"a brand-new product arrives, get it to the eleven stores"* found three dead ends. The important one was a hole in the model: **Houston could not push stock to a store.** Every shipment began with a store raising a request, which is backwards for a product no store knows exists.
+
+- **Distribution.** `Stock → an item → Send to stores` plans the allocation — what Houston holds, what is already committed to shipments not yet gone, and every store's on-hand, 28-day velocity, days of cover and whether it has *ever* sold the item — then splits it (`even`, `velocity`, `topup`) and sends. One `AWANZ Replenishment Request` and **one shipment per store**, created and approved in the same action, on the **existing** shipping rails: `maison_pos/distribution.py` composes `shipping.create_request` and `shipping.approve`, so the wall, the pick list, the labels and the store's Receive screen behave exactly as they do for a store's own request. `AWANZ Replenishment Request.warehouse_push` tells the two apart for ever.
+- **Never allocate stock Houston does not have.** `send` validates everything **before writing anything** and refuses with the shortfall named per item — a distribution that half-succeeds leaves phantom shipments the floor will pick and ship.
+- **A new product, in one sheet.** `purchasing.create_product` creates the Item, its vendor row (through the vendor helpers, so the vendor's buying price list is maintained the same way an edit maintains it), its selling price and its HOU-WH reorder level — **atomically**, and refusing both a duplicate item code and a barcode already on another item, because two products on one barcode means the till rings up the wrong one.
+- **A purchase order from scratch.** `purchasing.vendor_catalogue` makes a vendor's items searchable by our code, our name, **their** SKU or the barcode, with quantities defaulting to a whole case and rates from their price list.
+
+**Who may do it: `AWANZ Warehouse Admin` and `AWANZ Head Office` only** — the same set as buying. A store manager calling `send` for their *own* store is refused; pushing is Houston's. Proved over plain HTTP both ways in `maison_pos/tests/test_v1_1_distribution_http.py`. What v1.1 deliberately does **not** do (no store-to-store transfers, no automatic distribution of every new product, no allocation by forecast, no purchase-order approval workflow): `docs/shipping.md` §1b and `docs/purchasing.md` §16.
 
 ## Quick start (existing bench)
 ```bash

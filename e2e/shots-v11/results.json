@@ -1,0 +1,366 @@
+{
+  "results": [
+    {
+      "step": "desktop stock board: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop stock row offers Send to stores",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop send sheet: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop send sheet: touch targets ≥ 40px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop send sheet lists eleven stores",
+      "ok": true,
+      "detail": "11 rows"
+    },
+    {
+      "step": "desktop cover days never render Infinity/NaN",
+      "ok": true,
+      "detail": " 4.7 d 16.7 d 18.7 d 19.4 d 24.6 d 19.9 d 26.8 d — 27.9 d 33.5 d 22.6 d"
+    },
+    {
+      "step": "desktop weight-by-sales says what it did",
+      "ok": true,
+      "detail": "Weighted by sales — 36 units across 11 stores"
+    },
+    {
+      "step": "desktop left-at-Houston is shown",
+      "ok": true,
+      "detail": "left = 0"
+    },
+    {
+      "step": "desktop top-up explains itself",
+      "ok": true,
+      "detail": "Top up to 21 days — 20 units across 5 stores · 16 left at Houston (every store is covered)"
+    },
+    {
+      "step": "desktop over-allocation turns the footer red",
+      "ok": true,
+      "detail": "class=num v crit"
+    },
+    {
+      "step": "desktop over-allocation names the shortfall",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop over-allocation disables Send",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop send confirmation: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop one shipment per store on the confirmation",
+      "ok": true,
+      "detail": "11 shipments"
+    },
+    {
+      "step": "desktop buying board: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop new product: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop new product: touch targets ≥ 40px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop duplicate barcode lands on the barcode field",
+      "ok": true,
+      "detail": "field=1 banner=0"
+    },
+    {
+      "step": "desktop duplicate barcode names the offender",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop product created: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop saving offers Order it now",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop new order from product: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop Order it now preloads the new product",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop new order vendors: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop their SKU is searchable",
+      "ok": true,
+      "detail": "5 hits for \"LS-\""
+    },
+    {
+      "step": "desktop new order basket: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop new order basket: touch targets ≥ 40px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop vendor sheet offers Order from this vendor",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop the vendor is pre-chosen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop the receipt confirmation stays open and says what it booked",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop receipt confirmation: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop the receipt offers Send to stores",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desktop the push from a receipt is stamped with why",
+      "ok": true,
+      "detail": "Just landed at Houston"
+    },
+    {
+      "step": "phone stock board: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone stock row offers Send to stores",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone send sheet: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone send sheet: touch targets ≥ 40px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone send sheet: the store table fits without sideways scrolling",
+      "ok": true,
+      "detail": "scrollWidth 358 > client 358"
+    },
+    {
+      "step": "phone send sheet lists eleven stores",
+      "ok": true,
+      "detail": "11 rows"
+    },
+    {
+      "step": "phone cover days never render Infinity/NaN",
+      "ok": true,
+      "detail": " 4.7 d 16.7 d 18.7 d 19.4 d 24.6 d 19.9 d 26.8 d — 27.9 d 33.5 d 22.6 d"
+    },
+    {
+      "step": "phone weight-by-sales says what it did",
+      "ok": true,
+      "detail": "Weighted by sales — 36 units across 11 stores"
+    },
+    {
+      "step": "phone left-at-Houston is shown",
+      "ok": true,
+      "detail": "left = 0"
+    },
+    {
+      "step": "phone top-up explains itself",
+      "ok": true,
+      "detail": "Top up to 21 days — 20 units across 5 stores · 16 left at Houston (every store is covered)"
+    },
+    {
+      "step": "phone over-allocation turns the footer red",
+      "ok": true,
+      "detail": "class=num v crit"
+    },
+    {
+      "step": "phone over-allocation names the shortfall",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone over-allocation disables Send",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone send confirmation: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone one shipment per store on the confirmation",
+      "ok": true,
+      "detail": "11 shipments"
+    },
+    {
+      "step": "phone buying board: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone new product: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone new product: touch targets ≥ 40px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone duplicate barcode lands on the barcode field",
+      "ok": true,
+      "detail": "field=1 banner=0"
+    },
+    {
+      "step": "phone duplicate barcode names the offender",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone product created: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone saving offers Order it now",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone new order from product: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone Order it now preloads the new product",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone new order vendors: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone their SKU is searchable",
+      "ok": true,
+      "detail": "5 hits for \"LS-\""
+    },
+    {
+      "step": "phone new order basket: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone new order basket: touch targets ≥ 40px",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone vendor sheet offers Order from this vendor",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone the vendor is pre-chosen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone the receipt confirmation stays open and says what it booked",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone receipt confirmation: no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone the receipt offers Send to stores",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone the push from a receipt is stamped with why",
+      "ok": true,
+      "detail": "Just landed at Houston"
+    },
+    {
+      "step": "no console errors",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [
+    "[desktop] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[desktop] Failed to load resource: net::ERR_FAILED",
+    "[desktop] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[desktop] Failed to load resource: net::ERR_FAILED",
+    "[desktop] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[desktop] Failed to load resource: net::ERR_FAILED",
+    "[desktop] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[desktop] Failed to load resource: net::ERR_FAILED",
+    "[desktop] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[desktop] Failed to load resource: net::ERR_FAILED",
+    "[phone] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[phone] Failed to load resource: net::ERR_FAILED",
+    "[phone] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[phone] Failed to load resource: net::ERR_FAILED",
+    "[phone] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[phone] Failed to load resource: net::ERR_FAILED",
+    "[phone] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[phone] Failed to load resource: net::ERR_FAILED",
+    "[phone] requestfailed https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;800;900&family=Jost:wght@300;400;500;600&display=swap net::ERR_FAILED",
+    "[phone] Failed to load resource: net::ERR_FAILED"
+  ]
+}

@@ -14,3 +14,7 @@ maison_pos.patches.v0_6.backfill_return_store_stamp
 # v0.7 S1/S2/S5 — permlevels on AWANZ Associate, PIN hashes out of the doctype table,
 # and any Frappe role a store user granted themselves taken back
 maison_pos.patches.v0_7.associate_hardening
+# v1.1.1 — no AWANZ role carried `read` on Item; the app was borrowing it from whichever ERPNext
+# stock/sales role the seed attached next to it, so a hand-made regional could not raise a
+# replenishment request. Each role now carries it on its own (read only).
+maison_pos.patches.v1_1.awanz_role_item_access

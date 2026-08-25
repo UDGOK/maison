@@ -1,0 +1,376 @@
+{
+ "base": "http://cc.localhost:8001",
+ "warehouse": "HOU-WH - CCZ",
+ "product": {
+  "item_code": "BEAKER-14-FROST-97MY8",
+  "item_name": "14 mm Beaker — Frost",
+  "item_group": "Glass & Rigs",
+  "barcode": "2087637500144",
+  "vendor": "Empire Glass & Imports",
+  "vendor_sku": "SKU-97MY8",
+  "cost": 9.25,
+  "selling": 24.99
+ },
+ "order": {
+  "name": "PUR-ORD-2026-00021",
+  "qty": 30,
+  "companion": "HKA-002",
+  "companion_qty": 10,
+  "companion_rate": 102.52
+ },
+ "receipt": {
+  "purchase_receipt": "MAT-PRE-2026-00017",
+  "unit_cost_override": 10.36,
+  "freight": 45,
+  "freight_share_by_line_amount": 10.4686,
+  "freight_share_if_spread_per_unit": 33.75,
+  "landed_unit_rate": 10.709,
+  "expected_moving_average": 10.709,
+  "actual_moving_average": 10.709,
+  "sheet_preview_after": 10.71
+ },
+ "distribution": {
+  "stores": [
+   {
+    "boutique": "HOU-MTR",
+    "warehouse": "HOU-MTR - CCZ",
+    "qty": 8,
+    "shipment": "MSH-2026-00307"
+   },
+   {
+    "boutique": "OK-BA",
+    "warehouse": "OK-BA - CCZ",
+    "qty": 7,
+    "shipment": "MSH-2026-00309"
+   },
+   {
+    "boutique": "OK-BIX",
+    "warehouse": "OK-BIX - CCZ",
+    "qty": 6,
+    "shipment": "MSH-2026-00311"
+   }
+  ],
+  "units": 21,
+  "houston_before": 30,
+  "houston_after_ship": 9,
+  "receiver": "HOU-MTR",
+  "receiver_bin": {
+   "before": 0,
+   "after": 8
+  }
+ },
+ "splits": [
+  {
+   "mode": "even",
+   "rendered": "HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2",
+   "mine": "HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2",
+   "note": "Split evenly — 25 units across 11 stores"
+  },
+  {
+   "mode": "velocity",
+   "rendered": "HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2",
+   "mine": "HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2",
+   "note": "No sales anywhere yet — split evenly across 11 stores instead. Weight by sales once they have sold some."
+  },
+  {
+   "mode": "topup",
+   "rendered": "(nothing)",
+   "mine": "(nothing)",
+   "note": "Top up to 21 days allocated nothing — every store already holds more than 21 days of cover. All 25 units stay at Houston. Raise the target to send anyway."
+  }
+ ],
+ "results": [
+  {
+   "step": "the create sheet offers the groups a product can be filed under, not a free-text box",
+   "ok": true,
+   "detail": "15 groups on the select; filing BEAKER-14-FROST-97MY8 under \"Glass & Rigs\""
+  },
+  {
+   "step": "“New product” creates the Item itself — a stock item, at Moving Average, in the group chosen",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8 \"14 mm Beaker — Frost\" · group Glass & Rigs · uom Nos · stock_item 1 · Moving Average"
+  },
+  {
+   "step": "the barcode is stamped on both surfaces a scanner reads — maison_barcode and Item Barcode",
+   "ok": true,
+   "detail": "maison_barcode=2087637500144; Item Barcode rows [2087637500144] (typed 2087637500144)"
+  },
+  {
+   "step": "the vendor terms are written as an AWANZ Item Vendor row — their SKU, our cost, the case",
+   "ok": true,
+   "detail": "Empire Glass & Imports: sku SKU-97MY8 · $9.25 · case 10 · moq 20 · lead 8 d (1 vendor row(s) on the item)"
+  },
+  {
+   "step": "that vendor is marked preferred, because it is the item's first",
+   "ok": true,
+   "detail": "is_preferred=1 on Empire Glass & Imports; preferred rows on BEAKER-14-FROST-97MY8: Empire Glass & Imports"
+  },
+  {
+   "step": "the negotiated cost lands on the vendor's own buying price list, the way an edit would write it",
+   "ok": true,
+   "detail": "1 row(s) on \"Empire Glass & Imports Buying\": $9.25 buying=1"
+  },
+  {
+   "step": "the selling rate lands on the selling price list the tills read",
+   "ok": true,
+   "detail": "Standard Selling $24.99 (typed $24.99) · sheet said \"15.74 a unit · 63% margin\""
+  },
+  {
+   "step": "the reorder level is written against HOU-WH, so the demand engine will find it from now on",
+   "ok": true,
+   "detail": "HOU-WH - CCZ: level 40, qty 60, Purchase (1 reorder row(s))"
+  },
+  {
+   "step": "the confirmation tells the manager what was written, in the order they typed it",
+   "ok": true,
+   "detail": "\"14 MM BEAKER — FROST BEAKER-14-FROST-97MY8 · 2087637500144 · GLASS & RIGS Stock item at HOU-WH - CCZ, valued at Moving Average. BEAKER-14-FROST-97MY8 is SKU-97MY8 to Empire Glass & Imports at $9.25 a unit, 10 to a case — written to their buying price list, and\""
+  },
+  {
+   "step": "a duplicate item code and a duplicate barcode are both refused, and neither leaves an item behind",
+   "ok": true,
+   "detail": "code → 417 \"Item BEAKER-14-FROST-97MY8 already exists — open it instead of creating it again\"; barcode → 417 \"Barcode 2087637500144 is already on item BEAKER-14-FROST-97MY8 — two products on one barcode rings up the wrong one\"; BEAKER-14-FROST-97MY8-X exists afterwards: false"
+  },
+  {
+   "step": "the reorder level the create sheet wrote is live at once — the next demand run raises it as low stock",
+   "ok": true,
+   "detail": "run 5381afeeb4: BEAKER-14-FROST-97MY8 — Low stock, buy 60 from Empire Glass & Imports (0 on hand against a reorder level of 40)"
+  },
+  {
+   "step": "“Order it now” hands the new product straight to the order sheet, a whole case at the vendor's rate",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8 in Empire Glass & Imports's basket at 10 × $9.25 (case pack 10, price list \"Empire Glass & Imports Buying\" $9.25)"
+  },
+  {
+   "step": "the vendor's catalogue is searchable by **their** SKU, which is what the rep left behind",
+   "ok": true,
+   "detail": "typing \"SKU-97MY8\" narrowed 34 catalogue rows to 1: BEAKER-14-FROST-97MY8"
+  },
+  {
+   "step": "the − / + steppers move a whole case, so nobody orders seven of something sold in tens",
+   "ok": true,
+   "detail": "10 + two taps of \"+\" → 30 (expected 3 cases of 10 = 30)"
+  },
+  {
+   "step": "a purchase order is built from scratch against the vendor, with no suggestion behind it",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00021 draft for Empire Glass & Imports: BEAKER-14-FROST-97MY8 ×30 @ $9.25 | HKA-002 ×10 @ $102.52"
+  },
+  {
+   "step": "submitting it moves the order out of draft and onto the floor's Inbound list",
+   "ok": true,
+   "detail": "PUR-ORD-2026-00021 docstatus=1 status=To Receive and Bill expected 2026-09-02 (vendor lead 8 d)"
+  },
+  {
+   "step": "the new product has no stock and no valuation at Houston before the delivery",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8 at HOU-WH - CCZ: 0 units, valuation $0 — so its first moving average is the landed rate itself"
+  },
+  {
+   "step": "posting the receipt creates a Purchase Receipt and puts every unit ordered into Houston",
+   "ok": true,
+   "detail": "MAT-PRE-2026-00017 · BEAKER-14-FROST-97MY8 received 30/30; per_received 100%; status To Bill"
+  },
+  {
+   "step": "the hand-typed unit cost is what the receipt booked, not the rate the order carried",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8: ordered at $9.25, received at $10.36 (typed $10.36 at the dock)"
+  },
+  {
+   "step": "the freight typed at the dock is posted as one Actual / Valuation charge on the receipt",
+   "ok": true,
+   "detail": "MAT-PRE-2026-00017: 1 tax row(s) — Actual/Valuation/Add $45 → Expenses Included In Valuation - CCZ"
+  },
+  {
+   "step": "the new product's moving-average valuation is the value this run computed, freight included",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8: nothing on hand + 30 @ $10.36 (+$10.47 of the $45 freight, shared by line amount over a net of $1336) ⇒ landed $10.709 ⇒ expected $10.709 on 30; server says $10.709 on 30 (drift $0.000048)"
+  },
+  {
+   "step": "the freight really was shared by line amount — spreading it per unit lands somewhere else entirely",
+   "ok": true,
+   "detail": "by line amount $10.47 of $45 on BEAKER-14-FROST-97MY8 → $10.709; evenly per unit $33.75 → $11.485; the server booked $10.709 (the other line is HKA-002 ×10 @ $102.52)"
+  },
+  {
+   "step": "the moving-average preview the sheet showed is the move that actually happened",
+   "ok": true,
+   "detail": "sheet previewed \"$0.00 → $10.71\" (after $10.71); the receipt moved BEAKER-14-FROST-97MY8 to $10.709"
+  },
+  {
+   "step": "the receipt confirmation offers “Send to stores” on the line that just arrived (§D)",
+   "ok": true,
+   "detail": "booked-send-BEAKER-14-FROST-97MY8 buttons on the confirmation: 1 · \"INTO STOCK AT HOU-WH - CCZ Purchase Receipt MAT-PRE-2026-00017 posted · 40 units into HOU-WH - CCZ ITEM INTO STOCK DAMAGED AT NEXT 14 mm Beaker — Frost BEAKER-14-FROST-97MY8 30 — $10.36 SEND TO STORES\""
+  },
+  {
+   "step": "the new product is on the Stock board at Houston, valued at what the receipt booked",
+   "ok": true,
+   "detail": "\"14 mm Beaker — Frost BEAKER-14-FROST-97MY8 · 2087637500144 Glass & Rigs 30 $10.71 $321.27 — NO MOVEMENT — 40 SEND TO STORES\""
+  },
+  {
+   "step": "the plan gives Houston's position and a row per store — on hand, velocity, cover, ever sold",
+   "ok": true,
+   "detail": "HOU-WH - CCZ: 30 on hand, 0 committed, 30 available; 11 store rows, all at 0 on hand / 0 a day / cover null / never sold — which is the whole point of a push"
+  },
+  {
+   "step": "the sheet puts every enabled store on screen and says out loud that none of them has ever sold it",
+   "ok": true,
+   "detail": "11 store rows rendered (server offers 11); \"never sold here\" on 11 of them"
+  },
+  {
+   "step": "the “even” split renders exactly the allocation this run computes for it",
+   "ok": true,
+   "detail": "25 units over 11 stores — sheet HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2; this run HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2 — 2 each and the remaining 3 to the busiest — every velocity is 0 here, so \"busiest\" falls to the store code · \"Split evenly — 25 units across 11 stores\""
+  },
+  {
+   "step": "the “velocity” split renders exactly the allocation this run computes for it",
+   "ok": true,
+   "detail": "25 units over 11 stores — sheet HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2; this run HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2 — nobody has ever sold it, so there is no signal to weight by and the rule falls back to an even split rather than piling the lot on one store · \"No sales anywhere yet — split evenly across 11 stores instead. Weight by sales once they have sold s"
+  },
+  {
+   "step": "“Weight by sales” does not claim a weighting on a product that has never been sold anywhere",
+   "ok": true,
+   "detail": "every one of the 11 stores is at 0/day, so the server fell back to an even split — the same HOU-MTR:3 OK-BA:3 OK-BIX:3 OK-ETUL:2 OK-JENKS:2 OK-MINGO:2 OK-MUS:2 OK-OWA:2 OK-SAP:2 OK-STUL:2 OK-YALE:2 “Split evenly” produced a moment ago — but the sheet reports it as \"No sales anywhere yet — split evenly across 11 stores instead. Weight by sales once they have sold some.\". SendToStoresSheet.vue::splitNote picks its label from out.mode alone and only explains the surprising case for topup; the veloc"
+  },
+  {
+   "step": "the “topup” split renders exactly the allocation this run computes for it",
+   "ok": true,
+   "detail": "25 units over 11 stores — sheet (nothing); this run (nothing) — every store is already at its target at 0 on hand, because 0 a day covers any number of days · \"Top up to 21 days allocated nothing — every store already holds more than 21 days of cover. All 25 units stay at Houston. Raise the target to send anyway.\""
+  },
+  {
+   "step": "“Top up” honestly allocates nothing for a product nobody has ever sold, and says why",
+   "ok": true,
+   "detail": "every store's velocity is 0, so a 21-day target is already met at 0 on hand: (nothing) · \"Top up to 21 days allocated nothing — every store already holds more than 21 days of cover. All 25 units stay at Houston. Raise the target to send anyway.\""
+  },
+  {
+   "step": "“velocity” on a product with a real sales history weights the split the way the rule says",
+   "ok": true,
+   "detail": "ACC-013 (49.75/d chain-wide), 60 units — server HOU-MTR:49 OK-BA:1 OK-BIX:1 OK-ETUL:2 OK-JENKS:1 OK-MINGO:1 OK-MUS:1 OK-OWA:1 OK-SAP:1 OK-STUL:1 OK-YALE:1; this run HOU-MTR:49 OK-BA:1 OK-BIX:1 OK-ETUL:2 OK-JENKS:1 OK-MINGO:1 OK-MUS:1 OK-OWA:1 OK-SAP:1 OK-STUL:1 OK-YALE:1; stores HOU-MTR 8.893/d @1448, OK-BA 0/d @10, OK-BIX 0.071/d @14, OK-ETUL 0.071/d @11…"
+  },
+  {
+   "step": "“top up” shares what there is in proportion to each store's gap, and gives no store more than it needs",
+   "ok": true,
+   "detail": "ACC-013, 60 units to 180 days of cover (gaps add up to 155, so the 60 are apportioned and capped) — server HOU-MTR:59 OK-ETUL:1; this run HOU-MTR:59 OK-ETUL:1"
+  },
+  {
+   "step": "left_at_warehouse hits zero at exactly Houston's stock and goes negative one unit past it",
+   "ok": true,
+   "detail": "available 30: allocating 30 leaves 0; allocating 37 leaves -7 (a calculator, not a gate — suggest_split allocates it, send is what refuses)"
+  },
+  {
+   "step": "the sheet turns red **before** the send when the allocation is more than Houston holds",
+   "ok": true,
+   "detail": "13 × 3 = 39 against 30 available → left \"-9\" (class \"num v crit\"), button \"MORE THAN HOUSTON HAS\" disabled=true · \"BEAKER-14-FROST-97MY8 — 39 allocated, 30 available at Houston, short 9. Lower the quantities or buy more first.\""
+  },
+  {
+   "step": "an over-allocation is refused with the shortfall named per item (client decision 4)",
+   "ok": true,
+   "detail": "417 — \"Houston does not hold enough stock to send this distribution: • BEAKER-14-FROST-97MY8 — 39 requested, 30 available, short 9 Nothing was sent — lower the quantities or buy more first.\" (asked 39, available 30, short 9)"
+  },
+  {
+   "step": "a refused distribution writes **nothing** — no request, no shipment, no material request",
+   "ok": true,
+   "detail": "after the refusal, documents mentioning BEAKER-14-FROST-97MY8: 0 replenishment request line(s), 0 shipment line(s), 0 material request line(s) — all three must be zero"
+  },
+  {
+   "step": "the running footer counts the stores, the units, and what is left at Houston after",
+   "ok": true,
+   "detail": "3 stores · 21 units · 9 left of 30 · button \"SEND 21 TO 3 STORES\""
+  },
+  {
+   "step": "one AWANZ Shipment per store and no more — separate parcels, never batched (decision 3)",
+   "ok": true,
+   "detail": "3 shipment(s) carrying BEAKER-14-FROST-97MY8: MSH-2026-00307→HOU-MTR ×8, MSH-2026-00309→OK-BA ×7, MSH-2026-00311→OK-BIX ×6; confirmation listed HOU-MTR, OK-BA, OK-BIX"
+  },
+  {
+   "step": "every request behind a push carries warehouse_push, so a push and a pull are told apart for ever",
+   "ok": true,
+   "detail": "MRR-2026-00306(HOU-MTR) push=1 Approved by warehouse@cloudchaserz.example→warehouse@cloudchaserz.example · MRR-2026-00308(OK-BA) push=1 Approved by warehouse@cloudchaserz.example→warehouse@cloudchaserz.example · MRR-2026-00310(OK-BIX) push=1 Approved by warehouse@cloudchaserz.example→warehouse@cloudchaserz.example"
+  },
+  {
+   "step": "a store's own request is untouched by any of this — warehouse_push stays 0 on a pull",
+   "ok": true,
+   "detail": "5 existing store-raised request(s) still at warehouse_push=0 (e.g. MRR-2026-00005, MRR-2026-00006, MRR-2026-00008); 3 pushed request(s) at 1"
+  },
+  {
+   "step": "each pushed shipment is an ordinary shipment: Pending, out of HOU-WH, into the store's own warehouse",
+   "ok": true,
+   "detail": "MSH-2026-00307: Pending HOU-WH - CCZ→HOU-MTR - CCZ mr=MAT-MR-2026-00028 · MSH-2026-00309: Pending HOU-WH - CCZ→OK-BA - CCZ mr=MAT-MR-2026-00029 · MSH-2026-00311: Pending HOU-WH - CCZ→OK-BIX - CCZ mr=MAT-MR-2026-00030"
+  },
+  {
+   "step": "Houston's available stock falls by exactly the total sent the moment the push is raised",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8 at HOU-WH - CCZ: available 30 → 9 (committed 21 = 8+7+6); the bin still counts 30 because nothing has physically left yet — that happens when the floor ships it"
+  },
+  {
+   "step": "all three land on the wall's “To pick” column, as ordinary work for the floor",
+   "ok": true,
+   "detail": "MSH-2026-00307 → col-to_pick, MSH-2026-00309 → col-to_pick, MSH-2026-00311 → col-to_pick (col-to_pick holds 3 card(s))"
+  },
+  {
+   "step": "the floor picks, packs and ships all three off the wall, each posting its own transfer out of Houston",
+   "ok": true,
+   "detail": "MSH-2026-00307 Shipped MAT-STE-2026-00109 · MSH-2026-00309 Shipped MAT-STE-2026-00110 · MSH-2026-00311 Shipped MAT-STE-2026-00111"
+  },
+  {
+   "step": "HOU-WH's bin falls by exactly the total sent once the parcels leave",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8 at HOU-WH - CCZ: 30 → 9 (sent 8 + 7 + 6 = 21); valuation held at $10.7089"
+  },
+  {
+   "step": "the barcode created on the warehouse screen scans on HOU-MTR's counter, ten minutes later",
+   "ok": true,
+   "detail": "scanned 2087637500144 ×8 → 8 · \"COUNTED · 2087637500144\" | MSH-2026-00307 · RECEIVED DISMISS Stock Entry MAT-STE-2026-00112"
+  },
+  {
+   "step": "HOU-MTR's bin rises by exactly what was sent to it — not by what the other two got",
+   "ok": true,
+   "detail": "BEAKER-14-FROST-97MY8 at HOU-MTR - CCZ: 0 → 8 (sent 8; the other two carried 7 and 6); MSH-2026-00307 Received via MAT-STE-2026-00112"
+  },
+  {
+   "step": "a store sees only its own parcel on its Receive screen, never another store's",
+   "ok": true,
+   "detail": "MSH-2026-00309(OK-BA), MSH-2026-00311(OK-BIX) absent from HOU-MTR's inbound list: true"
+  },
+  {
+   "step": "the other two parcels are untouched by this store's receipt — still in transit, nothing in their bins",
+   "ok": true,
+   "detail": "MSH-2026-00309 Shipped, MSH-2026-00311 Shipped · OK-BA 0 on hand, OK-BIX 0 on hand"
+  },
+  {
+   "step": "head office may push as well as the warehouse admin — the gate is a role, not one account",
+   "ok": true,
+   "detail": "hq@cloudchaserz.example (AWANZ Head Office): plan=200 stores=200; plan came back with 1 item(s) and 11 shops"
+  },
+  {
+   "step": "send cannot be fired by a GET, even by the warehouse admin — and a refused GET ships nothing",
+   "ok": true,
+   "detail": "GET maison_pos.api.distribution.send → 403 \"Not permitted\"; shipment lines carrying BEAKER-14-FROST-97MY8: 3 → 3"
+  },
+  {
+   "step": "every distribution endpoint and create_product answers a store manager with 403 over plain HTTP",
+   "ok": true,
+   "detail": "stores=403 plan=403 suggest_split=403 send(own store)=403 create_product=403 (as hou.mtr.manager@cloudchaserz.example)"
+  },
+  {
+   "step": "and the refusal says why — Houston's, in words, on every one of the five",
+   "ok": true,
+   "detail": "stores: \"Distribution is Houston's: warehouse admin or head office only\" · plan: \"Distribution is Houston's: warehouse admin or head office only\" · suggest_split: \"Distribution is Houston's: warehouse admin or head office only\" · send(own store): \"Distribution is Houston's: warehouse admin or head office only\" · create_product: \"Purchasing is centralised: warehouse admin or head office only\""
+  },
+  {
+   "step": "the refused create_product left no item behind either",
+   "ok": true,
+   "detail": "STORE-MADE-97MY8 exists: false"
+  },
+  {
+   "step": "a deep link to /warehouse/stock — where “Send to stores” lives — is gated for a store manager",
+   "ok": true,
+   "detail": "gate: \"WAREHOUSE ADMIN ROLE REQUIRED hou.mtr.manager@cloudchaserz.example is not an AWANZ Warehouse Admin SIGN IN AS ANOTHER USER\"; stock board rendered: 0"
+  }
+ ],
+ "console": [
+  {
+   "tag": "store",
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 403 (FORBIDDEN)"
+  }
+ ]
+}

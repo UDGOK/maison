@@ -14,9 +14,14 @@
  * "This is the whole delivery" is `final`: it closes the order and raises a Short for anything
  * missing. Off (the default — vendor orders arrive in parts) it is a partial receipt that raises
  * nothing.
+ *
+ * v1.1 §D — the receipt no longer just closes. It says line by line what went into Houston and
+ * offers **Send to stores** against each one, because the moment a brand-new product lands on the
+ * dock is exactly the moment somebody decides where it should be. Before v1.1 that was a dead end:
+ * no store knows a new product exists, so none of them will ever ask for it.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { ReceiveLineInput, StockRow } from '@/api/purchasing'
+import type { ReceiveLineInput, ReceiveResult, StockRow } from '@/api/purchasing'
 import { usePurchasingStore } from '@/stores/purchasing'
 import { receiveVariance } from '@/warehouse/buying'
 import {
@@ -41,7 +46,7 @@ import { fmtDate } from '@/utils/device'
 import Modal from '@/components/Modal.vue'
 
 const props = defineProps<{ po: string }>()
-const emit = defineEmits<{ close: []; notice: [msg: string]; received: [] }>()
+const emit = defineEmits<{ close: []; notice: [msg: string]; received: []; 'send-to-stores': [itemCode: string, itemName: string | null] }>()
 
 const store = usePurchasingStore()
 
@@ -57,6 +62,9 @@ const manual = ref('')
 const lastScan = ref<{ code: string; ok: boolean } | null>(null)
 const confirming = ref(false)
 const result = ref<string | null>(null)
+/** v1.1 — what the receipt actually booked, so the sheet can offer the obvious next act. */
+const posted = ref<ReceiveResult | null>(null)
+const postedMessage = ref('')
 let seeded = false
 
 function num(value: unknown): number {
@@ -209,9 +217,14 @@ async function post() {
   emit('received')
   // a `final` receipt that only raised shorts posts nothing — say so in place rather than flashing
   // a success toast for a Purchase Receipt that does not exist
-  if (outcome.posted) emit('close')
-  else result.value = outcome.message
+  if (outcome.posted) {
+    posted.value = out
+    postedMessage.value = outcome.message
+  } else result.value = outcome.message
 }
+
+/** The lines that actually went into stock — the only ones there is anything to send. */
+const bookedLines = computed(() => (posted.value?.lines ?? []).filter((l) => l.accepted_qty > 0))
 
 // ------------------------------------------------------------------ lifecycle
 function seed() {
@@ -242,9 +255,54 @@ defineExpose({ onCode, fillAll })
 </script>
 
 <template>
-  <Modal :title="`Receive ${po}`" width="1080px" @close="emit('close')">
+  <Modal :title="posted ? `Received ${po}` : `Receive ${po}`" width="1080px" @close="emit('close')">
+    <!-- v1.1 — what was booked, and the obvious next act -->
+    <div v-if="posted" class="outcome" data-testid="receive-booked">
+      <div class="section-title good">Into stock at {{ posted.warehouse || 'Houston' }}</div>
+      <p class="muted">{{ postedMessage }}</p>
+      <div v-if="!bookedLines.length" class="label label-dim">Nothing went into stock on this receipt.</div>
+      <div v-else class="booked-wrap">
+        <table class="table booked">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="num detail-col">Into stock</th>
+              <th class="num detail-col">Damaged</th>
+              <th class="num detail-col">At</th>
+              <th class="next-col"><span class="vh">Next</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="l in bookedLines" :key="l.item_code" :data-testid="`booked-${l.item_code}`">
+              <td>
+                <div class="ellipsis bname">{{ l.item_name || l.item_code }}</div>
+                <div class="label label-dim">{{ l.item_code }}</div>
+                <!-- on a phone the cost and the damage fold into the row: the next act is the
+                     button, and it is the thing that must stay on screen -->
+                <div class="label detail-inline">
+                  <span class="accent">{{ l.accepted_qty }} into stock</span>
+                  <span class="label-dim"> · {{ fmtMoney(l.rate) }} a unit</span><span v-if="l.damaged_qty" class="warn"> · {{ l.damaged_qty }} damaged</span>
+                </div>
+              </td>
+              <td class="num detail-col">{{ l.accepted_qty }}</td>
+              <td class="num detail-col" :class="{ warn: l.damaged_qty }">{{ l.damaged_qty || '—' }}</td>
+              <td class="num detail-col">{{ fmtMoney(l.rate) }}</td>
+              <td class="next-col">
+                <button class="btn btn-next" :data-testid="`booked-send-${l.item_code}`" @click="emit('send-to-stores', l.item_code, l.item_name ?? null)">
+                  Send to stores
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="label label-dim">
+        It is in Houston, not in a shop. Nobody will ask for a product they do not know exists — sending it out is Houston's move.
+      </p>
+    </div>
+
     <!-- the receipt ran but booked nothing -->
-    <div v-if="result" class="outcome" data-testid="receive-outcome">
+    <div v-else-if="result" class="outcome" data-testid="receive-outcome">
       <div class="section-title warn">Nothing posted</div>
       <p class="muted">{{ result }}</p>
       <p class="label label-dim">The order is closed. The shorts are on the Inbound discrepancies list, against the vendor.</p>
@@ -413,7 +471,7 @@ defineExpose({ onCode, fillAll })
     </template>
 
     <template #footer>
-      <template v-if="result || !order">
+      <template v-if="posted || result || !order">
         <button class="btn btn-primary" data-testid="receive-done" @click="emit('close')">Done</button>
       </template>
       <template v-else>
@@ -427,6 +485,61 @@ defineExpose({ onCode, fillAll })
 </template>
 
 <style scoped>
+.booked-wrap {
+  margin-top: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.bname {
+  max-width: 320px;
+}
+.detail-inline {
+  display: none;
+  text-transform: none;
+  letter-spacing: 0.03em;
+  font-size: 12px;
+  margin-top: 2px;
+}
+@media (max-width: 767px) {
+  /* five columns and a button do not fit in 390 px: the two the row can say in words, it says */
+  .detail-col {
+    display: none;
+  }
+  .detail-inline {
+    display: block;
+  }
+  .bname {
+    max-width: 42vw;
+  }
+  .booked td,
+  .booked th {
+    padding: 10px 8px;
+  }
+  /* what the row *did* is said in words; the column the phone keeps is the one you act on */
+  .btn-next {
+    padding: 0 10px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+}
+.next-col {
+  width: 1%;
+  white-space: nowrap;
+}
+.btn-next {
+  padding: 0 14px;
+  min-height: var(--touch);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .head {
   display: flex;
   align-items: flex-start;

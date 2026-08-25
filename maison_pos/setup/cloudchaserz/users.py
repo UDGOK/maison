@@ -104,10 +104,20 @@ def ensure_users() -> None:
 
 	demo.ensure_user(f"hq@{DOMAIN}", "Hunter", "Quinn", ["AWANZ Head Office", "Sales Manager", "Accounts Manager", "Stock Manager"])
 	demo.ensure_associate(f"hq@{DOMAIN}", None, "HeadOffice", "0000")
+	# --- v1.1.1 — the regionals stay on `AWANZ Regional` + `Sales Manager`, deliberately ----------
+	# This pair is what exposed the v1.1.1 bug: unlike `Sales User` (associates) and `Stock User`
+	# (store managers), `Sales Manager` does not read Item, so the regional was the one seat where
+	# the app's borrowed permission showed. The fix is that `AWANZ Regional` now carries `read` on
+	# Item itself (`setup.install.ROLE_DOCPERMS`) — *not* a third ERPNext role bolted on here.
+	# Adding `Stock User` would have papered over it and cost far more than it fixed: it carries
+	# write / create / submit / cancel / delete on Stock Entry, Material Request, Purchase Receipt
+	# and Serial and Batch Bundle, which would turn an oversight role into one that can post and
+	# submit stock movements across every store it can see. Read is the shape of this seat.
 	demo.ensure_user(f"regional.ok@{DOMAIN}", "Rosa", "Kingfisher", ["AWANZ Regional", "Sales Manager"])
 	demo.ensure_associate(f"regional.ok@{DOMAIN}", None, "Regional", "0000")
 	demo.ensure_user(f"regional.tx@{DOMAIN}", "Ray", "Torres", ["AWANZ Regional", "Sales Manager"])
 	demo.ensure_associate(f"regional.tx@{DOMAIN}", None, "Regional", "0000")
+	# --- end v1.1.1 ---
 	# warehouse admin (role owned by section P; created by install_v06 when absent)
 	wh_roles = ["AWANZ Warehouse Admin", "Stock User", "Stock Manager", "Purchase User"]
 	demo.ensure_user(f"warehouse@{DOMAIN}", "Walter", "Hines", [r for r in wh_roles if _exists("Role", r)])

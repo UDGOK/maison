@@ -24,6 +24,9 @@
  */
 import { ApiError } from './types'
 import { humanizeServerMessage } from '@/utils/text'
+// v1.1 §B — a product created here has to exist on the distribution desk too, with nothing on
+// hand at Houston and no history at any store. Only the mock uses these.
+import { __mockRegisterItem, __mockSetWarehouseStock } from './distribution'
 import type { Discrepancy, PurchaseOrder, PurchaseOrderItem, WarehouseStockRow } from './warehouse'
 
 // ---------------------------------------------------------------------------------------------
@@ -516,6 +519,118 @@ export interface PriceChangeDecision {
   pricing_rule?: string | null
 }
 
+// ---------------------------------------------------------------------------------------------
+// v1.1 §B/§C — a new product, and a purchase order from scratch
+// ---------------------------------------------------------------------------------------------
+
+/** One group a new product can be filed under (`item_groups()`). Leaf groups only. */
+export interface ItemGroupRow {
+  name: string
+  label: string
+  parent?: string | null
+  /** how many enabled items the chain already files here — the busiest one is the default */
+  items: number
+}
+
+export interface ItemGroupsResult {
+  groups: ItemGroupRow[]
+  count: number
+  /** the group the chain files most of its catalogue under, or null on an empty catalogue */
+  default: string | null
+}
+
+/** What we pay for a new product, on the sheet that creates it. Its first vendor is the preferred one. */
+export interface NewProductVendor {
+  supplier: string
+  vendor_sku?: string | null
+  cost?: number
+  case_pack?: number
+  moq?: number
+  lead_time_days?: number
+  notes?: string | null
+}
+
+/** When to reorder it at HOU-WH. `qty` falls back to `level` when it is left empty. */
+export interface NewProductReorder {
+  level: number
+  qty?: number
+}
+
+/** The whole of `create_product(payload)` — one call, one sheet, all or nothing. */
+export interface NewProductInput {
+  item_code: string
+  item_name?: string
+  item_group: string
+  uom?: string
+  barcode?: string | null
+  image?: string | null
+  description?: string | null
+  /** the standard selling price, written to the selling price list */
+  selling_rate?: number
+  vendor?: NewProductVendor | null
+  reorder?: NewProductReorder | null
+}
+
+/** The full payload of a product (`product_dict`) — what it is, what we pay, when to reorder. */
+export interface ProductDetail {
+  item_code: string
+  item_name: string
+  item_group: string
+  uom: string
+  barcode?: string | null
+  barcodes?: string[]
+  image?: string | null
+  description?: string | null
+  is_stock_item: boolean
+  disabled: boolean
+  valuation_method?: string | null
+  company?: string | null
+  warehouse: string
+  price_list: string
+  selling_rate: number
+  reorder: { warehouse: string; level: number; qty: number } | null
+  vendors: ItemVendorRow[]
+  preferred: string | null
+}
+
+export interface CreateProductResult {
+  item_code: string
+  created: boolean
+  item: ProductDetail
+  /** the vendor's catalogue row for it, ready to drop onto an order — null when no vendor was given */
+  catalogue_row: VendorCatalogueItem | null
+}
+
+/**
+ * One line of a vendor's catalogue as the **order** screen needs it: what we call it, what *they*
+ * call it, what it costs, and a quantity that already sits on a whole case.
+ */
+export interface VendorCatalogueItem extends VendorCatalogueRow {
+  barcode?: string | null
+  image?: string | null
+  uom?: string | null
+  /** units of ours in HOU-WH's bin, so the buyer can see they are about to re-buy 300 */
+  on_hand: number
+  /** a whole case — what a new order line starts at */
+  default_qty: number
+  /** the vendor's price-list rate, falling back to the negotiated cost then the last purchase */
+  rate: number
+}
+
+export interface VendorCatalogueResult {
+  supplier: string
+  supplier_name?: string | null
+  price_list: string
+  currency?: string | null
+  lead_time_days: number
+  search: string | null
+  /** rows matching the search */
+  count: number
+  /** rows on the vendor's whole catalogue */
+  total: number
+  items: VendorCatalogueItem[]
+}
+
 export interface PurchasingApi {
   // §A vendors
   vendors(search?: string, active_only?: boolean): Promise<VendorListResult>
@@ -550,6 +665,19 @@ export interface PurchasingApi {
   receive(po: string, lines: ReceiveLineInput[], freight?: number | null, final?: boolean, notes?: string): Promise<ReceiveResult>
   // stock tab
   stock(q?: string, limit?: number): Promise<StockResult>
+  // v1.1 §B — a new product, created from the warehouse screens
+  /** The leaf groups a new product can be filed under, so the create sheet does not have to guess. */
+  item_groups(): Promise<ItemGroupsResult>
+  /**
+   * Create a product — item, vendor row, buying price, selling price and reorder level — in one
+   * call, **all or nothing**. Refuses a duplicate item code, and a barcode already on another
+   * item (that one is a real hazard: two products on one barcode means the till rings up the
+   * wrong one, so the sheet must land that message on the barcode field).
+   */
+  create_product(payload: NewProductInput): Promise<CreateProductResult>
+  // v1.1 §C — a purchase order from scratch
+  /** A vendor's items with cost, case pack, MOQ and last purchase rate — searchable by **their** SKU. */
+  vendor_catalogue(supplier: string, search?: string, limit?: number): Promise<VendorCatalogueResult>
   // store selling price — the existing AWANZ Price Change Request workflow
   price_change_requests(boutique?: string, status?: string, item_code?: string, limit?: number): Promise<{ requests: PriceChangeRequest[]; count: number }>
   request_price_change(item_code: string, boutique: string, proposed_rate: number, reason?: string, valid_from?: string, valid_upto?: string): Promise<PriceChangeCreated>
@@ -640,6 +768,11 @@ export const frappePurchasing: PurchasingApi = {
   receive: (po, lines, freight, final = false, notes) => call('purchasing.receive', { po, lines, freight, final: final ? 1 : 0, notes }),
   // stock
   stock: (q, limit = 500) => call('purchasing.stock', { q, limit }, true),
+  // v1.1 §B / §C — `create_product` is POST only on the server (it creates an Item, a vendor row,
+  // two prices and a reorder level); the other two are ordinary reads.
+  item_groups: () => call('purchasing.item_groups', {}, true),
+  create_product: (payload) => call('purchasing.create_product', { payload }),
+  vendor_catalogue: (supplier, search, limit = 200) => call('purchasing.vendor_catalogue', { supplier, search, limit }, true),
   // store selling price
   price_change_requests: (boutique, status = 'Pending Approval', item_code, limit = 100) =>
     call('purchasing.price_change_requests', { boutique, status, item_code, limit }, true),
@@ -672,6 +805,12 @@ interface MockItem {
   valuation_rate: number
   reorder_level: number
   velocity: number
+  // v1.1 §B — what `create_product` fills in on a product the sheet made
+  uom?: string
+  image?: string | null
+  disabled?: boolean
+  reorder_qty?: number
+  selling_rate?: number
 }
 
 interface MockState {
@@ -703,6 +842,29 @@ const MOCK_ITEMS: MockItem[] = [
   { item_code: 'AF-SHISHA-250-MINT', item_name: 'Al Fakher Shisha 250 g — Mint', item_group: 'Shisha', barcode: '8801234500093', actual_qty: 26, valuation_rate: 5.71, reorder_level: 24, velocity: 1.2 },
   { item_code: 'CLIPPER-LTR-ASST', item_name: 'Clipper Lighter — Assorted', item_group: 'Accessories', barcode: '8801234500109', actual_qty: 288, valuation_rate: 0.74, reorder_level: 96, velocity: 0 }
 ]
+
+/**
+ * v1.1 §B — the leaf groups a new product can be filed under. `[name, parent]`; the sheet's
+ * default is whichever already holds the most items (Vape, on this catalogue).
+ */
+const MOCK_ITEM_GROUPS: [string, string][] = [
+  ['Vape', 'Products'],
+  ['Papers', 'Products'],
+  ['Shisha', 'Products'],
+  ['Accessories', 'Products'],
+  ['Glass', 'Products'],
+  ['CBD', 'Products'],
+  ['Kratom', 'Products'],
+  ['Detox', 'Products'],
+  ['Apparel', 'Products']
+]
+const MOCK_SELLING_PRICE_LIST = 'Standard Selling'
+/**
+ * v1.1 §B — products created through `create_product` in this session. `mockOrderLine` runs while
+ * the mock state is still being built (`fresh()` seeds four orders), so it cannot read `state`;
+ * this list is what lets a just-created product be ordered without that circularity.
+ */
+const MOCK_NEW_ITEMS: MockItem[] = []
 
 /** [item, supplier, cost, case_pack, moq, lead_time, preferred, vendor_sku] */
 const MOCK_CATALOGUE: [string, string, number, number, number, number, boolean, string][] = [
@@ -853,7 +1015,10 @@ function mockSuggestion(
 }
 
 function mockOrderLine(seq: number, itemCode: string, qty: number, rate: number, warehouse: string, receivedQty = 0, scheduleDate?: string): PurchaseOrderLine {
-  const item = MOCK_ITEMS.find((i) => i.item_code === itemCode)!
+  // The seed first, then anything created in this session: a product made on the New product
+  // sheet is not in `MOCK_ITEMS`, and ordering it straight afterwards is the whole of v1.1 §B→§C.
+  const item = MOCK_ITEMS.find((i) => i.item_code === itemCode) || MOCK_NEW_ITEMS.find((i) => i.item_code === itemCode)
+  if (!item) throw new ApiError(`Item ${itemCode} does not exist`, 'DoesNotExistError', 404)
   return {
     name: `POI-${String(seq).padStart(5, '0')}`,
     item_code: itemCode,
@@ -1161,6 +1326,57 @@ function stockRow(item: MockItem, onOrder: Record<string, number>): StockRow {
     velocity: item.velocity,
     cover_days: item.velocity ? Math.round((item.actual_qty / item.velocity) * 10) / 10 : null,
     low: item.reorder_level > 0 && item.actual_qty <= item.reorder_level
+  }
+}
+
+/** One line of a vendor's catalogue as the order screen wants it (`_catalogue_row`). */
+function catalogueItem(row: ItemVendorRow, item: MockItem, rate = 0): VendorCatalogueItem {
+  const casePack = Math.max(1, Math.trunc(row.case_pack) || 1)
+  return {
+    name: row.name,
+    item_code: item.item_code,
+    item_name: item.item_name,
+    item_group: item.item_group,
+    barcode: item.barcode || null,
+    image: item.image ?? null,
+    uom: item.uom || 'Nos',
+    vendor_sku: row.vendor_sku ?? null,
+    cost: row.cost,
+    case_pack: casePack,
+    moq: row.moq,
+    lead_time_days: row.lead_time_days,
+    is_preferred: row.is_preferred,
+    last_purchase_date: row.last_purchase_date ?? null,
+    last_purchase_rate: row.last_purchase_rate,
+    on_hand: item.actual_qty,
+    // what an order line starts at: a whole case at the negotiated rate, both editable
+    default_qty: casePack,
+    rate: rate || row.cost || row.last_purchase_rate
+  }
+}
+
+/** The full payload of a product (`product_dict`). */
+function productDetail(item: MockItem): ProductDetail {
+  const vendors = clone(state.catalogue[item.item_code] || [])
+  return {
+    item_code: item.item_code,
+    item_name: item.item_name,
+    item_group: item.item_group,
+    uom: item.uom || 'Nos',
+    barcode: item.barcode || null,
+    barcodes: item.barcode ? [item.barcode] : [],
+    image: item.image ?? null,
+    description: item.item_name,
+    is_stock_item: true,
+    disabled: !!item.disabled,
+    valuation_method: 'Moving Average',
+    company: 'CloudChaserz',
+    warehouse: MOCK_WAREHOUSE,
+    price_list: MOCK_SELLING_PRICE_LIST,
+    selling_rate: item.selling_rate ?? 0,
+    reorder: item.reorder_level > 0 || (item.reorder_qty ?? 0) > 0 ? { warehouse: MOCK_WAREHOUSE, level: item.reorder_level, qty: item.reorder_qty ?? item.reorder_level } : null,
+    vendors,
+    preferred: vendors.find((v) => v.is_preferred)?.supplier ?? null
   }
 }
 
@@ -1611,6 +1827,8 @@ export const mockPurchasing: PurchasingApi = {
         const qty = item.actual_qty + v.accepted
         item.valuation_rate = qty > 0 ? Math.round((value / qty) * 10000) / 10000 : round2(v.rate + share)
         item.actual_qty = qty
+        // v1.1 §A — Houston's bin moved, so the distribution desk's "available" moves with it
+        __mockSetWarehouseStock(item.item_code, item.actual_qty)
       }
     }
     totalsOf(order)
@@ -1703,6 +1921,120 @@ export const mockPurchasing: PurchasingApi = {
       stock_value: round2(rows.reduce((s, r) => s + r.stock_value, 0))
     }
   },
+  // ------------------------------------------------------------------ v1.1 §B new product
+  async item_groups() {
+    await pause()
+    const counts: Record<string, number> = {}
+    for (const item of state.items) if (!item.disabled) counts[item.item_group] = (counts[item.item_group] || 0) + 1
+    const groups = MOCK_ITEM_GROUPS.map(([name, parent]) => ({ name, label: name, parent, items: counts[name] || 0 })).sort((a, b) => a.name.localeCompare(b.name))
+    const busiest = groups.reduce<{ name: string; items: number } | null>((best, g) => (best && best.items >= g.items ? best : g), null)
+    return { groups, count: groups.length, default: busiest && busiest.items ? busiest.name : null }
+  },
+  async create_product(payload) {
+    await pause()
+    const data = payload || ({} as NewProductInput)
+    const vendorRow = data.vendor || null
+    const reorderRow = data.reorder || null
+
+    // ---- validate first, write nothing (the server does the same, inside a savepoint) ----
+    const itemCode = (data.item_code || '').trim()
+    if (!itemCode) throw new ApiError('A product needs an item code', 'ValidationError', 417)
+    if (state.items.some((i) => i.item_code === itemCode)) {
+      throw new ApiError(`Item ${itemCode} already exists — open it instead of creating it again`, 'ValidationError', 417)
+    }
+    const itemName = (data.item_name || '').trim() || itemCode
+    const itemGroup = (data.item_group || '').trim()
+    if (!itemGroup) throw new ApiError('A product needs an item group', 'ValidationError', 417)
+    if (!MOCK_ITEM_GROUPS.some(([name]) => name === itemGroup)) throw new ApiError(`Item group ${itemGroup} does not exist`, 'DoesNotExistError', 404)
+    const uom = (data.uom || '').trim() || 'Nos'
+    const barcode = (data.barcode || '').trim()
+    if (barcode) {
+      // the real-money one: two products on one barcode means the till rings up the wrong item
+      const owner = state.items.find((i) => i.barcode === barcode)
+      if (owner) {
+        throw new ApiError(`Barcode ${barcode} is already on item ${owner.item_code} — two products on one barcode rings up the wrong one`, 'ValidationError', 417)
+      }
+    }
+    const supplier = (vendorRow?.supplier || '').trim()
+    if (supplier) findVendor(supplier)
+    const sellingRate = Number(data.selling_rate) || 0
+    if (sellingRate < 0) throw new ApiError('A selling price cannot be negative', 'ValidationError', 417)
+    const cost = Number(vendorRow?.cost) || 0
+    if (cost < 0) throw new ApiError('A vendor cost cannot be negative', 'ValidationError', 417)
+    const reorderLevel = Number(reorderRow?.level) || 0
+    const reorderQty = Number(reorderRow?.qty) || 0
+    if (reorderLevel < 0 || reorderQty < 0) throw new ApiError('A reorder level cannot be negative', 'ValidationError', 417)
+
+    // ---- write ----
+    const item: MockItem = {
+      item_code: itemCode,
+      item_name: itemName,
+      item_group: itemGroup,
+      barcode,
+      actual_qty: 0,
+      valuation_rate: cost,
+      reorder_level: reorderLevel,
+      velocity: 0,
+      uom,
+      image: (data.image || '').trim() || null,
+      disabled: false,
+      reorder_qty: reorderQty || reorderLevel,
+      selling_rate: sellingRate
+    }
+    state.items.push(item)
+    MOCK_NEW_ITEMS.push(item)
+    let catalogueRow: VendorCatalogueItem | null = null
+    if (supplier) {
+      const row: ItemVendorRow = {
+        name: nextName('IV'),
+        supplier,
+        supplier_name: findVendor(supplier).supplier_name,
+        vendor_sku: (vendorRow?.vendor_sku || '').trim() || null,
+        cost,
+        case_pack: Math.max(1, Math.trunc(Number(vendorRow?.case_pack) || 0) || 1),
+        moq: Math.max(0, Math.trunc(Number(vendorRow?.moq) || 0)),
+        lead_time_days: Math.trunc(Number(vendorRow?.lead_time_days) || 0) || findVendor(supplier).lead_time_days,
+        // its first vendor, so it is the preferred one — the demand engine is never ambiguous
+        is_preferred: true,
+        last_purchase_date: null,
+        last_purchase_rate: 0,
+        notes: (vendorRow?.notes || '').trim() || null
+      }
+      state.catalogue[itemCode] = [row]
+      catalogueRow = catalogueItem(row, item, row.cost)
+    }
+    // the distribution desk needs to know it exists: nothing on hand at Houston, no history at any
+    // store — which is exactly the case v1.1 exists for
+    __mockRegisterItem({ item_code: itemCode, item_name: itemName, item_group: itemGroup, uom, barcode: barcode || null, on_hand: 0 })
+    return { item_code: itemCode, created: true, item: productDetail(item), catalogue_row: catalogueRow }
+  },
+  // ------------------------------------------------------------------ v1.1 §C vendor catalogue
+  async vendor_catalogue(supplier, search, limit = 200) {
+    await pause()
+    const vendor = findVendor(supplier)
+    const needle = (search || '').trim().toLowerCase()
+    const rows: VendorCatalogueItem[] = []
+    let total = 0
+    for (const item of state.items) {
+      const row = (state.catalogue[item.item_code] || []).find((r) => r.supplier === vendor.name)
+      if (!row || item.disabled) continue
+      total += 1
+      if (needle && !`${item.item_code} ${item.item_name} ${row.vendor_sku || ''} ${item.barcode || ''}`.toLowerCase().includes(needle)) continue
+      rows.push(catalogueItem(row, item, row.cost))
+    }
+    rows.sort((a, b) => Number(b.is_preferred) - Number(a.is_preferred) || (a.item_name || a.item_code).localeCompare(b.item_name || b.item_code))
+    return {
+      supplier: vendor.name,
+      supplier_name: vendor.supplier_name,
+      price_list: vendor.price_list,
+      currency: 'USD',
+      lead_time_days: vendor.lead_time_days,
+      search: search || null,
+      items: rows.slice(0, limit),
+      count: rows.length,
+      total
+    }
+  },
   // ------------------------------------------------------------------ store selling price
   async price_change_requests(boutique, status = 'Pending Approval', item_code, limit = 100) {
     await pause()
@@ -1759,6 +2091,7 @@ function addDays(date: string, days: number): string {
 
 /** Tests: restore the seeded buying desk. */
 export function __resetMockPurchasing(): void {
+  MOCK_NEW_ITEMS.length = 0
   state = fresh()
 }
 

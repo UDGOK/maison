@@ -60,6 +60,96 @@ asserts the 403s over plain HTTP.
 
 ---
 
+## 1b. The other direction: Houston pushes (v1.1)
+
+Everything above starts with a store asking. For a **brand-new product** that is backwards: no
+store knows it exists, so none of them will ask, and the eleven managers would each have to be
+told to request it. v1.1 adds the push.
+
+```
+warehouse admin (HOU-WH)                                        store manager
+────────────────────────                                        ─────────────
+Stock → an item → "Send to stores"
+  plan: what Houston holds, what is already committed,
+        every store's on-hand / cover / has-it-ever-sold
+  split: Same to all · Split evenly · Weight by sales · Top up
+  Send  ─────────────────────────────────────────────┐
+                                                     │
+                        one AWANZ Replenishment Request per store (warehouse_push = 1)
+                        + its Material Request, approved in the same action
+                        → AWANZ Shipment (Pending) ──→ the wall, exactly as a pull
+                                                     └──────→ Receive screen · Confirm receipt
+```
+
+**It is the same shipment.** `maison_pos/distribution.py` composes the existing
+`shipping.create_request` and `shipping.approve`; there is no second creation path. The wall, the
+pick list, the packing step, the label purchase and the store's Receive screen cannot tell the
+difference and are not asked to.
+
+### How a push differs from a store's pull
+
+| | Store pull | Houston push |
+|---|---|---|
+| Who starts it | store manager (Receive screen, or one tap on a low-stock alert) | warehouse admin (Stock → *Send to stores*) |
+| Approval | a separate act by the warehouse admin — the request waits in *Pending Approval* | created **and** approved in one action: the admin is both requester and approver, so a pending step would be theatre (client decision 2) |
+| `warehouse_push` | `0` | `1` — read-only, set by `maison_pos.distribution` and by nothing else, so the two are told apart in every screen and report for ever |
+| `requested_by` | the store manager | the warehouse admin |
+| Reason | whatever the manager typed | *Warehouse push from Houston*, unless the admin typed one |
+| Batching | one request per store, as raised | one request **and one shipment per store** — separate parcels, separate labels, never batched (client decision 3) |
+
+### Never allocate stock Houston does not have
+
+`send` validates **everything before writing anything**: every store enabled and a real shop,
+every item a stock item, every quantity above zero, and the total per item at or under HOU-WH's
+*available* on hand — where available is the bin quantity **minus** what is already committed to
+shipments that have been raised but not yet shipped (Pending / Picking / Packed still sit in the
+bin). A failure names the shortfall per item and writes nothing at all:
+
+```
+Houston does not hold enough stock to send this distribution:
+• CC-DISPO-14 — 40 requested, 25 available, short 15
+• CC-COIL-07 — 12 requested, 0 available, short 12
+Nothing was sent — lower the quantities or buy more first.
+```
+
+That is deliberate (client decision 4). Over-allocation is never silently trimmed, and the write
+phase runs inside a savepoint so an unexpected failure on the fourth store cannot leave the first
+three on the wall. A half-sent distribution leaves phantom shipments the floor will pick and ship.
+
+### Allocation helpers
+
+The maths lives on the server so the sheet never re-implements it
+(`maison_pos.api.distribution.suggest_split`):
+
+| Mode | What it does |
+|---|---|
+| `even` | equal across the chosen stores; the remainder goes to the busiest (highest 28-day velocity, then emptiest, then store code — a total order, so the same input always splits the same way) |
+| `velocity` | weighted by 28-day velocity with a **minimum of one each**. Fewer units than stores → the busiest get what there is. Nobody has ever sold it → no signal to weight by, so it falls back to `even` rather than piling the lot on one store |
+| `topup` | brings every store up to a target days-of-cover (`velocity × cover_days − on hand`, rounded up). Gaps smaller than the quantity → each store gets exactly its gap and the rest stays in Houston (reported as `remainder`); gaps larger → shared in proportion to the gap, and no store is given more than it needs |
+
+### Endpoints
+
+| Method | What |
+|---|---|
+| `maison_pos.api.distribution.stores` | the enabled shops a push may address |
+| `maison_pos.api.distribution.plan` | per item: HOU-WH on hand / committed / available, and a row per store with on-hand, 28-day velocity, days of cover and whether it has ever sold it |
+| `maison_pos.api.distribution.suggest_split` | `even` / `velocity` / `topup`, plus `left_at_warehouse` for the running footer |
+| `maison_pos.api.distribution.send` | create + approve one shipment per store, all or nothing |
+
+**AWANZ Warehouse Admin** and **AWANZ Head Office** only — the same set as buying. A store manager
+calling `send` for their **own** store is still refused: pushing is Houston's act, and a store may
+neither pull for itself without approval nor push to another store.
+`maison_pos/tests/test_v1_1_distribution_http.py` asserts the 403s over plain HTTP.
+
+### Deliberately not built in v1.1
+
+* **No store-to-store transfers.** Stock moves out of Houston or it does not move.
+* **No automatic distribution of every new product.** A human chooses the stores and the
+  quantities; the split helpers only suggest.
+* **No allocation by forecast.** Velocity is measured from what actually sold in the last 28 days.
+
+---
+
 ## 2. Carriers
 
 ### Why not Pirate Ship
