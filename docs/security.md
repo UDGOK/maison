@@ -301,3 +301,136 @@ Regression tests: `maison_pos/tests/test_v1_1_role_permissions.py` (in-process �
 *only* an AWANZ role, with none of the ERPNext roles that read Item) and
 `maison_pos/tests/test_v1_1_role_permissions_http.py` (the same over real sessions, including a
 regional fenced to one region who still cannot read the other region's documents).
+
+---
+
+## 7. The owner / developer seat (v1.1)
+
+Everything above this line is about fencing people in. This section is about the one account that
+is deliberately **not** fenced — and about holding it in a way that keeps the audit log readable.
+
+`maison_pos/setup/owner.py` creates exactly one such account, and nothing else in this app does.
+
+### Why not just share `Administrator`
+
+Because `Administrator` is nobody. Every document in Frappe carries `owner` and `modified_by`,
+every correction lands in a `Version` row, and `logs/awanz_security.log` names the user behind each
+event. Point a developer, a support engineer and an implementation consultant at the same unnamed
+superuser and every one of those entries says `Administrator`, which is exactly as useful as
+*someone*. When a price was changed, a till unlocked, a shipment cancelled or a role granted, the
+trail is only worth reading if it says **who** — and that is the whole reason the rest of this
+document exists.
+
+Two smaller reasons on top of it. `Administrator`'s password is one site-wide secret: it cannot be
+taken back from one person without locking out everybody else who knows it, so in practice it never
+is. And Frappe's login throttling, active-session list and *"logout on password change"* are all
+per user, so shared logins hide inside each other.
+
+### What the seat is
+
+`create_owner(email, password=None, first_name="", last_name="", pin=None, commit=False)` gives an
+account three things:
+
+* **Every role in `OWNER_ROLES`** — `System Manager` plus all five `AWANZ *` roles — and whichever
+  of `ERPNEXT_ROLES` the site actually has. A missing role is skipped rather than thrown on, so the
+  module also runs on a site without ERPNext's buying or accounting modules.
+* **No `User Permission` — and any that already exist are removed.** This is the load-bearing line.
+  A role permission opens a *doctype*; what narrows somebody to a *store* or a *region* is Frappe's
+  row-level layer, and in this app that layer is applied with `User Permission` rows (a store
+  manager carries their store's warehouses; §6 shows a regional fenced to one region the same way).
+  An account with none of them is unrestricted — and an account with **one** is not, because
+  `System Manager` does not buy past a User Permission. So the seat is defined by their *absence*,
+  which is why re-running `create_owner` on an account somebody has since fenced takes the fence
+  back off.
+* **An `AWANZ Associate` row with the `HeadOffice` role and no store**, so the same person can
+  unlock a till in any shop instead of being pinned to one. Note the order the module works in: that
+  row's `on_update` syncs the user's `AWANZ *` role and *removes the other three* (§2, `_sync_user_role`),
+  so it is written **before** the roles are granted. Written after, it strips `AWANZ Associate`,
+  `AWANZ Manager` and `AWANZ Regional` straight off a brand-new owner.
+
+It is idempotent: run it again and it tops the account up — same roles, same one associate row,
+nothing added twice.
+
+### Creating one
+
+```bash
+bench --site <site> execute maison_pos.setup.owner.create_owner \
+  --kwargs "{'email': 'you@example.com', 'password': '…', 'first_name': 'First', 'last_name': 'Last'}"
+```
+
+`bench execute` commits when the call returns, so the default `commit=False` is right here; pass
+`commit=True` only when calling `create_owner` from a script that will not commit for you. Add
+`'pin': '…'` to choose the till PIN — see the sharp edge below if you do not.
+
+**The password is passed at that moment and is never stored in this repository.** It goes straight
+into Frappe's password hash (`__Auth`) and the clear text is kept nowhere: `new_password` is cleared
+on save, and the payload `create_owner` returns says `password_set: true` and never what it was. Do
+not put a real password into a script, a fixture, a test or a commit message — the test suite
+invents a throwaway one per run for exactly this reason.
+
+**On a production site, prefer `password=None`** — omit the keyword altogether — and then use
+*Forgot password* on the login page. The account is created with no password at all, the operator
+who ran the command never handles the secret, and it is set by the person who will actually use it,
+over their own e-mail, without ever passing through a terminal, a shell history file, a chat window
+or a `bench` log. That needs a working outgoing e-mail account on the site for the reset mail to
+leave; where there is none, set the password from the **User** form instead — still not from a
+command line, and still not from anything that gets committed.
+
+### If the site has a password policy
+
+`create_owner` leaves Frappe's own policy switched on (`ignore_password_policy` stays false), so a
+weak password on a site with *Enable Password Policy* is **refused out loud**: `User.validate` runs
+`password_strength_test`, which throws `ValidationError` titled *"Password requirements not met"*
+and names what is wrong with it. Nothing is saved — the account is not left claiming a password it
+does not have, and `bench execute` never reaches its commit when the method raises, so a refused
+run leaves nothing behind at all.
+
+One wrinkle worth knowing before it wastes ten minutes: `bench execute` catches the failure and
+retries the call by `eval`-ing the method name, which then fails with
+`NameError: name 'maison_pos' is not defined`. That is the **last** line printed, but it is not the
+error — the real one is above it, under *"During handling of the above exception…"*. Read up, not
+at the bottom.
+
+### Revoking it — the handover
+
+```bash
+bench --site <site> execute maison_pos.setup.owner.revoke_owner \
+  --kwargs "{'email': 'you@example.com'}"
+```
+
+This **disables** the user and its associate row and deletes neither, on purpose. The audit trail
+refers to this user by name; delete the account and every one of those references becomes a dangling
+name — the opposite of the reason for having a named seat in the first place. A revoked owner cannot
+sign in (Frappe refuses a disabled user at the login form), and the browser they already had open
+dies with it: the next request on that session is refused with *"User … is disabled"* rather than
+waiting for the cookie to expire. Every document they ever touched still resolves to a real person.
+The password hash is left alone and is irrelevant while the account is disabled; `create_owner` on
+the same address later re-enables both records.
+
+Run it when a developer hands the platform over, and then check that nobody else is still holding
+one — the **Users** list filtered on the `System Manager` role, or:
+
+```bash
+bench --site <site> execute frappe.client.get_list \
+  --kwargs "{'doctype': 'Has Role', 'parent': 'User', 'filters': {'role': 'System Manager', 'parenttype': 'User'}, 'fields': ['parent'], 'limit_page_length': 0}"
+```
+
+An owner seat nobody revoked is a live superuser belonging to somebody who has moved on.
+
+### The sharp edges
+
+* **The default till PIN is `0000`.** `_ensure_owner_associate` falls back to it when no `pin` is
+  passed, so an owner seat created by the one-liner above can unlock any till in the chain with four
+  zeros until somebody changes it. Pass `'pin': '…'` at creation, or reset it from Settings.
+* **`create_owner` grants; it does not take away.** It never removes a role, so an owner account
+  that was handed something else by hand keeps it. What it does re-assert every run is the part that
+  matters: no `User Permission`.
+* **One seat, not a habit.** This is a hatch for the person who maintains the platform, not a way to
+  spare somebody the fencing the rest of this document describes. Everyone who works *in* the
+  business gets an `AWANZ Associate` row and the role that goes with it.
+
+Tests: `maison_pos/tests/test_v1_1_owner.py` — the grant and its idempotence, the removal of User
+Permissions proved by what the seat can *read* (the owner reads another store's documents that the
+demo store manager is refused, in process and over real sessions), one User Permission blinding even
+this seat and the re-run freeing it, the till identity, the password never appearing in the returned
+payload, the policy refusal above, and a revoked owner being turned away at the login form.

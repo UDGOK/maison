@@ -101,6 +101,47 @@ vendor's price list (`rate`); both stay editable on the line.
   Not ours to fix; `test_v1_1_distribution_http` clears the orphan in its fixture, and it is worth
   knowing before a support call.
 
+### The owner seat
+
+`maison_pos/setup/owner.py` — one **named** account that can open every screen, for whoever builds
+and supports the platform. Nothing else in the app creates one.
+
+```bash
+bench --site <site> execute maison_pos.setup.owner.create_owner \
+  --kwargs "{'email': 'you@example.com', 'password': '…', 'first_name': 'First', 'last_name': 'Last'}"
+```
+
+* **Named, not `Administrator`.** A shared unnamed superuser makes every entry in the audit log
+  anonymous — `owner`, `modified_by`, every `Version` row and every line in
+  `logs/awanz_security.log` says *"Administrator"*, which is exactly as useful as *"someone"*. The
+  seat does the same job and answers the question the rest of the permission model exists to
+  answer.
+* **No `User Permission`, and any that exist are removed.** That is what "unrestricted" is made of:
+  role permissions open a *doctype*, but what fences somebody to a store or a region is Frappe's
+  row-level layer, applied here with User Permission rows — and `System Manager` does not buy past
+  one. Re-running `create_owner` on a seat somebody has since fenced takes the fence off.
+* An `AWANZ Associate` row with the **HeadOffice** role and **no store**, so the owner can unlock a
+  till anywhere. It is written *before* the roles are granted, because that row's `on_update` syncs
+  the user's `AWANZ *` role and takes the other three back off (v0.7 S5) — written after the grant
+  it stripped `AWANZ Associate`, `AWANZ Manager` and `AWANZ Regional` off a brand-new owner, and
+  only a second run put them back. Found while writing the tests; the order is now the fix, and
+  `test_the_associate_row_does_not_take_the_other_awanz_roles_back_off` is the regression.
+* **The password is passed at creation and is never stored in this repository** — it goes into the
+  hash and nowhere else, and the returned payload says `password_set` and never what it was. On a
+  production site prefer `password=None` plus *Forgot password*, so the operator running the
+  command never handles the secret at all. A weak password on a site with a password policy is
+  refused out loud (`ValidationError`, *"Password requirements not met"*) and nothing is saved —
+  note that `bench execute` prints a misleading `NameError` **after** the real error.
+* `revoke_owner` **disables** the user and its associate row and deletes neither: the audit trail
+  refers to this user, and a deleted user turns every reference into a dangling name. A revoked
+  owner is turned away at the login form; `create_owner` re-enables both records.
+* Sharp edge, recorded rather than hidden: with no `pin` the associate row falls back to `0000`.
+
+`maison_pos/tests/test_v1_1_owner.py` (33 — 29 in process, 4 over HTTP) and `docs/security.md` §7.
+The load-bearing claim is proved behaviourally, not by counting rows: the owner reads another
+store's documents that the demo store manager is refused, one User Permission blinds even this seat,
+and the re-run frees it again — over real logins.
+
 ### Fixed — the AWANZ roles now own the access their screens need
 
 Reported from the live site: a regional manager opened a store's **Receive** screen and got
