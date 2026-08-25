@@ -27,8 +27,8 @@ function round(value: number, places = 2): number {
 // ---------------------------------------------------------------------------------------------
 // §F — the /warehouse section nav
 // ---------------------------------------------------------------------------------------------
-/** The five sections of the warehouse desk. */
-export type Section = 'outbound' | 'inbound' | 'buying' | 'vendors' | 'stock'
+/** The sections of the warehouse desk. v1.2 adds **Prices** — the sixth. */
+export type Section = 'outbound' | 'inbound' | 'buying' | 'vendors' | 'stock' | 'prices'
 /** The three boards that used to be top-level tabs and now live inside Outbound. */
 export type OutboundTab = 'requests' | 'shipments' | 'discrepancies'
 
@@ -37,7 +37,9 @@ export const SECTIONS: { key: Section; label: string }[] = [
   { key: 'inbound', label: 'Inbound' },
   { key: 'buying', label: 'Buying' },
   { key: 'vendors', label: 'Vendors' },
-  { key: 'stock', label: 'Stock' }
+  { key: 'stock', label: 'Stock' },
+  // v1.2 §C/§D — the wholesale rule, the shelf-price approvals queue and the month-end statement
+  { key: 'prices', label: 'Prices' }
 ]
 
 export const OUTBOUND_TABS: { key: OutboundTab; label: string }[] = [
@@ -68,6 +70,7 @@ const LEGACY_OUTBOUND: Record<string, OutboundTab> = {
  *
  *   `requests` / `shipments` / `discrepancies` → Outbound with that board selected (URL untouched)
  *   `stock`                                    → Stock
+ *   `prices`                                   → Prices (v1.2)
  *   `vendor`                                   → Inbound (the vendor-PO tab's receiving half), and
  *                                                the URL is rewritten, since that key is retired
  *   the five new section keys                  → themselves

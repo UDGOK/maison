@@ -294,7 +294,8 @@ const MOCK_ITEMS: [string, string, string, string, number, number, number][] = [
   ['OCB-XPERT-KS', 'OCB X-Pert King Size', 'Papers', '8801234500079', 90, 0, 2.2],
   ['ZIG-ZAG-1-25', 'Zig-Zag 1¼ Rolling Papers', 'Papers', '8801234500086', 410, 0, 3.4],
   ['AF-SHISHA-250-MINT', 'Al Fakher Shisha 250 g — Mint', 'Shisha', '8801234500093', 26, 0, 1.2],
-  ['CLIPPER-LTR-ASST', 'Clipper Lighter — Assorted', 'Accessories', '8801234500109', 288, 0, 0]
+  ['CLIPPER-LTR-ASST', 'Clipper Lighter — Assorted', 'Accessories', '8801234500109', 288, 0, 0],
+  ['OPMS-GOLD-3CT', 'OPMS Gold Kratom Capsules — 3 ct', 'Kratom', '8801234500116', 42, 0, 1.4]
 ]
 
 interface MockDistState {

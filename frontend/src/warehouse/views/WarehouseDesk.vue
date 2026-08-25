@@ -30,6 +30,10 @@ import InboundBoard from '../components/purchasing/InboundBoard.vue'
 import BuyingBoard from '../components/purchasing/BuyingBoard.vue'
 import VendorsBoard from '../components/purchasing/VendorsBoard.vue'
 import StockBoard from '../components/purchasing/StockBoard.vue'
+// v1.2 §C/§D §G — Prices (the sixth section) and the everyday despatch
+import PricesBoard from '../components/pricing/PricesBoard.vue'
+import NewDespatchSheet from '../components/purchasing/NewDespatchSheet.vue'
+import { usePricingStore } from '@/stores/pricing'
 import Modal from '@/components/Modal.vue'
 
 /** How long a section badge may go stale before the wall's tick refreshes it. */
@@ -37,6 +41,7 @@ const COUNTS_TTL_MS = 60_000
 
 const wh = useWarehouseStore()
 const pur = usePurchasingStore()
+const pricing = usePricingStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -56,6 +61,8 @@ const dFilter = ref<'Open' | 'Resolved' | 'all'>('Open')
 const openRequest = ref<string | null>(null)
 const openShipment = ref<string | null>(null)
 const resolving = ref<Discrepancy | null>(null)
+/** v1.2 §G — Outbound → New despatch: a basket of items for one store. */
+const despatching = ref(false)
 const resolution = ref<'Write off' | 'Returned to warehouse' | 'Re-ship' | 'Accepted'>('Accepted')
 const resolveNotes = ref('')
 const loading = ref(false)
@@ -70,7 +77,9 @@ const badges = computed<Partial<Record<Section, { count: number; tone: 'accent' 
   outbound: wh.wall?.counts.pending_approval ? { count: wh.wall.counts.pending_approval, tone: 'accent' } : undefined,
   inbound: pur.inbound?.expected.length ? { count: pur.inbound.expected.length, tone: 'accent' } : undefined,
   buying: pur.openSuggestions.length ? { count: pur.openSuggestions.length, tone: 'accent' } : undefined,
-  stock: pur.lowStockCount ? { count: pur.lowStockCount, tone: 'crit' } : undefined
+  stock: pur.lowStockCount ? { count: pur.lowStockCount, tone: 'crit' } : undefined,
+  // shelf-price changes waiting on head office — until somebody decides, the shop sells at the old price
+  prices: pricing.pendingCount ? { count: pricing.pendingCount, tone: 'accent' } : undefined
 }))
 
 // ---------------------------------------------------------------- Outbound (v0.6, unchanged)
@@ -102,6 +111,7 @@ async function loadCounts(force = false) {
   if (section.value !== 'inbound') jobs.push(pur.loadInbound())
   if (section.value !== 'buying') jobs.push(pur.loadSuggestions())
   if (section.value !== 'stock') jobs.push(pur.loadStock())
+  if (section.value !== 'prices') jobs.push(pricing.loadRequests({ status: 'Pending Approval' }))
   await Promise.all(jobs)
 }
 
@@ -155,6 +165,11 @@ function say(msg: string) {
   }, 6000)
   // a write is the only thing that really moves a badge — refresh them off the back of it
   void loadCounts(true)
+}
+/** A despatch went out: the wall has a new card and Outbound's lists are a shipment behind. */
+function onDespatched() {
+  void load()
+  void wh.refresh(true)
 }
 function onApproved(shipment?: string) {
   if (shipment) say(`Shipment ${shipment} created — it is on the wall`)
@@ -262,6 +277,13 @@ onBeforeUnmount(() => {
             <span v-if="t.key === 'requests' && wh.wall?.counts.pending_approval" class="badge">{{ wh.wall.counts.pending_approval }}</span>
             <span v-if="t.key === 'discrepancies' && wh.wall?.open_discrepancies" class="badge crit">{{ wh.wall.open_discrepancies }}</span>
           </button>
+          <div class="spacer"></div>
+          <!--
+            v1.2 §G — the everyday job. v1.1's *Send to stores* spreads one product across the
+            chain; this fills one store's box. Both post through `distribution.send`, so the wall,
+            the picking and the store's Receive screen cannot tell them apart.
+          -->
+          <button class="btn btn-primary sub-new" data-testid="new-despatch" @click="despatching = true">New despatch</button>
         </nav>
 
         <!-- requests -->
@@ -371,7 +393,10 @@ onBeforeUnmount(() => {
       <BuyingBoard v-else-if="section === 'buying'" @notice="say" @open-order="onOpenOrder" />
       <VendorsBoard v-else-if="section === 'vendors'" @notice="say" @open-order="onOpenOrder" />
       <StockBoard v-else-if="section === 'stock'" @notice="say" />
+      <PricesBoard v-else-if="section === 'prices'" @notice="say" />
     </div>
+
+    <NewDespatchSheet v-if="despatching" @close="despatching = false" @notice="say" @sent="onDespatched" />
 
     <ApproveSheet v-if="openRequest" :name="openRequest" @close="openRequest = null" @changed="onApproved" />
     <ShipmentSheet v-if="openShipment" :name="openShipment" @close="openShipment = null" @changed="load" />
@@ -447,9 +472,16 @@ onBeforeUnmount(() => {
 }
 .subnav {
   display: flex;
+  align-items: center;
   gap: 2px;
   margin-bottom: 14px;
   border-bottom: var(--line-w) solid var(--line);
+}
+.sub-new {
+  min-height: 40px;
+  padding: 0 16px;
+  margin-bottom: 6px;
+  flex: 0 0 auto;
 }
 .sub-btn {
   padding: 0 16px;
@@ -591,10 +623,20 @@ tr.low td {
     padding: 0 12px;
   }
   .subnav {
+    flex-wrap: wrap;
     overflow-x: auto;
   }
   .sub-btn {
     flex: 0 0 auto;
+  }
+  /* the despatch button is the reason a manager opens Outbound on a phone — full width, not a
+     40 px stub hanging off the end of a scrolling tab strip */
+  .subnav .spacer {
+    display: none;
+  }
+  .sub-new {
+    flex: 1 1 100%;
+    margin: 8px 0;
   }
   .body {
     padding: 14px 14px calc(14px + var(--safe-bottom));

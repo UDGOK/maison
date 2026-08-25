@@ -9,8 +9,15 @@
  *
  * The maths is `warehouse/buying.ts`; nothing is recomputed here. `displayLine` mirrors the
  * store's `selectedLines` getter exactly, so what the row shows is what will be ordered.
+ *
+ * **v1.2 §E — a row that cannot be ordered says so.** A suggestion for an item with no vendor on
+ * file used to tick, drop silently out of `selectedLines` (rightly — a Purchase Order needs a
+ * supplier) and leave the footer reading *Nothing selected* with nothing anywhere explaining the
+ * gap. Such a row now renders unorderable, with the reason in words, its checkbox disabled, and
+ * **Add a vendor** on the row itself: the buyer is looking at the thing they need to fix, so it is
+ * fixed there rather than in the ERP back office.
  */
-import { lineFor, pickVendor, roundToCasePack, type BuyLine } from '../../buying'
+import { blockedReason, isOrderable, lineFor, pickVendor, roundToCasePack, type BuyLine } from '../../buying'
 import type { Suggestion } from '@/api/purchasing'
 import type { SelectionOverride } from '@/stores/purchasing'
 import { fmtMoney } from '@/utils/money'
@@ -47,6 +54,15 @@ export function packNote(casePack: number, moq: number): string {
   return parts.join(' · ')
 }
 
+/**
+ * v1.2 §E — the sentence under an unorderable row. It states the fact, and then what to do about
+ * it, because a reason with no next step is just a shrug.
+ */
+export function blockedCopy(suggestion: Suggestion): string {
+  if (isOrderable(suggestion)) return ''
+  return `${blockedReason(suggestion)}. It stays on the list — it simply cannot become a purchase order until somebody sells it to us.`
+}
+
 /** Cover-day tone: under a week is critical, under a fortnight is a warning. */
 export function coverTone(coverDays: number, onHand: number): string {
   if (onHand <= 0) return 'crit'
@@ -59,17 +75,57 @@ export function coverTone(coverDays: number, onHand: number): string {
 </script>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import SourceBadge from './SourceBadge.vue'
 import { usePurchasingStore } from '@/stores/purchasing'
 import { fmtInt } from '@/utils/money'
 
 const props = defineProps<{ suggestion: Suggestion; disabled?: boolean }>()
-const emit = defineEmits<{ dismiss: [Suggestion] }>()
+// `notice` carries a row-level write (v1.2 §E's *Add a vendor*) up to the desk banner: the row
+// says it too, but a buyer who has scrolled past should still be told the row was unblocked.
+const emit = defineEmits<{ dismiss: [Suggestion]; notice: [msg: string] }>()
 
 const store = usePurchasingStore()
 
 const code = computed(() => props.suggestion.item_code)
+/** v1.2 §E — can this row become a purchase order at all? */
+const orderable = computed(() => isOrderable(props.suggestion))
+const blocked = computed(() => blockedCopy(props.suggestion))
+/** the inline **Add a vendor** form, open on this row only */
+const attaching = ref(false)
+const attach = ref({ supplier: '', cost: '', case_pack: '1', moq: '0', vendor_sku: '' })
+const attachError = computed(() => {
+  if (!attach.value.supplier) return 'Choose who sells it to us.'
+  const cost = Number(attach.value.cost)
+  if (attach.value.cost.trim() === '' || !Number.isFinite(cost) || cost < 0) return 'Type what they charge us a unit.'
+  if (Number(attach.value.case_pack) < 1) return 'A case pack is at least 1.'
+  if (Number(attach.value.moq) < 0) return 'A minimum cannot be negative.'
+  return ''
+})
+
+/** The vendor picker needs the vendor list; a blocked row is the only thing that asks for it. */
+onMounted(() => {
+  if (!orderable.value && !store.vendors.length) void store.loadVendors()
+})
+
+async function saveVendor() {
+  if (attachError.value) return
+  const out = await store.attachVendor(code.value, {
+    supplier: attach.value.supplier,
+    cost: Number(attach.value.cost),
+    case_pack: Math.max(1, Math.trunc(Number(attach.value.case_pack) || 1)),
+    moq: Math.max(0, Math.trunc(Number(attach.value.moq) || 0)),
+    vendor_sku: attach.value.vendor_sku.trim() || null,
+    is_preferred: true
+  })
+  if (!out) return
+  attaching.value = false
+  attach.value = { supplier: '', cost: '', case_pack: '1', moq: '0', vendor_sku: '' }
+  const said = store.notice || 'Vendor attached'
+  say(said)
+  emit('notice', said)
+  store.clearNotice()
+}
 const override = computed<SelectionOverride | null>(() => store.selection[code.value] ?? null)
 // read the key, do not ask `store.isSelected()`: it answers with `Object.prototype.hasOwnProperty
 // .call(...)`, which is not a tracked read on a reactive proxy, so a computed built on it never
@@ -150,9 +206,16 @@ function chooseVendor(supplier: string) {
 </script>
 
 <template>
-  <article class="srow" :class="{ picked, busy }" :data-testid="`sug-${code}`">
-    <label class="pick" :aria-label="`Select ${suggestion.item_name || code}`">
-      <input type="checkbox" :checked="picked" :disabled="disabled" @change="toggle" />
+  <article class="srow" :class="{ picked, busy, blocked: !orderable }" :data-testid="`sug-${code}`">
+    <label class="pick" :aria-label="orderable ? `Select ${suggestion.item_name || code}` : `${code} cannot be ordered — ${blocked}`">
+      <input
+        type="checkbox"
+        :checked="picked"
+        :disabled="disabled || !orderable"
+        :title="orderable ? undefined : blocked"
+        :data-testid="`sug-pick-${code}`"
+        @change="toggle"
+      />
     </label>
 
     <div class="main">
@@ -179,7 +242,48 @@ function chooseVendor(supplier: string) {
         </div>
       </div>
 
-      <div class="qtyrow">
+      <!-- v1.2 §E — the row that cannot be ordered says so, and offers the fix on the spot -->
+      <div v-if="!orderable" class="blockbar" :data-testid="`sug-blocked-${code}`">
+        <div class="blocktext">
+          <span class="label crit">Cannot be ordered</span>
+          <p class="blockwhy">{{ blocked }}</p>
+        </div>
+        <button v-if="!attaching" class="btn" :disabled="disabled" :data-testid="`sug-add-vendor-${code}`" @click="attaching = true">Add a vendor</button>
+        <button v-else class="btn btn-ghost" @click="attaching = false">Cancel</button>
+      </div>
+
+      <div v-if="!orderable && attaching" class="attach" :data-testid="`sug-attach-${code}`">
+        <div class="field grow">
+          <label class="label" :for="`att-sup-${code}`">Who sells it to us</label>
+          <select :id="`att-sup-${code}`" v-model="attach.supplier" class="input" :data-testid="`sug-attach-supplier-${code}`">
+            <option value="">Choose a vendor…</option>
+            <option v-for="v in store.vendors" :key="v.name" :value="v.name">{{ v.supplier_name || v.name }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" :for="`att-cost-${code}`">They charge</label>
+          <input :id="`att-cost-${code}`" v-model="attach.cost" class="input small" inputmode="decimal" :data-testid="`sug-attach-cost-${code}`" />
+        </div>
+        <div class="field">
+          <label class="label" :for="`att-pack-${code}`">Case pack</label>
+          <input :id="`att-pack-${code}`" v-model="attach.case_pack" class="input tiny" inputmode="numeric" />
+        </div>
+        <div class="field">
+          <label class="label" :for="`att-moq-${code}`">MOQ</label>
+          <input :id="`att-moq-${code}`" v-model="attach.moq" class="input tiny" inputmode="numeric" />
+        </div>
+        <div class="field">
+          <label class="label" :for="`att-sku-${code}`">Their SKU</label>
+          <input :id="`att-sku-${code}`" v-model="attach.vendor_sku" class="input small" placeholder="optional" />
+        </div>
+        <button class="btn btn-primary" :disabled="!!attachError || busy" :data-testid="`sug-attach-save-${code}`" @click="saveVendor">
+          {{ busy ? 'Saving…' : 'Attach' }}
+        </button>
+        <p v-if="attachError" class="label crit attach-err" :data-testid="`sug-attach-error-${code}`">{{ attachError }}</p>
+        <p v-else class="label label-dim attach-err">The cost writes through to that vendor’s buying price list, and this row can be ordered straight away.</p>
+      </div>
+
+      <div v-if="orderable" class="qtyrow">
         <button class="step" :disabled="disabled || line.qty <= 0" aria-label="One case less" @click="step(-1)">−</button>
         <input
           v-model="draft"
@@ -203,14 +307,14 @@ function chooseVendor(supplier: string) {
       </div>
 
       <!--
-        Always mounted, never `v-if`. Committing the quantity on blur used to unmount this line,
+        Always mounted on an orderable row, never `v-if`. Committing the quantity on blur used to unmount this line,
         which pulled the vendor grid 46 px up between mousedown and mouseup — so the buyer's very
         next tap on an alternative vendor dispatched no click at all and was silently swallowed.
         Type-a-quantity-then-choose-a-vendor is the normal order of work on this row.
       -->
-      <p class="note" :class="{ empty: !note }" :data-testid="`sug-note-${code}`">{{ note }}</p>
+      <p v-if="orderable || note" class="note" :class="{ empty: !note }" :data-testid="`sug-note-${code}`">{{ note }}</p>
 
-      <div class="vendors" role="group" aria-label="Vendor">
+      <div v-if="orderable" class="vendors" role="group" aria-label="Vendor">
         <button
           v-for="v in vendors"
           :key="v.supplier"
@@ -265,6 +369,56 @@ function chooseVendor(supplier: string) {
 }
 .srow.busy {
   opacity: 0.55;
+}
+/* v1.2 §E — a row that cannot be ordered is not an error, it is a job to do. Red edge, full
+   opacity: dimming it would say "ignore this", and ignoring it is what left it unbought. */
+.srow.blocked {
+  border-left-color: var(--crit);
+}
+.blockbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: var(--line-w) solid var(--crit);
+  background: rgba(196, 115, 106, 0.08);
+}
+.blocktext {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.blockwhy {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 76ch;
+}
+.attach {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border: var(--line-w) solid var(--line-strong);
+  background: var(--surface-2);
+}
+.attach .grow {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.attach .small {
+  width: 110px;
+}
+.attach .tiny {
+  width: 84px;
+}
+.attach-err {
+  flex: 1 1 100%;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0.03em;
+  font-size: 12px;
 }
 .pick {
   display: flex;
@@ -462,6 +616,15 @@ function chooseVendor(supplier: string) {
   }
   .vendors {
     grid-template-columns: 1fr;
+  }
+  .attach .grow,
+  .attach .small,
+  .attach .tiny {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .attach .btn {
+    width: 100%;
   }
 }
 /* phone: the item name matters more than its thumbnail, and five stats do not fit across */

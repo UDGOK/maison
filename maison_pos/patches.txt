@@ -18,3 +18,7 @@ maison_pos.patches.v0_7.associate_hardening
 # stock/sales role the seed attached next to it, so a hand-made regional could not raise a
 # replenishment request. Each role now carries it on its own (read only).
 maison_pos.patches.v1_1.awanz_role_item_access
+# v1.2 — the wholesale fields on the shipment + line, `Item.maison_wholesale_rate` and the
+# chain-wide `wholesale_markup_pct` (defaulted to 50 on a site whose settings predate the field).
+# Nothing is backfilled: consignments that shipped before v1.2 are reported as *not priced*.
+maison_pos.patches.v1_2.wholesale_fields

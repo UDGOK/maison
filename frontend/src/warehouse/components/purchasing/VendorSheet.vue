@@ -57,7 +57,9 @@ import { fmtInt, fmtMoney } from '@/utils/money'
 const props = defineProps<{ vendor: string }>()
 // v1.1 §D — "Order from this vendor" is the same New order sheet with the vendor already chosen.
 // The board opens it: a modal inside a modal is a trap on a phone.
-const emit = defineEmits<{ close: []; notice: [msg: string]; changed: []; order: [supplier: string] }>()
+// v1.2 §E adds `add-items`, and it travels the same way `order` does: the **board** opens the
+// sheet, because a modal inside a modal is a trap on a phone.
+const emit = defineEmits<{ close: []; notice: [msg: string]; changed: []; order: [supplier: string]; 'add-items': [supplier: string] }>()
 
 const store = usePurchasingStore()
 
@@ -247,13 +249,20 @@ async function removeRow(itemCode: string, rowName?: string) {
 
       <!-- catalogue -->
       <section v-else-if="tab === 'catalogue'" class="panel" data-testid="vendor-catalogue">
-        <p class="note">
-          A cost saved here writes through to <b>{{ v.price_list }}</b
-          >, this vendor's own buying price list, so the next purchase order picks it up. One vendor per item can be preferred — the star moves it.
-        </p>
+        <div class="between catbar">
+          <p class="note">
+            A cost saved here writes through to <b>{{ v.price_list }}</b
+            >, this vendor's own buying price list, so the next purchase order picks it up. One vendor per item can be preferred — the star moves it.
+          </p>
+          <button class="btn btn-primary" data-testid="vendor-add-items" @click="emit('add-items', v.name)">Add items</button>
+        </div>
         <div v-if="!catalogue.length" class="empty">
           <div class="display" style="font-size: 18px">No items on this vendor yet</div>
-          <div class="muted">Add them from the item's own vendor list — an item can sit on two vendors at different costs, which is what moving average is for.</div>
+          <div class="muted">
+            <b>Add items</b> searches everything we stock and attaches a sheet of them at once — an item can sit on two vendors at different costs, which is
+            what moving average is for.
+          </div>
+          <button class="btn btn-primary" data-testid="vendor-add-items-empty" @click="emit('add-items', v.name)">Add items</button>
         </div>
         <div v-else class="tablewrap">
           <table class="table cat">
@@ -495,6 +504,11 @@ async function removeRow(itemCode: string, rowName?: string) {
   color: var(--muted);
   font-size: 13px;
   max-width: 78ch;
+}
+.catbar {
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 .tablewrap {
   overflow-x: auto;

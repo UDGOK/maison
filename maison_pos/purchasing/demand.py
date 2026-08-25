@@ -37,6 +37,19 @@ DEFAULT_COVER_DAYS = 21
 DISMISS_DAYS = 14
 OPEN_REQUEST_STATUSES = ("Pending Approval",)
 
+# --- v1.2 §E — a suggestion for an item with no vendor on file cannot become a purchase order,
+# because a Purchase Order needs a supplier. The Buying board used to drop such a row silently on
+# select-all ("Nothing selected", no explanation); it now carries the reason with it so the screen
+# can say what is wrong and offer the fix.
+NO_VENDOR_REASON = "No vendor on file — add one before this can be ordered"
+
+
+def orderable_of(supplier: Optional[str]) -> tuple[bool, Optional[str]]:
+	"""``(orderable, reason)`` for one row. One definition, used by every builder below."""
+	if supplier:
+		return True, None
+	return False, NO_VENDOR_REASON
+
 
 # ---------------------------------------------------------------------------
 # pure maths (unit-tested without a database)
@@ -310,6 +323,9 @@ def build(warehouse: Optional[str] = None, horizon: Optional[int] = None, skip_d
 				"supplier_name": frappe.db.get_value("Supplier", preferred["supplier"], "supplier_name") if preferred and preferred.get("supplier") else None,
 				"cost": flt(preferred.get("cost")) if preferred else 0.0,
 				"lead_time_days": cint(preferred.get("lead_time_days")) if preferred else 0,
+				# v1.2 §E — say why a row cannot be ordered rather than dropping it in silence
+				"orderable": orderable_of(preferred.get("supplier") if preferred else None)[0],
+				"blocked_reason": orderable_of(preferred.get("supplier") if preferred else None)[1],
 				"requests": row.get("requests") or [],
 				"vendors": [
 					{
@@ -377,52 +393,94 @@ def cached(run_id: Optional[str] = None) -> dict[str, Any]:
 	names = frappe.get_all("AWANZ Purchase Suggestion", filters=filters, pluck="name", order_by="creation asc", limit=2000)
 	if not names:
 		return {"run_id": None, "suggestions": [], "count": 0}
-	rows = []
+	rows = [cached_row(frappe.get_doc("AWANZ Purchase Suggestion", name)) for name in names]
+	return {"run_id": rows[0]["run_id"] if rows else None, "suggestions": rows, "count": len(rows)}
+
+
+def cached_row(doc) -> dict[str, Any]:
+	"""One cached suggestion, re-priced with the live vendor catalogue."""
+	vendors = item_vendor_rows(doc.item_code)
+	return {
+		"name": doc.name,
+		"item_code": doc.item_code,
+		"item": doc.item_code,
+		"item_name": doc.item_name,
+		"item_group": frappe.db.get_value("Item", doc.item_code, "item_group"),
+		"barcode": frappe.db.get_value("Item", doc.item_code, "maison_barcode"),
+		"source": doc.source,
+		"sources": [s.strip() for s in (doc.sources or doc.source or "").split(",") if s.strip()],
+		"on_hand": flt(doc.on_hand),
+		"on_order": flt(doc.on_order),
+		"store_demand": flt(doc.store_demand),
+		"reorder_level": flt(doc.reorder_level),
+		"cover_days": flt(doc.cover_days),
+		"suggested_qty": flt(doc.suggested_qty),
+		"qty": flt(doc.suggested_qty),
+		"case_pack": cint(doc.case_pack) or 1,
+		"moq": cint(doc.moq),
+		"lead_time_days": cint(doc.lead_time_days),
+		"supplier": doc.supplier,
+		"supplier_name": frappe.db.get_value("Supplier", doc.supplier, "supplier_name") if doc.supplier else None,
+		"cost": flt(doc.cost),
+		# v1.2 §E — the same answer on the cached list the buyer actually works from
+		"orderable": orderable_of(doc.supplier)[0],
+		"blocked_reason": orderable_of(doc.supplier)[1],
+		"status": doc.status,
+		"run_id": doc.run_id,
+		"vendors": [
+			{
+				"supplier": v["supplier"],
+				"supplier_name": frappe.db.get_value("Supplier", v["supplier"], "supplier_name"),
+				"cost": flt(v.get("cost")),
+				"case_pack": cint(v.get("case_pack")) or 1,
+				"moq": cint(v.get("moq")),
+				"lead_time_days": cint(v.get("lead_time_days")),
+				"vendor_sku": v.get("vendor_sku"),
+				"is_preferred": bool(cint(v.get("is_preferred"))),
+				"last_purchase_rate": flt(v.get("last_purchase_rate")),
+			}
+			for v in vendors
+		],
+	}
+
+
+def refresh_item(item_code: str) -> Optional[dict[str, Any]]:
+	"""Re-point an open suggestion at the item's current preferred vendor (v1.2 §E).
+
+	The buying list is cached in ``AWANZ Purchase Suggestion`` rows that carry the vendor, the
+	cost and the case pack they were computed with. Attaching a vendor to an item from the Buying
+	board therefore fixes the item but *not* the row the buyer is looking at: it would go on
+	saying "no vendor on file" until the next overnight run. This is what closes that loop — the
+	quantity is re-rounded to the new vendor's case pack and MOQ, because the buyer is about to
+	order it.
+
+	Returns the refreshed row (the same shape :func:`cached_row` returns) or ``None`` when the
+	item is not on the current list.
+	"""
+	names = frappe.get_all("AWANZ Purchase Suggestion", filters={"item_code": item_code, "status": "Open"}, pluck="name", limit=20)
+	if not names:
+		return None
+	vendors = item_vendor_rows(item_code)
+	preferred = next((v for v in vendors if cint(v.get("is_preferred"))), vendors[0] if vendors else None)
+	row = None
 	for name in names:
 		doc = frappe.get_doc("AWANZ Purchase Suggestion", name)
-		vendors = item_vendor_rows(doc.item_code)
-		rows.append(
+		case_pack = cint(preferred.get("case_pack")) if preferred else 1
+		moq = cint(preferred.get("moq")) if preferred else 0
+		doc.db_set(
 			{
-				"name": doc.name,
-				"item_code": doc.item_code,
-				"item": doc.item_code,
-				"item_name": doc.item_name,
-				"item_group": frappe.db.get_value("Item", doc.item_code, "item_group"),
-				"barcode": frappe.db.get_value("Item", doc.item_code, "maison_barcode"),
-				"source": doc.source,
-				"sources": [s.strip() for s in (doc.sources or doc.source or "").split(",") if s.strip()],
-				"on_hand": flt(doc.on_hand),
-				"on_order": flt(doc.on_order),
-				"store_demand": flt(doc.store_demand),
-				"reorder_level": flt(doc.reorder_level),
-				"cover_days": flt(doc.cover_days),
-				"suggested_qty": flt(doc.suggested_qty),
-				"qty": flt(doc.suggested_qty),
-				"case_pack": cint(doc.case_pack) or 1,
-				"moq": cint(doc.moq),
-				"lead_time_days": cint(doc.lead_time_days),
-				"supplier": doc.supplier,
-				"supplier_name": frappe.db.get_value("Supplier", doc.supplier, "supplier_name") if doc.supplier else None,
-				"cost": flt(doc.cost),
-				"status": doc.status,
-				"run_id": doc.run_id,
-				"vendors": [
-					{
-						"supplier": v["supplier"],
-						"supplier_name": frappe.db.get_value("Supplier", v["supplier"], "supplier_name"),
-						"cost": flt(v.get("cost")),
-						"case_pack": cint(v.get("case_pack")) or 1,
-						"moq": cint(v.get("moq")),
-						"lead_time_days": cint(v.get("lead_time_days")),
-						"vendor_sku": v.get("vendor_sku"),
-						"is_preferred": bool(cint(v.get("is_preferred"))),
-						"last_purchase_rate": flt(v.get("last_purchase_rate")),
-					}
-					for v in vendors
-				],
-			}
+				"supplier": preferred.get("supplier") if preferred else None,
+				"cost": flt(preferred.get("cost")) if preferred else 0.0,
+				"case_pack": case_pack or 1,
+				"moq": moq,
+				"lead_time_days": cint(preferred.get("lead_time_days")) if preferred else 0,
+				"suggested_qty": round_up_to_case_pack(flt(doc.suggested_qty), case_pack, moq),
+			},
+			update_modified=False,
 		)
-	return {"run_id": rows[0]["run_id"] if rows else None, "suggestions": rows, "count": len(rows)}
+		doc.reload()
+		row = cached_row(doc)
+	return row
 
 
 def daily_run() -> dict[str, Any]:

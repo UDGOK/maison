@@ -150,6 +150,41 @@ neither pull for itself without approval nor push to another store.
 
 ---
 
+## 1c. A consignment now carries what it is worth (v1.2)
+
+From v1.2, **shipping a consignment values it**. At the moment `shipping.ship` posts the transfer
+to the store's in-transit warehouse, and in the same write, every line is stamped with two figures:
+
+| Field | On | What it is |
+| --- | --- | --- |
+| `cost_rate` | `AWANZ Shipment Line` | what the warehouse paid per unit — the moving-average valuation at `HOU-WH` at that moment |
+| `wholesale_rate` | `AWANZ Shipment Line` | what the store pays per unit (see `docs/pricing.md`) |
+| `cost_total` / `wholesale_total` | `AWANZ Shipment` | the two figures summed over the shipped quantities |
+| `value_stamped_at` | `AWANZ Shipment` | when it was valued |
+
+Three things follow, and they are the whole point:
+
+1. **The stamp never moves.** It is written once, at despatch, and nothing recomputes it on read.
+   A consignment sent in March still says what it was worth in March after April's buying has
+   pushed the moving average somewhere else. The month-end statement is billed from these
+   figures by hand, and a figure that changes after the client has invoiced from it is worse
+   than no figure at all.
+2. **Nothing about the accounting changed.** The stock transfer posts at cost, exactly as it did
+   in v0.6. The wholesale figure rides alongside for reporting; it creates no invoice, no
+   receivable and no ledger entry of any kind.
+3. **Consignments that shipped before v1.2 carry no stamp**, and are deliberately not backfilled —
+   the only cost available today is today's, and stamping March with it would put a number on a
+   statement nobody could reconcile. `value_stamped_at` is empty on those, `shipment_dict` reports
+   `priced: false`, and the store statement lists them as *not priced* rather than valuing them.
+   The v1.2 patch prints how many the site has.
+
+`shipping.shipment` / `shipping.shipments` return `cost_total`, `wholesale_total`, `margin`,
+`value_stamped_at` and `priced` on the header, and `cost_rate` / `wholesale_rate` on each line.
+They are internal figures: the endpoints are already warehouse-admin scoped, and nothing on a
+store's Receive screen is expected to show them.
+
+---
+
 ## 2. Carriers
 
 ### Why not Pirate Ship

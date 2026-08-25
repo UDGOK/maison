@@ -16,6 +16,8 @@
 import { defineStore } from 'pinia'
 import {
   purchasingApi,
+  type AddVendorItemLine,
+  type AddVendorItemsResult,
   type CreateOrderLine,
   type CreateOrdersResult,
   type InboundData,
@@ -32,6 +34,7 @@ import {
   type StockRow,
   type Suggestion,
   type Vendor,
+  type VendorCandidatesResult,
   type VendorDetail,
   type VendorInput
 } from '@/api/purchasing'
@@ -252,6 +255,69 @@ export const usePurchasingStore = defineStore('purchasing', {
     },
     async saveItemVendor(itemCode: string, row: ItemVendorInput) {
       return this.itemVendorWrite(itemCode, () => purchasingApi.save_item_vendor(itemCode, row), 'Catalogue updated')
+    },
+    /**
+     * v1.2 §E — **Add a vendor**, offered inline on a Buying row that cannot be ordered.
+     *
+     * The same `save_item_vendor` a catalogue edit uses, but the answer carries the **refreshed
+     * suggestion**, and that row is swapped into the buying list. Without it the board would go on
+     * saying "no vendor on file" until the overnight run, having just been told otherwise — the
+     * buyer is looking at the thing they need to fix, so it has to be fixed in front of them.
+     */
+    async attachVendor(itemCode: string, row: ItemVendorInput) {
+      if (!(await this.ensureAllowed())) return null
+      this.busy = itemCode
+      this.error = null
+      try {
+        const out = await purchasingApi.save_item_vendor(itemCode, row)
+        this.applyItemVendors(out)
+        if (out.suggestion) this.mergeSuggestion(out.suggestion)
+        const name = out.vendors.find((v) => v.supplier === row.supplier)?.supplier_name || row.supplier
+        this.notice = out.suggestion?.orderable ? `${name} attached — ${itemCode} can be ordered now` : `${name} attached to ${itemCode}`
+        return out
+      } catch (e) {
+        this.error = message(e)
+        return null
+      } finally {
+        this.busy = null
+      }
+    },
+    /** Swap a refreshed buying row into the list, keeping the list's order. */
+    mergeSuggestion(row: Suggestion) {
+      const i = this.suggestions.findIndex((s) => s.item_code === row.item_code)
+      if (i >= 0) this.suggestions[i] = { ...this.suggestions[i], ...row }
+      else this.suggestions.unshift(row)
+    },
+    /** v1.2 §E — items that could be **added** to a vendor; the ones with no vendor sort first. */
+    async loadVendorCandidates(supplier: string, search?: string, limit = 50): Promise<VendorCandidatesResult | null> {
+      this.error = null
+      try {
+        return await purchasingApi.vendor_catalogue_candidates(supplier, search, limit)
+      } catch (e) {
+        this.error = message(e)
+        return null
+      }
+    },
+    /**
+     * Attach a sheet of items to one vendor. Refused as a whole or written as a whole; the
+     * refreshed buying rows come back so a row that was blocking the list unblocks on the spot.
+     */
+    async addVendorItems(supplier: string, lines: AddVendorItemLine[]): Promise<AddVendorItemsResult | null> {
+      if (!(await this.ensureAllowed())) return null
+      this.busy = supplier
+      this.error = null
+      try {
+        const out = await purchasingApi.add_vendor_items(supplier, lines)
+        for (const row of out.suggestions) this.mergeSuggestion(row)
+        this.notice = `${out.count} item${out.count === 1 ? '' : 's'} added to ${supplier}`
+        if (this.vendorDetail?.vendor.name === supplier) await this.loadVendor(supplier)
+        return out
+      } catch (e) {
+        this.error = message(e)
+        return null
+      } finally {
+        this.busy = null
+      }
     },
     async removeItemVendor(itemCode: string, rowName: string) {
       return this.itemVendorWrite(itemCode, () => purchasingApi.remove_item_vendor(itemCode, rowName), 'Vendor removed')

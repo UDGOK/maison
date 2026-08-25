@@ -47,8 +47,19 @@ REPORTS: list[dict[str, Any]] = [
 	{"name": "AWANZ Open Purchase Orders", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "description": "Submitted orders not yet fully received, with ageing and expected date."},
 	{"name": "AWANZ Drop-ship Deliveries", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "description": "Vendor orders shipped straight to a store: receipt status and discrepancies by store."},
 	# --- end v1.0 procurement ---
+	# --- v1.2 §C — the month-end store statement. `internal` is not decoration: the report shows
+	# Houston's own buying cost, so the dashboard badges it and the CSV export leads with a line
+	# saying what it is. `roles` keeps it off the shop floor entirely.
+	{"name": "AWANZ Store Statement", "group": "Purchasing", "roles": PURCHASING_REPORT_ROLES, "internal": True, "description": "Per store per period: consignments, units shipped, units billable (net of shortages and damage), wholesale value, cost and margin. Internal — it shows the AWANZ warehouse's cost and creates no receivable."},
+	# --- end v1.2 §C ---
 ]
 REPORT_NAMES = {r["name"] for r in REPORTS}
+
+# v1.2 §C — the first line of the CSV of any report flagged `internal`
+INTERNAL_CSV_BANNER = (
+	"INTERNAL AWANZ REPORT — shows the AWANZ warehouse's cost and margin. Not an invoice: "
+	"it creates no receivable, nothing ages and no partner's books are touched."
+)
 
 
 def _report_meta(report: str) -> dict[str, Any]:
@@ -85,7 +96,19 @@ def _run(report: str, filters: dict[str, Any]) -> dict[str, Any]:
 	res = module(frappe._dict(filters))
 	columns, data = res[0], res[1]
 	chart = res[3] if len(res) > 3 else None
-	return {"report": report, "columns": columns, "rows": data, "chart": chart, "filters": {k: (str(v) if hasattr(v, "isoformat") else v) for k, v in filters.items() if not k.startswith("_")}}
+	# v1.2 — a report may return a `message` (res[2]); the store statement uses it to say, at the
+	# top of every rendering of itself, that it is an internal document and not an invoice.
+	message = res[2] if len(res) > 2 else None
+	meta = _report_meta(report)
+	return {
+		"report": report,
+		"columns": columns,
+		"rows": data,
+		"chart": chart,
+		"message": message,
+		"internal": bool(meta.get("internal")),
+		"filters": {k: (str(v) if hasattr(v, "isoformat") else v) for k, v in filters.items() if not k.startswith("_")},
+	}
 
 
 @frappe.whitelist()
@@ -121,6 +144,10 @@ def export(report: str, filters: Any = None, filename: Optional[str] = None) -> 
 	buf = io.StringIO()
 	w = csv.writer(buf)
 	cols = res["columns"]
+	# v1.2 — an internal report leads with what it is. A spreadsheet of a store statement will be
+	# opened by somebody who did not run it, and it carries AWANZ Houston's buying cost.
+	if res.get("internal"):
+		w.writerow([INTERNAL_CSV_BANNER])
 	w.writerow([c.get("label", c.get("fieldname")) for c in cols])
 	for row in res["rows"]:
 		w.writerow([_cell(row.get(c["fieldname"]) if isinstance(row, dict) else row[i]) for i, c in enumerate(cols)])

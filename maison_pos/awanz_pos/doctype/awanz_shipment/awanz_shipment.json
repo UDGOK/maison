@@ -55,6 +55,11 @@
   "shipped_at",
   "received_at",
   "received_by",
+  "section_value",
+  "cost_total",
+  "wholesale_total",
+  "column_break_value",
+  "value_stamped_at",
   "notes"
  ],
  "fields": [
@@ -362,6 +367,37 @@
    "fieldtype": "Link",
    "label": "Received By",
    "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "Reporting only \u2014 the stock moves at cost and nothing here posts to a ledger (v1.2 \u00a7B).",
+   "fieldname": "section_value",
+   "fieldtype": "Section Break",
+   "label": "Value at Despatch"
+  },
+  {
+   "description": "What the units on this consignment cost Houston, at the moving average of the moment it shipped.",
+   "fieldname": "cost_total",
+   "fieldtype": "Currency",
+   "label": "Cost Value",
+   "read_only": 1
+  },
+  {
+   "description": "What the store is charged for them. Carried for the month-end statement \u2014 it is not an invoice and creates no receivable.",
+   "fieldname": "wholesale_total",
+   "fieldtype": "Currency",
+   "label": "Wholesale Value",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_value",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "When the two figures above were stamped. Empty on a consignment that shipped before v1.2 \u2014 the statement shows those as *not priced* rather than valuing them at today's numbers.",
+   "fieldname": "value_stamped_at",
+   "fieldtype": "Datetime",
+   "label": "Valued At",
    "read_only": 1
   },
   {

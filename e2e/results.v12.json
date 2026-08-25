@@ -1,0 +1,941 @@
+{
+  "base": "http://localhost:5178",
+  "results": [
+    {
+      "step": "desk: the desk carries a Prices section",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: Outbound offers New despatch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: Outbound does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: Outbound — [data-testid=\"new-despatch\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: Outbound — .nav-btn is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: an empty basket says what to do",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the Send button asks for a store first",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (empty) does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: despatch (empty) — [data-testid=\"despatch-store\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (empty) — [data-testid=\"despatch-scan\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (empty) — [data-testid=\"despatch-send\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: a repeat scan increments rather than adding a second line",
+      "ok": true,
+      "detail": "3 lines"
+    },
+    {
+      "step": "desk: the repeated line carries 2",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the footer prices the basket",
+      "ok": true,
+      "detail": "$154.02"
+    },
+    {
+      "step": "desk: the footer shows cost and margin, marked internal",
+      "ok": true,
+      "detail": "$97.18 · 36.9 %"
+    },
+    {
+      "step": "desk: the Send button names the destination",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (basket) does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: despatch (basket) — [data-testid=\"despatch-qty-RAW-KS-SLIM\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (basket) — [data-testid=\"despatch-plus-RAW-KS-SLIM\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (basket) — [data-testid=\"despatch-send\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (basket) — .stepper .step targets are big enough",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: over-allocation is refused with the shortfall named",
+      "ok": true,
+      "detail": "Houston does not hold enough stock to send this despatch: | • GB-PULSE-15K-BLUE — 400 requested, 36 available, short 364 | Nothing was sent — lower the quantities or buy more first."
+    },
+    {
+      "step": "desk: the Send button goes down",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: one consignment for the one store",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the confirmation names the shipment",
+      "ok": true,
+      "detail": "CLOUDCHASERZ BIXBY’S CONSIGNMENT IS ON THE WALL"
+    },
+    {
+      "step": "desk: Send another is offered",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: despatch (sent) does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: despatch (sent) — [data-testid=\"despatch-another\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: Send another clears the destination",
+      "ok": true,
+      "detail": "store=\"\""
+    },
+    {
+      "step": "desk: Send another focuses the item search",
+      "ok": true,
+      "detail": "focus=despatch-scan"
+    },
+    {
+      "step": "desk: a stock row offers Prices",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: Stock does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: Stock — [data-testid=\"stock-prices-GB-PULSE-15K-BLUE\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: every store is a row on the price board",
+      "ok": true,
+      "detail": "11 rows"
+    },
+    {
+      "step": "desk: the board says on screen that it is internal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: a store already waiting is not invited to ask twice",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: a store override says where the price comes from",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: price board does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: price board — [data-testid=\"price-input-HOU-MTR\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: price board — [data-testid=\"price-raise\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: price board — .rate targets are big enough",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: a blank reason is refused before the server sees it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the Raise button stays down",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: two rows will raise two requests",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the button says what it will do",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: both requests were raised",
+      "ok": true,
+      "detail": "2 price changes raised for approval — PCR-00006, PCR-00007 — head office decides on the Approvals board."
+    },
+    {
+      "step": "desk: the approvals queue lists what is waiting",
+      "ok": true,
+      "detail": "3 waiting"
+    },
+    {
+      "step": "desk: a queued request shows the margin it implies",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: and the reason the store gave",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: approvals does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: approvals — [data-testid=\"appr-approve-PCR-00003\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: approvals — [data-testid=\"appr-reject-PCR-00003\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: approvals — .ract .btn targets are big enough",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: a reject insists on a reason",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: with a reason it can be rejected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the desk says what happened",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: approving says the store now sells at the new price",
+      "ok": true,
+      "detail": "PCR-00003 approved — OK-BIX now sells GB-PULSE-15K-BLUE at the new price"
+    },
+    {
+      "step": "desk: the statement says on screen that it is internal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: and that it is not an invoice",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: last month's unstamped consignments are shown as not priced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: with the store row saying so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: every enabled store has a row, including the quiet ones",
+      "ok": true,
+      "detail": "11 rows"
+    },
+    {
+      "step": "desk: there is a chain total",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the chain figure is money",
+      "ok": true,
+      "detail": "$4,427.98"
+    },
+    {
+      "step": "desk: statement (last month) does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: statement (last month) — [data-testid=\"stmt-run\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: statement (last month) — .kpi is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: this month reads without the unpriced banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the chain markup is settable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: a hand-priced item says so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: wholesale does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: wholesale — [data-testid=\"wholesale-markup-save\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: Select all says how many rows it skipped and why",
+      "ok": true,
+      "detail": "1 row skipped — no vendor on file — add one before this can be ordered. Add a vendor on the row to bring it back in."
+    },
+    {
+      "step": "desk: the unorderable row says it cannot be ordered",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: and its checkbox is disabled",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: and it offers Add a vendor on the row",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: buying (unorderable) does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: buying (unorderable) — [data-testid=\"sug-add-vendor-OPMS-GOLD-3CT\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: buying (add a vendor) does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: buying (add a vendor) — [data-testid=\"sug-attach-save-OPMS-GOLD-3CT\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: buying (add a vendor) — [data-testid=\"sug-attach-supplier-OPMS-GOLD-3CT\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: attaching a vendor unblocks the row in front of the buyer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: and the skipped-rows note goes away",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the desk says the row can be ordered now",
+      "ok": true,
+      "detail": "Gulf Coast Distributing attached — OPMS-GOLD-3CT can be ordered now"
+    },
+    {
+      "step": "desk: the catalogue offers Add items",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: vendor catalogue does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: vendor catalogue — [data-testid=\"vendor-add-items\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: an item nobody sells us leads the list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: and it is called out above the table",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the button names what it will add",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: add items does not scroll sideways",
+      "ok": true,
+      "detail": "1600 vs 1600"
+    },
+    {
+      "step": "desk: add items — [data-testid=\"add-items-save\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "desk: the vendor gains the item",
+      "ok": true,
+      "detail": "1 item added to Lone Star Wholesale — 1 buying row can be ordered now"
+    },
+    {
+      "step": "phone: the desk carries a Prices section",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: Outbound offers New despatch",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: Outbound does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: Outbound — [data-testid=\"new-despatch\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: Outbound — .nav-btn is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: an empty basket says what to do",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the Send button asks for a store first",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (empty) does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: despatch (empty) — [data-testid=\"despatch-store\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (empty) — [data-testid=\"despatch-scan\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (empty) — [data-testid=\"despatch-send\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: a repeat scan increments rather than adding a second line",
+      "ok": true,
+      "detail": "3 lines"
+    },
+    {
+      "step": "phone: the repeated line carries 2",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the footer prices the basket",
+      "ok": true,
+      "detail": "$154.02"
+    },
+    {
+      "step": "phone: the footer shows cost and margin, marked internal",
+      "ok": true,
+      "detail": "$97.18 · 36.9 %"
+    },
+    {
+      "step": "phone: the Send button names the destination",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (basket) does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: despatch (basket) — [data-testid=\"despatch-qty-RAW-KS-SLIM\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (basket) — [data-testid=\"despatch-plus-RAW-KS-SLIM\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (basket) — [data-testid=\"despatch-send\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (basket) — .stepper .step targets are big enough",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: over-allocation is refused with the shortfall named",
+      "ok": true,
+      "detail": "Houston does not hold enough stock to send this despatch: | • GB-PULSE-15K-BLUE — 400 requested, 36 available, short 364 | Nothing was sent — lower the quantities or buy more first."
+    },
+    {
+      "step": "phone: the Send button goes down",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: one consignment for the one store",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the confirmation names the shipment",
+      "ok": true,
+      "detail": "CLOUDCHASERZ BIXBY’S CONSIGNMENT IS ON THE WALL"
+    },
+    {
+      "step": "phone: Send another is offered",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: despatch (sent) does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: despatch (sent) — [data-testid=\"despatch-another\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: Send another clears the destination",
+      "ok": true,
+      "detail": "store=\"\""
+    },
+    {
+      "step": "phone: Send another focuses the item search",
+      "ok": true,
+      "detail": "focus=despatch-scan"
+    },
+    {
+      "step": "phone: a stock row offers Prices",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: Stock does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: Stock — [data-testid=\"stock-prices-GB-PULSE-15K-BLUE\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: every store is a row on the price board",
+      "ok": true,
+      "detail": "11 rows"
+    },
+    {
+      "step": "phone: the board says on screen that it is internal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: a store already waiting is not invited to ask twice",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: a store override says where the price comes from",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: price board does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: price board — [data-testid=\"price-input-HOU-MTR\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: price board — [data-testid=\"price-raise\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: price board — .rate targets are big enough",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: a blank reason is refused before the server sees it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the Raise button stays down",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: two rows will raise two requests",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the button says what it will do",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: both requests were raised",
+      "ok": true,
+      "detail": "2 price changes raised for approval — PCR-00006, PCR-00007 — head office decides on the Approvals board."
+    },
+    {
+      "step": "phone: the approvals queue lists what is waiting",
+      "ok": true,
+      "detail": "3 waiting"
+    },
+    {
+      "step": "phone: a queued request shows the margin it implies",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: and the reason the store gave",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: approvals does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: approvals — [data-testid=\"appr-approve-PCR-00003\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: approvals — [data-testid=\"appr-reject-PCR-00003\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: approvals — .ract .btn targets are big enough",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: a reject insists on a reason",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: with a reason it can be rejected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the desk says what happened",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: approving says the store now sells at the new price",
+      "ok": true,
+      "detail": "PCR-00003 approved — OK-BIX now sells GB-PULSE-15K-BLUE at the new price"
+    },
+    {
+      "step": "phone: the statement says on screen that it is internal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: and that it is not an invoice",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: last month's unstamped consignments are shown as not priced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: with the store row saying so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: every enabled store has a row, including the quiet ones",
+      "ok": true,
+      "detail": "11 rows"
+    },
+    {
+      "step": "phone: there is a chain total",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the chain figure is money",
+      "ok": true,
+      "detail": "$4,427.98"
+    },
+    {
+      "step": "phone: statement (last month) does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: statement (last month) — [data-testid=\"stmt-run\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: statement (last month) — .kpi is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: this month reads without the unpriced banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the chain markup is settable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: a hand-priced item says so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: wholesale does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: wholesale — [data-testid=\"wholesale-markup-save\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: Select all says how many rows it skipped and why",
+      "ok": true,
+      "detail": "1 row skipped — no vendor on file — add one before this can be ordered. Add a vendor on the row to bring it back in."
+    },
+    {
+      "step": "phone: the unorderable row says it cannot be ordered",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: and its checkbox is disabled",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: and it offers Add a vendor on the row",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: buying (unorderable) does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: buying (unorderable) — [data-testid=\"sug-add-vendor-OPMS-GOLD-3CT\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: buying (add a vendor) does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: buying (add a vendor) — [data-testid=\"sug-attach-save-OPMS-GOLD-3CT\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: buying (add a vendor) — [data-testid=\"sug-attach-supplier-OPMS-GOLD-3CT\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: attaching a vendor unblocks the row in front of the buyer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: and the skipped-rows note goes away",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the desk says the row can be ordered now",
+      "ok": true,
+      "detail": "Gulf Coast Distributing attached — OPMS-GOLD-3CT can be ordered now"
+    },
+    {
+      "step": "phone: the catalogue offers Add items",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: vendor catalogue does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: vendor catalogue — [data-testid=\"vendor-add-items\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: an item nobody sells us leads the list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: and it is called out above the table",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the button names what it will add",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: add items does not scroll sideways",
+      "ok": true,
+      "detail": "390 vs 390"
+    },
+    {
+      "step": "phone: add items — [data-testid=\"add-items-save\"] is on screen",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "phone: the vendor gains the item",
+      "ok": true,
+      "detail": "1 item added to Lone Star Wholesale — 1 buying row can be ordered now"
+    },
+    {
+      "step": "no unexpected console errors",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "console": []
+}

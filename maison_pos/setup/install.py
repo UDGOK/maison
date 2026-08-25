@@ -300,6 +300,12 @@ def after_install() -> None:
 
 	setup_v10_purchasing()
 	# --- end v1.0 procurement ---
+	# --- v1.2 pricing — the wholesale markup on AWANZ POS Settings and the per-item override
+	# on Item. Reporting only; no account, no ledger, no receivable. ---
+	from maison_pos.setup.install_v12_pricing import setup_v12_pricing
+
+	setup_v12_pricing()
+	# --- end v1.2 pricing ---
 	# v0.8 QA U1 — the stored website footer line follows the brand's developer credit
 	from maison_pos.setup.whitelabel import refresh_footer_credit
 
@@ -359,6 +365,12 @@ def after_migrate() -> None:
 
 	setup_v10_purchasing()
 	# --- end v1.0 procurement ---
+	# --- v1.2 pricing — the wholesale markup on AWANZ POS Settings and the per-item override
+	# on Item. Reporting only; no account, no ledger, no receivable. ---
+	from maison_pos.setup.install_v12_pricing import setup_v12_pricing
+
+	setup_v12_pricing()
+	# --- end v1.2 pricing ---
 	# v0.8 QA U1 — the stored website footer line follows the brand's developer credit, so an
 	# already-white-labelled site picks up "Powered by <developer>" on its next deploy
 	from maison_pos.setup.whitelabel import refresh_footer_credit

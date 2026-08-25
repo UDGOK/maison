@@ -18,10 +18,19 @@
  * product offers *Order it now*, since that is always what happens next.
  */
 import type { PurchaseOrderRow, Suggestion } from '@/api/purchasing'
-import type { OrderPlan } from '../../buying'
+import { orderableRows, selectAllNote, type OrderPlan } from '../../buying'
 
 /** The order-status filter, in the order a buyer works them. `all` is every order. */
 export const ORDER_STATUSES = ['Draft', 'Open', 'To Receive', 'Completed', 'Closed', 'all'] as const
+
+/**
+ * v1.2 §E — what *Select all* has to say when it could not tick everything.
+ *
+ * The defect this fixes: a checkbox ticked, `selectedLines` dropped the line (rightly — a Purchase
+ * Order needs a supplier), the footer read *Nothing selected*, and nothing anywhere said why. Now
+ * the skipped rows are counted and the reason is given, at the tick that skipped them.
+ */
+export { selectAllNote }
 
 /** "Create 3 orders across 2 vendors" — the copy on the create button. */
 export function planCopy(plan: Pick<OrderPlan, 'orders' | 'vendors'>): string {
@@ -139,8 +148,12 @@ const visible = computed(() =>
     .filter((s) => matchesSuggestion(s, { source: source.value, group: group.value, q: q.value }))
     .sort((a, b) => coverRank(a) - coverRank(b) || (b.store_demand || 0) - (a.store_demand || 0) || a.item_code.localeCompare(b.item_code))
 )
+// v1.2 §E — only the rows that can actually become an order are candidates for the header tick;
+// counting the unorderable ones would leave it permanently unticked however many the buyer picks
+const selectable = computed(() => orderableRows(visible.value))
+const skipNote = computed(() => selectAllNote(visible.value))
 // a plain key read, so the header tick tracks the basket (see the note in BuySuggestRow)
-const allPicked = computed(() => visible.value.length > 0 && visible.value.every((s) => !!store.selection[s.item_code]))
+const allPicked = computed(() => selectable.value.length > 0 && selectable.value.every((s) => !!store.selection[s.item_code]))
 const plan = computed(() => store.plan)
 const orders = computed(() => store.orders)
 
@@ -202,7 +215,8 @@ watch([status, vendorFilter, storeFilter, from, to], () => {
 // ------------------------------------------------------------------ suggest actions
 function toggleAll() {
   if (allPicked.value) for (const s of visible.value) store.deselect(s.item_code)
-  else for (const s of visible.value) store.select(s.item_code)
+  // an unorderable row is never ticked: a tick that the footer then ignores is the whole defect
+  else for (const s of selectable.value) store.select(s.item_code)
 }
 
 async function createOrders() {
@@ -322,11 +336,16 @@ function closeOrderSheet() {
 
       <div v-if="rows.length" class="selectall">
         <label class="allbox">
-          <input type="checkbox" :checked="allPicked" data-testid="buy-select-all" @change="toggleAll" />
-          <span class="label">{{ allPicked ? 'Clear all' : 'Select all' }}<span class="label-dim"> · {{ visible.length }} of {{ rows.length }} shown</span></span>
+          <input type="checkbox" :checked="allPicked" :disabled="!selectable.length" data-testid="buy-select-all" @change="toggleAll" />
+          <span class="label">
+            {{ allPicked ? 'Clear all' : 'Select all' }}
+            <span class="label-dim"> · {{ visible.length }} of {{ rows.length }} shown</span>
+          </span>
         </label>
         <button v-if="store.selectedCount" class="btn btn-ghost" @click="store.clearSelection()">Clear {{ store.selectedCount }} selected</button>
       </div>
+      <!-- v1.2 §E: say how many it skipped and why, at the tick that skipped them -->
+      <p v-if="skipNote" class="skipnote label warn" data-testid="buy-skipped">{{ skipNote }}</p>
 
       <div v-if="store.loading && !rows.length" class="empty"><div class="label label-dim">Building the buying list…</div></div>
       <div v-else-if="!rows.length" class="empty" data-testid="buy-empty">
@@ -340,7 +359,14 @@ function closeOrderSheet() {
         <button class="btn" @click="((source = 'all'), (group = 'all'), (q = ''))">Clear filters</button>
       </div>
       <div v-else class="rows">
-        <BuySuggestRow v-for="s in visible" :key="s.name" :suggestion="s" :disabled="!store.allowed && !!wh.me" @dismiss="((dismissing = $event), (dismissReason = ''))" />
+        <BuySuggestRow
+          v-for="s in visible"
+          :key="s.name"
+          :suggestion="s"
+          :disabled="!store.allowed && !!wh.me"
+          @dismiss="((dismissing = $event), (dismissReason = ''))"
+          @notice="say"
+        />
       </div>
 
       <div v-if="rows.length" class="footbar" data-testid="buy-footer">
@@ -552,6 +578,13 @@ function closeOrderSheet() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.skipnote {
+  margin: -4px 0 0;
+  text-transform: none;
+  letter-spacing: 0.03em;
+  font-size: 12px;
+  max-width: 96ch;
 }
 .allbox {
   display: flex;

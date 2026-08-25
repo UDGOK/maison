@@ -8,6 +8,10 @@
  *
  * v1.1 §D — and the way **out**: every row opens the distribution sheet, because "Houston is
  * holding 288 of these" is the moment you decide where they should be instead.
+ *
+ * v1.2 §D — and the second way out: **Prices**, the board that shows what every store is selling
+ * the item for, where that price comes from and the margin it makes. Looking at what the warehouse
+ * is holding is also the moment somebody asks what the shops are charging for it.
  */
 import { computed, onMounted, ref } from 'vue'
 import { usePurchasingStore } from '@/stores/purchasing'
@@ -15,6 +19,8 @@ import { useWarehouseStore } from '@/stores/warehouse'
 import { filterStock, fmtCover, stockGroups, stockTotals } from '@/warehouse/inbound'
 import { fmtInt, fmtMoney } from '@/utils/money'
 import SendToStoresSheet from './SendToStoresSheet.vue'
+// v1.2 §D — Stock → an item → **Prices**: every store's shelf price for it, and the margin it makes
+import PriceBoardSheet from '../pricing/PriceBoardSheet.vue'
 
 const emit = defineEmits<{ notice: [msg: string] }>()
 
@@ -26,6 +32,8 @@ const group = ref('')
 const lowOnly = ref(false)
 /** v1.1 — the item whose distribution sheet is open. */
 const sending = ref<{ item_code: string; item_name?: string | null } | null>(null)
+/** v1.2 §D — the item whose shelf-price board is open. */
+const pricing = ref<{ item_code: string; item_name?: string | null } | null>(null)
 
 const warehouse = computed(() => store.stockSummary?.warehouse || wh.me?.main_warehouse || 'HOU-WH')
 const groups = computed(() => stockGroups(store.stock))
@@ -53,6 +61,9 @@ function reset() {
 
 function sendToStores(row: { item_code: string; item_name?: string }) {
   sending.value = { item_code: row.item_code, item_name: row.item_name ?? null }
+}
+function openPrices(row: { item_code: string; item_name?: string }) {
+  pricing.value = { item_code: row.item_code, item_name: row.item_name ?? null }
 }
 /** Sending moves units into `committed`, so what Houston has available has changed underneath. */
 function onSent() {
@@ -140,7 +151,7 @@ onMounted(() => void load())
               <th class="num">Cover</th>
               <th class="num">On order</th>
               <th class="num">Reorder</th>
-              <th class="send-col"><span class="vh">Send to stores</span></th>
+              <th class="send-col"><span class="vh">Send to stores, and shelf prices</span></th>
             </tr>
           </thead>
           <tbody>
@@ -160,15 +171,25 @@ onMounted(() => void load())
               <td class="num" :class="r.on_order ? 'accent' : 'muted'">{{ r.on_order ? fmtInt(r.on_order) : '—' }}</td>
               <td class="num muted">{{ r.reorder_level ? fmtInt(r.reorder_level) : '—' }}</td>
               <td class="send-col">
-                <button
-                  class="btn btn-send"
-                  :disabled="r.actual_qty <= 0 || (!store.allowed && !!wh.me)"
-                  :title="r.actual_qty <= 0 ? 'Nothing at Houston to send' : `Send ${r.item_code} out to the stores`"
-                  :data-testid="`stock-send-${r.item_code}`"
-                  @click="sendToStores(r)"
-                >
-                  Send to stores
-                </button>
+                <div class="rowacts">
+                  <button
+                    class="btn btn-send"
+                    :title="`What every store sells ${r.item_code} for`"
+                    :data-testid="`stock-prices-${r.item_code}`"
+                    @click="openPrices(r)"
+                  >
+                    Prices
+                  </button>
+                  <button
+                    class="btn btn-send"
+                    :disabled="r.actual_qty <= 0 || (!store.allowed && !!wh.me)"
+                    :title="r.actual_qty <= 0 ? 'Nothing at Houston to send' : `Send ${r.item_code} out to the stores`"
+                    :data-testid="`stock-send-${r.item_code}`"
+                    @click="sendToStores(r)"
+                  >
+                    Send to stores
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -183,6 +204,14 @@ onMounted(() => void load())
       @close="sending = null"
       @notice="emit('notice', $event)"
       @sent="onSent"
+    />
+
+    <PriceBoardSheet
+      v-if="pricing"
+      :item-code="pricing.item_code"
+      :item-name="pricing.item_name"
+      @close="pricing = null"
+      @notice="emit('notice', $event)"
     />
   </div>
 </template>
@@ -274,6 +303,13 @@ onMounted(() => void load())
 .send-col {
   width: 1%;
   white-space: nowrap;
+  /* positions the visually-hidden column header against this cell rather than the page */
+  position: relative;
+}
+.rowacts {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 .btn-send {
   padding: 0 14px;
@@ -332,6 +368,11 @@ tr.low td {
   }
   .btn-send {
     padding: 0 10px;
+  }
+  /* two buttons side by side is 240 px the phone has not got — they stack instead */
+  .rowacts {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

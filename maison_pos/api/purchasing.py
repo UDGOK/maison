@@ -30,7 +30,21 @@ v1.1 "Onboarding a product" adds the two ways in that the touch screens were mis
                              code, our name, **their** SKU or the barcode
 ===========================  =========================================================
 
-Pushing stock the other way — Houston → the stores — is ``maison_pos.api.distribution``.
+v1.2 "What each store owes" adds the way in that the Buying and Vendors screens were missing:
+
+===========================  =========================================================
+§E unorderable rows          ``suggestions`` rows carry ``orderable`` / ``blocked_reason``,
+                             and ``save_item_vendor`` returns the refreshed ``suggestion``
+                             so attaching a vendor inline unblocks the row the buyer is
+                             looking at
+§E add items to a vendor     ``vendor_catalogue_candidates`` ``add_vendor_items``
+§D the margin on an approval  ``price_change_requests`` rows carry ``wholesale`` /
+                             ``margin_now`` / ``margin_proposed`` **for a purchasing admin
+                             only** — a store user's payload is unchanged
+===========================  =========================================================
+
+Pushing stock the other way — Houston → the stores — is ``maison_pos.api.distribution``; what a
+store pays for that stock is ``maison_pos.api.pricing``.
 """
 
 from __future__ import annotations
@@ -368,11 +382,21 @@ def item_vendors(item_code: str) -> dict[str, Any]:
 
 @frappe.whitelist()
 def save_item_vendor(item_code: str, row: Any) -> dict[str, Any]:
-	"""Add or edit one vendor row on an item; ``cost`` writes through to their price list."""
+	"""Add or edit one vendor row on an item; ``cost`` writes through to their price list.
+
+	v1.2 §E: this is also the **Add a vendor** action offered inline on an unorderable Buying row,
+	so the answer carries the refreshed suggestion (``suggestion``) when the item is on the current
+	buying list. Without it the board would go on saying "no vendor on file" until the overnight
+	run, having just been told otherwise.
+	"""
 	assert_purchasing_admin()
 	assert_item(item_code)
 	vendor_lib.add_or_update_row(item_code, _loads(row, {}) or {})
-	return item_vendors(item_code)
+	out = item_vendors(item_code)
+	from maison_pos.purchasing.demand import refresh_item
+
+	out["suggestion"] = refresh_item(item_code)
+	return out
 
 
 @frappe.whitelist()
@@ -673,6 +697,21 @@ def price_change_requests(boutique: Optional[str] = None, status: Optional[str] 
 		order_by="modified desc",
 		limit=cint(limit) or 100,
 	)
+	# --- v1.2 §D — the approvals queue has to show "the margin it implies", and it cannot do
+	# that without knowing what the store pays us for the item. That is an internal AWANZ figure,
+	# so it is attached **only** for a purchasing admin: a store manager reading their own queue
+	# still gets exactly the payload v1.0 gave them.
+	if rows and is_purchasing_admin():
+		from maison_pos.api.pricing import margin_at
+		from maison_pos.pricing.wholesale import wholesale_for
+
+		resolved = wholesale_for([r["item_code"] for r in rows])
+		for r in rows:
+			rate = flt((resolved.get(r["item_code"]) or {}).get("wholesale"))
+			r["wholesale"] = rate
+			r["margin_now"] = margin_at(r.get("current_rate"), rate)
+			r["margin_proposed"] = margin_at(r.get("proposed_rate"), rate)
+	# --- end v1.2 §D ---
 	return {"requests": rows, "count": len(rows)}
 
 
@@ -690,6 +729,12 @@ def request_price_change(
 
 	assert_roles(*ALL_AWANZ_ROLES, "System Manager", "AWANZ Warehouse Admin")
 	assert_item(item_code)
+	# v1.2 §D — `reason` is mandatory on the doctype and always has been, but an endpoint that
+	# passes a blank one through answers the screen with a raw
+	# "[AWANZ Price Change Request, MPCR-…]: reason". Head office reads this field when they
+	# approve, so say what is missing and why.
+	if not (reason or "").strip():
+		frappe.throw(_("Say why the price is changing — head office reads it when they approve"), frappe.MandatoryError)
 	boutique = assert_boutique_access(boutique) if not is_purchasing_admin() else boutique
 	doc = frappe.get_doc(
 		{
@@ -1167,4 +1212,145 @@ def vendor_catalogue(supplier: str, search: Optional[str] = None, limit: int = 2
 		"items": out[: cint(limit) or 200],
 		"count": len(out),
 		"total": len(rows),
+	}
+
+
+# ===========================================================================
+# v1.2 §E — putting items **on** a vendor's catalogue
+#
+# `vendor_catalogue` above answers "what does this vendor sell us?". Its mirror image was
+# missing: a rep hands over a sheet of twenty new lines and the only way to record them was to
+# open twenty Items in the desk one at a time. These two do it from the Vendors screen.
+# ===========================================================================
+@frappe.whitelist()
+def vendor_catalogue_candidates(supplier: str, search: Optional[str] = None, limit: int = 50) -> dict[str, Any]:
+	"""Items that could be **added** to a vendor's catalogue — everything not already on it.
+
+	Searchable by our item code, our item name or the barcode. Each row carries the defaults the
+	Add-items sheet starts from: what we last paid for the item anywhere (``suggested_cost``), a
+	case pack of 1, and whether the item has any vendor at all yet — an item with none is the one
+	that is blocking a buying row, so the sheet puts it first.
+	"""
+	assert_purchasing_admin()
+	if not supplier or not frappe.db.exists("Supplier", supplier):
+		frappe.throw(_("Vendor {0} does not exist").format(supplier or "?"), frappe.DoesNotExistError)
+	attached = set(
+		frappe.get_all("AWANZ Item Vendor", filters={"supplier": supplier, "parenttype": "Item"}, pluck="parent", limit=20000)
+	)
+	needle = (search or "").strip()
+	filters: list[Any] = [["disabled", "=", 0], ["is_stock_item", "=", 1]]
+	or_filters = (
+		[["name", "like", f"%{needle}%"], ["item_name", "like", f"%{needle}%"], ["maison_barcode", "like", f"%{needle}%"]]
+		if needle
+		else None
+	)
+	rows = frappe.get_all(
+		"Item",
+		filters=filters,
+		or_filters=or_filters,
+		fields=["name", "item_name", "item_group", "maison_barcode", "image", "stock_uom", "last_purchase_rate", "valuation_rate"],
+		order_by="item_name asc",
+		limit=2000,
+	)
+	with_any_vendor = set(
+		frappe.get_all(
+			"AWANZ Item Vendor",
+			filters=[["parent", "in", [r.name for r in rows] or ["__none__"]], ["parenttype", "=", "Item"]],
+			pluck="parent",
+			limit=20000,
+		)
+	)
+	out = []
+	for r in rows:
+		if r.name in attached:
+			continue
+		has_vendor = r.name in with_any_vendor
+		out.append(
+			{
+				"item_code": r.name,
+				"item_name": r.item_name,
+				"item_group": r.item_group,
+				"barcode": r.maison_barcode,
+				"image": r.image,
+				"uom": r.stock_uom,
+				"suggested_cost": flt(r.last_purchase_rate) or flt(r.valuation_rate),
+				"case_pack": 1,
+				"moq": 0,
+				"has_vendor": has_vendor,
+				# v1.2 §E — an item nobody sells us cannot be ordered at all; it is the row the
+				# buyer came here to fix, so it sorts to the top
+				"unorderable": not has_vendor,
+			}
+		)
+	out.sort(key=lambda r: (r["has_vendor"], (r["item_name"] or r["item_code"]).lower()))
+	return {
+		"supplier": supplier,
+		"supplier_name": frappe.db.get_value("Supplier", supplier, "supplier_name"),
+		"search": search or None,
+		"items": out[: cint(limit) or 50],
+		"count": len(out[: cint(limit) or 50]),
+		"total": len(out),
+	}
+
+
+@frappe.whitelist()
+def add_vendor_items(supplier: str, lines: Any) -> dict[str, Any]:
+	"""Attach several items to one vendor in a single act.
+
+	``lines = [{item_code, cost?, case_pack?, moq?, vendor_sku?, lead_time_days?, is_preferred?}]``
+
+	Every row goes through the same ``purchasing/vendors.py`` path a single edit uses, so each
+	cost writes through to the vendor's buying price list exactly as it would have done one item
+	at a time. Validated in full **before** anything is written — a half-added sheet is worse than
+	a refused one, and the buyer would have no way of telling which twenty of their thirty lines
+	landed. Returns the added rows and, for any item that was blocking the buying list, its
+	refreshed suggestion.
+	"""
+	assert_purchasing_admin()
+	if not supplier or not frappe.db.exists("Supplier", supplier):
+		frappe.throw(_("Vendor {0} does not exist").format(supplier or "?"), frappe.DoesNotExistError)
+	rows = _loads(lines, []) or []
+	if not rows:
+		frappe.throw(_("No items to add"), frappe.ValidationError)
+	prepared: list[dict[str, Any]] = []
+	seen: set[str] = set()
+	for raw in rows:
+		item_code = (raw.get("item_code") or raw.get("item") or "").strip()
+		if not item_code:
+			frappe.throw(_("Every line needs an item"), frappe.ValidationError)
+		assert_item(item_code)
+		if item_code in seen:
+			frappe.throw(_("{0} is on the sheet twice").format(item_code), frappe.ValidationError)
+		seen.add(item_code)
+		if flt(raw.get("cost")) < 0:
+			frappe.throw(_("A negative cost for {0}").format(item_code), frappe.ValidationError)
+		prepared.append(
+			{
+				"item_code": item_code,
+				"row": {
+					"supplier": supplier,
+					"vendor_sku": raw.get("vendor_sku"),
+					"cost": flt(raw.get("cost")),
+					"case_pack": max(1, cint(raw.get("case_pack")) or 1),
+					"moq": max(0, cint(raw.get("moq"))),
+					"lead_time_days": cint(raw.get("lead_time_days")),
+					"is_preferred": cint(raw.get("is_preferred")),
+				},
+			}
+		)
+	from maison_pos.purchasing.demand import refresh_item
+
+	added: list[dict[str, Any]] = []
+	refreshed: list[dict[str, Any]] = []
+	for entry in prepared:
+		vendor_lib.add_or_update_row(entry["item_code"], entry["row"])
+		added.append({"item_code": entry["item_code"], **{k: v for k, v in entry["row"].items() if k != "supplier"}})
+		row = refresh_item(entry["item_code"])
+		if row:
+			refreshed.append(row)
+	return {
+		"supplier": supplier,
+		"added": added,
+		"count": len(added),
+		"suggestions": refreshed,
 	}

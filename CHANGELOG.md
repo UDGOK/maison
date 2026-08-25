@@ -5,6 +5,200 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.2.0 — 2026-08-25 "What each store owes, and what each store charges"
+
+The eleven stores are **separately-owned LLCs**. Houston buys centrally and sends them stock, and
+every month somebody has to work out what each store owes for what it received. The correct
+long-term answer is twelve ERPNext companies with real intercompany invoices — a Sales Invoice in
+Houston's books, a Purchase Invoice in the store's, a receivable that ages, cash applied against
+it. **That is a re-platform and it is not this release.** This is the stepping stone the client
+asked for instead: price the stock to the stores, carry that price on every consignment, and
+produce a statement they can bill from by hand.
+
+**It changes no accounting.** Stock still moves at cost; the wholesale figure rides alongside for
+reporting. Nothing in this release creates an invoice, a receivable, an ageing bucket or a
+payment, and nothing lands in a partner's books. Contract `SPEC_v1.2.md`; the working document is
+`docs/pricing.md`, with `docs/shipping.md` §1c for the stamp.
+
+### §A The wholesale price
+
+`maison_pos/pricing/wholesale.py` (logic) + `maison_pos/api/pricing.py` (whitelisted).
+
+* **One price for every store** (client decision 1). Sapulpa and Montrose pay the same;
+  per-partner terms are a multi-company concern, not this one.
+* **Markup by default, override per item** (client decision 2). `AWANZ POS Settings.
+  wholesale_markup_pct` (Percent, default 50) is the chain-wide rule; `Item.maison_wholesale_rate`
+  (Currency) is the per-item override and wins when it is set. Blank means "use the rule" —
+  clearing an override writes 0, which is how a Currency column spells blank, since Frappe
+  declares them `NOT NULL`.
+* **The cost it marks up is the moving-average valuation at the main warehouse**, not a price
+  list. A buying price list says what a vendor charges today, which is a different question from
+  what the stock on the shelf cost; and freight is capitalised into the moving average but into no
+  price list. A test asserts exactly that: 999.00 sitting on two price lists does not reach the
+  wholesale price of an item valued at 10.00.
+* **0% is a legitimate rule** — ship at cost — so "never set" is tested for *absence* rather than
+  falsiness everywhere it matters, which is why the patch fills the setting in rather than
+  trusting the custom field's default (a Custom Field default only fires when the single is saved
+  through the form, and a live site's settings were saved long before the field existed).
+* API: `pricing.wholesale(item_codes)`, `pricing.set_wholesale(item_code, rate)` (`null` clears),
+  `pricing.wholesale_settings()`, `pricing.set_wholesale_markup(pct)`. `wholesale_for(item_codes)`
+  resolves the whole list in one pass — the price board asks for 160 items at a time.
+
+### §B The consignment carries what it is worth
+
+* **New fields.** `AWANZ Shipment Line.cost_rate` / `.wholesale_rate`, and
+  `AWANZ Shipment.cost_total` / `.wholesale_total` / `.value_stamped_at` — all Currency /
+  Datetime, all read-only.
+* **Stamped when the consignment ships, never on read.** `shipping.ship` calls
+  `pricing.wholesale.stamp_shipment` in the same write as the status change and the transfer to
+  the in-transit warehouse. It is the one and only moment those figures are resolved, because the
+  moving average moves every time Houston buys and **a statement whose numbers change after the
+  client has billed from it is worse than no statement at all**. The headline test ships at a cost
+  of 10, buys the same item again at 50 so the moving average nearly triples, and asserts that the
+  line rates, the shipment totals and the statement all still say what they said in March.
+* **The stock transfer still posts at cost** — asserted, not assumed
+  (`total_outgoing_value` on the Stock Entry).
+* **No backfill**, deliberately (`SPEC_v1.2` §B). The only cost available today is today's, and
+  stamping March with it would put a number on a statement nobody could reconcile. `value_stamped_
+  at` is what tells the two apart — a Currency column added to an existing table reads 0, not
+  NULL, so the absence of a stamp had to be recorded as a fact of its own. `shipment_dict` reports
+  `priced: false` on those and the statement lists them as *not priced*.
+
+### §C The month-end statement
+
+`maison_pos/reports/store_statement.py` (`maison_pos/reports.py` became a package to make room for
+it; every `from maison_pos.reports import …` is unchanged), surfaced two ways that share one
+implementation: the Script Report **`AWANZ Store Statement`**, registered in
+`api/reports.py::REPORTS`, and `pricing.statement(from_date, to_date, boutique=None)` for the
+screen.
+
+* **One row per store per period** (client decision 5): consignments, units shipped, units
+  billable, wholesale value, cost value, margin and margin %, plus chain totals. Line detail per
+  item is in the API payload and in the CSV (`detail = 1`), never on the screen.
+* **Net of returns and shortages** (client decision 4 — bill for what a store actually received).
+  The netting comes from `AWANZ Receiving Discrepancy` rows of type *Short* or *Damaged*, **open
+  or resolved alike**: resolving a shortage settles it with the warehouse, but the store still
+  never received the goods. A partial receipt can raise more than one discrepancy for the same
+  line and each carries the *running* total off the shipment line, so the netting takes the
+  largest figure per (consignment, item, type) and never their sum.
+* **Every enabled store appears**, with zeros when nothing was sent — an absent row reads as an
+  oversight and somebody rings up about it.
+* **The chain total is computed, not summed by the framework.** `add_total_row` would happily add
+  eleven stores' margin percentages together.
+* **It says what it is.** `internal`, `shows_cost`, `is_invoice: false`,
+  `creates_receivable: false` and a `notice` on the payload; the same notice at the top of the
+  desk report; and the CSV export of any report flagged `internal` in the registry now leads with
+  a banner line. Client decision 3 exists because somebody will eventually e-mail this to a
+  partner, and it carries Houston's buying cost.
+
+### §D Store retail prices — the reads the screen was missing
+
+The `AWANZ Price Change Request` + `AWANZ Price Approval` workflow is untouched: any AWANZ role may
+raise a request for **their own store**, only Head Office / Regional / System Manager may approve,
+and **approving is what creates the store-scoped `Pricing Rule`**. v1.2 reimplemented none of it
+and added two reads plus one guard:
+
+* `pricing.store_prices(item_code)` — every enabled store as a row with the price in force, where
+  it comes from (`Store override` / `Chain default`), what the store pays Houston, the margin that
+  price makes, and any request already pending, so the board does not invite a second one.
+* `purchasing.price_change_requests` rows now carry `wholesale`, `margin_now` and
+  `margin_proposed` — **only for a purchasing admin**. A store user reading their own queue gets
+  exactly the payload v1.0 gave them; what we pay for the stock is not shop-floor information.
+* `purchasing.request_price_change` now refuses a blank `reason` with a sentence a person can act
+  on. `reason` has always been mandatory on the doctype, so the endpoint used to answer a screen
+  with a raw `[AWANZ Price Change Request, MPCR-…]: reason`. Head office reads that field when
+  they approve.
+
+### §E The Buying board tells the truth about a row it cannot order
+
+A suggestion for an item with **no vendor on file** silently failed to select: the checkbox ticked,
+the footer said *Nothing selected*, and nothing explained why.
+
+* Every suggestion row now carries `orderable` and `blocked_reason`, from one definition
+  (`demand.orderable_of`) used by both the freshly-computed list and the cached one the buyer
+  actually works from.
+* `purchasing.save_item_vendor` — the inline **Add a vendor** action — now returns the refreshed
+  `suggestion`. Without it the board would go on saying "no vendor on file" until the overnight
+  run, having just been told otherwise: the buying list is cached in `AWANZ Purchase Suggestion`
+  rows that carry the vendor they were computed with. `demand.refresh_item` re-points the row and
+  re-rounds the quantity to the new vendor's case pack and MOQ, because the buyer is about to
+  order it.
+* `purchasing.vendor_catalogue_candidates(supplier, search)` and
+  `purchasing.add_vendor_items(supplier, lines)` — the mirror image of `vendor_catalogue`, so a
+  rep's sheet of twenty new lines can be attached to a vendor in one act instead of twenty Items
+  opened in the desk. Validated in full before anything is written; an item with no vendor at all
+  sorts to the top of the candidate list, because that is the row that is blocking the buying
+  board.
+
+### §G Build a despatch — the everyday job
+
+v1.1 shipped *one item → many stores*, which is right for introducing a new product and wrong for
+what the warehouse does every morning: filling one shop's order. **Outbound → New despatch** is the
+other direction — scan or search items into a basket, choose the destination once for the whole
+basket, send.
+
+* **One store per basket.** The destination is on the basket, not the line. A per-line destination
+  reads as flexible and invites the one mistake that matters — half a basket to the wrong shop.
+* **Scanning something already in the basket adds one more to that line**, rather than a second
+  line for the same item, which is what a person with a scanner in their hand expects.
+* Each line shows what Houston holds **and what is already committed** to consignments raised but
+  not yet shipped, so the same units cannot be promised twice.
+* **Send another** clears the destination and returns the cursor to the scan box, because the next
+  thing that happens is the next store.
+* The footer carries what the store pays and — labelled internal — the cost and the margin.
+* An item the destination has never sold is flagged quietly. Usually deliberate; occasionally a
+  mis-scan.
+
+It posts through `distribution.send` exactly as the v1.1 sheet does, so the wall, the pick list,
+the packing step and the store's Receive screen cannot tell the two routes apart.
+
+### The screens
+
+* **Prices** is a new section on `/warehouse`, open to head office and the warehouse only — every
+  `pricing.*` endpoint refuses a store manager, so the section is not offered to one.
+* **Stock → an item → Prices** is the board that never existed: every store, its current shelf
+  price, whether that is the chain default or its own override, the margin it makes at it, and any
+  request already pending. Type a new price and it goes for approval. `reason` is required, and the
+  screen collects it rather than letting the server refuse.
+* **Approvals** is head office's queue — store, item, current, proposed, who asked, why, and the
+  margin it implies. Approve or reject in a tap; a reject needs a reason. Approving is what creates
+  the store-scoped pricing rule, which is v0.1 behaviour, untouched.
+* **Statement** renders the month end at store level, and says on the screen that it shows Houston's
+  cost and is not an invoice. Line detail lives in the CSV, not the screen.
+* **Wholesale** lists what each item costs, what it is priced at, and whether that came from the
+  rule or a hand-typed override — with the rule's figure shown beside an overridden row, because
+  the useful question is always "what would it be if I left it alone".
+
+Five layout defects came out of driving these in a browser rather than reading them: a class
+collision that turned the destination strip into a 490 px dashed column, `display:flex` on a `<td>`
+taking a cell out of table layout and stacking two buttons on top of each other, a visually-hidden
+`<th>` span escaping its scroller and making the whole document scroll sideways on a phone, a
+`flex: 0 0 auto` paragraph running 608 px off the right edge, and two footers eating half a phone
+screen. All fixed.
+
+### Permissions
+
+Every §A / §C endpoint is **AWANZ Warehouse Admin / AWANZ Head Office only**
+(`assert_purchasing_admin`) — a store manager is refused all of them, **including the statement for
+their own store**, because it carries what the warehouse paid. The Script Report behind it carries
+the same `roles` as the buying reports, so it is not listed, not runnable and not exportable for
+anyone else. §D follows the existing workflow exactly. Both directions are proved at HTTP level in
+`maison_pos/tests/test_v1_2_pricing_http.py`.
+
+### Migration
+
+`maison_pos.patches.v1_2.wholesale_fields` — reloads the two shipment doctypes and the new report,
+creates `Item.maison_wholesale_rate` and `AWANZ POS Settings.wholesale_markup_pct`, and **fills the
+markup in with 50** on a site whose settings single predates the field. It backfills no consignment
+and says out loud how many the site holds that will therefore read as *not priced*. Idempotent; an
+already-set markup (0% included) is left exactly where the client put it. Bump all three version
+files — Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the site,
+so leaving it behind means this patch never runs.
+
+### Tests
+
+`maison_pos/tests/test_v1_2_pricing.py` (45) and `maison_pos/tests/test_v1_2_pricing_http.py` (15).
+
 ## 1.1.0 — 2026-08-25 "Onboarding a product"
 
 Walking the client through *"a brand-new product arrives, get it to the eleven stores"* hit three

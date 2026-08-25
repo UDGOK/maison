@@ -49,6 +49,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Modal from '@/components/Modal.vue'
 import VendorSheet, { dayStamp } from './VendorSheet.vue'
 import NewOrderSheet from './NewOrderSheet.vue'
+import AddVendorItemsSheet from './AddVendorItemsSheet.vue'
 import { usePurchasingStore } from '@/stores/purchasing'
 import { ORDER_METHODS, type VendorInput } from '@/api/purchasing'
 import { fmtDate } from '@/utils/device'
@@ -63,6 +64,8 @@ const open = ref<string | null>(null)
 const adding = ref(false)
 /** v1.1 §D — "Order from this vendor": the New order sheet, vendor pre-chosen. */
 const ordering = ref<string | null>(null)
+/** v1.2 §E — "Add items": attach a sheet of items to this vendor in one act. */
+const addingItemsTo = ref<string | null>(null)
 const draft = ref<VendorInput>({ supplier_name: '', supplier_group: 'Distributor', order_method: 'Email', lead_time_days: 0, active: true })
 const formError = ref('')
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -82,6 +85,17 @@ function orderFrom(supplier: string) {
 function onOrderCreated(name: string) {
   ordering.value = null
   emit('open-order', name)
+}
+/** v1.2 §E — the same rule as *Order from this vendor*: close the profile, then open the sheet. */
+function addItems(supplier: string) {
+  open.value = null
+  addingItemsTo.value = supplier
+}
+/** Closing the Add-items sheet puts the buyer back where they were — on that vendor's catalogue. */
+function closeAddItems() {
+  const supplier = addingItemsTo.value
+  addingItemsTo.value = null
+  if (supplier) open.value = supplier
 }
 function drain() {
   if (store.notice) {
@@ -234,9 +248,18 @@ async function addVendor() {
       </template>
     </Modal>
 
-    <VendorSheet v-if="open" :vendor="open" @close="open = null" @notice="say" @changed="load" @order="orderFrom" />
+    <VendorSheet v-if="open" :vendor="open" @close="open = null" @notice="say" @changed="load" @order="orderFrom" @add-items="addItems" />
 
     <NewOrderSheet v-if="ordering" :supplier="ordering" @close="ordering = null" @notice="say" @created="onOrderCreated" />
+
+    <AddVendorItemsSheet
+      v-if="addingItemsTo"
+      :supplier="addingItemsTo"
+      :supplier-name="vendors.find((v) => v.name === addingItemsTo)?.supplier_name"
+      @close="closeAddItems"
+      @notice="say"
+      @added="load"
+    />
   </div>
 </template>
 

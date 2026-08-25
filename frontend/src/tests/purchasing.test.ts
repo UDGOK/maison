@@ -295,9 +295,10 @@ describe('mock buying desk', () => {
     expect(gb.vendors.filter((v) => v.is_preferred)).toHaveLength(1)
 
     const stock = await mockPurchasing.stock()
-    expect(stock.rows).toHaveLength(10)
+    // v1.2 §E added an eleventh item nobody sells us — see the OPMS row below
+    expect(stock.rows).toHaveLength(11)
     expect(stock.warehouse).toBe('HOU-WH - CCZ')
-    expect(stock.low).toBe(4)
+    expect(stock.low).toBe(5)
     expect(stock.rows[0].low).toBe(true) // low stock sorts first
     expect(stock.stock_value).toBeGreaterThan(0)
     const gbRow = stock.rows.find((r) => r.item_code === 'GB-PULSE-15K-BLUE')!
@@ -310,10 +311,17 @@ describe('mock buying desk', () => {
     const run = await mockPurchasing.suggestions(true)
     expect(run.run_id).toBeTruthy()
     expect(run.as_of).toBeTruthy()
-    expect(run.count).toBe(5)
+    expect(run.count).toBe(6)
     const sources = new Set(run.suggestions.flatMap((s) => s.sources))
     expect(sources).toEqual(new Set(['Low stock', 'Store demand', 'Trending']))
-    expect(run.suggestions.every((s) => s.vendors.length === 2 && s.status === 'Open')).toBe(true)
+    expect(run.suggestions.every((s) => s.status === 'Open')).toBe(true)
+    expect(run.suggestions.filter((s) => s.orderable).every((s) => s.vendors.length === 2)).toBe(true)
+
+    // v1.2 §E — one row on this list cannot be ordered at all, and says why
+    const blocked = run.suggestions.filter((s) => !s.orderable)
+    expect(blocked.map((s) => s.item_code)).toEqual(['OPMS-GOLD-3CT'])
+    expect(blocked[0]).toMatchObject({ supplier: null, vendors: [], blocked_reason: 'No vendor on file — add one before this can be ordered' })
+    expect(run.suggestions.filter((s) => s.orderable).every((s) => s.blocked_reason === null)).toBe(true)
     // a cached read carries no `as_of`
     expect((await mockPurchasing.suggestions()).as_of).toBeUndefined()
   })
@@ -326,8 +334,9 @@ describe('mock buying desk', () => {
     expect(out.orders).toHaveLength(4)
     expect(out.created.every((c) => c.dropship_store === null)).toBe(true)
 
+    // the vendorless row is dropped — a Purchase Order needs a supplier — and stays on the list
     const after = await mockPurchasing.suggestions()
-    expect(after.count).toBe(0)
+    expect(after.suggestions.map((s) => s.item_code)).toEqual(['OPMS-GOLD-3CT'])
 
     const gulf = await mockPurchasing.order(out.created.find((c) => c.supplier === 'SUP-GULF')!.name)
     expect(gulf.docstatus).toBe(0)
@@ -533,9 +542,9 @@ describe('mock buying desk', () => {
 
   it('resets to the seeded desk between tests', async () => {
     await mockPurchasing.dismiss_suggestion('PSG-00001')
-    expect((await mockPurchasing.suggestions()).count).toBe(4)
-    __resetMockPurchasing()
     expect((await mockPurchasing.suggestions()).count).toBe(5)
+    __resetMockPurchasing()
+    expect((await mockPurchasing.suggestions()).count).toBe(6)
   })
 })
 
@@ -564,7 +573,7 @@ describe('purchasing store', () => {
   it('builds selected lines, count, value and the orders it will create', async () => {
     const store = usePurchasingStore()
     await store.loadSuggestions()
-    expect(store.suggestions).toHaveLength(5)
+    expect(store.suggestions).toHaveLength(6)
     expect(store.selectedCount).toBe(0)
     expect(store.ordersToCreate).toEqual([])
 
@@ -585,6 +594,8 @@ describe('purchasing store', () => {
     expect(store.isSelected('HYDE-EDGE-4K-GRAPE')).toBe(false)
 
     store.selectAll()
+    // six rows are selectable, but the vendorless one can never become a line (v1.2 §E)
+    expect(Object.keys(store.selection)).toHaveLength(6)
     expect(store.selectedCount).toBe(5)
     expect(store.plan.orders).toBe(4)
     store.clearSelection()
@@ -622,7 +633,7 @@ describe('purchasing store', () => {
     expect(out!.count).toBe(2) // one Gulf order with two lines, one Bayou order
     expect(store.notice).toBe('2 orders created')
     expect(store.selection).toEqual({})
-    expect(store.suggestions.map((s) => s.item_code)).toEqual(['HYDE-EDGE-4K-GRAPE', 'PUFF-XXL-MINT'])
+    expect(store.suggestions.map((s) => s.item_code)).toEqual(['HYDE-EDGE-4K-GRAPE', 'PUFF-XXL-MINT', 'OPMS-GOLD-3CT'])
     expect(store.orders.map((o) => o.name)).toEqual(expect.arrayContaining(out!.orders))
 
     store.clearSelection()
@@ -672,12 +683,12 @@ describe('purchasing store', () => {
   it('loads stock and price requests with their summaries', async () => {
     const store = usePurchasingStore()
     await store.loadStock()
-    expect(store.stock).toHaveLength(10)
-    expect(store.lowStockCount).toBe(4)
-    expect(store.stockSummary).toMatchObject({ warehouse: 'HOU-WH - CCZ', total: 10, low: 4 })
+    expect(store.stock).toHaveLength(11)
+    expect(store.lowStockCount).toBe(5)
+    expect(store.stockSummary).toMatchObject({ warehouse: 'HOU-WH - CCZ', total: 11, low: 5 })
 
     await store.loadPriceRequests({ status: 'all' })
-    expect(store.priceRequests).toHaveLength(2)
+    expect(store.priceRequests).toHaveLength(4)
     await store.approvePriceChange('PCR-00003', 'Approve')
     expect(store.priceRequests.find((r) => r.name === 'PCR-00003')!.workflow_state).toBe('Approved')
     expect(store.notice).toBe('PCR-00003 approved')

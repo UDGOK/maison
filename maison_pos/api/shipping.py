@@ -144,6 +144,15 @@ def shipment_dict(doc, with_lines: bool = True) -> dict[str, Any]:
 		"tracking_url": doc.tracking_url,
 		"tracking_status": doc.tracking_status,
 		"tracking_updated_at": _iso(doc.tracking_updated_at),
+		# --- v1.2 §B — the value stamped at despatch. Read straight off the document: it is
+		# never recomputed, so a consignment sent in March still says what it was worth in March.
+		# Reporting only — the stock moved at cost and nothing here is a receivable.
+		"cost_total": flt(doc.get("cost_total")),
+		"wholesale_total": flt(doc.get("wholesale_total")),
+		"margin": flt(flt(doc.get("wholesale_total")) - flt(doc.get("cost_total")), 2),
+		"value_stamped_at": _iso(doc.get("value_stamped_at")),
+		"priced": bool(doc.get("value_stamped_at")),
+		# --- end v1.2 §B ---
 		"stock_entry_ship": doc.stock_entry_ship,
 		"stock_entry_receive": doc.stock_entry_receive,
 		"stock_entry_damaged": doc.stock_entry_damaged,
@@ -177,6 +186,9 @@ def shipment_dict(doc, with_lines: bool = True) -> dict[str, Any]:
 				"bin_location": l.bin_location,
 				"weight_per_unit": flt(l.weight_per_unit),
 				"uom": l.uom,
+				# v1.2 §B — stamped at despatch, never on read
+				"cost_rate": flt(l.get("cost_rate")),
+				"wholesale_rate": flt(l.get("wholesale_rate")),
 			}
 			for l in doc.lines
 		]
@@ -771,6 +783,16 @@ def ship(shipment: str) -> dict[str, Any]:
 		if not doc.get(stamp):
 			doc.set(stamp, now_datetime())
 	doc.stock_entry_ship = _post_ship_transfer(doc)
+	# --- v1.2 §B — value the consignment **here**, in the same write as the status change.
+	# The moving average moves every time Houston buys; a statement billed from a figure that
+	# moves afterwards is worse than no statement, so this is the one and only moment the
+	# wholesale and cost figures are resolved for this shipment. `stamp_shipment` is a no-op on a
+	# document that already carries a stamp. It posts nothing: the stock transfer above is the
+	# whole of the accounting, and it is at cost.
+	from maison_pos.pricing.wholesale import stamp_shipment
+
+	stamp_shipment(doc)
+	# --- end v1.2 §B ---
 	_set_status(doc, "Shipped")
 	if not doc.tracking_status:
 		doc.tracking_status = "PRE_TRANSIT"

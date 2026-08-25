@@ -17,6 +17,12 @@
  *   store price ........ `price_change_requests` `request_price_change` `approve_price_change`
  *   stock tab .......... `stock`
  *
+ * v1.2 §E adds the two things the Buying board needed to stop lying about a row it cannot order:
+ * every suggestion carries `orderable` / `blocked_reason`, `save_item_vendor` answers with the
+ * **refreshed suggestion** (attaching a vendor from the board has to unblock the row the buyer is
+ * looking at, not wait for the overnight run), and `vendor_catalogue_candidates` /
+ * `add_vendor_items` attach a sheet of items to one vendor in a single act.
+ *
  * The mock (VITE_MOCK=1 / unit tests) keeps a small deterministic buying desk in memory — four
  * active vendors and one deactivated, ten items with two vendors each at different costs, a
  * suggestion run covering all three demand sources, two drafts, one submitted order on its way in,
@@ -27,6 +33,17 @@ import { humanizeServerMessage } from '@/utils/text'
 // v1.1 §B — a product created here has to exist on the distribution desk too, with nothing on
 // hand at Houston and no history at any store. Only the mock uses these.
 import { __mockRegisterItem, __mockSetWarehouseStock } from './distribution'
+// v1.2 §D — the three price-change endpoints live here (they always have) but their state, their
+// margin figures and the pricing rule an approval creates belong to the pricing desk. The mock
+// delegates so the two cannot drift; `api/pricing.ts` imports nothing from this module.
+import {
+  __mockApprovePriceChange,
+  __mockPriceChangeRequests,
+  __mockRegisterPricedItem,
+  __mockRequestPriceChange,
+  __resetMockPricing
+} from './pricing'
+import type { PriceChangeCreated, PriceChangeDecision, PriceChangeList } from './pricing'
 import type { Discrepancy, PurchaseOrder, PurchaseOrderItem, WarehouseStockRow } from './warehouse'
 
 // ---------------------------------------------------------------------------------------------
@@ -149,6 +166,14 @@ export interface ItemVendorsResult {
   vendors: ItemVendorRow[]
   /** supplier of the one `is_preferred` row, if any */
   preferred: string | null
+  /**
+   * v1.2 §E — the refreshed buying row after a vendor was attached, or `null` when the item is
+   * not on the current buying list. `save_item_vendor` only: the list is cached in
+   * `AWANZ Purchase Suggestion` rows, so attaching a vendor fixes the *item* but not the row the
+   * buyer is looking at — swap this into the list or the board goes on saying "no vendor on file"
+   * until the overnight run.
+   */
+  suggestion?: Suggestion | null
 }
 
 /** A vendor's catalogue row as seen from the vendor side (`vendor(name).catalogue`). */
@@ -251,6 +276,14 @@ export interface Suggestion {
   supplier: string | null
   supplier_name?: string | null
   cost: number
+  /**
+   * v1.2 §E — **false when this row cannot become a purchase order.** A Purchase Order needs a
+   * supplier, so a suggestion for an item with no vendor on file can never be ordered; the board
+   * used to drop it silently on select-all ("Nothing selected", no explanation).
+   */
+  orderable?: boolean
+  /** why it cannot be ordered, in words — rendered verbatim on the row */
+  blocked_reason?: string | null
   /** `AWANZ Replenishment Request` names behind the store demand (fresh run only) */
   requests?: string[]
   vendors: SuggestionVendor[]
@@ -486,38 +519,13 @@ export interface StockResult {
   stock_value: number
 }
 
-/** The **existing** `AWANZ Price Change Request` (v0.2) — v1.0 adds no second mechanism. */
-export interface PriceChangeRequest {
-  name: string
-  boutique: string
-  item_code: string
-  item_name?: string | null
-  current_rate: number
-  proposed_rate: number
-  reason?: string | null
-  workflow_state: string
-  docstatus: DocStatus
-  requested_by?: string | null
-  valid_from?: string | null
-  valid_upto?: string | null
-  pricing_rule?: string | null
-  approved_by?: string | null
-  approved_on?: string | null
-}
-
-export interface PriceChangeCreated {
-  name: string
-  workflow_state: string
-  boutique: string
-  item_code: string
-  proposed_rate: number
-}
-
-export interface PriceChangeDecision {
-  name: string
-  workflow_state: string
-  pricing_rule?: string | null
-}
+/**
+ * The **existing** `AWANZ Price Change Request` (v0.2) — v1.0 adds no second mechanism, and v1.2
+ * adds no third. The types moved to `api/pricing.ts` in v1.2, where the margin figures the
+ * approvals queue shows are defined; they are re-exported here because these three endpoints
+ * still live under `purchasing.*` and every screen imports them by that name.
+ */
+export type { MarginView, PriceChangeCreated, PriceChangeDecision, PriceChangeList, PriceChangeRequest } from './pricing'
 
 // ---------------------------------------------------------------------------------------------
 // v1.1 §B/§C — a new product, and a purchase order from scratch
@@ -631,6 +639,56 @@ export interface VendorCatalogueResult {
   items: VendorCatalogueItem[]
 }
 
+// ---------------------------------------------------------------------------------------------
+// v1.2 §E — adding items **to** a vendor (the mirror image of `vendor_catalogue`)
+// ---------------------------------------------------------------------------------------------
+/** One item that could be added to a vendor's catalogue — everything not already on it. */
+export interface VendorCandidate {
+  item_code: string
+  item_name?: string | null
+  item_group?: string | null
+  barcode?: string | null
+  image?: string | null
+  uom?: string | null
+  /** what we last paid for it anywhere — where the sheet's cost box starts */
+  suggested_cost: number
+  case_pack: number
+  moq: number
+  /** does this item have **any** vendor at all yet? */
+  has_vendor: boolean
+  /** `!has_vendor` — an item nobody sells us cannot be ordered, so the sheet puts it first */
+  unorderable: boolean
+}
+
+export interface VendorCandidatesResult {
+  supplier: string
+  supplier_name?: string | null
+  search: string | null
+  items: VendorCandidate[]
+  count: number
+  /** candidates on the whole catalogue, before the limit */
+  total: number
+}
+
+/** One line of the Add-items sheet. */
+export interface AddVendorItemLine {
+  item_code: string
+  vendor_sku?: string | null
+  cost?: number
+  case_pack?: number
+  moq?: number
+  lead_time_days?: number
+  is_preferred?: boolean | 0 | 1
+}
+
+export interface AddVendorItemsResult {
+  supplier: string
+  added: (Omit<AddVendorItemLine, 'is_preferred'> & { is_preferred?: number })[]
+  count: number
+  /** refreshed buying rows for any item that was blocking the buying list */
+  suggestions: Suggestion[]
+}
+
 export interface PurchasingApi {
   // §A vendors
   vendors(search?: string, active_only?: boolean): Promise<VendorListResult>
@@ -678,8 +736,17 @@ export interface PurchasingApi {
   // v1.1 §C — a purchase order from scratch
   /** A vendor's items with cost, case pack, MOQ and last purchase rate — searchable by **their** SKU. */
   vendor_catalogue(supplier: string, search?: string, limit?: number): Promise<VendorCatalogueResult>
+  // v1.2 §E — and the mirror image: items that could be **added** to a vendor
+  /** Everything not already on this vendor's catalogue; items with no vendor at all sort first. */
+  vendor_catalogue_candidates(supplier: string, search?: string, limit?: number): Promise<VendorCandidatesResult>
+  /**
+   * Attach several items to one vendor in a single act. Validated in full **before** anything is
+   * written — a half-added sheet is worse than a refused one. Answers with the refreshed
+   * suggestions for any item that was blocking the buying list.
+   */
+  add_vendor_items(supplier: string, lines: AddVendorItemLine[]): Promise<AddVendorItemsResult>
   // store selling price — the existing AWANZ Price Change Request workflow
-  price_change_requests(boutique?: string, status?: string, item_code?: string, limit?: number): Promise<{ requests: PriceChangeRequest[]; count: number }>
+  price_change_requests(boutique?: string, status?: string, item_code?: string, limit?: number): Promise<PriceChangeList>
   request_price_change(item_code: string, boutique: string, proposed_rate: number, reason?: string, valid_from?: string, valid_upto?: string): Promise<PriceChangeCreated>
   approve_price_change(name: string, action: 'Approve' | 'Reject', reason?: string): Promise<PriceChangeDecision>
 }
@@ -773,6 +840,10 @@ export const frappePurchasing: PurchasingApi = {
   item_groups: () => call('purchasing.item_groups', {}, true),
   create_product: (payload) => call('purchasing.create_product', { payload }),
   vendor_catalogue: (supplier, search, limit = 200) => call('purchasing.vendor_catalogue', { supplier, search, limit }, true),
+  // v1.2 §E — the candidates list is a read; adding rows writes to the item and the vendor's
+  // buying price list, so it is a POST.
+  vendor_catalogue_candidates: (supplier, search, limit = 50) => call('purchasing.vendor_catalogue_candidates', { supplier, search, limit }, true),
+  add_vendor_items: (supplier, lines) => call('purchasing.add_vendor_items', { supplier, lines }),
   // store selling price
   price_change_requests: (boutique, status = 'Pending Approval', item_code, limit = 100) =>
     call('purchasing.price_change_requests', { boutique, status, item_code, limit }, true),
@@ -827,7 +898,6 @@ interface MockState {
   orderSuggestions: Record<string, string[]>
   discrepancies: VendorDiscrepancy[]
   receipts: Record<string, VendorReceipt[]>
-  priceRequests: PriceChangeRequest[]
 }
 
 const MOCK_ITEMS: MockItem[] = [
@@ -840,7 +910,10 @@ const MOCK_ITEMS: MockItem[] = [
   { item_code: 'OCB-XPERT-KS', item_name: 'OCB X-Pert King Size', item_group: 'Papers', barcode: '8801234500079', actual_qty: 90, valuation_rate: 1.02, reorder_level: 150, velocity: 2.2 },
   { item_code: 'ZIG-ZAG-1-25', item_name: 'Zig-Zag 1¼ Rolling Papers', item_group: 'Papers', barcode: '8801234500086', actual_qty: 410, valuation_rate: 0.9, reorder_level: 150, velocity: 3.4 },
   { item_code: 'AF-SHISHA-250-MINT', item_name: 'Al Fakher Shisha 250 g — Mint', item_group: 'Shisha', barcode: '8801234500093', actual_qty: 26, valuation_rate: 5.71, reorder_level: 24, velocity: 1.2 },
-  { item_code: 'CLIPPER-LTR-ASST', item_name: 'Clipper Lighter — Assorted', item_group: 'Accessories', barcode: '8801234500109', actual_qty: 288, valuation_rate: 0.74, reorder_level: 96, velocity: 0 }
+  { item_code: 'CLIPPER-LTR-ASST', item_name: 'Clipper Lighter — Assorted', item_group: 'Accessories', barcode: '8801234500109', actual_qty: 288, valuation_rate: 0.74, reorder_level: 96, velocity: 0 },
+  // v1.2 §E — deliberately absent from MOCK_CATALOGUE: **nobody sells us this one**. It is the
+  // row the Buying board used to drop in silence, and every screen has to render it honestly.
+  { item_code: 'OPMS-GOLD-3CT', item_name: 'OPMS Gold Kratom Capsules — 3 ct', item_group: 'Kratom', barcode: '8801234500116', actual_qty: 42, valuation_rate: 4.65, reorder_level: 60, velocity: 1.4 }
 ]
 
 /**
@@ -889,6 +962,28 @@ const MOCK_CATALOGUE: [string, string, number, number, number, number, boolean, 
   ['CLIPPER-LTR-ASST', 'SUP-GULF', 0.72, 48, 96, 5, true, 'GC-CLIP-AST'],
   ['CLIPPER-LTR-ASST', 'SUP-SOONER', 0.79, 50, 0, 7, false, 'SS-CLIP']
 ]
+
+/**
+ * v1.2 §E — why a suggestion cannot become a purchase order. A literal copy of
+ * `purchasing/demand.py::NO_VENDOR_REASON`: a Purchase Order needs a supplier, so a row for an
+ * item with no vendor on file can never be ordered, and the board has to say so rather than tick
+ * a box and then quietly drop the line.
+ */
+const NO_VENDOR_REASON = 'No vendor on file — add one before this can be ordered'
+
+/**
+ * Case pack first, MOQ second — a local copy of `warehouse/buying.ts::roundToCasePack`, itself a
+ * mirror of `purchasing/__init__.py::round_up_to_case_pack`. Kept local so this module stays a
+ * leaf of the screen code rather than importing from it.
+ */
+function roundToCasePack(qty: number, casePack = 1, moq = 0): number {
+  let out = Math.max(0, Number(qty) || 0)
+  const pack = Math.max(1, Math.trunc(Number(casePack) || 0))
+  if (out > 0) out = (Math.floor(out / pack) + (out % pack ? 1 : 0)) * pack
+  const min = Math.max(0, Math.trunc(Number(moq) || 0))
+  if (min && out && out < min) out = (Math.floor(min / pack) + (min % pack ? 1 : 0)) * pack
+  return out
+}
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -996,6 +1091,9 @@ function mockSuggestion(
     supplier: preferred?.supplier ?? null,
     supplier_name: preferred?.supplier_name ?? null,
     cost: preferred?.cost ?? 0,
+    // v1.2 §E — one definition, mirroring `purchasing/demand.py::orderable_of`
+    orderable: !!preferred?.supplier,
+    blocked_reason: preferred?.supplier ? null : NO_VENDOR_REASON,
     requests: [],
     vendors: rows.map((r) => ({
       supplier: r.supplier,
@@ -1170,7 +1268,11 @@ function fresh(): MockState {
       { need: 22, suggested_qty: 24, qty: 24, store_demand: 48, requests: ['MRR-00022'] },
       catalogue
     ),
-    mockSuggestion(5, 'PUFF-XXL-MINT', 'Trending', ['Trending'], { need: 32.6, suggested_qty: 40, qty: 40, cover_days: 13.9 }, catalogue)
+    mockSuggestion(5, 'PUFF-XXL-MINT', 'Trending', ['Trending'], { need: 32.6, suggested_qty: 40, qty: 40, cover_days: 13.9 }, catalogue),
+    // v1.2 §E — low stock, and **nobody sells it to us**: the row that cannot be ordered at all.
+    // `mockSuggestion` resolves no preferred vendor for it, so it comes back with `orderable:
+    // false` and the reason in words, exactly as `demand.cached_row` does on a bench.
+    mockSuggestion(6, 'OPMS-GOLD-3CT', 'Low stock', ['Low stock'], { need: 18, suggested_qty: 18, qty: 18 }, catalogue)
   ]
   return {
     seq: 3,
@@ -1206,19 +1308,7 @@ function fresh(): MockState {
       'SUP-BAYOU': [{ name: 'MAT-PRE-2026-00019', posting_date: '2026-06-14', warehouse: MOCK_WAREHOUSE, net_total: 1344, grand_total: 1404, units: 240 }],
       'SUP-SOONER': [{ name: 'MAT-PRE-2026-00012', posting_date: '2026-05-30', warehouse: MOCK_WAREHOUSE, net_total: 556, grand_total: 596, units: 80 }],
       'SUP-PANH': []
-    },
-    priceRequests: [
-      {
-        name: 'PCR-00003', boutique: 'OK-BIX', item_code: 'GB-PULSE-15K-BLUE', item_name: 'Geek Bar Pulse 15K — Blue Razz Ice',
-        current_rate: 24.99, proposed_rate: 22.99, reason: 'Matching the shop two doors down.', workflow_state: 'Pending Approval', docstatus: 1,
-        requested_by: 'bixby.manager@cloudchaserz.example', valid_from: '2026-08-25', valid_upto: '2026-09-30', pricing_rule: null, approved_by: null, approved_on: null
-      },
-      {
-        name: 'PCR-00002', boutique: 'HOU-MTR', item_code: 'RAW-KS-SLIM', item_name: 'RAW Classic King Size Slim',
-        current_rate: 3.49, proposed_rate: 2.99, reason: 'Clearing the old print run.', workflow_state: 'Approved', docstatus: 1,
-        requested_by: 'montrose.manager@cloudchaserz.example', valid_from: '2026-08-01', valid_upto: null, pricing_rule: 'PRLE-0031', approved_by: MOCK_USER, approved_on: '2026-08-02T08:40:00'
-      }
-    ]
+    }
   }
 }
 
@@ -1277,6 +1367,42 @@ function itemVendorsPayload(itemCode: string): ItemVendorsResult {
   const item = findItem(itemCode)
   const rows = clone(state.catalogue[itemCode] || [])
   return { item_code: itemCode, item_name: item.item_name, vendors: rows, preferred: rows.find((r) => r.is_preferred)?.supplier ?? null }
+}
+
+/**
+ * v1.2 §E — re-point a cached suggestion at the item's current preferred vendor and re-round its
+ * quantity to that vendor's case pack and MOQ. Mirrors `purchasing/demand.py::refresh_item`;
+ * `null` when the item is not on the current buying list.
+ */
+function refreshSuggestion(itemCode: string): Suggestion | null {
+  const row = state.suggestions.find((s) => s.item_code === itemCode && s.status === 'Open')
+  if (!row) return null
+  const rows = state.catalogue[itemCode] || []
+  const preferred = rows.find((r) => r.is_preferred) || rows[0] || null
+  const casePack = Math.max(1, preferred?.case_pack ?? 1)
+  const moq = Math.max(0, preferred?.moq ?? 0)
+  row.supplier = preferred?.supplier ?? null
+  row.supplier_name = preferred?.supplier_name ?? null
+  row.cost = preferred?.cost ?? 0
+  row.case_pack = casePack
+  row.moq = moq
+  row.lead_time_days = preferred?.lead_time_days ?? 0
+  row.suggested_qty = roundToCasePack(row.suggested_qty, casePack, moq)
+  row.qty = row.suggested_qty
+  row.orderable = !!preferred?.supplier
+  row.blocked_reason = preferred?.supplier ? null : NO_VENDOR_REASON
+  row.vendors = rows.map((r) => ({
+    supplier: r.supplier,
+    supplier_name: r.supplier_name,
+    cost: r.cost,
+    case_pack: r.case_pack,
+    moq: r.moq,
+    lead_time_days: r.lead_time_days,
+    vendor_sku: r.vendor_sku,
+    is_preferred: r.is_preferred,
+    last_purchase_rate: r.last_purchase_rate
+  }))
+  return clone(row)
 }
 
 function vendorRate(itemCode: string, supplier: string): number {
@@ -1490,10 +1616,12 @@ export const mockPurchasing: PurchasingApi = {
     if (row.moq !== undefined) target.moq = Math.max(0, Math.trunc(Number(row.moq) || 0))
     if (row.lead_time_days !== undefined) target.lead_time_days = Math.max(0, Math.trunc(Number(row.lead_time_days) || 0))
     if (row.notes !== undefined) target.notes = row.notes
-    // exactly one preferred vendor per item
-    if (row.is_preferred) for (const r of rows) r.is_preferred = r === target
+    // exactly one preferred vendor per item; the first vendor an item gets is preferred by default
+    if (row.is_preferred || rows.length === 1) for (const r of rows) r.is_preferred = r === target
     rows.sort((a, b) => Number(b.is_preferred) - Number(a.is_preferred))
-    return itemVendorsPayload(item_code)
+    // v1.2 §E — the buying list is cached, so the row the buyer is looking at has to be re-pointed
+    // at the vendor they just attached, or the board goes on saying "no vendor on file"
+    return { ...itemVendorsPayload(item_code), suggestion: refreshSuggestion(item_code) }
   },
   async remove_item_vendor(item_code, row_name) {
     await pause()
@@ -2006,6 +2134,9 @@ export const mockPurchasing: PurchasingApi = {
     // the distribution desk needs to know it exists: nothing on hand at Houston, no history at any
     // store — which is exactly the case v1.1 exists for
     __mockRegisterItem({ item_code: itemCode, item_name: itemName, item_group: itemGroup, uom, barcode: barcode || null, on_hand: 0 })
+    // and the pricing desk: on a bench the Item, its valuation and its selling price all exist the
+    // moment it is created, so its price board has to open straight away
+    __mockRegisterPricedItem({ item_code: itemCode, item_name: itemName, item_group: itemGroup, uom, barcode, cost, selling: sellingRate })
     return { item_code: itemCode, created: true, item: productDetail(item), catalogue_row: catalogueRow }
   },
   // ------------------------------------------------------------------ v1.1 §C vendor catalogue
@@ -2035,51 +2166,88 @@ export const mockPurchasing: PurchasingApi = {
       total
     }
   },
-  // ------------------------------------------------------------------ store selling price
-  async price_change_requests(boutique, status = 'Pending Approval', item_code, limit = 100) {
+  // ------------------------------------------------------------------ v1.2 §E add items to a vendor
+  async vendor_catalogue_candidates(supplier, search, limit = 50) {
     await pause()
-    let rows = state.priceRequests
-    if (boutique) rows = rows.filter((r) => r.boutique === boutique)
-    if (status && status !== 'all' && status !== 'any') rows = rows.filter((r) => r.workflow_state === status)
-    if (item_code) rows = rows.filter((r) => r.item_code === item_code)
-    rows = rows.slice(0, limit)
-    return { requests: clone(rows), count: rows.length }
-  },
-  async request_price_change(item_code, boutique, proposed_rate, reason, valid_from, valid_upto) {
-    await pause()
-    const item = findItem(item_code)
-    const doc: PriceChangeRequest = {
-      name: nextName('PCR'),
-      boutique,
-      item_code,
-      item_name: item.item_name,
-      current_rate: round2(item.valuation_rate * 2.6),
-      proposed_rate: Number(proposed_rate) || 0,
-      reason: reason ?? null,
-      workflow_state: 'Pending Approval',
-      docstatus: 1,
-      requested_by: MOCK_USER,
-      valid_from: valid_from || MOCK_TODAY,
-      valid_upto: valid_upto ?? null,
-      pricing_rule: null,
-      approved_by: null,
-      approved_on: null
+    const vendor = findVendor(supplier)
+    const needle = (search || '').trim().toLowerCase()
+    const rows: VendorCandidate[] = []
+    for (const item of state.items) {
+      if (item.disabled) continue
+      const attached = (state.catalogue[item.item_code] || []).some((r) => r.supplier === vendor.name)
+      if (attached) continue
+      if (needle && !`${item.item_code} ${item.item_name} ${item.barcode || ''}`.toLowerCase().includes(needle)) continue
+      const hasVendor = (state.catalogue[item.item_code] || []).length > 0
+      rows.push({
+        item_code: item.item_code,
+        item_name: item.item_name,
+        item_group: item.item_group,
+        barcode: item.barcode,
+        image: item.image ?? null,
+        uom: item.uom || 'Nos',
+        suggested_cost: round2(item.valuation_rate),
+        case_pack: 1,
+        moq: 0,
+        has_vendor: hasVendor,
+        // an item nobody sells us is the row the buyer came here to fix — it sorts to the top
+        unorderable: !hasVendor
+      })
     }
-    state.priceRequests.unshift(doc)
-    return { name: doc.name, workflow_state: doc.workflow_state, boutique: doc.boutique, item_code: doc.item_code, proposed_rate: doc.proposed_rate }
+    rows.sort((a, b) => Number(a.has_vendor) - Number(b.has_vendor) || (a.item_name || a.item_code).localeCompare(b.item_name || b.item_code))
+    return { supplier: vendor.name, supplier_name: vendor.supplier_name, search: search || null, items: rows.slice(0, limit), count: Math.min(rows.length, limit), total: rows.length }
   },
-  async approve_price_change(name, action = 'Approve', reason) {
+  async add_vendor_items(supplier, lines) {
     await pause()
-    const doc = state.priceRequests.find((r) => r.name === name)
-    if (!doc) throw new ApiError(`AWANZ Price Change Request ${name} does not exist`, 'DoesNotExistError', 404)
-    if (action !== 'Approve' && action !== 'Reject') throw new ApiError(`Unknown action ${action}`, 'ValidationError', 417)
-    if (reason) doc.reason = `${doc.reason || ''}\n${reason}`.trim()
-    doc.workflow_state = action === 'Approve' ? 'Approved' : 'Rejected'
-    doc.approved_by = MOCK_USER
-    doc.approved_on = MOCK_NOW
-    doc.pricing_rule = action === 'Approve' ? nextName('PRLE') : null
-    return { name: doc.name, workflow_state: doc.workflow_state, pricing_rule: doc.pricing_rule }
-  }
+    const vendor = findVendor(supplier)
+    const rows = lines || []
+    if (!rows.length) throw new ApiError('No items to add', 'ValidationError', 417)
+    // validated in full **before** anything is written — a half-added sheet is worse than a
+    // refused one, and the buyer would have no way of telling which of their lines landed
+    const seen = new Set<string>()
+    for (const raw of rows) {
+      const code = (raw?.item_code || '').trim()
+      if (!code) throw new ApiError('Every line needs an item', 'ValidationError', 417)
+      findItem(code)
+      if (seen.has(code)) throw new ApiError(`${code} is on the sheet twice`, 'ValidationError', 417)
+      seen.add(code)
+      if (Number(raw.cost) < 0) throw new ApiError(`A negative cost for ${code}`, 'ValidationError', 417)
+    }
+    const added: AddVendorItemsResult['added'] = []
+    const suggestions: Suggestion[] = []
+    for (const raw of rows) {
+      const code = raw.item_code.trim()
+      const row = {
+        supplier: vendor.name,
+        vendor_sku: raw.vendor_sku ?? null,
+        cost: Number(raw.cost) || 0,
+        case_pack: Math.max(1, Math.trunc(Number(raw.case_pack) || 0) || 1),
+        moq: Math.max(0, Math.trunc(Number(raw.moq) || 0)),
+        lead_time_days: Math.trunc(Number(raw.lead_time_days) || 0),
+        is_preferred: (raw.is_preferred ? 1 : 0) as 0 | 1
+      }
+      await mockPurchasing.save_item_vendor(code, row)
+      added.push({
+        item_code: code,
+        vendor_sku: row.vendor_sku,
+        cost: row.cost,
+        case_pack: row.case_pack,
+        moq: row.moq,
+        lead_time_days: row.lead_time_days,
+        is_preferred: row.is_preferred
+      })
+      const refreshed = refreshSuggestion(code)
+      if (refreshed) suggestions.push(refreshed)
+    }
+    return { supplier: vendor.name, added, count: added.length, suggestions }
+  },
+  // ------------------------------------------------------------------ store selling price
+  // The state, the margin figures and the pricing rule an approval creates all belong to the
+  // pricing desk (`api/pricing.ts`), so these three delegate rather than keeping a second copy.
+  price_change_requests: (boutique, status = 'Pending Approval', item_code, limit = 100) =>
+    __mockPriceChangeRequests(boutique, status, item_code, limit),
+  request_price_change: (item_code, boutique, proposed_rate, reason, valid_from, valid_upto) =>
+    __mockRequestPriceChange(item_code, boutique, proposed_rate, reason, valid_from, valid_upto),
+  approve_price_change: (name, action = 'Approve', reason) => __mockApprovePriceChange(name, action, reason)
 }
 
 /** `YYYY-MM-DD` + *days*, in UTC so it never drifts with the test runner's zone. */
@@ -2089,10 +2257,11 @@ function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-/** Tests: restore the seeded buying desk. */
+/** Tests: restore the seeded buying desk — and the pricing desk the three price endpoints use. */
 export function __resetMockPurchasing(): void {
   MOCK_NEW_ITEMS.length = 0
   state = fresh()
+  __resetMockPricing()
 }
 
 const IS_MOCK = import.meta.env.VITE_MOCK === '1'

@@ -367,3 +367,56 @@ export function movingAverageAfter(onHand: number, currentValuationRate: number,
   const value = qtyBefore * num(currentValuationRate) + qtyIn * landed
   return round(value / qtyAfter, 4)
 }
+
+// ---------------------------------------------------------------------------------------------
+// v1.2 §E — a row the buying board cannot order
+// ---------------------------------------------------------------------------------------------
+/**
+ * Can this suggestion become a purchase order? A Purchase Order needs a supplier, so a row for an
+ * item with no vendor on file can never be ordered.
+ *
+ * The server answers this on every row (`orderable` / `blocked_reason`, from
+ * `purchasing/demand.py::orderable_of`). The fallback here is for a row that arrived from an older
+ * bundle without the flag: the answer is derived from the same fact the server derives it from,
+ * so the two cannot disagree — and a board reading a cached list from before v1.2 still tells the
+ * truth rather than defaulting to "orderable" and dropping the line in silence.
+ */
+export function isOrderable(suggestion: Pick<Suggestion, 'supplier'> & Partial<Pick<Suggestion, 'orderable'>>): boolean {
+  if (typeof suggestion.orderable === 'boolean') return suggestion.orderable
+  return !!(suggestion.supplier || '').trim()
+}
+
+/** Why a row cannot be ordered, in words — or `''` when it can. Rendered verbatim on the row. */
+export function blockedReason(suggestion: Pick<Suggestion, 'supplier'> & Partial<Pick<Suggestion, 'orderable' | 'blocked_reason'>>): string {
+  if (isOrderable(suggestion)) return ''
+  return (suggestion.blocked_reason || '').trim() || NO_VENDOR_REASON
+}
+
+/** `purchasing/demand.py::NO_VENDOR_REASON`, for a row that arrived without one. */
+export const NO_VENDOR_REASON = 'No vendor on file — add one before this can be ordered'
+
+/** The rows *Select all* can actually tick. */
+export function orderableRows<T extends Pick<Suggestion, 'supplier'> & Partial<Pick<Suggestion, 'orderable'>>>(rows: T[]): T[] {
+  return (rows || []).filter(isOrderable)
+}
+
+/** The rows it has to skip, and which is why the footer used to say "Nothing selected". */
+export function blockedRows<T extends Pick<Suggestion, 'supplier'> & Partial<Pick<Suggestion, 'orderable'>>>(rows: T[]): T[] {
+  return (rows || []).filter((r) => !isOrderable(r))
+}
+
+/**
+ * What *Select all* says when it could not tick everything.
+ *
+ * `selectedLines` is right to drop a line with no supplier — you cannot raise a purchase order
+ * without one — but the screen has to say **how many** it skipped and **why**, because the whole
+ * defect this fixes was a tick that appeared, a footer that said *Nothing selected*, and nothing
+ * anywhere explaining the gap. Empty when every visible row can be ordered.
+ */
+export function selectAllNote(rows: (Pick<Suggestion, 'supplier'> & Partial<Pick<Suggestion, 'orderable' | 'blocked_reason'>>)[]): string {
+  const blocked = blockedRows(rows || [])
+  if (!blocked.length) return ''
+  const reasons = [...new Set(blocked.map((r) => blockedReason(r)))]
+  const what = `${blocked.length} row${blocked.length === 1 ? '' : 's'} skipped`
+  return `${what} — ${reasons.join(' · ').toLowerCase()}. Add a vendor on the row to bring ${blocked.length === 1 ? 'it' : 'them'} back in.`
+}

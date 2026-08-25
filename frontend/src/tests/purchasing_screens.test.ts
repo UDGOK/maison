@@ -156,7 +156,7 @@ describe('buying board', () => {
     __resetMockPurchasing()
     const rows = (await mockPurchasing.suggestions(true)).suggestions
     const order = [...rows].sort((a, b) => coverRank(a) - coverRank(b)).map((s) => s.item_code)
-    expect(order).toEqual(['HYDE-EDGE-4K-GRAPE', 'GB-PULSE-15K-BLUE', 'PUFF-XXL-MINT', 'AF-SHISHA-250-MINT', 'OCB-XPERT-KS'])
+    expect(order).toEqual(['HYDE-EDGE-4K-GRAPE', 'GB-PULSE-15K-BLUE', 'PUFF-XXL-MINT', 'AF-SHISHA-250-MINT', 'OPMS-GOLD-3CT', 'OCB-XPERT-KS'])
     expect(coverRank({ cover_days: 0, on_hand: 0 })).toBe(0)
     expect(coverRank({ cover_days: 0, on_hand: 288 })).toBe(Number.POSITIVE_INFINITY)
   })
@@ -166,11 +166,13 @@ describe('buying board', () => {
     const rows = (await mockPurchasing.suggestions(true)).suggestions
     const keep = (f: Parameters<typeof matchesSuggestion>[1]) => rows.filter((s) => matchesSuggestion(s, f)).map((s) => s.item_code)
 
-    expect(keep({ source: 'all' })).toHaveLength(5)
+    expect(keep({ source: 'all' })).toHaveLength(6)
     // the badge shows the most urgent source, but a row asked for by a store still answers that chip
     expect(keep({ source: 'Store demand' })).toEqual(['HYDE-EDGE-4K-GRAPE', 'AF-SHISHA-250-MINT'])
     expect(keep({ source: 'Trending' })).toEqual(['PUFF-XXL-MINT'])
     expect(keep({ group: 'Papers' })).toEqual(['OCB-XPERT-KS'])
+    // a row with no vendor still answers every filter — it is on the list, it just cannot be ordered
+    expect(keep({ group: 'Kratom' })).toEqual(['OPMS-GOLD-3CT'])
     expect(keep({ q: 'geek' })).toEqual(['GB-PULSE-15K-BLUE'])
     expect(keep({ q: 'gulf coast' })).toEqual(['GB-PULSE-15K-BLUE', 'OCB-XPERT-KS'])
     expect(keep({ q: 'nothing here' })).toEqual([])
@@ -315,7 +317,7 @@ describe('buying a list', () => {
     expect(out!.count).toBe(2)
     expect(createdNotice(out!.orders)).toMatch(/^2 draft orders created — MPO-/)
     // the ordered rows leave the buying list and the basket empties
-    expect(store.openSuggestions.map((s) => s.item_code)).toEqual(['HYDE-EDGE-4K-GRAPE', 'PUFF-XXL-MINT'])
+    expect(store.openSuggestions.map((s) => s.item_code)).toEqual(['HYDE-EDGE-4K-GRAPE', 'PUFF-XXL-MINT', 'OPMS-GOLD-3CT'])
     expect(store.selectedCount).toBe(0)
   })
 

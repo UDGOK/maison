@@ -1,6 +1,6 @@
 # AWANZ POS
 
-A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.1 "Onboarding a product"** (see `CHANGELOG.md`).
+A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.2 "What each store owes, and what each store charges"** (see `CHANGELOG.md`).
 
 The platform is **tenant-branded**: every user-facing string — wordmark, product name, receipt
 header, "Store" vs "Boutique", the rewards programme name — comes from brand settings, while the
@@ -24,11 +24,12 @@ verification) and the **Jewellery** profile it grew up as.
 | Warehouse & wall | `maison_pos/shipping/`, `frontend/src/warehouse/` | head-office desk at `/warehouse` — Outbound · Inbound · Buying · Vendors · Stock — and the 55" kanban wall at `/warehouse-wall` (see `docs/shipping.md`) |
 | Purchasing | `maison_pos/purchasing/`, `maison_pos/api/purchasing.py` | vendors and their negotiated buying price lists, the demand engine, purchase orders with drop-ship and freight, receiving at `HOU-WH`, four buying reports, and creating a product from the warehouse (see `docs/purchasing.md`) |
 | Distribution | `maison_pos/distribution.py`, `maison_pos/api/distribution.py` | Houston pushes stock **out** to the stores: plan, split, send — one shipment per store, on the existing shipping rails (see `docs/shipping.md` §1b) |
+| Pricing | `maison_pos/pricing/`, `maison_pos/api/pricing.py`, `maison_pos/reports/store_statement.py` | what a **store** pays Houston for stock (a chain markup on cost, overridable per item), stamped on every consignment when it ships, and the month-end statement per store — **a report, not an invoice** (see `docs/pricing.md`) |
 | Dev environment | `docker/` | docker-compose stack (MariaDB, Redis, Frappe/ERPNext v15, nginx) |
 
 Design system: **Monolith Gold** — Unbounded + Jost on deep black `#0B0B0A`, gold accent; it carries the
 CloudChaserz wordmark as readily as the jewellery one. See `SPEC.md` … `SPEC_v0.6.md`,
-`SPEC_v1.0.md` and `SPEC_v1.1.md`; 0.7–0.9 were audit and rename releases and carry no spec of their own.
+`SPEC_v1.0.md`, `SPEC_v1.1.md` and `SPEC_v1.2.md`; 0.7–0.9 were audit and rename releases and carry no spec of their own.
 
 ## Apps
 
@@ -84,6 +85,8 @@ Install order on a site: `erpnext`, `payments`, `webshop`, `hrms`, `crm`, **then
 **v1.0 — Procurement.** Centralised buying for the Houston warehouse — see the section below and `docs/purchasing.md`.
 
 **v1.1 — Onboarding a product.** Houston can push stock to the stores, add a product from the warehouse screens, and start a purchase order from scratch — see the section below, `docs/shipping.md` §1b and `docs/purchasing.md` §18.
+
+**v1.2 — What each store owes, and what each store charges.** The eleven stores are separately-owned LLCs, so Houston prices the stock it sends them: a chain-wide markup on what the warehouse paid (overridable per item), stamped onto every consignment at the moment it ships so the figure can never move afterwards, and a month-end **statement** per store to bill from by hand. It is an internal report and says so in its own payload — **no invoice, no receivable, no ageing, no payment tracking, and no change to any accounting**; stock still moves at cost. Separately, setting a store's *retail* price finally has a screen over the `AWANZ Price Change Request` workflow that has existed since v0.1. `docs/pricing.md`.
 
 ## Procurement
 
