@@ -14,6 +14,9 @@ interface Window {
   awanz_brand?: Record<string, unknown>
   dev_server?: number | boolean
   socketio_port?: number
+  /** v1.2 — the real site name, injected by www/awanz-dashboard.html; socket.io's namespace is
+   *  the site name, and the hostname only matches it on `<site>.frappe.cloud`. */
+  awanz_site_name?: string
   frappe?: {
     boot?: { sitename?: string }
     realtime?: {

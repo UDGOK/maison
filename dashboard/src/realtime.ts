@@ -28,7 +28,8 @@ function socketTarget(): string {
     const parts = host.split(':')
     host = (parts.length > 2 ? parts[0] + ':' + parts[1] : host) + ':' + (window.socketio_port || 9000)
   }
-  const site = window.frappe?.boot?.sitename || window.location.hostname
+  // v1.2 — the namespace is the site name; the hostname only matches it on *.frappe.cloud
+  const site = window.awanz_site_name || window.frappe?.boot?.sitename || window.location.hostname
   return `${host}/${site}`
 }
 

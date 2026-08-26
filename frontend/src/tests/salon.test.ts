@@ -6,6 +6,7 @@ import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { digitsOnly, firstName, maskClientNumber, maskEmail, maskPhone, maskTyping, sanitizeState } from '@/salon/mask'
 import { clientOf, initialModel, isStale, reduce, THANK_YOU_MS, viewOf, type SalonModel } from '@/salon/reducer'
 import { codeFromScan, formatCode, formatRemaining, isCodeValid, isCompleteCode, normalizeCode, parseServerTime, remainingMs } from '@/salon/pairing'
+import { socketTarget } from '@/salon/transport'
 import { makeDebouncer, samePayload } from '@/stores/salon'
 import { mockSalon, __mockSalon, SALON_SCREENS } from '@/api/salon'
 
@@ -269,5 +270,52 @@ describe('mock salon API contract', () => {
     expect(msgs).toEqual(['client_attached', 'client_attached', 'preferences', 'consent_agreed'])
     await mockSalon.unpair(s.token)
     await expect(mockSalon.state(s.token)).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+/**
+ * v1.2 — socket.io's namespace is the **site name**, not the host. These pin the bug that made the
+ * wall fall back to polling the day a custom domain was pointed at the live site.
+ */
+describe('socket target', () => {
+  const LOC = (hostname: string, port = '', protocol = 'https:') => ({
+    origin: `${protocol}//${hostname}${port ? ':' + port : ''}`,
+    hostname,
+    port,
+    protocol
+  })
+  const reset = () => {
+    delete (window as { awanz_site_name?: string }).awanz_site_name
+    delete (window as { dev_server?: unknown }).dev_server
+    delete (window as { socketio_port?: number }).socketio_port
+    delete (window as { frappe?: unknown }).frappe
+  }
+
+  beforeEach(reset)
+
+  it('uses the injected site name, not the domain the browser is on', () => {
+    // the actual failure: a custom domain asked for a namespace that does not exist
+    window.awanz_site_name = 'cloudchaserz.frappe.cloud'
+    expect(socketTarget(LOC('www.cc-ok.com'))).toBe('https://www.cc-ok.com/cloudchaserz.frappe.cloud')
+  })
+
+  it('is unchanged on the frappe.cloud domain, where host and site happen to match', () => {
+    window.awanz_site_name = 'cloudchaserz.frappe.cloud'
+    expect(socketTarget(LOC('cloudchaserz.frappe.cloud'))).toBe(
+      'https://cloudchaserz.frappe.cloud/cloudchaserz.frappe.cloud'
+    )
+  })
+
+  it('falls back to the desk boot, then the hostname, for a page that predates the fix', () => {
+    window.frappe = { boot: { sitename: 'booted.site' } }
+    expect(socketTarget(LOC('anything.example'))).toBe('https://anything.example/booted.site')
+    delete (window as { frappe?: unknown }).frappe
+    expect(socketTarget(LOC('anything.example'))).toBe('https://anything.example/anything.example')
+  })
+
+  it('talks to the socketio process directly under bench serve, keeping the site name', () => {
+    window.awanz_site_name = 'maison.localhost'
+    window.socketio_port = 9000
+    expect(socketTarget(LOC('maison.localhost', '8000', 'http:'))).toBe('http://maison.localhost:9000/maison.localhost')
   })
 })

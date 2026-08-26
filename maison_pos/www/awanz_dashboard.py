@@ -50,6 +50,14 @@ def get_context(context) -> None:
     # v0.6 R — the dashboard clock is the *site* clock: a head-office browser in another zone used
     # to print its own time next to a POS and a wall board showing the shops' time.
     context.site = {"time_zone": get_system_timezone()}
+    # --- v1.2 realtime: the socket.io **namespace is the site name**, not the host ---
+    # It fell back to `location.hostname`, which is the site name only by coincidence on
+    # `<site>.frappe.cloud`. On a custom domain that namespace does not exist, so every screen
+    # silently dropped to polling the moment the client pointed their own domain at the site.
+    context.site_name = frappe.local.site
+    context.socketio_port = frappe.conf.get("socketio_port") or 9000
+    context.dev_server = 1 if frappe.conf.get("developer_mode") and not frappe.conf.get("restart_supervisor_on_update") else 0
+    # --- end v1.2 realtime ---
     context.title = f"{brand['wordmark_text']} · Command"
     context.built = False
     context.dashboard_head = ""

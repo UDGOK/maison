@@ -14,6 +14,7 @@
       window.awanz_user = "{{ site_user }}";
       window.awanz_salon = true;
       window.awanz_brand = {{ (brand or {}) | tojson }};
+      window.awanz_site_name = "{{ site_name }}";  // v1.2 — socket namespace
       window.socketio_port = {{ socketio_port }};
       window.dev_server = {{ dev_server }};
     </script>

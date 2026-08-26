@@ -64,6 +64,15 @@ def get_context(context: dict) -> dict:
     context.title = brand["product_name"]
     context.csrf_token = frappe.sessions.get_csrf_token()
     context.site_user = frappe.session.user
+    # --- v1.2 realtime: the socket.io **namespace is the site name**, not the host ---
+    # `socketTarget()` fell back to `location.hostname`, which is the site name only by
+    # coincidence on `<site>.frappe.cloud`. On a custom domain it asked for a namespace that
+    # does not exist, so every screen silently dropped to polling — the wall stopped pulsing
+    # the moment the client pointed their own domain at the site.
+    context.site_name = frappe.local.site
+    context.socketio_port = frappe.conf.get("socketio_port") or 9000
+    context.dev_server = 1 if frappe.conf.get("developer_mode") and not frappe.conf.get("restart_supervisor_on_update") else 0
+    # --- end v1.2 realtime ---
 
     index_path = _built_index_path()
     if not os.path.exists(index_path):

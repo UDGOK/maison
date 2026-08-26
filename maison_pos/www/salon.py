@@ -27,6 +27,7 @@ def get_context(context: dict) -> dict:
     context.title = f"{brand_name()} Salon"
     context.csrf_token = frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else ""
     context.site_user = frappe.session.user
+    context.site_name = frappe.local.site  # v1.2 — socket namespace, not the host
     context.socketio_port = frappe.conf.get("socketio_port") or 9000
     context.dev_server = 1 if frappe.conf.get("developer_mode") and not frappe.conf.get("restart_supervisor_on_update") else 0
 

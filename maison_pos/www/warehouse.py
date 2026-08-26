@@ -25,6 +25,8 @@ def _context(context: dict, title: str, redirect: str) -> dict:
 	context.title = title
 	context.csrf_token = frappe.sessions.get_csrf_token()
 	context.site_user = frappe.session.user
+	# v1.2 — the socket.io namespace is the **site name**; on a custom domain the host is not it
+	context.site_name = frappe.local.site
 	context.socketio_port = frappe.conf.get("socketio_port") or 9000
 	context.dev_server = 1 if frappe.conf.get("developer_mode") and not frappe.conf.get("restart_supervisor_on_update") else 0
 	index_path = _built_index_path()

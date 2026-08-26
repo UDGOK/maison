@@ -14,7 +14,11 @@
   .page-content, .container, .page_content, main { max-width: none !important; padding: 0 !important; margin: 0 !important; }
 </style>
 <script>window.awanz_brand = {{ (brand or {}) | tojson }};
-window.awanz_site = {{ (site or {}) | tojson }};</script>
+window.awanz_site = {{ (site or {}) | tojson }};
+// v1.2 — socket.io's namespace is the site name, not the host a browser happens to be on
+window.awanz_site_name = "{{ site_name }}";
+window.socketio_port = {{ socketio_port }};
+window.dev_server = {{ dev_server }};</script>
 {{ dashboard_head | safe }}
 {%- endblock -%}
 

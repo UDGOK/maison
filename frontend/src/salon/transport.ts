@@ -27,17 +27,31 @@ declare global {
     dev_server?: number | boolean
     socketio_port?: number
     awanz_salon?: boolean
+    /** v1.2 — the real site name, injected by the www page. See `socketTarget`. */
+    awanz_site_name?: string
     frappe?: { boot?: { sitename?: string } }
   }
 }
 
-/** socket.io URL + namespace the way frappe/socketio_client.js builds it. */
+/**
+ * socket.io URL + namespace the way frappe/socketio_client.js builds it.
+ *
+ * The namespace is the **site name** — the directory under `sites/` — and not the host the
+ * browser happens to be on. Those are the same string on `<site>.frappe.cloud`, which is why
+ * falling back to `location.hostname` worked for months and then silently stopped the day the
+ * client pointed `www.cc-ok.com` at the site: socket.io was asked for a namespace that does not
+ * exist, every connection failed, and the wall dropped to polling with no error a user could see.
+ *
+ * `window.awanz_site_name` is injected by the www page (`www/pos.py`, `salon.py`, `warehouse.py`)
+ * and is the only source that is right on every domain. The rest are fallbacks for a page that
+ * predates the fix.
+ */
 export function socketTarget(loc: { origin: string; hostname: string; port: string; protocol: string } = window.location): string {
   let host = loc.origin
   const port = window.socketio_port || 9000
   // `bench serve` (port 8000) does not proxy /socket.io: talk to the socketio process directly
   if (window.dev_server || loc.port === '8000') host = `${loc.protocol}//${loc.hostname}:${port}`
-  const site = window.frappe?.boot?.sitename || loc.hostname
+  const site = window.awanz_site_name || window.frappe?.boot?.sitename || loc.hostname
   return `${host}/${site}`
 }
 

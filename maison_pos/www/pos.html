@@ -14,6 +14,11 @@
       window.awanz_user = "{{ site_user }}";
       // v0.6 N — brand tokens (also in catalog.bootstrap.brand; this makes the Unlock screen branded before the first bootstrap)
       window.awanz_brand = {{ (brand or {}) | tojson }};
+      // v1.2 — the socket.io namespace is the **site name**, which is not the hostname once a
+      // custom domain points at the site. Without these three the wall falls back to polling.
+      window.awanz_site_name = "{{ site_name }}";
+      window.socketio_port = {{ socketio_port }};
+      window.dev_server = {{ dev_server }};
     </script>
     {{ head_tags | safe }}
     <style>

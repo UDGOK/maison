@@ -11,6 +11,8 @@
       window.csrf_token = "{{ csrf_token }}";
       window.awanz_user = "{{ site_user }}";
       window.awanz_warehouse = true;
+      // v1.2 — socket.io's namespace is the site name, not the host the browser is on
+      window.awanz_site_name = "{{ site_name }}";
       window.socketio_port = {{ socketio_port }};
       window.dev_server = {{ dev_server }};
     </script>

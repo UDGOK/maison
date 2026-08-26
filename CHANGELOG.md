@@ -152,6 +152,28 @@ basket, send.
 It posts through `distribution.send` exactly as the v1.1 sheet does, so the wall, the pick list,
 the packing step and the store's Receive screen cannot tell the two routes apart.
 
+### Fixed — the wall was never live on a custom domain
+
+Reported the day `www.cc-ok.com` went live: every screen showed **POLLING** instead of a socket.
+
+socket.io's *namespace* is the **site name** — the directory under `sites/` — and the client was
+falling back to `location.hostname` when nothing told it otherwise. Those are the same string on
+`<site>.frappe.cloud`, which is why this worked for ten releases and stopped the moment the client
+pointed their own domain at the site: socket.io was asked for the namespace `/www.cc-ok.com`, which
+does not exist, the handshake failed, and every screen quietly dropped to its 10-second polling
+fallback. Nothing errored; the wall simply stopped pulsing.
+
+* `www/pos.py`, `warehouse.py`, `salon.py` and `awanz_dashboard.py` now put `frappe.local.site` on
+  the context, and **every page that opens a socket emits it** as `window.awanz_site_name` —
+  `warehouse.html` and `warehouse-wall.html` were the two that mattered and the two that had it
+  missing. `socketio_port` and `dev_server` travel with it; only the Salon page had them before.
+* `salon/transport.ts::socketTarget` and `dashboard/src/realtime.ts` prefer the injected name, then
+  the desk boot, then the hostname — so a page served from an older build still behaves as it did.
+* `maison_pos/tests/test_v1_2_realtime.py` asserts every socket-opening page carries the name, that
+  it is a name rather than a URL, and that the **template** emits it — context alone was never the
+  problem. `frontend/src/tests/salon.test.ts` pins the client half, including the exact case that
+  broke: host `www.cc-ok.com`, namespace `cloudchaserz.frappe.cloud`.
+
 ### The screens
 
 * **Prices** is a new section on `/warehouse`, open to head office and the warehouse only — every
