@@ -48,7 +48,8 @@ export const JEWELLERY_BRAND: Brand = {
 
 export function normalizeBrand(raw?: Partial<Brand> | null): Brand {
   const r = raw || {}
-  const vertical = r.vertical === 'Jewellery' || r.vertical === 'General' || r.vertical === 'Smoke Shop' ? r.vertical : DEFAULT_BRAND.vertical
+  const vertical =
+    r.vertical === 'Jewellery' || r.vertical === 'General' || r.vertical === 'Smoke Shop' || r.vertical === 'Perfume' ? r.vertical : DEFAULT_BRAND.vertical
   const str = (k: keyof Brand, d: string) => {
     const v = r[k]
     return typeof v === 'string' && v.trim() ? v.trim() : d

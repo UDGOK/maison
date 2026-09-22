@@ -51,11 +51,14 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 		{"fieldname": "maison_sent_on", "fieldtype": "Datetime", "label": "Sent to Vendor On", "read_only": 1, "insert_after": "maison_sent_column"},
 		{"fieldname": "maison_sent_by", "fieldtype": "Link", "label": "Sent By", "options": "User", "read_only": 1, "insert_after": "maison_sent_on"},
 		{"fieldname": "maison_sent_method", "fieldtype": "Select", "label": "Sent By Method", "options": "\nEmail\nPortal\nPhone\nEDI", "read_only": 1, "insert_after": "maison_sent_by"},
+		# v1.3 — the vendor's own invoice number, so a receipt can be matched to the paper it came with
+		{"fieldname": "maison_vendor_invoice_no", "fieldtype": "Data", "label": "Vendor Invoice No", "insert_after": "maison_sent_method", "in_standard_filter": 1},
 	],
 	"Purchase Receipt": [
 		{"fieldname": "maison_purchasing_section", "fieldtype": "Section Break", "label": "AWANZ Purchasing", "insert_after": "set_warehouse", "collapsible": 1},
 		{"fieldname": "maison_dropship_store", "fieldtype": "Link", "label": "Drop-ship Store", "options": "AWANZ Store", "insert_after": "maison_purchasing_section"},
 		{"fieldname": "maison_freight_amount", "fieldtype": "Currency", "label": "Freight", "insert_after": "maison_dropship_store"},
+		{"fieldname": "maison_vendor_invoice_no", "fieldtype": "Data", "label": "Vendor Invoice No", "insert_after": "maison_freight_amount", "in_standard_filter": 1},  # v1.3
 	],
 	"AWANZ POS Settings": [
 		{"fieldname": "purchasing_section", "fieldtype": "Section Break", "label": "Purchasing", "insert_after": "wall_crit_hours", "collapsible": 1},

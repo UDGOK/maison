@@ -25,6 +25,7 @@ export function useBrand() {
     programName: computed(() => brand.value.rewards_program_name),
     isJewellery: computed(() => brand.value.vertical === 'Jewellery'),
     isSmokeShop: computed(() => brand.value.vertical === 'Smoke Shop'),
+    isPerfume: computed(() => brand.value.vertical === 'Perfume'), // v1.3
     developerName: computed(() => brand.value.developer_name || ''),
     developerWebsite: computed(() => brand.value.developer_website || ''),
     /** "Thank you for visiting CloudChaserz" */

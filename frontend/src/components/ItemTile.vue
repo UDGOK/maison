@@ -27,7 +27,15 @@ const sub = computed(() => {
   }
   return props.stock > 0 ? `Qty ${props.stock}` : 'Out of stock'
 })
-const meta = computed(() => [props.item.maison_metal, props.item.maison_carat ? props.item.maison_carat + ' ct' : ''].filter(Boolean).join(' / '))
+const meta = computed(() => {
+  // v1.3 — a fragrance tile reads "EDP · 3.4 oz · Women"; jewellery keeps "18k Gold / 1.2 ct"
+  if (props.item.maison_concentration || props.item.maison_size) {
+    return [props.item.maison_concentration, props.item.maison_size, props.item.maison_gender, props.item.maison_tester ? 'Tester' : '']
+      .filter(Boolean)
+      .join(' · ')
+  }
+  return [props.item.maison_metal, props.item.maison_carat ? props.item.maison_carat + ' ct' : ''].filter(Boolean).join(' / ')
+})
 const imgFailed = ref(false)
 const hasImage = computed(() => props.showImage && !!props.item.image && !imgFailed.value)
 

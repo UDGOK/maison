@@ -80,7 +80,7 @@
 	</div>
 
 	<div class="rw-legal">
-		Points are earned on the net amount paid (before tax) and never expire while your account is active. Rewards are redeemed in store, one reward per transaction. Age-restricted products (vape, e-liquid, tobacco, hookah, kratom) are sold in store only to adults 21+ with a valid government ID; rewards cannot be used to buy products where prohibited by law. Questions: <a href="mailto:{{ p.brand.support_email }}" style="color:var(--mw-accent)">{{ p.brand.support_email }}</a>.
+		Points are earned on the net amount paid (before tax) and never expire while your account is active. Rewards are redeemed in store, one reward per transaction.{% if p.brand.vertical != 'Perfume' %} Age-restricted products (vape, e-liquid, tobacco, hookah, kratom) are sold in store only to adults 21+ with a valid government ID; rewards cannot be used to buy products where prohibited by law.{% endif %} Questions: <a href="mailto:{{ p.brand.support_email }}" style="color:var(--mw-accent)">{{ p.brand.support_email }}</a>.
 	</div>
 </div>
 {% endblock %}
@@ -105,7 +105,7 @@
 		};
 		if (!args.name) { err.textContent = 'Please enter your name.'; err.style.display = 'block'; return; }
 		if (!args.phone && !args.email) { err.textContent = 'Please enter a phone number or an e-mail.'; err.style.display = 'block'; return; }
-		if (!args.consent) { err.textContent = 'Please confirm you are 21+ and accept the terms.'; err.style.display = 'block'; return; }
+		if (!args.consent) { err.textContent = 'Please confirm you are {{ p.minimum_age or 21 }}+ and accept the terms.'; err.style.display = 'block'; return; }
 		btn.disabled = true;
 		// v0.7 white-label: the CSRF token travels in the request body (the server accepts it
 		// there as well as in a header), so this page ships no framework-named header and does

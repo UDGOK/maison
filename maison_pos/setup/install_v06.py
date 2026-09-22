@@ -15,7 +15,15 @@ from typing import Any
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-VERTICALS = ("Smoke Shop", "Jewellery", "General")
+# v1.3 — "Perfume" joins the list (Scents of Arabia). Adding a member here is enough for the
+# `vertical` Select on AWANZ POS Settings: `create_custom_fields(update=True)` rewrites its options
+# on the next migrate, and every existing site keeps the value it already holds.
+VERTICALS = ("Smoke Shop", "Jewellery", "General", "Perfume")
+
+#: v1.3 — the fragrance concentrations the POS / shop know how to label
+PERFUME_CONCENTRATIONS = ("", "EDP", "EDT", "Parfum", "Extrait de Parfum", "Cologne", "Perfume Oil", "Body Spray", "Body Mist", "Gift Set", "Other")
+PERFUME_ORIGINS = ("", "Designer", "Arabian", "Niche", "House")
+PERFUME_GENDERS = ("", "Men", "Women", "Unisex")
 
 # Item groups whose items are age-restricted by default (smoke-shop vertical)
 AGE_RESTRICTED_GROUPS = ("Disposables", "E-Liquid", "Devices & Mods", "Pods & Coils", "Hookah & Shisha", "Kratom", "Rolling & Papers", "Glass & Rigs")
@@ -106,6 +114,18 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 		{"fieldname": "maison_puffs", "label": "Puffs", "fieldtype": "Int", "insert_after": "maison_vertical_column"},
 		{"fieldname": "maison_age_restricted", "label": "Age restricted (21+)", "fieldtype": "Check", "default": "0", "insert_after": "maison_puffs", "in_standard_filter": 1},
 		{"fieldname": "maison_msrp", "label": "MSRP", "fieldtype": "Currency", "insert_after": "maison_age_restricted"},
+		# --- v1.3 — perfume vertical (Scents of Arabia). Same section, shown only when the tenant's
+		# vertical is "Perfume" (`maison_pos.brand.item_attribute_fields`). ---
+		{"fieldname": "maison_perfume_section", "label": "Fragrance", "fieldtype": "Section Break", "insert_after": "maison_msrp", "collapsible": 1},
+		{"fieldname": "maison_concentration", "label": "Concentration", "fieldtype": "Select", "options": "\n".join(PERFUME_CONCENTRATIONS), "insert_after": "maison_perfume_section", "in_standard_filter": 1, "description": "EDP, EDT, Parfum, Extrait, Perfume Oil, Body Spray, Gift Set …"},
+		{"fieldname": "maison_size", "label": "Size", "fieldtype": "Data", "insert_after": "maison_concentration", "description": "As sold, e.g. 3.4 oz / 100 ml"},
+		{"fieldname": "maison_gender", "label": "For", "fieldtype": "Select", "options": "\n".join(PERFUME_GENDERS), "insert_after": "maison_size", "in_standard_filter": 1},
+		{"fieldname": "maison_perfume_column", "fieldtype": "Column Break", "insert_after": "maison_gender"},
+		{"fieldname": "maison_fragrance_origin", "label": "Range", "fieldtype": "Select", "options": "\n".join(PERFUME_ORIGINS), "insert_after": "maison_perfume_column", "in_standard_filter": 1, "description": "Designer (big brands) or Arabian (oud / attar houses) — the price board's markup rule reads this."},
+		{"fieldname": "maison_fragrance_family", "label": "Fragrance family", "fieldtype": "Data", "insert_after": "maison_fragrance_origin", "description": "Oud, Floral, Woody, Fresh, Oriental, Gourmand …"},
+		{"fieldname": "maison_notes", "label": "Notes", "fieldtype": "Small Text", "insert_after": "maison_fragrance_family", "description": "Top / heart / base notes, shown on the shop and the client's screen"},
+		{"fieldname": "maison_tester", "label": "Tester (no retail box)", "fieldtype": "Check", "default": "0", "insert_after": "maison_notes"},
+		# --- end v1.3 ---
 	],
 	"Sales Invoice": [
 		{"fieldname": "maison_age_section", "label": "Age verification", "fieldtype": "Section Break", "insert_after": "maison_manager_approved_by", "collapsible": 1},
@@ -138,6 +158,8 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 
 
 DEPARTMENT_OPTIONS = ["", "Timepieces", "High Jewellery", "Bridal", "Accessories", "Services", "Vape", "Glass", "Hookah", "Kratom & CBD"]
+# v1.3 — perfume departments (the POS top bar); item groups are finer (see setup/scentsofarabia/catalog.py)
+DEPARTMENT_OPTIONS += ["Fragrance", "Oud & Oils", "Gift Sets", "Body Sprays", "Fixtures"]
 
 
 def create_v06_custom_fields() -> None:

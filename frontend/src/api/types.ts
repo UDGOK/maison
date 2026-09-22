@@ -84,6 +84,19 @@ export interface Item {
   maison_age_restricted?: 0 | 1
   maison_msrp?: number
   // --- end v0.6 N ---
+  // --- v1.3 — perfume vertical attributes (Scents of Arabia) ---
+  /** EDP, EDT, Parfum, Extrait de Parfum, Perfume Oil, Body Spray, Gift Set … */
+  maison_concentration?: string | null
+  /** as sold, e.g. "3.4 oz" */
+  maison_size?: string | null
+  maison_gender?: 'Men' | 'Women' | 'Unisex' | '' | null
+  /** Designer (big brands) or Arabian (oud / attar houses) — drives the markup rule */
+  maison_fragrance_origin?: 'Designer' | 'Arabian' | 'Niche' | 'House' | '' | null
+  maison_fragrance_family?: string | null
+  maison_notes?: string | null
+  /** 1 = tester (no retail box) */
+  maison_tester?: 0 | 1
+  // --- end v1.3 ---
   /** Standard ERPNext Item.image (absolute URL) or null — v0.2 replaces maison_image_url. */
   image?: string | null
   /** Custom unique barcode (maison_barcode); standard Item Barcode rows are merged into `barcodes`. */
@@ -252,8 +265,8 @@ export interface Brand {
   support_email?: string
   brand_website?: string
   brand_logo?: string | null
-  vertical: 'Smoke Shop' | 'Jewellery' | 'General'
-  /** "Store" (smoke shop / general) or "Boutique" (jewellery) */
+  vertical: 'Smoke Shop' | 'Jewellery' | 'General' | 'Perfume'
+  /** "Store" (smoke shop / general / perfume) or "Boutique" (jewellery) */
   store_noun: string
   rewards_program_name: string
   head_office_boutique?: string | null

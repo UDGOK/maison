@@ -112,4 +112,20 @@ def item_attribute_fields(vert: Optional[str] = None) -> list[str]:
 		return ["maison_brand", "maison_flavor", "maison_nicotine_mg", "maison_volume_ml", "maison_puffs", "maison_age_restricted", "maison_msrp"]
 	if v == "Jewellery":
 		return ["maison_metal", "maison_carat", "maison_stones", "maison_certificate_no", "maison_appraisal_value"]
+	if v == "Perfume":  # v1.3 — Scents of Arabia
+		return PERFUME_ATTRIBUTE_FIELDS
 	return ["maison_brand", "maison_msrp", "maison_age_restricted"]
+
+
+#: v1.3 — the perfume vertical's product attributes (custom fields on Item, `install_v06`)
+PERFUME_ATTRIBUTE_FIELDS = [
+	"maison_brand",
+	"maison_concentration",
+	"maison_size",
+	"maison_gender",
+	"maison_fragrance_origin",
+	"maison_fragrance_family",
+	"maison_notes",
+	"maison_tester",
+	"maison_msrp",
+]

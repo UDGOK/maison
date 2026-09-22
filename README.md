@@ -1,12 +1,13 @@
 # AWANZ POS
 
-A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.2 "What each store owes, and what each store charges"** (see `CHANGELOG.md`).
+A multi-store point of sale and head-office platform built as a custom app on **Frappe Framework v15 + ERPNext v15**. Current release: **v1.3 "Scents of Arabia" — the Perfume vertical** (see `CHANGELOG.md`).
 
 The platform is **tenant-branded**: every user-facing string — wordmark, product name, receipt
 header, "Store" vs "Boutique", the rewards programme name — comes from brand settings, while the
 doctypes, roles and module are named for the product (`AWANZ *`, module `AWANZ POS`). It ships with
-two verticals: the **Smoke Shop** profile (CloudChaserz: 11 stores, a Houston warehouse, 21+ age
-verification) and the **Jewellery** profile it grew up as.
+three verticals: the **Smoke Shop** profile (CloudChaserz: 11 stores, a Houston warehouse, 21+ age
+verification), the **Perfume** profile (Scents of Arabia: a Houston warehouse and two Tulsa-metro
+stores, v1.3) and the **Jewellery** profile it grew up as.
 
 > **v0.9 renamed the product from Maison to AWANZ.** Doctypes, roles, reports, print formats, the
 > module and the dashboard route all moved (`/maison-dashboard` still redirects to
@@ -86,6 +87,8 @@ Install order on a site: `erpnext`, `payments`, `webshop`, `hrms`, `crm`, **then
 
 **v1.1 — Onboarding a product.** Houston can push stock to the stores, add a product from the warehouse screens, and start a purchase order from scratch — see the section below, `docs/shipping.md` §1b and `docs/purchasing.md` §18.
 
+**v1.3 — Scents of Arabia.** The **Perfume** vertical (fragrance attributes on Item, perfume copy on the POS, shop, receipts and rewards, no age gate) and a seed built from the client's real vendor invoices: company, Houston warehouse + Owasso and East Tulsa stores, brand and logo, 63 items with manufacturer barcodes, the vendor, the three invoices received at cost and pushed to Owasso, retail at cost × 1.30 (Designer) / × 2.00 (Arabian). `docs/scentsofarabia.md`.
+
 **v1.2 — What each store owes, and what each store charges.** The eleven stores are separately-owned LLCs, so Houston prices the stock it sends them: a chain-wide markup on what the warehouse paid (overridable per item), stamped onto every consignment at the moment it ships so the figure can never move afterwards, and a month-end **statement** per store to bill from by hand. It is an internal report and says so in its own payload — **no invoice, no receivable, no ageing, no payment tracking, and no change to any accounting**; stock still moves at cost. Separately, setting a store's *retail* price finally has a screen over the `AWANZ Price Change Request` workflow that has existed since v0.1. `docs/pricing.md`.
 
 ## Procurement
@@ -139,6 +142,13 @@ register on the storefront itself at `/shop/register` — no mail server needed.
 the API: `POST /api/method/maison_pos.setup.cloudchaserz.seed_remote`, then
 `…cloudchaserz.seed_history_remote {"months": 3}` and `…cloudchaserz.status` to watch it.
 
+**Scents of Arabia (the perfume tenant — Houston warehouse, Owasso + East Tulsa, real invoices):**
+```bash
+bench --site yoursite execute maison_pos.setup.scentsofarabia.seed        # company, 3 locations, brand, 63 items, vendor, invoices → HOU-WH → Owasso
+bench build --app maison_pos
+```
+Everything is branded Scents of Arabia; the initial password of the placeholder staff seats is generated per run and printed once. Managed host: `POST /api/method/maison_pos.setup.scentsofarabia.seed_remote`, then `…scentsofarabia.status`. Details, pricing rule and open questions in `docs/scentsofarabia.md`.
+
 **Jewellery (the original profile, what the regression suites use):**
 ```bash
 bench --site yoursite execute maison_pos.setup.demo.seed --kwargs '{"vertical":"Jewellery"}'       # company, 3 boutiques, 42 items, clients, PINs
@@ -179,4 +189,4 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE=http://cc-site:8000 ADMIN_PWD=adm
 ```
 
 ## Docs
-`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **security**, **white-label**, **purchasing**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`
+`SPEC*.md` (contracts + design system) · `CHANGELOG.md` · `maison_pos/README_BACKEND.md` · `INTEGRATION_NOTES.md` (bench + Frappe Cloud steps) · `docs/*.md` (cloudchaserz, **scentsofarabia**, **security**, **white-label**, **purchasing**, shipping, rewards, salon, dashboard, campaigns, hardware, crm, payroll, returns, webshop, scanners, biometrics-policy) · `e2e/REPORT.md`, `e2e/CLOUD_REPORT.md` · `docker/README.md`

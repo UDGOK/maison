@@ -11,6 +11,11 @@
 			<span class="mw-label gold eyebrow">{{ shop.brand_name }} &middot; Autumn collection</span>
 			<h1 class="mw-display xl">Made in the atelier.<br>Collected in your boutique.</h1>
 			<p>Fine jewellery and timepieces from the house of {{ shop.brand_name }}. Choose a piece online, let your boutique prepare it, and collect it with a glass of champagne — or reserve a rare piece with a deposit.</p>
+			{% elif shop.vertical == 'Perfume' %}
+			{# v1.3 — perfume vertical (Scents of Arabia) #}
+			<span class="mw-label gold eyebrow">{{ shop.brand_name }} &middot; {{ shop.tagline }}</span>
+			<h1 class="mw-display xl">Designer houses.<br>Arabian oud. One counter.</h1>
+			<p>Designer fragrances, Arabian oud and attar oils, gift sets and body sprays from {{ shop.brand_name }}. Choose online, let your store prepare it, and collect it the same day &mdash; every bottle sealed and authentic.</p>
 			{% else %}
 			<span class="mw-label gold eyebrow">{{ shop.brand_name }} &middot; {{ shop.tagline }}</span>
 			<h1 class="mw-display xl">Order online.<br>Pick up in store today.</h1>
@@ -33,7 +38,7 @@
 <div class="mw-wrap">
 	<section class="mw-section">
 		<div class="mw-section-head">
-			<div><span class="mw-label">{{ 'Collections' if shop.vertical == 'Jewellery' else 'Categories' }}</span><h2 class="mw-display lg">{{ 'The house in four chapters' if shop.vertical == 'Jewellery' else 'Everything for the session' }}</h2></div>
+			<div><span class="mw-label">{{ 'Collections' if shop.vertical == 'Jewellery' else 'Categories' }}</span><h2 class="mw-display lg">{{ 'The house in four chapters' if shop.vertical == 'Jewellery' else ('Designer, Arabian, gift sets and oils' if shop.vertical == 'Perfume' else 'Everything for the session') }}</h2></div>
 		</div>
 		<div class="mw-collections">
 			{% for g in group_cards %}
@@ -59,6 +64,10 @@
 			<a href="/shop/collection?mode=Buy"><span class="n">Order &amp; collect</span><span class="c">Add to your bag, choose a boutique, pay online or at the counter. Ready in 24 hours.</span></a>
 			<a href="/shop/collection?mode=Reserve-with-deposit"><span class="n">Reserve with deposit</span><span class="c">A 10% deposit holds a timepiece or solitaire in the boutique of your choice for 14 days.</span></a>
 			<a href="/shop/collection?mode=Enquire"><span class="n">Enquire</span><span class="c">One-of-a-kind high jewellery is presented in person. Ask for a private viewing.</span></a>
+			{% elif shop.vertical == 'Perfume' %}
+			<a href="/shop/collection?mode=Buy"><span class="n">Order &amp; collect</span><span class="c">Add to your bag, choose a store, pay online or at the counter. Ready the same day.</span></a>
+			<a href="/shop/boutiques"><span class="n">Try it in store</span><span class="c">Every fragrance has a tester at the counter. Smell first, then decide &mdash; opened bottles are final sale.</span></a>
+			<a href="/rewards"><span class="n">{{ shop.rewards_name }}</span><span class="c">$1 = 1 point. $5 off at 100 points, $10 at 200, $15 at 300. Birthday coupon and new-arrival alerts.</span></a>
 			{% else %}
 			<a href="/shop/collection?mode=Buy"><span class="n">Order &amp; collect</span><span class="c">Add to your bag, choose a store, pay online or at the counter. Ready in about two hours.</span></a>
 			<a href="/shop/boutiques"><span class="n">21+ in store</span><span class="c">Vape, e-liquid, kratom and hookah products are age-restricted: reserve online, show a valid ID at pick-up.</span></a>

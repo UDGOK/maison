@@ -103,6 +103,11 @@
 				<div><b>{{ m.shop_brand.rewards_program_name }}</b>Earn points on every piece, online and in boutique.</div>
 				<div><b>Atelier guarantee</b>Five years on timepieces, lifetime on settings.</div>
 				<div><b>Private viewing</b>Book an appointment with an advisor.</div>
+				{% elif m.shop_brand.vertical == 'Perfume' %}
+				<div><b>Click &amp; collect</b>Prepared by your store, ready the same day.</div>
+				<div><b>{{ m.shop_brand.rewards_program_name }}</b>$1 = 1 point. $5 off at 100 points.</div>
+				<div><b>Sealed &amp; authentic</b>Every bottle factory-sealed; testers at the counter.</div>
+				<div><b>Try before you buy</b>Opened fragrances and oils are final sale.</div>
 				{% else %}
 				<div><b>Click &amp; collect</b>Prepared by your store, ready in 2 h.</div>
 				<div><b>{{ m.shop_brand.rewards_program_name }}</b>$1 = 1 point. $5 off at 100 points.</div>

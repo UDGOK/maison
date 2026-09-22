@@ -283,6 +283,9 @@ export const useCatalogStore = defineStore('catalog', {
           (i.maison_metal || '').toLowerCase().includes(s) ||
           (i.maison_brand || '').toLowerCase().includes(s) || // v0.6 N
           (i.maison_flavor || '').toLowerCase().includes(s) || // v0.6 N
+          (i.maison_concentration || '').toLowerCase().includes(s) || // v1.3
+          (i.maison_fragrance_family || '').toLowerCase().includes(s) || // v1.3
+          (i.maison_notes || '').toLowerCase().includes(s) || // v1.3
           (this.serials[i.item_code] || []).some((sn) => sn.toLowerCase().includes(s))
         )
       })

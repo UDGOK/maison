@@ -5,6 +5,49 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.3.0 — 2026-09-22 "Scents of Arabia" — the Perfume vertical
+
+A second real tenant, on its own bench: a fragrance retailer with a Houston warehouse (Markhor
+Wholesale) and two Tulsa-metro stores. The platform gains a **Perfume** vertical and a seed built
+from the client's real paperwork — not a demo. Working document: `docs/scentsofarabia.md`.
+
+### The vertical
+
+* `AWANZ POS Settings.vertical` gains **Perfume** (`install_v06.VERTICALS`); every existing site
+  keeps the value it holds. `brand.item_attribute_fields("Perfume")` lists the new attributes.
+* **Item** gains a collapsed *Fragrance* section: `maison_concentration` (EDP / EDT / Parfum /
+  Extrait / Perfume Oil / Body Spray / Gift Set …), `maison_size`, `maison_gender`,
+  `maison_fragrance_origin` (**Designer / Arabian** — the markup rule reads it), `maison_fragrance_family`,
+  `maison_notes`, `maison_tester`. `maison_department` gains Fragrance · Oud & Oils · Gift Sets ·
+  Body Sprays · Fixtures.
+* **Purchase Order / Purchase Receipt** gain `maison_vendor_invoice_no`.
+* `api.catalog` ships the new fields to the POS through `_item_fields()`, which drops any
+  `maison_*` column the site has not migrated yet — a bench on "Update Site *Pull*" still boots.
+* POS: the tile meta reads *EDP · 3.4 oz · Women · Tester* for a fragrance; search matches
+  concentration, family and notes; `normalizeBrand` accepts the vertical. Bundle rebuilt.
+* Copy: receipt footer, shop hero / how-it-works / footer / product assurance and `/rewards` carry
+  a perfume branch (no "21+", no vape); the rewards consent reads the tenant's `minimum_age`.
+
+### The seed — `maison_pos.setup.scentsofarabia`
+
+Company **Scents of Arabia** (`SOA`), stores `OK-OWA` and `OK-ETUL`, warehouse `HOU-WH`; brand
+(every key written, the crescent-and-horse mark as `brand_logo`, age gate off); **Scents of Arabia
+Rewards**; 63 items with the manufacturer's UPC / EAN as the scannable barcode and generated art;
+the vendor **Sunshine Electronics & Perfumes** with a preferred `AWANZ Item Vendor` row per item;
+invoices **99139 / 99464 / 99595** as dated Purchase Orders + Receipts at HOU-WH (5,910 units,
+$10,347.65, lines checked against the printed subtotals before posting; the free 36-vial stands
+on a zero-value Material Receipt); retail at **cost × 1.30 (Designer) / × 2.00 (Arabian)** with the
+same rule on the v1.2 wholesale board; and the whole receipt **pushed to Owasso** on the v1.1
+rails and received there. Placeholder staff seats with a per-run generated password. Idempotent
+throughout; invoices are keyed on `maison_vendor_invoice_no`.
+
+### Verified
+
+`vue-tsc` clean · vitest 493 / 494 (the one failure, `qa_v08 W-D2`, is the pre-existing
+timezone-dependent assertion, unrelated) · the seed's data checked outside a bench (totals,
+catalogue ↔ invoice costs, 63 unique valid barcodes, art renders) · live on the new site (see
+`INTEGRATION_NOTES.md`).
+
 ## 1.2.0 — 2026-08-25 "What each store owes, and what each store charges"
 
 The eleven stores are **separately-owned LLCs**. Houston buys centrally and sends them stock, and

@@ -47,6 +47,15 @@ ITEM_FIELDS = [
 	"maison_age_restricted",
 	"maison_msrp",
 	# --- end v0.6 N ---
+	# --- v1.3 — perfume vertical attributes (Scents of Arabia) ---
+	"maison_concentration",
+	"maison_size",
+	"maison_gender",
+	"maison_fragrance_origin",
+	"maison_fragrance_family",
+	"maison_notes",
+	"maison_tester",
+	# --- end v1.3 ---
 	"modified",
 ]
 
@@ -220,13 +229,22 @@ def absolute_file_url(url: Optional[str]) -> Optional[str]:
 	return get_url(url)
 
 
+def _item_fields() -> list[str]:
+	"""v1.3 — ``ITEM_FIELDS`` minus any ``maison_*`` custom field this site has not migrated yet.
+
+	The v1.3 perfume attributes are created by ``after_migrate``; a bench that pulled the code
+	but has not migrated (Frappe Cloud's "Update Site Pull") must still bootstrap the POS."""
+	meta = frappe.get_meta("Item")
+	return [f for f in ITEM_FIELDS if not f.startswith("maison_") or meta.has_field(f)]
+
+
 def _items(since: Optional[str] = None, company: Optional[str] = None) -> list[dict[str, Any]]:
 	filters: dict[str, Any] = {"is_sales_item": 1}
 	if since:
 		filters["modified"] = (">=", since)
 	else:
 		filters["disabled"] = 0
-	rows = frappe.get_all("Item", filters=filters, fields=ITEM_FIELDS, order_by="item_name")
+	rows = frappe.get_all("Item", filters=filters, fields=_item_fields(), order_by="item_name")
 	foreign = _foreign_items(company)  # v0.6 N
 	rows = [r for r in rows if r["item_code"] not in foreign]
 	for r in rows:

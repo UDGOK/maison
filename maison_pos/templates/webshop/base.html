@@ -69,6 +69,8 @@
 				<div class="wm">{{ shop.wordmark }}</div>
 				{% if shop.vertical == 'Jewellery' %}
 				<div>Fine jewellery and timepieces, made in the {{ shop.brand_name }} atelier.<br>Every online order is prepared and collected in one of our boutiques.</div>
+				{% elif shop.vertical == 'Perfume' %}
+				<div>{{ shop.tagline }}.<br>Designer fragrances, Arabian oud and attar oils, gift sets and body sprays — order online, collect in store.</div>
 				{% else %}
 				<div>{{ shop.tagline }}.<br>Vape, glass, hookah, kratom, CBD and accessories — order online, collect in store. Must be 21+ to purchase.</div>
 				{% endif %}
@@ -96,7 +98,7 @@
 			    About dialog, but the whole customer-facing website carried none. Brand-driven, so
 			    clearing `developer_name` removes it everywhere at once. -#}
 			<span>&copy; {{ shop.brand.legal_name or shop.brand_name }} &middot; Prices in USD, taxes added at the {{ shop.store_noun | lower }} of collection{% if shop.brand.developer_name %} &middot; <span class="dev-credit">{{ developer_credit(shop.brand) | safe }}</span>{% endif %}</span>
-			<span>{% if shop.vertical == 'Jewellery' %}Click &amp; collect &middot; Enquire &middot; Reserve with deposit{% else %}Click &amp; collect &middot; 21+ only &middot; Age-restricted items are sold in store{% endif %}</span>
+			<span>{% if shop.vertical == 'Jewellery' %}Click &amp; collect &middot; Enquire &middot; Reserve with deposit{% elif shop.vertical == 'Perfume' %}Click &amp; collect &middot; Sealed &amp; authentic &middot; Testers at every counter{% else %}Click &amp; collect &middot; 21+ only &middot; Age-restricted items are sold in store{% endif %}</span>
 		</div>
 	</div>
 </footer>

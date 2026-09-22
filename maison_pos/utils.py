@@ -410,6 +410,8 @@ def get_brand_context() -> dict[str, Any]:
 	b["rewards_program_name"] = get_rewards_settings()["rewards_program_name"]
 	if b.get("vertical") == "Jewellery":
 		b["receipt_footer"] = "Exchanges within 30 days with receipt. Bespoke and engraved pieces are final sale."
+	elif b.get("vertical") == "Perfume":  # v1.3
+		b["receipt_footer"] = "Exchanges within 14 days with receipt on sealed, unopened items. Opened fragrances, oils and testers are final sale."
 	else:
 		b["receipt_footer"] = "Exchanges within 30 days with receipt on unopened items. Opened vape, e-liquid and kratom products are final sale. Must be 21+ to purchase."
 	return b
