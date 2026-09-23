@@ -69,6 +69,7 @@ The fix is deliberately layered, because each layer catches a different bypass:
   reset, so the caller gets an honest **403** instead of a silent no-op, and it also scopes reads;
 * **`AWANZAssociate._guard_privileged_fields`** in `validate` — the last line, and the only one
   that still applies when a site's Custom DocPerms have been hand-edited;
+* **`scoping.as_administrator()`** (v1.5.2) is the only way the app runs a request step as Administrator: it restores the caller's session record (user, sid, data) afterwards, because `frappe.set_user` rewrites it in place and Frappe persists it at the end of the POST — a bare `set_user` pair signed the operator out on the next request whenever the persist was due
 * **`_sync_user_role`** refuses to grant a rank above the *granting* user's own (v1.4: *AWANZ Warehouse Admin* ranks as a Manager, so the warehouse desk's Staff section can hand out Associate and Manager — never Regional or Head Office)
   (`Associate < Manager < Regional < HeadOffice`), so even server code running with
   `ignore_permissions` cannot mint a Head Office; and a **demotion now takes the old Frappe role

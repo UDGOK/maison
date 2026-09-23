@@ -21,7 +21,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, cint, flt, nowdate
 
-from maison_pos.scoping import assert_boutique_access, assert_supply_admin, is_supply_unrestricted
+from maison_pos.scoping import as_administrator, assert_boutique_access, assert_supply_admin, is_supply_unrestricted
 
 
 def _store(boutique: Optional[str]) -> frappe._dict:
@@ -213,10 +213,9 @@ def adjust_store_stock(boutique: str, item_code: str, qty: float, reason: str) -
 	)
 	sr.flags.ignore_permissions = True
 	user = frappe.session.user
-	try:
-		# ERPNext's balance lookup checks write permission on Stock Reconciliation explicitly; the
-		# operator has been authorised above, so post as Administrator and keep their name on it
-		frappe.set_user("Administrator")
+	# ERPNext's balance lookup checks write permission on Stock Reconciliation explicitly; the
+	# operator has been authorised above, so post as Administrator and keep their name on it
+	with as_administrator():
 		try:
 			sr.insert()
 		except Exception as e:
@@ -236,7 +235,5 @@ def adjust_store_stock(boutique: str, item_code: str, qty: float, reason: str) -
 				"content": _("AWANZ stock correction at {0} by {1}: {2} → {3}. Reason: {4}").format(store.boutique_name, user, flt(before), qty, reason.strip()),
 			}
 		).insert(ignore_permissions=True)
-	finally:
-		frappe.set_user(user)
 	after = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": store.warehouse}, "actual_qty"))
 	return {"boutique": store.name, "item_code": item_code, "item_name": item.item_name, "before": before, "after": after, "changed": True, "stock_reconciliation": sr.name}

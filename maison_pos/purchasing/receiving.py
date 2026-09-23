@@ -24,6 +24,7 @@ from frappe.utils import cint, flt, now_datetime, nowdate
 from maison_pos.purchasing import damaged_warehouse_for, store_for_warehouse
 from maison_pos.purchasing.orders import freight_of, sync_freight_row
 from maison_pos.purchasing.vendors import stamp_last_purchase
+from maison_pos.scoping import as_administrator
 
 
 def _loads(value: Any, default: Any) -> Any:
@@ -155,8 +156,7 @@ def receive_purchase_order(
 	postable_lines = [p for p in plan if p["posted_qty"] > 0]
 	pr = None
 	if postable_lines:
-		frappe.set_user("Administrator")
-		try:
+		with as_administrator():
 			pr = make_purchase_receipt(po_name)
 			keep = []
 			by_key = {p["po_item"]: p for p in postable_lines}
@@ -196,8 +196,6 @@ def receive_purchase_order(
 			pr.flags.ignore_permissions = True
 			pr.insert()
 			pr.submit()
-		finally:
-			frappe.set_user(user)
 	discrepancies = _raise_discrepancies(po, plan, boutique, pr.name if pr else None, notes)
 	if pr:
 		_notify_discrepancies(po, discrepancies, boutique)
@@ -251,16 +249,13 @@ def _close_if_final(po_name: str, final: Any) -> bool:
 	po = frappe.get_doc("Purchase Order", po_name)
 	if po.docstatus != 1 or po.status in ("Closed", "Completed", "Cancelled"):
 		return False
-	user = frappe.session.user
-	frappe.set_user("Administrator")
 	try:
-		po.update_status("Closed")
+		with as_administrator():
+			po.update_status("Closed")
 		return True
 	except Exception:  # pragma: no cover — a receipt must never fail because closing did
 		frappe.log_error(frappe.get_traceback(), f"awanz close purchase order {po_name}")
 		return False
-	finally:
-		frappe.set_user(user)
 
 
 def _raise_discrepancies(po, plan: list[dict[str, Any]], boutique: Optional[str], receipt: Optional[str], notes: Optional[str]) -> list[str]:

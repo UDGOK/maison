@@ -5,6 +5,20 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.5.2 — 2026-09-23 — The operator's session survives a step run as Administrator
+
+* **`scoping.as_administrator()`** — every endpoint that posts on the operator's behalf (a
+  vendor receipt, a shop payment, a cycle count, a price decision, a stock correction) ran its
+  Administrator step as `frappe.set_user("Administrator")` … `frappe.set_user(user)`. That puts
+  the user *name* back but leaves what `set_user` did to the session record itself: the sid
+  rewritten to a user name and the session's data dict emptied. Frappe persists that same
+  record at the end of the POST whenever it is due (every ~10 minutes, and on the first request
+  after a bench move empties Redis), after which the caller's next request failed at
+  `init_request` with *User None is disabled* and they had to sign in again. The context
+  manager restores user, sid, data and the form dict; all seven sites use it.
+* Found on the v1.5.1 walk-through: the second stock correction on a fresh bench answered
+  *User None is disabled*.
+
 ## 1.5.1 — 2026-09-23 — After the first live walk-through of v1.5
 
 * **A store correction is posted after the ledger's last entry** for that item at that store,

@@ -23,7 +23,7 @@ from frappe import _
 from frappe.utils import cint, flt, get_url, now_datetime, nowdate
 
 from maison_pos.api.catalog import absolute_file_url
-from maison_pos.scoping import ALL_AWANZ_ROLES, assert_boutique_access, assert_roles, get_allowed_boutiques, is_unrestricted
+from maison_pos.scoping import ALL_AWANZ_ROLES, as_administrator, assert_boutique_access, assert_roles, get_allowed_boutiques, is_unrestricted
 from maison_pos.webshop import FULFILMENTS, core, is_payments_installed, is_webshop_installed
 from maison_pos.webshop.setup import SIMULATED_GATEWAY
 
@@ -946,12 +946,8 @@ def simulate_payment(payment_request: str) -> dict[str, Any]:
 	# same path as a real gateway callback: Payment Request.on_payment_authorized → advance Payment Entry.
 	# Creating the Payment Entry needs accounting rights the shopper lacks → run it as Administrator
 	# (AwanzPaymentRequest does the same for real gateways when it is the active override).
-	user = frappe.session.user
-	try:
-		frappe.set_user("Administrator")
+	with as_administrator():
 		redirect_to = pr.run_method("on_payment_authorized", "Completed")
-	finally:
-		frappe.set_user(user)
 	core.refresh_prepaid(pr.reference_name)
 	redirect_to = f"/shop/order?name={pr.reference_name}"
 	pe = frappe.db.get_value(

@@ -10,7 +10,8 @@ Rules (see SPEC "Store model"):
 
 from __future__ import annotations
 
-from typing import Optional
+from contextlib import contextmanager
+from typing import Iterator, Optional
 
 import frappe
 from frappe import _
@@ -44,6 +45,37 @@ FRAPPE_ROLE_RANK = {
 
 def _user(user: Optional[str] = None) -> str:
 	return user or frappe.session.user
+
+
+@contextmanager
+def as_administrator() -> Iterator[None]:
+	"""Run a block as Administrator and put the caller's session back **exactly** as it was.
+
+	v1.5.2 — ``frappe.set_user()`` rewrites ``frappe.local.session`` in place: the user, the *sid*
+	(to the user name) and the session's ``data`` dict (to an empty one). That same object is what
+	Frappe persists at the end of a POST (``Session.update()``: the cache entry under the real sid,
+	and every ~10 minutes — or on the first request after a bench move empties Redis — the
+	``Sessions`` row). A block that only put the user *name* back therefore persisted a session
+	whose data no longer named its user, and the caller's next request failed at
+	``init_request`` with *User None is disabled*. Every endpoint that posts on the operator's
+	behalf (receiving, a shop payment, a cycle count, a price decision, a stock correction) runs
+	its Administrator step through this instead.
+	"""
+	session = frappe.local.session
+	saved = {"user": session.get("user"), "sid": session.get("sid"), "data": session.get("data")}
+	form_dict = getattr(frappe.local, "form_dict", None)
+	try:
+		frappe.set_user("Administrator")
+		yield
+	finally:
+		# resets the role / permission caches for the real user …
+		frappe.set_user(saved["user"] or "Guest")
+		# … and undoes what set_user did to the session record itself
+		session.user = saved["user"]
+		session.sid = saved["sid"]
+		session.data = saved["data"]
+		if form_dict is not None:
+			frappe.local.form_dict = form_dict
 
 
 def is_unrestricted(user: Optional[str] = None) -> bool:

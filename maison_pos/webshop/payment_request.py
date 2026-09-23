@@ -23,15 +23,15 @@ class AwanzPaymentRequest(_Base):
 	def on_payment_authorized(self, status=None):
 		if status not in ("Authorized", "Completed"):
 			return super().on_payment_authorized(status)
-		user = frappe.session.user
+		from maison_pos.scoping import as_administrator
+
 		try:
-			frappe.set_user("Administrator")
-			frappe.flags.ignore_permissions = True
-			if self.status != "Paid":
-				self.set_as_paid()
+			with as_administrator():
+				frappe.flags.ignore_permissions = True
+				if self.status != "Paid":
+					self.set_as_paid()
 		finally:
 			frappe.flags.ignore_permissions = False
-			frappe.set_user(user)
 		if self.reference_doctype == "Sales Order":
 			core.refresh_prepaid(self.reference_name)
 			if frappe.db.get_value("Sales Order", self.reference_name, "maison_web_order"):

@@ -812,15 +812,14 @@ def _auto_approve(doc) -> bool:
 	store-scoped caller — and it is applied as Administrator with the requester's name kept on the
 	record, so the ledger still says who set the price."""
 	from frappe.model.workflow import apply_workflow
-	from maison_pos.scoping import APPROVER_ROLES
+	from maison_pos.scoping import APPROVER_ROLES, as_administrator
 
 	if doc.workflow_state != "Pending Approval" or not manager_sets_store_price():
 		return False
 	user = frappe.session.user
 	if user == "Administrator" or (APPROVER_ROLES & set(frappe.get_roles(user))):
 		return False
-	try:
-		frappe.set_user("Administrator")
+	with as_administrator():
 		apply_workflow(doc, "Approve")
 		doc.reload()
 		doc.db_set({"approved_by": user}, update_modified=False)
@@ -833,8 +832,6 @@ def _auto_approve(doc) -> bool:
 				"content": _("Applied at once — store managers set their own shelf prices (AWANZ POS Settings)."),
 			}
 		).insert(ignore_permissions=True)
-	finally:
-		frappe.set_user(user)
 	return doc.workflow_state == "Approved"
 
 
@@ -843,7 +840,7 @@ def approve_price_change(name: str, action: str = "Approve", reason: Optional[st
 	"""Drive the existing ``AWANZ Price Approval`` workflow (Approve / Reject). Head office,
 	regional and — from v1.5 — the warehouse admin, who decides from the warehouse desk."""
 	from frappe.model.workflow import apply_workflow
-	from maison_pos.scoping import APPROVER_ROLES
+	from maison_pos.scoping import APPROVER_ROLES, as_administrator
 
 	user = frappe.session.user
 	if user != "Administrator" and not (APPROVER_ROLES & set(frappe.get_roles(user))):
@@ -854,16 +851,13 @@ def approve_price_change(name: str, action: str = "Approve", reason: Optional[st
 	if reason:
 		doc.db_set("reason", ((doc.reason or "") + "\n" + reason).strip(), update_modified=False)
 		doc.reload()
-	try:
-		# the workflow fixture names the same roles; run the transition as Administrator so a site
-		# whose fixture predates v1.5 still lets the warehouse admin decide, and keep the
-		# decider's name on the record
-		frappe.set_user("Administrator")
+	# the workflow fixture names the same roles; run the transition as Administrator so a site
+	# whose fixture predates v1.5 still lets the warehouse admin decide, and keep the decider's
+	# name on the record
+	with as_administrator():
 		apply_workflow(doc, action)
 		doc.reload()
 		doc.db_set({"approved_by": user}, update_modified=False)
-	finally:
-		frappe.set_user(user)
 	doc.reload()
 	publish_wall(
 		"price_decided",

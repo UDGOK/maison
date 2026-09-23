@@ -22,6 +22,7 @@ from frappe.utils import cint, flt, get_url_to_form, now_datetime, nowdate, nowt
 
 from maison_pos.scoping import (
 	ALL_AWANZ_ROLES,
+	as_administrator,
 	assert_boutique_access,
 	assert_roles,
 	get_allowed_boutiques,
@@ -518,31 +519,29 @@ def submit_cycle_count(boutique: str, serials: Any = None, qty: Any = None, devi
 		# and reviewed by a manager in the desk, so insert it as Administrator.
 		user = frappe.session.user
 		try:
-			frappe.set_user("Administrator")
-			sr.owner = user
-			sr.insert()
-			# v0.8 QA W-D5 — Frappe stamps `owner` with `frappe.session.user` on insert, which is
-			# Administrator here (the draft is created on the associate's behalf, see above), so the
-			# manager reviewing it saw "Administrator" as the counter. Put the real user back.
-			frappe.db.set_value("Stock Reconciliation", sr.name, "owner", user, update_modified=False)
-			sr.owner = user
-			recon = sr.name
-			# Stock Reconciliation has no remarks field: the provenance goes in a comment, where the
-			# reviewing manager reads it on the document itself
-			frappe.get_doc(
-				{
-					"doctype": "Comment",
-					"comment_type": "Info",
-					"reference_doctype": "Stock Reconciliation",
-					"reference_name": sr.name,
-					"content": _("AWANZ cycle count {0} at {1} — counted by {2}").format(cc.name, boutique, user),
-				}
-			).insert(ignore_permissions=True)
-			cc.db_set("stock_reconciliation", recon, update_modified=False)
+			with as_administrator():
+				sr.owner = user
+				sr.insert()
+				# v0.8 QA W-D5 — Frappe stamps `owner` with `frappe.session.user` on insert, which is
+				# Administrator here (the draft is created on the associate's behalf, see above), so the
+				# manager reviewing it saw "Administrator" as the counter. Put the real user back.
+				frappe.db.set_value("Stock Reconciliation", sr.name, "owner", user, update_modified=False)
+				sr.owner = user
+				recon = sr.name
+				# Stock Reconciliation has no remarks field: the provenance goes in a comment, where the
+				# reviewing manager reads it on the document itself
+				frappe.get_doc(
+					{
+						"doctype": "Comment",
+						"comment_type": "Info",
+						"reference_doctype": "Stock Reconciliation",
+						"reference_name": sr.name,
+						"content": _("AWANZ cycle count {0} at {1} — counted by {2}").format(cc.name, boutique, user),
+					}
+				).insert(ignore_permissions=True)
+				cc.db_set("stock_reconciliation", recon, update_modified=False)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), f"AWANZ cycle count {cc.name}: stock reconciliation draft")
-		finally:
-			frappe.set_user(user)
 	return {
 		"cycle_count": cc.name,
 		"warehouse": exp["warehouse"],
