@@ -230,16 +230,25 @@ def ensure_stores(accounts: dict[str, str], walk_in: str) -> list[str]:
 
 # ---------------------------------------------------------------------------
 def _public_file(key: str) -> str | None:
-	"""Upload one bundled brand asset as a public File (idempotent) and return its URL."""
+	"""Upload one bundled brand asset as a public File (idempotent) and return its URL.
+
+	Idempotent on **content**, not on the file name: a re-run after the bundled asset changed
+	(the mark lost its black background in 1.3.3) uploads the new bytes — Frappe suffixes the
+	name — and the brand points at those, while a re-run with the same bytes finds the File that
+	already holds them by its content hash.
+	"""
+	import hashlib
+
 	name = LOGO_FILES[key]
 	path = os.path.join(ASSETS_DIR, name)
 	if not os.path.exists(path):
 		return None
-	existing = frappe.db.get_value("File", {"file_name": name, "is_private": 0}, "file_url")
-	if existing:
-		return existing
 	with open(path, "rb") as fh:
 		content = fh.read()
+	digest = hashlib.md5(content).hexdigest()  # what Frappe stores in File.content_hash
+	existing = frappe.db.get_value("File", {"content_hash": digest, "is_private": 0}, "file_url")
+	if existing:
+		return existing
 	f = frappe.get_doc({"doctype": "File", "file_name": name, "is_private": 0, "content": content})
 	f.flags.ignore_permissions = True
 	f.insert()

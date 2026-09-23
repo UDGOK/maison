@@ -83,8 +83,13 @@ def shop_context() -> dict[str, Any]:
 	brand = get_brand()
 	rewards_name = get_rewards_settings()["rewards_program_name"]
 	# --- end v0.6 N ---
+	from maison_pos import __version__
+
 	return {
 		"brand": brand,
+		# v1.3.3 — cache key for the shop stylesheet: the link carried no version, so a browser
+		# kept the old rules across a release and rendered new markup with them
+		"asset_version": __version__,
 		"brand_name": brand["brand_name"],
 		"wordmark": brand["wordmark_text"],
 		"tagline": brand["tagline"],

@@ -5,6 +5,16 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.3.3 — 2026-09-22 — the mark without its black square
+
+* The bundled Scents of Arabia mark (`setup/scentsofarabia/assets/scents-of-arabia-mark.png`) had
+  a black background, which showed as a square against the POS ground and as a black tile on the
+  white desk login. It is transparent now; `stores._public_file` is idempotent on **content** (the
+  File's `content_hash`), so a re-run of the seed uploads changed bytes and the brand follows them.
+* The shop stylesheet link carries `?v=<app version>`: it had no cache key, so a browser kept the
+  old rules across a release and rendered 1.3.2's header markup with 1.3.1's CSS — a full-size
+  mark and the wordmark pushed under the bar until a hard refresh.
+
 ## 1.3.2 — 2026-09-22 — the second tenant's brand on every screen, and its mark
 
 Found while walking the Scents of Arabia site after its first seed.
