@@ -77,7 +77,8 @@ def store_stock(boutique: Optional[str] = None, q: Optional[str] = None, limit: 
 	reorder level and a low-stock flag. Never a cost."""
 	store = _store(boutique)
 	warehouse = store.warehouse
-	price_list = frappe.db.get_value("POS Profile", frappe.db.get_value("AWANZ Store", store.name, "pos_profile"), "selling_price_list") or "Standard Selling"
+	pos_profile = frappe.db.get_value("AWANZ Store", store.name, "pos_profile")
+	price_list = (frappe.db.get_value("POS Profile", pos_profile, "selling_price_list") if pos_profile else None) or "Standard Selling"
 	bins = {r.item_code: flt(r.actual_qty) for r in frappe.get_all("Bin", filters={"warehouse": warehouse}, fields=["item_code", "actual_qty"])}
 	filters: dict[str, Any] = {"disabled": 0, "is_stock_item": 1, "is_sales_item": 1}
 	if q:
