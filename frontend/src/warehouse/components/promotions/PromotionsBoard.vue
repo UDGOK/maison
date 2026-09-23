@@ -71,6 +71,7 @@ import {
   type Tier
 } from '@/api/promotions'
 import { fmtMoney } from '@/utils/money'
+import { serverDateTime } from '@/utils/time'
 import Modal from '@/components/Modal.vue'
 
 const emit = defineEmits<{ (e: 'notice', msg: string): void }>()
@@ -97,7 +98,8 @@ const promoEdit = ref<PromotionDraft | null>(null)
 const calEdit = ref<{ name: string | null; month: string; title: string; headline: string; body: string; coupon: string; status: CalendarMonth['status']; rules: string[]; items: string; notes: string } | null>(null)
 const sending = ref<CalendarMonth | null>(null)
 
-const today = () => new Date().toISOString().slice(0, 10)
+/** Today on the site's clock (America/Chicago), not the browser's — a sale dated by the desk starts on the store's day. */
+const today = () => serverDateTime().slice(0, 10)
 const stores = computed(() => (data.value?.stores || []).filter((s) => !s.is_warehouse))
 const coupons = computed(() => sortCoupons(data.value?.coupons || []))
 const giveaways = computed(() => sortGiveaways(data.value?.giveaways || []))
@@ -275,10 +277,9 @@ async function togglePromotion(p: Promotion) {
 
 // ---------------------------------------------------------------- calendar
 function nextMonthIso(): string {
-  const d = new Date()
-  d.setDate(1)
-  d.setMonth(d.getMonth() + 1)
-  return d.toISOString().slice(0, 7)
+  const [y, m] = today().split('-').map(Number)
+  const next = m === 12 ? [y + 1, 1] : [y, m + 1]
+  return `${next[0]}-${String(next[1]).padStart(2, '0')}`
 }
 function startCalendar(c?: CalendarMonth) {
   formError.value = ''

@@ -19,7 +19,7 @@ from typing import Any, Optional
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, cint, flt, nowdate, nowtime
+from frappe.utils import add_days, cint, flt, nowdate
 
 from maison_pos.scoping import assert_boutique_access, assert_supply_admin, is_supply_unrestricted
 
@@ -149,6 +149,26 @@ def store_stock(boutique: Optional[str] = None, q: Optional[str] = None, limit: 
 	}
 
 
+def _posting_after_last_entry(item_code: str, warehouse: str):
+	"""When to post a correction: now — unless the ledger already holds an entry for this item at
+	this store *later* than now (a document posted on another clock, a seed dated ahead), in which
+	case one second after it. A reconciliation "sets the quantity as of its time", so one posted
+	*before* a later receipt would set the quantity and then have the receipt re-added on top —
+	the desk would ask for 3 and read 5."""
+	from datetime import timedelta
+
+	posting = frappe.utils.now_datetime().replace(microsecond=0)
+	last = frappe.db.sql(
+		"select max(timestamp(posting_date, posting_time)) from `tabStock Ledger Entry` where item_code = %s and warehouse = %s and is_cancelled = 0",
+		(item_code, warehouse),
+	)[0][0]
+	if last:
+		last = frappe.utils.get_datetime(last)
+		if last >= posting:
+			posting = last.replace(microsecond=0) + timedelta(seconds=1)
+	return posting
+
+
 @frappe.whitelist()
 def adjust_store_stock(boutique: str, item_code: str, qty: float, reason: str) -> dict[str, Any]:
 	"""Set the true on-hand quantity of one item at one store, with a reason. Head office /
@@ -178,14 +198,15 @@ def adjust_store_stock(boutique: str, item_code: str, qty: float, reason: str) -
 	line: dict[str, Any] = {"item_code": item_code, "warehouse": store.warehouse, "qty": qty}
 	if qty > before:
 		line["valuation_rate"] = valuation or 0.01
+	posting = _posting_after_last_entry(item_code, store.warehouse)
 	sr = frappe.get_doc(
 		{
 			"doctype": "Stock Reconciliation",
 			"purpose": "Stock Reconciliation",
 			"company": store.company,
 			"set_warehouse": store.warehouse,
-			"posting_date": nowdate(),
-			"posting_time": nowtime(),
+			"posting_date": posting.date(),
+			"posting_time": posting.time().strftime("%H:%M:%S"),
 			"set_posting_time": 1,
 			"items": [line],
 		}
@@ -196,7 +217,14 @@ def adjust_store_stock(boutique: str, item_code: str, qty: float, reason: str) -
 		# ERPNext's balance lookup checks write permission on Stock Reconciliation explicitly; the
 		# operator has been authorised above, so post as Administrator and keep their name on it
 		frappe.set_user("Administrator")
-		sr.insert()
+		try:
+			sr.insert()
+		except Exception as e:
+			# ERPNext drops a line whose quantity equals the ledger's at that moment and refuses an
+			# empty reconciliation — that is "nothing to correct", not an error
+			if e.__class__.__name__ == "EmptyStockReconciliationItemsError":
+				return {"boutique": store.name, "item_code": item_code, "item_name": item.item_name, "before": before, "after": before, "changed": False}
+			raise
 		sr.submit()
 		frappe.db.set_value("Stock Reconciliation", sr.name, {"owner": user, "modified_by": user}, update_modified=False)
 		frappe.get_doc(

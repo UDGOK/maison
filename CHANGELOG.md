@@ -5,6 +5,19 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.5.1 — 2026-09-23 — After the first live walk-through of v1.5
+
+* **A store correction is posted after the ledger's last entry** for that item at that store,
+  not merely "now": a document posted on another clock (the seed's push carried a time hours
+  ahead of the site's day) would otherwise be re-added on top of the reconciliation — the desk
+  asked for 3 and read 5. A correction that changes nothing returns *changed: false* instead of
+  ERPNext's empty-reconciliation error.
+* **A chain-wide sale stays chain-wide.** Frappe fills a blank Link on insert from the user's own
+  defaults, and the warehouse admin is fenced to HOU-WH, so "every store" came back as "the
+  warehouse". The rule's warehouse is blanked after the insert.
+* A store without a POS profile reads the chain price list. The sale and calendar sheets date
+  themselves on the site's clock, not the browser's.
+
 ## 1.5.0 — 2026-09-22 — A store's own stock, prices proposed from the till, promotions from the desk
 
 Three things the Scents of Arabia owner asked for after the first walk-through, built as one

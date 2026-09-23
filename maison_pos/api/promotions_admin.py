@@ -580,6 +580,10 @@ def save_promotion(payload: Any) -> dict[str, Any]:
 		rule.insert()
 	else:
 		_save(rule)
+	if not warehouse and rule.warehouse:
+		# Frappe fills a blank Link on insert from the user's own defaults — the warehouse admin
+		# is fenced to HOU-WH, so "every store" came back as "the warehouse". Blank means every store.
+		rule.db_set("warehouse", None, update_modified=False)
 	row = frappe.get_all("Pricing Rule", filters={"name": rule.name}, fields=["name", "title", "disable", "apply_on", "rate_or_discount", "rate", "discount_percentage", "discount_amount", "min_qty", "min_amt", "valid_from", "valid_upto", "warehouse", "priority", "coupon_code_based", "promotional_scheme"])[0]
 	return {"promotion": _promotion_shape(row), "created": not p.get("name")}
 
