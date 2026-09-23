@@ -179,6 +179,20 @@ Both are sections of `/warehouse`, open to head office and the warehouse admin:
   suspend, restore. The warehouse admin may grant Associate and Manager; Regional and Head office
   are head office's to give.
 
+## 5c. A store's stock, prices from the till, promotions (v1.5)
+
+* **Stock on the till** (managers): what the store holds, what it sells for here and why, what
+  sold this week and month, what is on its way. *Request* more from Houston, *Count the shelf*,
+  *Propose a price* for this store.
+* **Prices proposed → the warehouse desk**: the Prices badge and a banner appear the moment a
+  manager proposes; head office, regional or the warehouse admin approve or reject. To let
+  managers set their own prices without approval, tick **Store managers set their own shelf
+  prices** in AWANZ POS Settings (off by default).
+* **Stock from the desk**: `/warehouse → Stock` has a location picker — Houston or any store's
+  shelf — and *Adjust* posts a logged Stock Reconciliation with a reason.
+* **Promotions** (`/warehouse → Promotions`): rewards and tiers, coupons, giveaways (drawn by the
+  audited draw), sales the till applies by itself, and the monthly calendar sent to members.
+
 ## 6. Open questions for the client
 
 1. **Order 1** — the ~$11,995 invoice before 99139.

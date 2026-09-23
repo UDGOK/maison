@@ -257,6 +257,9 @@ export interface PriceChangeCreated {
   boutique: string
   item_code: string
   proposed_rate: number
+  /** v1.5 — true when the chain lets managers set their own prices and this one took effect at once */
+  auto_approved?: boolean
+  pricing_rule?: string | null
 }
 
 export interface PriceChangeDecision {

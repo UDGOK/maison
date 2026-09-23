@@ -18,7 +18,9 @@ from frappe import _
 UNRESTRICTED_ROLES = frozenset({"Administrator", "System Manager", "AWANZ Head Office", "AWANZ Regional"})
 SCOPED_ROLES = frozenset({"AWANZ Manager", "AWANZ Associate"})
 ALL_AWANZ_ROLES = ("AWANZ Associate", "AWANZ Manager", "AWANZ Regional", "AWANZ Head Office")
-APPROVER_ROLES = frozenset({"Administrator", "System Manager", "AWANZ Head Office", "AWANZ Regional"})
+#: who may approve a store's price change — v1.5 adds the warehouse admin, who approves from the
+#: warehouse desk's Prices section (the `AWANZ Price Approval` workflow carries the same rule)
+APPROVER_ROLES = frozenset({"Administrator", "System Manager", "AWANZ Head Office", "AWANZ Regional", "AWANZ Warehouse Admin"})
 
 # --- v0.7 S1/S5 — the fields that decide *who someone is* on this chain ---------------------
 #: changing any of these grants access: ``role`` drives the Frappe role sync, ``boutique`` moves

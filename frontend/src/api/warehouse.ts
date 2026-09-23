@@ -240,6 +240,16 @@ export interface WallEvent {
   label_url?: string
   ts: string
   discrepancies?: string[]
+  // v1.5 — `price_request` / `price_decided` (purchasing.request_price_change / approve_price_change)
+  boutique_name?: string
+  item_code?: string
+  item_name?: string
+  current_rate?: number
+  proposed_rate?: number
+  requested_by?: string
+  workflow_state?: string
+  auto_approved?: boolean
+  decided_by?: string
 }
 
 /**

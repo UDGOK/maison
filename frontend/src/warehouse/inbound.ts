@@ -28,7 +28,7 @@ function round(value: number, places = 2): number {
 // §F — the /warehouse section nav
 // ---------------------------------------------------------------------------------------------
 /** The sections of the warehouse desk. v1.2 adds **Prices** — the sixth. */
-export type Section = 'outbound' | 'inbound' | 'buying' | 'vendors' | 'stock' | 'prices' | 'stores' | 'staff'
+export type Section = 'outbound' | 'inbound' | 'buying' | 'vendors' | 'stock' | 'prices' | 'promotions' | 'stores' | 'staff'
 /** The three boards that used to be top-level tabs and now live inside Outbound. */
 export type OutboundTab = 'requests' | 'shipments' | 'discrepancies'
 
@@ -40,6 +40,7 @@ export const SECTIONS: { key: Section; label: string }[] = [
   { key: 'stock', label: 'Stock' },
   // v1.2 §C/§D — the wholesale rule, the shelf-price approvals queue and the month-end statement
   { key: 'prices', label: 'Prices' },
+  { key: 'promotions', label: 'Promotions' }, // v1.5 — rewards, coupons, giveaways, sales, the monthly calendar
   { key: 'stores', label: 'Stores' }, // v1.4 — add, edit, close a store from the desk
   { key: 'staff', label: 'Staff' } // v1.4 — the people, their logins and PINs
 ]

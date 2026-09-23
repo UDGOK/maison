@@ -35,6 +35,8 @@ import PricesBoard from '../components/pricing/PricesBoard.vue'
 // v1.4 — Stores and Staff: the chain's locations and people, managed from the desk
 import StoresBoard from '../components/stores/StoresBoard.vue'
 import StaffBoard from '../components/staff/StaffBoard.vue'
+// v1.5 — Promotions: rewards, coupons, giveaways, sales and the monthly calendar
+import PromotionsBoard from '../components/promotions/PromotionsBoard.vue'
 import NewDespatchSheet from '../components/purchasing/NewDespatchSheet.vue'
 import { usePricingStore } from '@/stores/pricing'
 import Modal from '@/components/Modal.vue'
@@ -160,6 +162,34 @@ watch(
     void loadCounts()
   }
 )
+/**
+ * v1.5 — a store manager proposed a shelf price (`purchasing.request_price_change` publishes
+ * `price_request` on the wall channel). The Prices badge moves at once and the desk says who
+ * wants what, so the person on the desk does not find it an hour later.
+ */
+watch(
+  () => wh.events[0],
+  (ev) => {
+    if (!ev) return
+    if (ev.event === 'price_request') {
+      void pricing.loadRequests({ status: 'Pending Approval' })
+      priceAlert.value = ev.auto_approved
+        ? `${ev.boutique_name || ev.boutique} set ${ev.item_name || ev.item_code} to ${fmtMoney(ev.proposed_rate || 0)} (managers set their own prices)`
+        : `${ev.boutique_name || ev.boutique} proposes ${fmtMoney(ev.proposed_rate || 0)} for ${ev.item_name || ev.item_code} — waiting for approval`
+      pendingPriceRequest.value = ev.auto_approved ? null : ev.request || null
+    } else if (ev.event === 'price_decided') {
+      void pricing.loadRequests({ status: 'Pending Approval' })
+      if (priceAlert.value && pendingPriceRequest.value === ev.request) priceAlert.value = ''
+    }
+  }
+)
+/** the live price-proposal banner (v1.5); dismissed by hand or by opening Prices */
+const priceAlert = ref('')
+const pendingPriceRequest = ref<string | null>(null)
+function openPrices() {
+  priceAlert.value = ''
+  goSection('prices')
+}
 
 function say(msg: string) {
   notice.value = msg
@@ -255,6 +285,11 @@ onBeforeUnmount(() => {
 
     <div v-else class="body">
       <div v-if="notice" class="notice banner" data-testid="desk-notice">{{ notice }}</div>
+      <div v-if="priceAlert && section !== 'prices'" class="notice banner price-alert" data-testid="price-alert">
+        <span>{{ priceAlert }}</span>
+        <button v-if="pendingPriceRequest" class="btn btn-primary" data-testid="price-alert-open" @click="openPrices">Review in Prices</button>
+        <button class="btn btn-ghost" aria-label="Dismiss" @click="priceAlert = ''">✕</button>
+      </div>
 
       <!-- ============================================================ Outbound (v0.6, re-parented) -->
       <template v-if="section === 'outbound'">
@@ -398,6 +433,7 @@ onBeforeUnmount(() => {
       <VendorsBoard v-else-if="section === 'vendors'" @notice="say" @open-order="onOpenOrder" />
       <StockBoard v-else-if="section === 'stock'" @notice="say" />
       <PricesBoard v-else-if="section === 'prices'" @notice="say" />
+      <PromotionsBoard v-else-if="section === 'promotions'" @notice="say" />
       <StoresBoard v-else-if="section === 'stores'" @notice="say" />
       <StaffBoard v-else-if="section === 'staff'" @notice="say" />
     </div>
@@ -575,6 +611,15 @@ onBeforeUnmount(() => {
   border: var(--line-w) solid var(--accent);
   background: var(--accent-soft);
   color: var(--text);
+}
+/* v1.5 — a store's price proposal, live: the sentence, then the way to act on it */
+.price-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.price-alert > span {
+  flex: 1;
 }
 .block {
   padding: 16px 20px;

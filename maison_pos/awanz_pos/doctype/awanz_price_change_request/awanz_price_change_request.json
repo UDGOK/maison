@@ -182,7 +182,7 @@
  "index_web_pages_for_search": 0,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-22 00:00:00.000000",
+ "modified": "2026-09-22 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "AWANZ POS",
  "name": "AWANZ Price Change Request",
@@ -193,7 +193,8 @@
   {"amend": 1, "cancel": 1, "create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "AWANZ Head Office", "share": 1, "submit": 1, "write": 1},
   {"amend": 1, "cancel": 1, "create": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "AWANZ Regional", "share": 1, "submit": 1, "write": 1},
   {"amend": 1, "cancel": 1, "create": 1, "email": 1, "print": 1, "read": 1, "report": 1, "role": "AWANZ Manager", "submit": 1, "write": 1},
-  {"read": 1, "role": "AWANZ Associate"}
+  {"read": 1, "role": "AWANZ Associate"},
+  {"create": 1, "email": 1, "print": 1, "read": 1, "report": 1, "role": "AWANZ Warehouse Admin", "submit": 1, "write": 1}
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

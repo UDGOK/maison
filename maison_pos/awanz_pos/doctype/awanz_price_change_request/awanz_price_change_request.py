@@ -75,9 +75,14 @@ class AWANZPriceChangeRequest(Document):
 			frappe.throw(_("Valid Upto cannot be before Valid From"), frappe.ValidationError)
 
 	def _validate_scope(self) -> None:
-		from maison_pos.scoping import assert_boutique_access
+		from maison_pos.scoping import assert_boutique_access, is_supply_unrestricted
 
 		if self.flags.ignore_permissions or frappe.flags.in_install or frappe.flags.in_migrate:
+			return
+		# v1.5 — the warehouse admin prices any store from the warehouse desk
+		if is_supply_unrestricted():
+			if not frappe.db.exists("AWANZ Store", self.boutique):
+				frappe.throw(_("Store {0} does not exist").format(self.boutique), frappe.DoesNotExistError)
 			return
 		assert_boutique_access(self.boutique)
 

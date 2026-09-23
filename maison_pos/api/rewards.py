@@ -580,8 +580,9 @@ def giveaways(boutique: Optional[str] = None, customer: Optional[str] = None) ->
 @frappe.whitelist()
 def draw(giveaway: str, seed: Optional[str] = None, notify: int = 1) -> dict[str, Any]:
 	"""Draw the winner (Head Office). Seeded PRNG over the sorted entry list → auditable / replayable."""
-	if not (is_manager_or_above() and ("AWANZ Head Office" in frappe.get_roles() or "System Manager" in frappe.get_roles())):
-		frappe.throw(_("Only Head Office may draw a giveaway"), frappe.PermissionError)
+	# v1.5 — the warehouse admin draws from the warehouse desk's Promotions section too
+	if not (is_manager_or_above() and ("AWANZ Head Office" in frappe.get_roles() or "System Manager" in frappe.get_roles())) and "AWANZ Warehouse Admin" not in frappe.get_roles():
+		frappe.throw(_("Only Head Office or the warehouse admin may draw a giveaway"), frappe.PermissionError)
 	doc = frappe.get_doc("AWANZ Giveaway", giveaway)
 	if doc.status == "Drawn":
 		frappe.throw(_("{0} has already been drawn").format(giveaway), frappe.ValidationError)

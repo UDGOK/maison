@@ -27,6 +27,8 @@ export const router = createRouter({
     { path: '/web-orders', name: 'web-orders', component: () => import('@/views/WebOrdersView.vue') },
     { path: '/exchange/:invoice', name: 'exchange', component: () => import('@/views/ExchangeView.vue'), props: true },
     { path: '/count', name: 'count', component: () => import('@/views/CycleCountView.vue') },
+    // v1.5 — the manager's stock screen: what the store holds, sells for, and the way to ask for more
+    { path: '/stock', name: 'stock', component: () => import('@/views/StockView.vue') },
     // v0.5 K — client-facing Salon (guest device; own layout, no POS chrome)
     { path: '/salon/:screen?', name: 'salon', component: () => import('@/salon/views/SalonApp.vue'), meta: { public: true, salon: true } },
     // --- v0.6 O/P — store receiving (POS), warehouse admin desk + wall (Frappe-session users, role-gated in-app) ---

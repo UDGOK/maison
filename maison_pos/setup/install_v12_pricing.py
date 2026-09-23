@@ -21,6 +21,9 @@ from frappe.utils import flt
 
 from maison_pos.pricing.wholesale import DEFAULT_MARKUP_PCT, MARKUP_FIELD, OVERRIDE_FIELD
 
+# v1.5 — `AWANZ POS Settings.manager_sets_store_price`; read by `purchasing.request_price_change`
+MANAGER_SETS_PRICE_FIELD = "manager_sets_store_price"
+
 CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 	"Item": [
 		{
@@ -46,6 +49,16 @@ CUSTOM_FIELDS: dict[str, list[dict[str, Any]]] = {
 			"default": str(int(DEFAULT_MARKUP_PCT)),
 			"insert_after": "wholesale_section",
 			"description": "One price for every store. A shipment is valued at the warehouse's moving-average cost plus this percentage, unless the item carries its own wholesale price. Reporting only — it creates no invoice and no receivable.",
+		},
+		# v1.5 — a store manager's proposed shelf price normally waits for head office / the
+		# warehouse admin; this switch makes it take effect at once (still logged as a request).
+		{
+			"fieldname": MANAGER_SETS_PRICE_FIELD,
+			"fieldtype": "Check",
+			"label": "Store managers set their own shelf prices (no approval)",
+			"default": "0",
+			"insert_after": MARKUP_FIELD,
+			"description": "Off: a manager's price proposal appears on the warehouse desk (Prices) and takes effect when approved. On: it takes effect at that store immediately; the request is still recorded.",
 		},
 	],
 }

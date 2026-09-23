@@ -5,6 +5,69 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.5.0 — 2026-09-22 — A store's own stock, prices proposed from the till, promotions from the desk
+
+Three things the Scents of Arabia owner asked for after the first walk-through, built as one
+release: *a store manager sees what their store holds*; *a manager sets a price and the warehouse
+screen approves it*; *the warehouse edits rewards and promotions*.
+
+### Stock, at the store (`api/store_stock.py`)
+
+* **The till gains a Stock screen, for managers** (`/pos → Stock`; an associate never sees the
+  entry). Every item the store holds with on hand, what is on its way from Houston, sold 7 / 28
+  days, days of cover, the reorder level and the shelf price *here* with where it comes from
+  (this store's override or the chain price). Never a cost — what Houston paid is not shop-floor
+  information (`docs/security.md`). Three actions per row: **Request** more from the warehouse
+  (the same `inventory.replenish` request Receive tracks, with a suggested quantity from the
+  28-day pace), **Count the shelf** (the Count screen), **Propose a price**.
+* **The warehouse desk's Stock board gains a location picker**: the Houston table as before, or
+  any store's shelf — the same rows the manager sees — with **Adjust**: set the true quantity of
+  one item at one store with a reason. It posts a submitted Stock Reconciliation in the
+  operator's name with the reason as a comment, so the ledger says who corrected what and why.
+  Serial / batch items are refused (corrected on the admin desk). Counting stays at the store.
+
+### Prices proposed from the till, decided on the warehouse desk
+
+* `purchasing.request_price_change` now publishes a `price_request` event on the wall channel:
+  the desk's **Prices badge moves the moment a manager proposes**, and a banner says which store
+  wants what for which item, with *Review in Prices*. A decision publishes `price_decided`.
+* **The warehouse admin may approve or reject** (`APPROVER_ROLES`, the `AWANZ Price Approval`
+  workflow's transitions and the doctype's permissions all gain the role; the transition runs as
+  Administrator with the decider's name kept on the record, so a site whose fixtures predate
+  this release behaves the same). The warehouse admin may also raise a price for any store.
+* **One switch turns approval off**: `AWANZ POS Settings → Store managers set their own shelf
+  prices (no approval)` (`manager_sets_store_price`, default off). On, a manager's proposal
+  takes effect at that store at once — still recorded as a request, approved by the requester,
+  with an *Applied at once* comment — and the desk banner says so. Off (the default) is the
+  head-office-approves flow.
+
+### Promotions from the desk (`api/promotions_admin.py`, `/warehouse → Promotions`)
+
+Five tabs, each editing what the chain already runs on — no second copy of a promotion:
+
+* **Rewards** — programme name, points per dollar (the Loyalty Program's collection factor,
+  spoken the way people think of it), stacking, the birthday coupon and bonus points, the
+  giveaway default, promotions on / off at the till; and the **reward tiers** (add, edit,
+  switch off — never deleted, old receipts name them).
+* **Coupons** — code (fixed once created — it may be printed on something), title, percent or
+  amount, minimum basket, single / multi-use, maximum uses, store, item group, dates; switch
+  off rather than delete; used / max shown. Birthday coupons the programme issues are not listed.
+* **Giveaways** — title, prize, dates, store, entry rule, members-only; Draft → Open → Closed
+  from the sheet, **Drawn** only by the seeded, audited `rewards.draw`, now open to the warehouse
+  admin; entries and participants live.
+* **Sales** — a Pricing Rule the till applies by itself: *N % off / $N off / a fixed price* on
+  item groups, items, a brand or the whole basket, at one store or every store, between two
+  dates. Store shelf prices (`AWANZ <store> <item>`) are never shown or editable here.
+* **Calendar** — one plan per month: headline, copy, the coupon, the sales to switch on,
+  featured items. The daily job sends it on the 1st; **Send now** sends it today. A sent month
+  can only be closed.
+
+### Tests
+
+* `tests/v15_stock_promotions.test.ts` — the store-stock list logic, the drafts' validation,
+  the mock rules (a correction needs a reason; a coupon code never changes; a drawn giveaway is
+  immutable; a sent month only closes), the board sorts.
+
 ## 1.4.1 — 2026-09-22 — Staff polish after the first walk-through
 
 * The owner seat reads **Owner** and sits under Head office, whatever role its associate row

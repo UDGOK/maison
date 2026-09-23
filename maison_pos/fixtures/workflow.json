@@ -11,7 +11,7 @@
   "owner": "Administrator",
   "modified_by": "Administrator",
   "creation": "2026-08-22 00:00:00.000000",
-  "modified": "2026-08-22 00:00:00.000000",
+  "modified": "2026-09-22 00:00:00.000000",
   "docstatus": 0,
   "states": [
    {
@@ -114,6 +114,24 @@
     "allow_self_approval": 1,
     "condition": "",
     "idx": 7
+   },
+   {
+    "state": "Pending Approval",
+    "action": "Approve",
+    "next_state": "Approved",
+    "allowed": "AWANZ Warehouse Admin",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 8
+   },
+   {
+    "state": "Pending Approval",
+    "action": "Reject",
+    "next_state": "Rejected",
+    "allowed": "AWANZ Warehouse Admin",
+    "allow_self_approval": 1,
+    "condition": "",
+    "idx": 9
    }
   ]
  }

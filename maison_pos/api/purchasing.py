@@ -72,6 +72,17 @@ from maison_pos.scoping import (
 VENDOR_FIELDS = vendor_lib.VENDOR_FIELDS
 
 
+def publish_wall(event: str, shipment: Optional[str] = None, **extra: Any) -> None:
+	"""v1.5 — the warehouse desk's realtime channel (``shipping.publish_wall``), imported lazily
+	so this module never depends on shipping at import time."""
+	try:
+		from maison_pos.api.shipping import publish_wall as _publish
+
+		_publish(event, shipment, **extra)
+	except Exception:  # pragma: no cover — realtime must never break a transaction
+		pass
+
+
 def _loads(value: Any, default: Any) -> Any:
 	if value in (None, ""):
 		return default
@@ -750,22 +761,121 @@ def request_price_change(
 	)
 	doc.insert()
 	doc.submit()
-	return {"name": doc.name, "workflow_state": doc.workflow_state, "boutique": doc.boutique, "item_code": doc.item_code, "proposed_rate": flt(doc.proposed_rate)}
+	# --- v1.5 — the proposal reaches the warehouse desk the moment it is raised (the Prices
+	# badge and a banner), and, when head office has switched approval off, takes effect now.
+	auto = _auto_approve(doc)
+	boutique_name = frappe.db.get_value("AWANZ Store", doc.boutique, "boutique_name") or doc.boutique
+	publish_wall(
+		"price_request",
+		None,
+		request=doc.name,
+		boutique=doc.boutique,
+		boutique_name=boutique_name,
+		item_code=doc.item_code,
+		item_name=doc.item_name,
+		current_rate=flt(doc.current_rate),
+		proposed_rate=flt(doc.proposed_rate),
+		requested_by=doc.requested_by,
+		workflow_state=doc.workflow_state,
+		auto_approved=auto,
+	)
+	# --- end v1.5 ---
+	return {
+		"name": doc.name,
+		"workflow_state": doc.workflow_state,
+		"boutique": doc.boutique,
+		"item_code": doc.item_code,
+		"proposed_rate": flt(doc.proposed_rate),
+		"auto_approved": auto,
+		"pricing_rule": doc.pricing_rule,
+	}
+
+
+MANAGER_SETS_PRICE_FIELD = "manager_sets_store_price"
+
+
+def manager_sets_store_price() -> bool:
+	"""v1.5 — ``AWANZ POS Settings.manager_sets_store_price``: when on, a store manager's proposal
+	takes effect at once instead of waiting on the warehouse desk. Absent (site not migrated yet)
+	reads as off — approval is the safe default."""
+	try:
+		if not frappe.get_meta("AWANZ POS Settings").has_field(MANAGER_SETS_PRICE_FIELD):
+			return False
+		return bool(cint(frappe.db.get_single_value("AWANZ POS Settings", MANAGER_SETS_PRICE_FIELD)))
+	except Exception:  # pragma: no cover — settings unreadable: keep approval on
+		return False
+
+
+def _auto_approve(doc) -> bool:
+	"""Apply a just-raised request immediately when the chain allows managers to set their own
+	shelf prices. Approvers never need it (they approve from the queue), so it is only for a
+	store-scoped caller — and it is applied as Administrator with the requester's name kept on the
+	record, so the ledger still says who set the price."""
+	from frappe.model.workflow import apply_workflow
+	from maison_pos.scoping import APPROVER_ROLES
+
+	if doc.workflow_state != "Pending Approval" or not manager_sets_store_price():
+		return False
+	user = frappe.session.user
+	if user == "Administrator" or (APPROVER_ROLES & set(frappe.get_roles(user))):
+		return False
+	try:
+		frappe.set_user("Administrator")
+		apply_workflow(doc, "Approve")
+		doc.reload()
+		doc.db_set({"approved_by": user}, update_modified=False)
+		frappe.get_doc(
+			{
+				"doctype": "Comment",
+				"comment_type": "Info",
+				"reference_doctype": doc.doctype,
+				"reference_name": doc.name,
+				"content": _("Applied at once — store managers set their own shelf prices (AWANZ POS Settings)."),
+			}
+		).insert(ignore_permissions=True)
+	finally:
+		frappe.set_user(user)
+	return doc.workflow_state == "Approved"
 
 
 @frappe.whitelist()
 def approve_price_change(name: str, action: str = "Approve", reason: Optional[str] = None) -> dict[str, Any]:
-	"""Drive the existing ``AWANZ Price Approval`` workflow (Approve / Reject)."""
+	"""Drive the existing ``AWANZ Price Approval`` workflow (Approve / Reject). Head office,
+	regional and — from v1.5 — the warehouse admin, who decides from the warehouse desk."""
 	from frappe.model.workflow import apply_workflow
+	from maison_pos.scoping import APPROVER_ROLES
 
+	user = frappe.session.user
+	if user != "Administrator" and not (APPROVER_ROLES & set(frappe.get_roles(user))):
+		frappe.throw(_("Only head office, regional or the warehouse admin may decide a price change"), frappe.PermissionError)
 	doc = frappe.get_doc("AWANZ Price Change Request", name)
 	if action not in ("Approve", "Reject"):
 		frappe.throw(_("Unknown action {0}").format(action), frappe.ValidationError)
 	if reason:
 		doc.db_set("reason", ((doc.reason or "") + "\n" + reason).strip(), update_modified=False)
 		doc.reload()
-	apply_workflow(doc, action)
+	try:
+		# the workflow fixture names the same roles; run the transition as Administrator so a site
+		# whose fixture predates v1.5 still lets the warehouse admin decide, and keep the
+		# decider's name on the record
+		frappe.set_user("Administrator")
+		apply_workflow(doc, action)
+		doc.reload()
+		doc.db_set({"approved_by": user}, update_modified=False)
+	finally:
+		frappe.set_user(user)
 	doc.reload()
+	publish_wall(
+		"price_decided",
+		None,
+		request=doc.name,
+		boutique=doc.boutique,
+		item_code=doc.item_code,
+		item_name=doc.item_name,
+		proposed_rate=flt(doc.proposed_rate),
+		workflow_state=doc.workflow_state,
+		decided_by=user,
+	)
 	return {"name": doc.name, "workflow_state": doc.workflow_state, "pricing_rule": doc.pricing_rule}
 
 

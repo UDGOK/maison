@@ -19,7 +19,7 @@ Related: `maison_pos/scoping.py` (every rule below is one function in there), `d
 | **AWANZ Manager** | their own boutique | the above + voids, return approval, price change requests, run their own shop floor (hire / edit / disable associates, reset their PINs) |
 | **AWANZ Regional** | every boutique | read the chain, appoint managers, no accounting |
 | **AWANZ Head Office** | every boutique | everything on the retail side, including appointing regionals / head office |
-| **AWANZ Warehouse Admin** | every boutique's supply documents | approve replenishment, pick/ship/receive — **never sells** |
+| **AWANZ Warehouse Admin** | every boutique's supply documents | approve replenishment, pick/ship/receive, decide a store's price change, correct a store's stock with a logged reason, edit promotions (v1.5) — **never sells** |
 | **System Manager** | everything | the platform administrator |
 
 Two predicates decide almost everything (`maison_pos/scoping.py`):

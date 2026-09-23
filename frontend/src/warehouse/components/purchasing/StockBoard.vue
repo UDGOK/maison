@@ -12,6 +12,10 @@
  * v1.2 §D — and the second way out: **Prices**, the board that shows what every store is selling
  * the item for, where that price comes from and the margin it makes. Looking at what the warehouse
  * is holding is also the moment somebody asks what the shops are charging for it.
+ *
+ * v1.5 — and **the stores' shelves**: a location picker at the top swaps the Houston table for
+ * one store's (`StoreStockPanel`) — the same rows the store manager sees on their till, with a
+ * logged correction for the odd quantity the store cannot count itself.
  */
 import { computed, onMounted, ref } from 'vue'
 import { usePurchasingStore } from '@/stores/purchasing'
@@ -21,6 +25,9 @@ import { fmtInt, fmtMoney } from '@/utils/money'
 import SendToStoresSheet from './SendToStoresSheet.vue'
 // v1.2 §D — Stock → an item → **Prices**: every store's shelf price for it, and the margin it makes
 import PriceBoardSheet from '../pricing/PriceBoardSheet.vue'
+// v1.5 — one store's shelf, from the desk
+import StoreStockPanel from '../stock/StoreStockPanel.vue'
+import { storesApi, type StoreRow } from '@/api/stores'
 
 const emit = defineEmits<{ notice: [msg: string] }>()
 
@@ -36,6 +43,18 @@ const sending = ref<{ item_code: string; item_name?: string | null } | null>(nul
 const pricing = ref<{ item_code: string; item_name?: string | null } | null>(null)
 
 const warehouse = computed(() => store.stockSummary?.warehouse || wh.me?.main_warehouse || 'HOU-WH')
+/** v1.5 — `''` is the Houston warehouse; a store code shows that store's shelf instead. */
+const location = ref('')
+const storeRows = ref<StoreRow[]>([])
+const openStores = computed(() => storeRows.value.filter((s) => s.enabled && !s.is_warehouse))
+const locationName = computed(() => openStores.value.find((s) => s.code === location.value)?.name || null)
+async function loadStores() {
+  try {
+    storeRows.value = (await storesApi.list(false)).stores
+  } catch {
+    /* the picker simply offers only the warehouse */
+  }
+}
 const groups = computed(() => stockGroups(store.stock))
 const rows = computed(() => filterStock(store.stock, { group: group.value, lowOnly: lowOnly.value }))
 const totals = computed(() => stockTotals(rows.value))
@@ -70,12 +89,27 @@ function onSent() {
   void load()
 }
 
-onMounted(() => void load())
+onMounted(() => {
+  void load()
+  void loadStores()
+})
 </script>
 
 <template>
   <div class="stock" data-testid="stock-board">
-    <section class="card block">
+    <div class="where">
+      <span class="label label-dim">Location</span>
+      <div class="seg">
+        <button class="chip" :class="{ active: !location }" data-testid="stock-location-warehouse" @click="location = ''">Houston warehouse</button>
+        <button v-for="s in openStores" :key="s.code" class="chip" :class="{ active: location === s.code }" :data-testid="`stock-location-${s.code}`" @click="location = s.code">{{ s.name }}</button>
+      </div>
+    </div>
+
+    <section v-if="location" class="card block">
+      <StoreStockPanel :boutique="location" :boutique-name="locationName" @notice="emit('notice', $event)" />
+    </section>
+
+    <section v-else class="card block">
       <div class="head">
         <div class="head-id">
           <div class="section-title">Stock on hand · {{ warehouse }}</div>
@@ -221,6 +255,18 @@ onMounted(() => void load())
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+/* v1.5 — the location picker */
+.where {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.seg {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 .block {
   padding: 16px 20px;

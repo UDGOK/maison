@@ -16,17 +16,20 @@ const webOrders = useWebOrdersStore() // v0.4 G
 const route = useRoute()
 const router = useRouter()
 
-const nav = [
+const NAV = [
   { name: 'sell', label: 'Sell' },
   { name: 'client', label: 'Client' },
   { name: 'returns', label: 'Returns' }, // v0.4 E
   { name: 'web-orders', label: 'Web orders', short: 'Web' }, // v0.4 G
   { name: 'count', label: 'Count' }, // v0.4 D — cycle count
+  { name: 'stock', label: 'Stock', short: 'Stk', managers: true }, // v1.5 — the manager's inventory screen
   { name: 'receive', label: 'Receive', short: 'Rcv' }, // v0.6 O — store receiving
   { name: 'queue', label: 'Queue' },
   { name: 'shift', label: 'Shift' },
   { name: 'settings', label: 'Settings' }
 ]
+/** v1.5 — Stock is a manager's screen; an associate does not see the entry at all. */
+const nav = computed(() => NAV.filter((n) => !n.managers || session.isManager))
 
 /**
  * Compact top bar (≤ 1400 px): 9 entries share one row — short labels + the boutique code only.
