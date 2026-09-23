@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { api, DEFAULT_SETTINGS, normalizeSettings, type Bootstrap, type Brand, type Item, type LoyaltyProgram, type PosSettings, type PricingRule, type RewardTier, type TaxRow } from '@/api'
-import { DEFAULT_BRAND, normalizeAge, normalizeBrand, type AgeGateSettings } from '@/brand/tokens' // v0.6 N/Q
+import { normalizeAge, normalizeBrand, type AgeGateSettings } from '@/brand/tokens' // v0.6 N/Q
 import { db, getSetting, setSetting } from '@/db'
 import { useSessionStore } from './session'
 
@@ -47,7 +47,7 @@ export const useCatalogStore = defineStore('catalog', {
     version: null,
     loading: false,
     error: null,
-    brand: { ...DEFAULT_BRAND }, // v0.6 N
+    brand: normalizeBrand(null), // v0.6 N — v1.3.2: the page shell's tenant, not the first tenant's defaults
     age: normalizeAge(null), // v0.6 N
     reward_tiers: [] // v0.6 Q
   }),

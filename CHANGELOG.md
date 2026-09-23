@@ -5,6 +5,30 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.3.2 — 2026-09-22 — the second tenant's brand on every screen, and its mark
+
+Found while walking the Scents of Arabia site after its first seed.
+
+* **The page shell's brand is read.** `www/pos.py` has printed `window.awanz_brand` into the
+  shell since v0.6, and nothing in the bundle ever read it: the catalogue store started from
+  `DEFAULT_BRAND` (the first tenant's), the warehouse and salon stores fell back to hard-coded
+  "CloudChaserz", so a second tenant's till, wall and client display said **CLOUDCHASERZ** from
+  page load until the first bootstrap. `brand/tokens.pageBrand()` reads the shell and
+  `normalizeBrand()` fills every gap from it (API answer → page shell → defaults, key by key);
+  the warehouse shells (`/warehouse`, `/warehouse-wall`) now print the brand too.
+* **The tenant's mark.** `brand_logo` was only ever the desk favicon / login splash. It now sits
+  above the wordmark on the POS unlock screen and the launcher (`/start`), beside it in the POS
+  top bar, the warehouse desk and the wall, and in the shop header and footer. Nothing changes
+  for a tenant without one.
+* `/rewards` threw *'p' is undefined* for every visitor: the v1.3 consent line in the script
+  block referenced a variable set in another block. Fixed (`program.minimum_age`).
+* `maison_pos.setup.owner.create_owner_remote` — the owner seat over the API for hosts with no
+  shell (System Manager only; never takes a password).
+* Scents of Arabia seed: the "setup complete" flags and the US locale on System Settings are
+  ensured on every run (the first production run left them on the wizard screen in Asia/Kolkata,
+  because the wizard committed the company and the rest rolled back), and every placeholder user
+  is put on the stores' clock.
+
 ## 1.3.1 — 2026-09-22 — the Scents of Arabia seed survives its first push
 
 Found on the first run of `maison_pos.setup.scentsofarabia.seed_remote` on the client's bench.

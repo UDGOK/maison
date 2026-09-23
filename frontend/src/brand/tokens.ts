@@ -46,10 +46,29 @@ export const JEWELLERY_BRAND: Brand = {
   rewards_program_name: 'AWANZ Collectors'
 }
 
+/**
+ * v1.3.2 — the brand the server printed into the page shell (`window.awanz_brand`, set by
+ * `www/pos.py`, `www/warehouse.py`, `www/salon.py`, `www/awanz_dashboard.py`).
+ *
+ * `DEFAULT_BRAND` is the first tenant's, and until v1.3.2 nothing read the injected object, so a
+ * second tenant's till said "CLOUDCHASERZ" from page load until the first catalogue bootstrap
+ * (and again on any restore without a saved brand). The page shell is the source of truth
+ * before the API answers.
+ */
+export function pageBrand(): Partial<Brand> | null {
+  if (typeof window === 'undefined') return null
+  const b = (window as unknown as { awanz_brand?: unknown }).awanz_brand
+  return b && typeof b === 'object' && !Array.isArray(b) ? (b as Partial<Brand>) : null
+}
+
 export function normalizeBrand(raw?: Partial<Brand> | null): Brand {
-  const r = raw || {}
-  const vertical =
-    r.vertical === 'Jewellery' || r.vertical === 'General' || r.vertical === 'Smoke Shop' || r.vertical === 'Perfume' ? r.vertical : DEFAULT_BRAND.vertical
+  // precedence: what the caller has (the API's bootstrap / a saved catalogue) → the page shell →
+  // the built-in defaults. A missing key never falls through to the first tenant's text when
+  // the page shell carries the tenant's own.
+  const page = pageBrand() || {}
+  const r: Partial<Brand> = { ...page, ...(raw || {}) }
+  const isVertical = (v: unknown): v is Brand['vertical'] => v === 'Jewellery' || v === 'General' || v === 'Smoke Shop' || v === 'Perfume'
+  const vertical = isVertical(r.vertical) ? r.vertical : DEFAULT_BRAND.vertical
   const str = (k: keyof Brand, d: string) => {
     const v = r[k]
     return typeof v === 'string' && v.trim() ? v.trim() : d

@@ -25,6 +25,14 @@ def _context(context: dict, title: str, redirect: str) -> dict:
 	context.title = title
 	context.csrf_token = frappe.sessions.get_csrf_token()
 	context.site_user = frappe.session.user
+	# v1.3.2 — the tenant's brand in the page shell, so the desk and the wall never paint the
+	# first tenant's wordmark while `shipping.me` is still on its way
+	try:
+		from maison_pos.brand import get_brand
+
+		context.brand = get_brand() or {}
+	except Exception:
+		context.brand = {}
 	# v1.2 — the socket.io namespace is the **site name**; on a custom domain the host is not it
 	context.site_name = frappe.local.site
 	context.socketio_port = frappe.conf.get("socketio_port") or 9000

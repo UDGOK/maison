@@ -5,6 +5,13 @@
  * boutique settings, and drives the transport: realtime when available, 2 s polling always.
  */
 import { defineStore } from 'pinia'
+import { normalizeBrand } from '@/brand/tokens'
+import type { Brand } from '@/api'
+
+/** v1.3.2 — the salon's settings blob types `vertical` loosely; normalise through the shared tokens */
+function salonBrand(raw: unknown): Brand {
+  return normalizeBrand((raw as Partial<Brand> | null | undefined) || null)
+}
 import { salonApi, type PlaylistPiece, type SalonClient, type SalonPreferences, type SalonSession, type SalonSettings, type SalonState } from '@/api/salon'
 import { clientOf, initialModel, isStale, reduce, viewOf, type IdentifyMode, type ReceiptStage, type SalonEvent, type SalonModel, type SalonView } from './reducer'
 import { connectSalonRealtime, POLL_MS, type Unsubscribe } from './transport'
@@ -73,10 +80,12 @@ export const useSalonStore = defineStore('salonDevice', {
     client: (s): SalonClient | null => clientOf(s.model),
     stale: (s): boolean => isStale(s.model, s.now),
     // --- v0.6 N: brand tokens from the boutique settings (never a hard-coded "AWANZ") ---
-    brandName: (s): string => s.settings?.brand?.brand_name || 'CloudChaserz',
-    wordmark: (s): string => s.settings?.brand?.wordmark_text || (s.settings?.brand?.brand_name || 'CloudChaserz').toUpperCase(),
-    programName: (s): string => s.settings?.rewards_program_name || s.settings?.brand?.rewards_program_name || `${s.settings?.brand?.brand_name || 'CloudChaserz'} Rewards`,
+    // v1.3.2: the page shell's tenant fills every gap, never the first tenant's text
+    brandName: (s): string => salonBrand(s.settings?.brand).brand_name,
+    wordmark: (s): string => salonBrand(s.settings?.brand).wordmark_text,
+    programName: (s): string => s.settings?.rewards_program_name || salonBrand(s.settings?.brand).rewards_program_name,
     storeNoun: (s): string => s.settings?.brand?.store_noun || 'store',
+    brandLogo: (s): string | null => salonBrand(s.settings?.brand).brand_logo ?? null,
     minimumAge: (s): number => s.model.remote.age?.minimum_age || s.settings?.minimum_age || 21,
     // --- end v0.6 N ---
     boutiqueName(s): string {

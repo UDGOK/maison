@@ -43,6 +43,7 @@ def get_context(context):
 	except Exception:
 		brand = {}
 	context.wordmark = brand.get("wordmark_text") or "AWANZ"
+	context.brand_logo = brand.get("brand_logo") or ""  # v1.3.2 — the tenant's mark above the wordmark
 	context.product_name = brand.get("product_name") or "AWANZ POS"
 	context.tagline = brand.get("tagline") or ""
 	context.developer_name = brand.get("developer_name") or ""

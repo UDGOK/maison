@@ -213,6 +213,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="desk" data-testid="warehouse-desk">
     <header class="head">
+      <img v-if="wh.brand.brand_logo" class="mark" :src="wh.brand.brand_logo" alt="" />
       <div class="wordmark display-900">{{ wh.brand.wordmark_text }}</div>
       <div class="vline"></div>
       <div>
@@ -430,6 +431,13 @@ onBeforeUnmount(() => {
   gap: 18px;
   padding: 0 24px;
   border-bottom: var(--line-w) solid var(--line);
+  flex: 0 0 auto;
+}
+.mark {
+  /* v1.3.2 — the tenant's square mark */
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
   flex: 0 0 auto;
 }
 .wordmark {

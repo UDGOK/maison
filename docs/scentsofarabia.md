@@ -88,7 +88,7 @@ kept in the site's global defaults until `consume=1` reads it.
 | `sub_mark` | روائح العرب |
 | `tagline` | Fine Oud & Perfumes |
 | `product_name` | AWANZ POS by Scents of Arabia |
-| `brand_logo` | `/files/scents-of-arabia-mark.png` — the gold crescent-and-horse mark, 512 × 512, from `setup/scentsofarabia/assets/` (also uploaded: the full lockup and the wide plaque) |
+| `brand_logo` | `/files/scents-of-arabia-mark.png` — the gold crescent-and-horse mark, 512 × 512, from `setup/scentsofarabia/assets/` (also uploaded: the full lockup and the wide plaque). Since 1.3.2 it is on every screen: POS unlock and top bar, warehouse desk and wall, launcher, shop header and footer, desk login and favicon |
 | `legal_name`, `support_email`, `brand_website` | **open** — "Scents of Arabia", `yasir@futonix.com` and the site's own URL as placeholders until the client confirms them (an empty key would fall back to the CloudChaserz install defaults) |
 
 ---

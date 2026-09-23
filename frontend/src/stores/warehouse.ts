@@ -3,6 +3,7 @@
  * who am I (role gate), the board, realtime + 10 s polling, sound / flash toggle, auto-print dispatch.
  */
 import { defineStore } from 'pinia'
+import { normalizeBrand } from '@/brand/tokens'
 import { warehouseApi, type Rate, type ShipmentStatus, type WallData, type WallEvent, type WarehouseMe } from '@/api/warehouse'
 import { connectWallRealtime, POLL_MS } from '@/warehouse/realtime'
 import { diffWall, printJobsFor } from '@/warehouse/wall'
@@ -51,7 +52,8 @@ export const useWarehouseStore = defineStore('warehouse', {
   }),
   getters: {
     allowed: (s) => !!s.me?.supply_unrestricted,
-    brand: (s) => s.me?.brand || { brand_name: 'CloudChaserz', wordmark_text: 'CLOUDCHASERZ', product_name: 'AWANZ POS by CloudChaserz' },
+    // v1.3.2: before `me` answers, the page shell's tenant — never the first tenant's text
+    brand: (s) => normalizeBrand(s.me?.brand || null),
     totalOpen: (s) => (s.wall ? s.wall.counts.pending_approval + s.wall.counts.to_pick + s.wall.counts.packing + s.wall.counts.ready : 0)
   },
   actions: {

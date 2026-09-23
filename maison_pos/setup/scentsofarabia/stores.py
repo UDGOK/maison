@@ -111,44 +111,72 @@ def demo_boutique_specs() -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-def ensure_erpnext_setup() -> None:
-	"""Headless ERPNext setup wizard with the Scents of Arabia company on a fresh site."""
-	if frappe.db.sql("select name from tabCompany limit 1"):
-		return
-	from erpnext.setup.setup_wizard.setup_wizard import setup_complete as erpnext_setup_complete
-	from frappe.utils import getdate
+#: what the desk's setup wizard would have written to System Settings for a US retailer
+SYSTEM_SETTINGS: dict[str, Any] = {
+	"setup_complete": 1,
+	"country": COUNTRY,
+	"currency": CURRENCY,
+	"time_zone": TIMEZONE,
+	"language": "en",
+	"date_format": "mm-dd-yyyy",
+	"time_format": "HH:mm:ss",
+	"number_format": "#,###.##",
+	"float_precision": 2,
+	"first_day_of_the_week": "Sunday",
+}
 
-	today = getdate(nowdate())
-	args = frappe._dict(
-		{
-			"language": "English",
-			"country": COUNTRY,
-			"currency": CURRENCY,
-			"timezone": TIMEZONE,
-			"time_zone": TIMEZONE,
-			"company_name": COMPANY,
-			"company_abbr": ABBR,
-			"chart_of_accounts": "Standard",
-			"fy_start_date": f"{today.year}-01-01",
-			"fy_end_date": f"{today.year}-12-31",
-			"full_name": "Administrator",
-			"email": f"admin@{DOMAIN}",
-			"bank_account": "Main Bank",
-			"setup_demo": 0,
-		}
-	)
-	frappe.flags.in_setup_wizard = True
-	try:
-		erpnext_setup_complete(args)
-	finally:
-		frappe.flags.in_setup_wizard = False
-	for app in ("frappe", "erpnext", "maison_pos"):
-		if frappe.db.exists("Installed Application", {"app_name": app}):
-			frappe.db.set_value("Installed Application", {"app_name": app}, "is_setup_complete", 1)
-	frappe.db.set_single_value("System Settings", "setup_complete", 1)
-	frappe.db.set_single_value("System Settings", "country", COUNTRY)
-	frappe.db.set_single_value("System Settings", "currency", CURRENCY)
-	frappe.db.set_single_value("System Settings", "time_zone", TIMEZONE)
+
+def ensure_erpnext_setup() -> None:
+	"""Headless ERPNext setup wizard with the Scents of Arabia company on a fresh site.
+
+	The wizard itself runs once (it commits the company as it goes, so a run that fails later
+	leaves the company behind); the "setup complete" flags and the locale it would have written
+	are ensured on **every** run, because they are part of the same transaction as the rest of
+	the seed and roll back with it — the first production run of this seed left the site on the
+	wizard screen in Asia/Kolkata for exactly that reason.
+	"""
+	if not frappe.db.sql("select name from tabCompany limit 1"):
+		from erpnext.setup.setup_wizard.setup_wizard import setup_complete as erpnext_setup_complete
+		from frappe.utils import getdate
+
+		today = getdate(nowdate())
+		args = frappe._dict(
+			{
+				"language": "English",
+				"country": COUNTRY,
+				"currency": CURRENCY,
+				"timezone": TIMEZONE,
+				"time_zone": TIMEZONE,
+				"company_name": COMPANY,
+				"company_abbr": ABBR,
+				"chart_of_accounts": "Standard",
+				"fy_start_date": f"{today.year}-01-01",
+				"fy_end_date": f"{today.year}-12-31",
+				"full_name": "Administrator",
+				"email": f"admin@{DOMAIN}",
+				"bank_account": "Main Bank",
+				"setup_demo": 0,
+			}
+		)
+		frappe.flags.in_setup_wizard = True
+		try:
+			erpnext_setup_complete(args)
+		finally:
+			frappe.flags.in_setup_wizard = False
+	mark_setup_complete()
+
+
+def mark_setup_complete() -> None:
+	"""Every installed app's wizard stage marked done and the locale on System Settings — the
+	desk sends any System Manager to ``/app/setup-wizard`` until both are true. Idempotent."""
+	for row in frappe.get_all("Installed Application", fields=["name", "is_setup_complete"]):
+		if not row.is_setup_complete:
+			frappe.db.set_value("Installed Application", row.name, "is_setup_complete", 1, update_modified=False)
+	meta = frappe.get_meta("System Settings")
+	current = frappe.get_single("System Settings")
+	for key, value in SYSTEM_SETTINGS.items():
+		if meta.has_field(key) and current.get(key) != value:
+			frappe.db.set_single_value("System Settings", key, value)
 	frappe.clear_cache()
 
 

@@ -163,6 +163,8 @@ function fail() {
     <div class="left">
       <div class="brand">
         <!-- v0.6 N: brand tokens -->
+        <!-- v1.3.2: the tenant's mark above the wordmark, when one is set -->
+        <img v-if="brand.logo" class="mark" :src="brand.logo" alt="" data-testid="unlock-mark" />
         <div class="wordmark display-900" data-testid="unlock-wordmark" :style="{ '--wm-len': wordmarkLen }">{{ brand.wordmark }}</div>
         <!-- v0.6 R: one line — `productName` already carries the sub-mark -->
         <div class="label subline" data-testid="unlock-subline">{{ subline }}</div>
@@ -324,6 +326,14 @@ function fail() {
 .brand {
   align-self: center;
   min-width: 0;
+}
+.brand .mark {
+  /* v1.3.2 — the tenant's square mark; sized to the wordmark it sits over */
+  display: block;
+  width: clamp(72px, 9vw, 128px);
+  height: clamp(72px, 9vw, 128px);
+  object-fit: contain;
+  margin-bottom: 22px;
 }
 .brand .subline {
   margin-top: 18px;

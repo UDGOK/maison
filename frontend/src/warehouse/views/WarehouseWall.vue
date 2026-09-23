@@ -130,6 +130,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="wall" data-testid="warehouse-wall">
     <header class="wall-head">
+      <img v-if="wh.brand.brand_logo" class="mark" :src="wh.brand.brand_logo" alt="" />
       <div class="wordmark display-900">{{ wh.brand.wordmark_text }}</div>
       <div class="sub label">Warehouse Wall · {{ wh.me?.main_warehouse || 'HOU-WH' }}</div>
       <div class="spacer"></div>
@@ -231,6 +232,13 @@ onBeforeUnmount(() => {
   padding: 0 28px;
   height: 76px;
   border-bottom: var(--line-w) solid var(--line);
+}
+.mark {
+  /* v1.3.2 — the tenant's square mark */
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 .wordmark {
   font-family: var(--font-display);

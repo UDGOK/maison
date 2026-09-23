@@ -57,7 +57,8 @@ function lock() {
 
 <template>
   <header class="topbar" :class="{ phone: layout.phone }">
-    <!-- v0.6 N: brand tokens -->
+    <!-- v0.6 N: brand tokens · v1.3.2: the tenant's mark beside the wordmark -->
+    <img v-if="brand.logo && !layout.phone" class="mark" :src="brand.logo" alt="" data-testid="topbar-mark" />
     <div class="wordmark display-900" data-testid="wordmark">{{ brand.wordmark }}<span v-if="brand.subMark" class="submark">{{ brand.subMark }}</span></div>
     <!-- end v0.6 N -->
     <template v-if="!layout.phone">
@@ -128,6 +129,14 @@ function lock() {
   padding: var(--safe-top) 0 0 24px;
   border-bottom: var(--line-w) solid var(--line);
   background: var(--ground);
+}
+.mark {
+  /* v1.3.2 — the tenant's square mark, the height of the wordmark line */
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  margin-right: -8px; /* the header's 20px gap, brought down to 12px between mark and wordmark */
 }
 .wordmark {
   font-size: 17px;

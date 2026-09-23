@@ -23,7 +23,7 @@
 {%- block navbar -%}
 <header class="mw-header">
 	<div class="mw-wrap">
-		<a class="mw-wordmark" href="/shop">{{ shop.wordmark }}<small class="mw-submark">{{ shop.brand.sub_mark }}</small></a>
+		<a class="mw-brand" href="/shop">{% if shop.brand.brand_logo %}<img class="mw-mark" src="{{ shop.brand.brand_logo }}" alt="">{% endif %}<span class="mw-wordmark">{{ shop.wordmark }}<small class="mw-submark">{{ shop.brand.sub_mark }}</small></span></a>
 		<nav class="mw-nav">
 			<a href="/shop/collection" class="{{ 'active' if mw_nav == 'collection' and not mw_group else '' }}">{{ 'All pieces' if shop.vertical == 'Jewellery' else 'All products' }}</a>
 			{% for g in shop.groups %}
@@ -66,7 +66,7 @@
 	<div class="mw-wrap">
 		<div class="cols">
 			<div class="col">
-				<div class="wm">{{ shop.wordmark }}</div>
+				<div class="wm">{% if shop.brand.brand_logo %}<img class="mw-mark mw-mark-foot" src="{{ shop.brand.brand_logo }}" alt="">{% endif %}{{ shop.wordmark }}</div>
 				{% if shop.vertical == 'Jewellery' %}
 				<div>Fine jewellery and timepieces, made in the {{ shop.brand_name }} atelier.<br>Every online order is prepared and collected in one of our boutiques.</div>
 				{% elif shop.vertical == 'Perfume' %}

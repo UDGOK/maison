@@ -105,7 +105,7 @@
 		};
 		if (!args.name) { err.textContent = 'Please enter your name.'; err.style.display = 'block'; return; }
 		if (!args.phone && !args.email) { err.textContent = 'Please enter a phone number or an e-mail.'; err.style.display = 'block'; return; }
-		if (!args.consent) { err.textContent = 'Please confirm you are {{ p.minimum_age or 21 }}+ and accept the terms.'; err.style.display = 'block'; return; }
+		if (!args.consent) { err.textContent = 'Please confirm you are {{ program.minimum_age or 21 }}+ and accept the terms.'; err.style.display = 'block'; return; }
 		btn.disabled = true;
 		// v0.7 white-label: the CSRF token travels in the request body (the server accepts it
 		// there as well as in a header), so this page ships no framework-named header and does

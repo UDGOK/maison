@@ -358,6 +358,14 @@ bench --site <site> execute maison_pos.setup.owner.create_owner \
   --kwargs "{'email': 'you@example.com', 'password': '…', 'first_name': 'First', 'last_name': 'Last'}"
 ```
 
+On a managed host with no shell (Frappe Cloud) the same seat is one API call, as a System Manager:
+
+```
+POST /api/method/maison_pos.setup.owner.create_owner_remote   {"email": "you@example.com", "first_name": "First", "last_name": "Last"}
+```
+
+It never takes a password — see *On a production site* below — and returns the same payload.
+
 `bench execute` commits when the call returns, so the default `commit=False` is right here; pass
 `commit=True` only when calling `create_owner` from a script that will not commit for you. Add
 `'pin': '…'` to choose the till PIN — see the sharp edge below if you do not.

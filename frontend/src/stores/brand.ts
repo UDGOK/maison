@@ -20,6 +20,8 @@ export function useBrand() {
     storeNoun,
     wordmark: computed(() => brand.value.wordmark_text),
     subMark: computed(() => brand.value.sub_mark),
+    /** v1.3.2 — the tenant's square mark (absolute URL from `get_brand()`), null when none is set */
+    logo: computed(() => brand.value.brand_logo),
     name: computed(() => brand.value.brand_name),
     productName: computed(() => brand.value.product_name),
     programName: computed(() => brand.value.rewards_program_name),

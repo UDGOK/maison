@@ -69,4 +69,10 @@ def ensure_users() -> dict[str, Any]:
 			demo.ensure_user_permission(email, warehouse)
 
 	after = set(frappe.get_all("User", filters={"name": ("like", f"%@{DOMAIN}")}, pluck="name"))
+	# the stores' clock, whatever System Settings said when the user row was created
+	from maison_pos.setup.scentsofarabia import TIMEZONE
+
+	for email in after:
+		if frappe.db.get_value("User", email, "time_zone") != TIMEZONE:
+			frappe.db.set_value("User", email, "time_zone", TIMEZONE, update_modified=False)
 	return {"created": sorted(after - before), "total": len(after)}

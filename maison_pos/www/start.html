@@ -15,6 +15,7 @@
   .ms-wrap{max-width:1120px;margin:0 auto;padding:64px 24px 96px}
   .ms-head{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:40px}
   /* v0.8 QA U4: a long wordmark at the 28px floor overflowed a 360px screen by 30px */
+  .ms-mark{display:block;width:clamp(72px,10vw,120px);height:clamp(72px,10vw,120px);object-fit:contain;margin-bottom:18px}
   .ms-wordmark{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(20px,6.4vw,54px);
     letter-spacing:.14em;line-height:1;margin:0;color:var(--text);overflow-wrap:anywhere}
   .ms-sub{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-top:14px;font-weight:500}
@@ -45,6 +46,7 @@
 {% block page_content %}
 <div class="ms-wrap">
   <div class="ms-head">
+    {% if brand_logo %}<img class="ms-mark" src="{{ brand_logo }}" alt="">{% endif %}
     <h1 class="ms-wordmark">{{ wordmark }}</h1>
     <div class="ms-sub">{{ product_name }}</div>
     {% if tagline %}<div class="ms-tag">{{ tagline }}</div>{% endif %}

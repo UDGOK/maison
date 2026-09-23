@@ -193,6 +193,19 @@ def _ensure_owner_associate(email: str, pin: Optional[str]) -> Optional[str]:
 	return doc.name
 
 
+@frappe.whitelist()
+def create_owner_remote(email: str, first_name: str = "", last_name: str = "", pin: Optional[str] = None) -> dict[str, Any]:
+	"""The same seat over the API, for hosts without a shell (Frappe Cloud). System Manager only.
+
+	Deliberately takes **no password**: the owner sets theirs from the User form on the desk or
+	with *Forgot password*, so the secret never crosses an API call or a chat window. The payload
+	is :func:`create_owner`'s — the generated till PIN is in it once, for the operator to hand over.
+	"""
+	if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+		frappe.throw(_("Only a System Manager may create the owner seat"), frappe.PermissionError)
+	return create_owner(email, password=None, first_name=first_name or "", last_name=last_name or "", pin=pin or None, commit=False)
+
+
 def revoke_owner(email: str, commit: bool = False) -> dict[str, Any]:
 	"""Disable an owner account — used when a developer hands the platform over.
 
