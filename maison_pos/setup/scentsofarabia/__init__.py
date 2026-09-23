@@ -92,6 +92,39 @@ def _assert_system_manager() -> None:
 SUMMARY_CACHE_KEY = "scentsofarabia_seed_summary"
 
 
+def _store_summary(payload: dict[str, Any]) -> None:
+	"""Keep the background run's outcome where ``status()`` can find it from a web worker: the
+	site's global defaults (a committed row — the cache alone proved unreliable across workers on
+	a managed host) plus the Redis cache for an hour."""
+	raw = frappe.as_json(payload)
+	frappe.db.set_default(SUMMARY_CACHE_KEY, raw)
+	frappe.db.commit()
+	try:
+		frappe.cache().set_value(SUMMARY_CACHE_KEY, raw, expires_in_sec=3600)
+	except Exception:
+		pass
+
+
+def _clear_summary() -> None:
+	frappe.db.set_default(SUMMARY_CACHE_KEY, "")
+	frappe.db.commit()
+	try:
+		frappe.cache().delete_value(SUMMARY_CACHE_KEY)
+	except Exception:
+		pass
+
+
+def _read_summary() -> Optional[dict[str, Any]]:
+	# straight from the table — not through the defaults cache, for the same reason as above
+	raw = frappe.db.get_value("DefaultValue", {"defkey": SUMMARY_CACHE_KEY, "parent": "__default"}, "defvalue")
+	if not raw:
+		try:
+			raw = frappe.cache().get_value(SUMMARY_CACHE_KEY)
+		except Exception:
+			raw = None
+	return frappe.parse_json(raw) if raw else None
+
+
 @frappe.whitelist()
 def seed_remote(password: Optional[str] = None, push: int = 1, background: int = 1) -> dict[str, Any]:
 	"""Run the seed over the API (System Manager only) — for Frappe Cloud, which has no shell.
@@ -105,7 +138,7 @@ def seed_remote(password: Optional[str] = None, push: int = 1, background: int =
 	_assert_system_manager()
 	if not cint(background):
 		return seed(password=password or None, push=bool(cint(push)))
-	frappe.cache().delete_value(SUMMARY_CACHE_KEY)
+	_clear_summary()
 	job = frappe.enqueue(
 		"maison_pos.setup.scentsofarabia._seed_job",
 		queue="long",
@@ -122,19 +155,27 @@ def _seed_job(password: Optional[str] = None, push: bool = True) -> None:
 	cache for an hour so ``status()`` can hand it back once."""
 	try:
 		summary = seed(commit=True, password=password, push=push)
-		frappe.cache().set_value(SUMMARY_CACHE_KEY, frappe.as_json({"ok": True, "summary": summary}), expires_in_sec=3600)
+		_store_summary({"ok": True, "summary": summary})
 	except Exception:
+		traceback = frappe.get_traceback()
 		frappe.db.rollback()
-		frappe.cache().set_value(SUMMARY_CACHE_KEY, frappe.as_json({"ok": False, "traceback": frappe.get_traceback()}), expires_in_sec=3600)
-		frappe.log_error(frappe.get_traceback(), "scentsofarabia seed")
+		_store_summary({"ok": False, "traceback": traceback})
+		frappe.log_error(traceback, "scentsofarabia seed")
 		raise
 
 
 @frappe.whitelist()
-def status() -> dict[str, Any]:
-	"""What the seed has produced on this site."""
+def status(consume: int = 0) -> dict[str, Any]:
+	"""What the seed has produced on this site. ``consume=1`` forgets the stored ``seed_summary``
+	(and the initial password it carries) once it has been read."""
+	from frappe.utils import cint
+
 	_assert_system_manager()
 	from maison_pos.setup.scentsofarabia import catalog, purchasing, stores
+
+	seed_summary = _read_summary()
+	if seed_summary is not None and cint(consume):
+		_clear_summary()
 
 	codes = [i["code"] for i in catalog.ITEMS]
 	owasso = stores.warehouse_name("OK-OWA")
@@ -155,7 +196,7 @@ def status() -> dict[str, Any]:
 		"receipts": frappe.db.count("Purchase Receipt", {"company": COMPANY, "docstatus": 1}),
 		"on_hand": {"HOU-WH": on_hand(houston), "OK-OWA": on_hand(owasso), "OK-ETUL": on_hand(stores.warehouse_name("OK-ETUL"))},
 		"shipments": frappe.get_all("AWANZ Shipment", filters={"boutique": "OK-OWA"}, fields=["name", "status"]) if frappe.db.exists("DocType", "AWANZ Shipment") else [],
-		"seed_summary": frappe.parse_json(frappe.cache().get_value(SUMMARY_CACHE_KEY) or "null"),
+		"seed_summary": seed_summary,
 	}
 
 

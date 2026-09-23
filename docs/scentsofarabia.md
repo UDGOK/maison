@@ -57,10 +57,13 @@ collapsed section, the POS bundle carries one more branch in the tile meta.
 bench --site <site> execute maison_pos.setup.scentsofarabia.seed
 # managed host (Frappe Cloud), as a System Manager:
 POST /api/method/maison_pos.setup.scentsofarabia.seed_remote          {"push": 1}
-GET  /api/method/maison_pos.setup.scentsofarabia.status
+GET  /api/method/maison_pos.setup.scentsofarabia.status               {"consume": 1}
 ```
 
 **Not a demo.** No invented customers, no back-dated sales, no giveaway. Every step is idempotent.
+`seed_remote` runs in the background; `status()` returns `seed_summary` once it has finished — the
+run's summary (with the one-time initial password of any login it created) or its traceback —
+kept in the site's global defaults until `consume=1` reads it.
 
 | Step | What |
 |---|---|
@@ -68,7 +71,7 @@ GET  /api/method/maison_pos.setup.scentsofarabia.status
 | `demo.ensure_company / accounts / modes_of_payment / price_list` | the CloudChaserz helpers under `profile_globals()` |
 | `catalog.ensure_item_groups` | Designer Fragrances · Arabian & Oud · Gift Sets · Body Sprays & Mists · Perfume Oils · Displays & Fixtures · Accessories · Services |
 | `rewards.ensure_loyalty_program / ensure_tiers` | **Scents of Arabia Rewards** — $1 = 1 point, $5/100 · $10/200 · $15/300 |
-| `stores.ensure_stores` | `OK-OWA`, `OK-ETUL` (Store) and `HOU-WH` (Warehouse) — Warehouse + Cost Center + POS Profile + tax template + `AWANZ Store` each |
+| `stores.ensure_stores` | `OK-OWA`, `OK-ETUL` (Store) and `HOU-WH` (Warehouse) — Warehouse + Cost Center + POS Profile + tax template + `AWANZ Store` each, then the `<store> In Transit` warehouses (they must exist before the first stock entry — ERPNext caches its warehouse → account map per job) |
 | `stores.ensure_brand_settings` | every brand key written (never inherited from the CloudChaserz defaults), vertical **Perfume**, HQ store `OK-OWA`, main warehouse `HOU-WH - SOA`, the logo, age gate off, chain markup 30 % (once), then `apply_whitelabel()` |
 | `catalog.ensure_items` | 63 items — the manufacturer's UPC / EAN on `maison_barcode` + an `Item Barcode` row, invoice cost as `valuation_rate`, retail on *Standard Selling* per the rule, wholesale overrides on the Arabian lines |
 | `catalog.ensure_images` | generated SVG art (`art.py`): flacon / gift box / spray / oil vials / display, a gold crescent on every Arabian piece |

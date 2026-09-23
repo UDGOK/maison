@@ -5,6 +5,23 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.3.1 — 2026-09-22 — the Scents of Arabia seed survives its first push
+
+Found on the first run of `maison_pos.setup.scentsofarabia.seed_remote` on the client's bench.
+
+* **Transit warehouses before stock moves.** The seed creates its stores *after* `after_install()`,
+  so the v0.6 install pass had no store to give a `<store> In Transit` warehouse to; the first
+  shipment then created one on demand — and ERPNext, which caches the warehouse → account map on
+  `frappe.flags` for the life of a job, had already built that map while receiving the purchase
+  orders. The push failed with *"Warehouse OK-OWA In Transit - SOA is not linked to any account"*
+  and the whole run rolled back. `stores.ensure_stores` now runs
+  `install_v06_shipping.ensure_transit_warehouses()` once the stores exist, and both it and
+  `distribution.push_to_owasso` drop the cached map before the next stock entry.
+* **The seed summary is a committed row.** The background job's outcome (and the one-time initial
+  password) went into the Redis cache alone and a web worker could not see it. It is now written
+  to the site's global defaults as well, read straight from the table; `status(consume=1)` forgets
+  it after handing it back.
+
 ## 1.3.0 — 2026-09-22 "Scents of Arabia" — the Perfume vertical
 
 A second real tenant, on its own bench: a fragrance retailer with a Houston warehouse (Markhor

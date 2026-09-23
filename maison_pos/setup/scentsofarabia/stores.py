@@ -189,6 +189,14 @@ def ensure_stores(accounts: dict[str, str], walk_in: str) -> list[str]:
 	wh = warehouse_name(WAREHOUSE_CODE)
 	if frappe.db.exists("Warehouse", wh):
 		frappe.db.set_value("Warehouse", wh, {"warehouse_type": frappe.db.get_value("Warehouse Type", "Stores", "name")}, update_modified=False)
+	# ``<store> In Transit`` for every store, exactly as the v0.6 install does for stores that already
+	# exist: the stores are created AFTER ``after_install()`` here, and ERPNext caches its
+	# warehouse → account map per job, so a transit warehouse created on demand by the first
+	# shipment would be missing from a map built by the purchase receipts before it
+	from maison_pos.setup.install_v06_shipping import ensure_transit_warehouses
+
+	ensure_transit_warehouses()
+	frappe.flags.pop("warehouse_account_map", None)
 	return codes
 
 

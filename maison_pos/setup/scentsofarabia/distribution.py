@@ -43,6 +43,9 @@ def push_to_owasso() -> dict[str, Any]:
 	if not stock:
 		return {"skipped": f"nothing on hand at {source}"}
 	lines = [{"boutique": DESTINATION, "item_code": r["item_code"], "qty": flt(r["actual_qty"])} for r in stock]
+	# ERPNext caches the warehouse → account map on ``frappe.flags`` for the life of the job; the
+	# receipts above built it before the stores' transit warehouses existed, so drop it here
+	frappe.flags.pop("warehouse_account_map", None)
 	sent = distribution.send(lines, reason=REASON, priority="Normal")
 	out: dict[str, Any] = {"sent": sent, "received": []}
 	for sh in sent["shipments"]:
