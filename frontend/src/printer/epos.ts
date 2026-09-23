@@ -7,6 +7,8 @@ import type { ReceiptSnapshot } from '@/db'
 import { fmtAmount } from '@/utils/money'
 import { fmtDateTime } from '@/utils/device'
 import { receiptUrl } from '@/scan/payloads'
+import { normalizeBrand } from '@/brand/tokens' // v1.4
+import { receiptLogoRaster } from './logo'
 
 export const COLS = 48
 
@@ -63,6 +65,14 @@ export class EposBuilder {
     this.parts.push('<pulse drawer="drawer_1" time="pulse_100"/>')
     return this
   }
+  /** v1.4 — a monochrome raster (1 bit/dot rows, MSB first, base64), centred; `printer/logo.ts` packs it. */
+  image(base64: string, width: number, height: number, align: 'left' | 'center' | 'right' = 'center') {
+    if (!base64 || !width || !height) return this
+    this.parts.push(`<text align="${align}"/>`)
+    this.parts.push(`<image width="${width}" height="${height}" color="color_1" mode="mono" align="${align}">${base64}</image>`)
+    this.parts.push('<text align="left"/>')
+    return this
+  }
   /** ESC/POS 2D symbol — QR Code model 2, EC level M, module width 5 (≈ 29 mm at 203 dpi). */
   qr(data: string, opts: { level?: 'L' | 'M' | 'Q' | 'H'; width?: number; align?: 'left' | 'center' | 'right' } = {}) {
     if (opts.align) this.parts.push(`<text align="${opts.align}"/>`)
@@ -103,7 +113,10 @@ export function receiptQrContent(meta: Pick<ReceiptMeta, 'receipt_token' | 'rece
 
 export function buildReceiptXml(r: ReceiptSnapshot, meta: ReceiptMeta): string {
   const b = new EposBuilder()
-  b.text(r.brand?.wordmark || 'CLOUDCHASERZ', { align: 'center', bold: true, w: 2, h: 2 }) // v0.6 N
+  // v1.4 — the tenant's mark above the wordmark, when it has been prepared (`prepareReceiptLogo`)
+  const logo = r.brand?.logo ? receiptLogoRaster(r.brand.logo) : null
+  if (logo) b.image(logo.base64, logo.width, logo.height)
+  b.text(r.brand?.wordmark || normalizeBrand(null).wordmark_text, { align: 'center', bold: true, w: 2, h: 2 }) // v0.6 N
   b.text(r.boutique_name.toUpperCase(), { align: 'center' })
   b.text(r.address_line, { align: 'center' })
   b.text(r.city, { align: 'center' })
@@ -156,7 +169,7 @@ export function buildReceiptXml(r: ReceiptSnapshot, meta: ReceiptMeta): string {
     b.feed(1)
   }
   b.feed(1)
-  b.text((r.brand?.thanks || `THANK YOU FOR VISITING ${r.brand?.brand_name || 'CLOUDCHASERZ'}`).toUpperCase(), { align: 'center' }) // v0.6 N
+  b.text((r.brand?.thanks || `THANK YOU FOR VISITING ${r.brand?.brand_name || normalizeBrand(null).brand_name}`).toUpperCase(), { align: 'center' }) // v0.6 N
   b.text('Exchanges within 30 days with receipt.', { align: 'center' })
   const qr = receiptQrContent({ ...meta, receipt_qr_base_url: meta.receipt_qr_base_url || r.receipt_qr_base_url })
   if (qr) {

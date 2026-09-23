@@ -5,6 +5,60 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.4.0 — 2026-09-22 — Stores and Staff from the warehouse desk; the mark on receipts
+
+The chain's locations and people, managed from `/warehouse` by head office or the warehouse
+admin — without the ERPNext desk, a seed or a shell. Asked for by the Scents of Arabia owner on
+day one ("add, remove, update stores remotely"; "the Houston warehouse manager adds employees to
+different stores and creates their logins").
+
+### Stores (`api/stores_admin.py`, `/warehouse → Stores`)
+
+* **Add a store** from one form — code, name, address, phone, e-mail, region, sales-tax rate,
+  time zone, opening hours. Saving provisions everything behind it, in the order the seed uses:
+  Warehouse, Cost Center, a Sales Taxes and Charges Template at the typed rate (into the chain's
+  tax ledger), a POS Profile cloned from the head-office store's (payments, price list, change
+  account), the `AWANZ Store` row, the `<store> In Transit` and `<store> Damaged` warehouses.
+* **Edit** anything but the code (it names the warehouse, the cost centre and the POS profile).
+  A new tax rate rewrites the store's own template — a template shared with another store is
+  copied first, so the other store keeps its rate.
+* **Close, never delete.** Refused while the store holds stock or a shipment to it is open;
+  closes the POS profile; the store leaves every list, the till, the shop's collection points
+  and the wall. `reopen_store` undoes it. The head-office store cannot be closed.
+* A region typed on the desk joins the store form's Select options, so the desk filter and the
+  API keep agreeing.
+
+### Staff (`api/staff_admin.py`, `/warehouse → Staff`)
+
+* **Add a person to a store** with a role — Associate, Store manager, Regional, Head office,
+  Warehouse admin — and their login and till PIN are created together: the User, the
+  `AWANZ Associate` row (written first, so its role sync does not strip the roles), the Frappe
+  roles the role carries, and the User Permission that fences store staff to their store's
+  warehouses (store, in-transit, damaged).
+* **Secrets are shown once.** A generated password or PIN comes back only in the response of
+  the call that made it; the sheet shows it in a copy box and forgets it. `reset_password`
+  never takes a password (one typed by an operator is known to two people).
+* **Move, re-role, reset a PIN (clears a lockout), suspend, restore.** Suspending disables the
+  login (ending its sessions) and the till identity; nothing is deleted. Nobody edits their own
+  seat here, and the owner seat is never touched.
+* **Rank.** `scoping.FRAPPE_ROLE_RANK` gives *AWANZ Warehouse Admin* rank 2: the Houston
+  warehouse manager may hand out Associate and Manager; Regional and Head office still come from
+  head office, and the associate controller's own guard enforces the same line.
+
+### Receipts
+
+* The tenant's mark prints at the top of every receipt — the reader canvas and the Epson ePOS
+  XML (`<image>` raster) — prepared once ahead of the first print by `printer/logo.ts`, so the
+  synchronous builders never wait. The on-screen receipt shows it too. The two test prints on the
+  Settings screen carried no brand block at all and printed the first tenant's wordmark; they
+  carry the tenant's now.
+
+### Also
+
+* The seed creates the company **Letter Head** (the monogram lockup) and makes it the default,
+  so every printed document carries it from the first run; `stores._public_file` is idempotent on
+  content, so a changed asset is re-uploaded and the brand follows it.
+
 ## 1.3.3 — 2026-09-22 — the mark without its black square
 
 * The bundled Scents of Arabia mark (`setup/scentsofarabia/assets/scents-of-arabia-mark.png`) had

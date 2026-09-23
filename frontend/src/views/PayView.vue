@@ -322,7 +322,7 @@ async function finalize(modeOfPayment: 'Cash' | 'Card', card?: CardResult, split
     points_balance: pointsAfter,
     currency: session.currency,
     // --- v0.6 N/Q ---
-    brand: { wordmark: brand.wordmark, brand_name: brand.name, sub_mark: brand.subMark, thanks: brand.thanks, program_name: brand.programName },
+    brand: { wordmark: brand.wordmark, brand_name: brand.name, sub_mark: brand.subMark, thanks: brand.thanks, program_name: brand.programName, logo: brand.logo },
     reward_tier: cart.reward_tiers.length ? { title: cart.reward_tiers.map((x) => x.title).join(' + '), points: cart.rewardPoints, amount: t.loyalty_amount } : undefined,
     age_verified: age.isVerified || undefined,
     next_reward: cart.customer && catalog.reward_tiers.length ? nextReward(pointsAfter || 0, catalog.reward_tiers) : undefined

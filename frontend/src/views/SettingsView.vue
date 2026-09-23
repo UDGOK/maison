@@ -31,10 +31,14 @@ const scan = useScanStore()
 const recognition = useRecognitionStore()
 const inventory = useInventoryStore()
 const readerTest = ref('')
+/** v1.4 — the test prints used to carry no brand block, so the builders fell back to the first tenant's wordmark. */
+function receiptBrand() {
+  return { wordmark: brand.wordmark, brand_name: brand.name, sub_mark: brand.subMark, thanks: brand.thanks, program_name: brand.programName, logo: brand.logo }
+}
 async function testReaderPrint() {
   readerTest.value = ''
   try {
-    const snap = { boutique: session.boutique!.name, boutique_name: session.boutique!.boutique_name, address_line: session.boutique!.address_line, city: session.boutique!.city, phone: session.boutique!.phone, associate_name: session.associate!.full_name, lines: [{ item_code: 'TEST', item_name: 'Reader test print', qty: 1, rate: 0, amount: 0 }], net_total: 0, discount: 0, total_taxes: 0, tax_rate: catalog.taxRate, loyalty_amount: 0, loyalty_points_redeemed: 0, grand_total: 0, payments: [], points_earned: 0, currency: session.currency }
+    const snap = { boutique: session.boutique!.name, boutique_name: session.boutique!.boutique_name, address_line: session.boutique!.address_line, city: session.boutique!.city, phone: session.boutique!.phone, associate_name: session.associate!.full_name, lines: [{ item_code: 'TEST', item_name: 'Reader test print', qty: 1, rate: 0, amount: 0 }], net_total: 0, discount: 0, total_taxes: 0, tax_rate: catalog.taxRate, loyalty_amount: 0, loyalty_points_redeemed: 0, grand_total: 0, payments: [], points_earned: 0, currency: session.currency, brand: receiptBrand() }
     const layout = buildReceiptLayout(snap, { offline_uuid: 'reader-test', posting_datetime: new Date().toISOString() })
     await printer.printOnReader(snap, { offline_uuid: 'reader-test', posting_datetime: new Date().toISOString() })
     readerTest.value = `Printed ${layout.width}×${layout.height} px on ${printer.reader?.label}`
@@ -112,7 +116,8 @@ async function testPrint() {
       grand_total: 0,
       payments: [],
       points_earned: 0,
-      currency: session.currency
+      currency: session.currency,
+      brand: receiptBrand()
     },
     { offline_uuid: 'test-print', posting_datetime: new Date().toISOString() }
   )

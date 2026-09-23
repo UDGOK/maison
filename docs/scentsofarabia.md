@@ -167,6 +167,18 @@ associate touches a till.
 
 ---
 
+## 5b. Stores and staff, from the desk (v1.4)
+
+Both are sections of `/warehouse`, open to head office and the warehouse admin:
+
+* **Stores** — add a store (code, name, address, phone, region, sales-tax rate, hours); every
+  ERPNext object behind it is provisioned from the form (`api/stores_admin.py`). Edit anything but
+  the code. *Close* rather than delete — refused while the store holds stock — and *Reopen*.
+* **Staff** — add a person to a store with a role; the login and till PIN are created together
+  and shown once for hand-over (`api/staff_admin.py`). Move, re-role, new PIN, reset password,
+  suspend, restore. The warehouse admin may grant Associate and Manager; Regional and Head office
+  are head office's to give.
+
 ## 6. Open questions for the client
 
 1. **Order 1** — the ~$11,995 invoice before 99139.

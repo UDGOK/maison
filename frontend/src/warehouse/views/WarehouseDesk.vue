@@ -32,6 +32,9 @@ import VendorsBoard from '../components/purchasing/VendorsBoard.vue'
 import StockBoard from '../components/purchasing/StockBoard.vue'
 // v1.2 §C/§D §G — Prices (the sixth section) and the everyday despatch
 import PricesBoard from '../components/pricing/PricesBoard.vue'
+// v1.4 — Stores and Staff: the chain's locations and people, managed from the desk
+import StoresBoard from '../components/stores/StoresBoard.vue'
+import StaffBoard from '../components/staff/StaffBoard.vue'
 import NewDespatchSheet from '../components/purchasing/NewDespatchSheet.vue'
 import { usePricingStore } from '@/stores/pricing'
 import Modal from '@/components/Modal.vue'
@@ -395,6 +398,8 @@ onBeforeUnmount(() => {
       <VendorsBoard v-else-if="section === 'vendors'" @notice="say" @open-order="onOpenOrder" />
       <StockBoard v-else-if="section === 'stock'" @notice="say" />
       <PricesBoard v-else-if="section === 'prices'" @notice="say" />
+      <StoresBoard v-else-if="section === 'stores'" @notice="say" />
+      <StaffBoard v-else-if="section === 'staff'" @notice="say" />
     </div>
 
     <NewDespatchSheet v-if="despatching" @close="despatching = false" @notice="say" @sent="onDespatched" />

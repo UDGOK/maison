@@ -69,7 +69,7 @@ export interface ReceiptSnapshot {
   coupon_discount?: number
   currency: string
   // --- v0.6 N/Q — brand tokens at sale time, fixed reward tier, age check, rewards lines ---
-  brand?: { wordmark: string; brand_name: string; sub_mark?: string; thanks?: string; program_name?: string }
+  brand?: { wordmark: string; brand_name: string; sub_mark?: string; thanks?: string; program_name?: string; /** v1.4 — the tenant's mark, printed at the top when it has been prepared */ logo?: string | null }
   reward_tier?: { title: string; points: number; amount: number }
   age_verified?: boolean
   next_reward?: { title: string; points: number; amount: number; points_needed: number } | null

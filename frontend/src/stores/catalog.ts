@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { api, DEFAULT_SETTINGS, normalizeSettings, type Bootstrap, type Brand, type Item, type LoyaltyProgram, type PosSettings, type PricingRule, type RewardTier, type TaxRow } from '@/api'
 import { normalizeAge, normalizeBrand, type AgeGateSettings } from '@/brand/tokens' // v0.6 N/Q
+import { prepareReceiptLogo } from '@/printer/logo' // v1.4 — the mark on receipts, rasterised ahead of the first print
 import { db, getSetting, setSetting } from '@/db'
 import { useSessionStore } from './session'
 
@@ -97,6 +98,7 @@ export const useCatalogStore = defineStore('catalog', {
       this.version = meta.version || null
       // --- v0.6 N/Q ---
       this.brand = normalizeBrand(meta.brand)
+      void prepareReceiptLogo(this.brand.brand_logo)
       this.age = normalizeAge(meta.age)
       this.reward_tiers = meta.reward_tiers || []
       // --- end v0.6 N/Q ---
@@ -148,6 +150,7 @@ export const useCatalogStore = defineStore('catalog', {
       this.version = b.version
       // --- v0.6 N/Q — brand + age switches ride on the raw settings; tiers are their own key ---
       this.brand = normalizeBrand(b.brand || (b.settings as unknown as { brand?: Partial<Brand> })?.brand)
+      void prepareReceiptLogo(this.brand.brand_logo)
       this.age = normalizeAge(b.settings as unknown as Partial<AgeGateSettings>)
       this.reward_tiers = b.reward_tiers || []
       // --- end v0.6 N/Q ---
@@ -226,6 +229,7 @@ export const useCatalogStore = defineStore('catalog', {
         if (d.settings) this.settings = normalizeSettings(d.settings)
         // --- v0.6 N/Q ---
         if (d.brand) this.brand = normalizeBrand(d.brand)
+        void prepareReceiptLogo(this.brand.brand_logo)
         if (d.settings) this.age = normalizeAge(d.settings as unknown as Partial<AgeGateSettings>)
         if (d.reward_tiers) this.reward_tiers = d.reward_tiers
         // --- end v0.6 N/Q ---

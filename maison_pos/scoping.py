@@ -30,6 +30,9 @@ ASSOCIATE_ROLE_RANK = {"Associate": 1, "Manager": 2, "Regional": 3, "HeadOffice"
 FRAPPE_ROLE_RANK = {
 	"AWANZ Associate": 1,
 	"AWANZ Manager": 2,
+	# v1.4 — the warehouse admin (Houston) staffs the stores from the desk: they may hand out
+	# Associate and Manager, never Regional or Head Office
+	"AWANZ Warehouse Admin": 2,
 	"AWANZ Regional": 3,
 	"AWANZ Head Office": 4,
 	"System Manager": 4,

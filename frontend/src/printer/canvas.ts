@@ -11,13 +11,15 @@ import type { ReceiptSnapshot } from '@/db'
 import { fmtAmount } from '@/utils/money'
 import { fmtDateTime } from '@/utils/device'
 import { receiptUrl } from '@/scan/payloads'
+import { normalizeBrand } from '@/brand/tokens' // v1.4 — the page shell's tenant, never a hard-coded first tenant
+import { RECEIPT_LOGO_SIDE, receiptLogoCanvas, receiptLogoReady } from './logo'
 
 export const READER_PAPER_WIDTH = 384
 export const READER_MARGIN = 12
 /** printable width in px */
 export const READER_COLS_PX = READER_PAPER_WIDTH - READER_MARGIN * 2
 
-export type RunKind = 'text' | 'rule' | 'qr' | 'feed'
+export type RunKind = 'text' | 'rule' | 'qr' | 'feed' | 'logo'
 export interface LayoutRun {
   kind: RunKind
   y: number
@@ -35,8 +37,10 @@ export interface LayoutRun {
   dashed?: boolean
   /** qr payload */
   payload?: string
-  /** qr side in px */
+  /** qr side in px, or the logo's */
   side?: number
+  /** logo: the prepared mark's URL (`printer/logo.ts`) */
+  src?: string
 }
 
 export interface ReceiptLayout {
@@ -135,7 +139,9 @@ export function buildReceiptLayout(r: ReceiptSnapshot, opts: ReaderReceiptOption
   const rule = (dashed = false) => add({ kind: 'rule', h: 14, dashed })
   const feed = (px = 10) => add({ kind: 'feed', h: px })
 
-  text(r.brand?.wordmark || 'CLOUDCHASERZ', { align: 'center', size: TITLE, bold: true, display: true }) // v0.6 N
+  // v1.4 — the tenant's mark above the wordmark, when it has been prepared (`prepareReceiptLogo`)
+  if (r.brand?.logo && receiptLogoReady(r.brand.logo)) add({ kind: 'logo', src: r.brand.logo, side: RECEIPT_LOGO_SIDE, h: RECEIPT_LOGO_SIDE + 8, align: 'center' })
+  text(r.brand?.wordmark || normalizeBrand(null).wordmark_text, { align: 'center', size: TITLE, bold: true, display: true }) // v0.6 N
   text(r.boutique_name.toUpperCase(), { align: 'center', size: LABEL })
   text([r.address_line, r.city].filter(Boolean).join(', '), { align: 'center', size: SMALL })
   if (r.phone) text(r.phone, { align: 'center', size: SMALL })
@@ -227,7 +233,7 @@ export function buildReceiptLayout(r: ReceiptSnapshot, opts: ReaderReceiptOption
     text('SCAN FOR YOUR RECEIPT', { align: 'center', size: LABEL })
   }
   feed(6)
-  text(`${r.brand?.thanks || 'Thank you for choosing ' + (r.brand?.brand_name || 'CloudChaserz')}.`, { align: 'center', size: SMALL }) // v0.6 N
+  text(`${r.brand?.thanks || 'Thank you for choosing ' + (r.brand?.brand_name || normalizeBrand(null).brand_name)}.`, { align: 'center', size: SMALL }) // v0.6 N
   text('Exchanges within 30 days with receipt.', { align: 'center', size: SMALL })
   feed(READER_MARGIN * 2)
   return { width: READER_PAPER_WIDTH, height: y, runs }
@@ -275,6 +281,11 @@ export async function renderReceiptCanvas(
         ctx.textAlign = 'left'
         ctx.fillText(t, READER_MARGIN, run.y)
       }
+    } else if (run.kind === 'logo' && run.src) {
+      // v1.4 — already monochrome; drawn as-is, the threshold below leaves it untouched
+      const mono = receiptLogoCanvas(run.src)
+      const side = run.side || RECEIPT_LOGO_SIDE
+      if (mono) ctx.drawImage(mono, (layout.width - side) / 2, run.y, side, side)
     } else if (run.kind === 'qr' && run.payload) {
       try {
         const QR = await import('qrcode')

@@ -42,6 +42,8 @@ watch(
 
 <template>
   <div class="receipt">
+    <!-- v1.4 — the tenant's mark above the wordmark (printed in black on the paper receipt) -->
+    <img v-if="row.receipt.brand?.logo || catalog.brand.brand_logo" class="r-mark" :src="row.receipt.brand?.logo || catalog.brand.brand_logo || ''" alt="" data-testid="receipt-mark" />
     <div class="r-wordmark" data-testid="receipt-wordmark">{{ row.receipt.brand?.wordmark || catalog.brand.wordmark_text }}</div>
     <div class="r-center r-caps">{{ row.receipt.boutique_name }}</div>
     <div class="r-center">{{ row.receipt.address_line }}</div>
@@ -124,6 +126,14 @@ watch(
   font-size: 11px;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
+}
+.r-mark {
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 6px;
+  object-fit: contain;
+  filter: grayscale(1) contrast(1.6);
 }
 .r-wordmark {
   font-family: 'Unbounded', 'Arial Black', sans-serif;

@@ -94,7 +94,9 @@ LOGO_FILES = {
 	"mark": "scents-of-arabia-mark.png",  # 512×512 crescent + horse — app icon, favicon, navbar
 	"logo": "scents-of-arabia-logo.png",  # full lockup (mark + wordmark + Arabic + tagline)
 	"banner": "scents-of-arabia-banner.jpg",  # wide plaque, for the shop / e-mails
+	"letterhead": "scents-of-arabia-letterhead.png",  # mark + wordmark + Arabic + tagline on transparent, for printed documents
 }
+LETTER_HEAD = "Scents of Arabia"
 
 
 def store_codes() -> list[str]:
@@ -259,6 +261,35 @@ def ensure_brand_assets() -> dict[str, str | None]:
 	return {k: _public_file(k) for k in LOGO_FILES}
 
 
+def ensure_letter_head(assets: dict[str, str | None]) -> str | None:
+	"""The company's default **Letter Head** — the monogram lockup at the top of every printed
+	document (invoices, purchase orders, statements). Frappe's HTML sanitiser strips ``src`` from
+	an API-written HTML letter head, so this is an *Image* letter head: Frappe writes the markup.
+	Created once; a letter head the client has since edited is left alone."""
+	image = assets.get("letterhead")
+	if not image or not frappe.db.exists("DocType", "Letter Head"):
+		return None
+	if not frappe.db.exists("Letter Head", LETTER_HEAD):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Letter Head",
+				"letter_head_name": LETTER_HEAD,
+				"source": "Image",
+				"image": image,
+				"image_height": 72,
+				"align": "Left",
+				"is_default": 1,
+				"footer_source": "HTML",
+				"footer": '<div style="border-top:1px solid #D9D2C5;padding-top:6px;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6B665E;letter-spacing:0.08em;text-align:center">SCENTS OF ARABIA &middot; FINE OUD &amp; PERFUMES</div>',
+			}
+		)
+		doc.flags.ignore_permissions = True
+		doc.insert()
+	if frappe.db.exists("Company", COMPANY) and not frappe.db.get_value("Company", COMPANY, "default_letter_head"):
+		frappe.db.set_value("Company", COMPANY, "default_letter_head", LETTER_HEAD, update_modified=False)
+	return LETTER_HEAD
+
+
 def ensure_brand_settings() -> dict[str, Any]:
 	"""Write the Scents of Arabia brand, the Perfume vertical, HQ store / main warehouse, the
 	logo, the age switches and the default wholesale markup on ``AWANZ POS Settings``.
@@ -270,6 +301,7 @@ def ensure_brand_settings() -> dict[str, Any]:
 	from maison_pos.pricing.wholesale import MARKUP_FIELD
 
 	assets = ensure_brand_assets()
+	ensure_letter_head(assets)
 	values: dict[str, Any] = dict(BRAND)
 	values.update({"head_office_boutique": HQ_STORE, "main_warehouse": warehouse_name(WAREHOUSE_CODE)})
 	if not values.get("brand_website"):
