@@ -5,6 +5,12 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.4.1 — 2026-09-22 — Staff polish after the first walk-through
+
+* The owner seat reads **Owner** and sits under Head office, whatever role its associate row
+  carries. Every store's staff table shares one column grid; a long login wraps in the
+  shown-once box. The Add-store note points at Staff, not the till.
+
 ## 1.4.0 — 2026-09-22 — Stores and Staff from the warehouse desk; the mark on receipts
 
 The chain's locations and people, managed from `/warehouse` by head office or the warehouse

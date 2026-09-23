@@ -16,7 +16,7 @@ import type { Person } from '@/api/staff'
 export function groupStaff(people: Person[]): { title: string; people: Person[] }[] {
   const groups = new Map<string, Person[]>()
   for (const p of people) {
-    const key = p.boutique_name || (p.role === 'HeadOffice' || p.role === 'Regional' ? 'Head office' : 'Unassigned')
+    const key = p.is_owner ? 'Head office' : p.boutique_name || (p.role === 'HeadOffice' || p.role === 'Regional' ? 'Head office' : 'Unassigned')
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(p)
   }
@@ -262,6 +262,14 @@ async function copy(value: string) {
       <div class="group-title label">{{ g.title }} <span class="label-dim">· {{ g.people.length }}</span></div>
       <div class="tablewrap">
         <table class="table staff">
+          <colgroup>
+            <col style="width: 22%" />
+            <col style="width: 30%" />
+            <col style="width: 14%" />
+            <col style="width: 10%" />
+            <col style="width: 14%" />
+            <col style="width: 10%" />
+          </colgroup>
           <thead>
             <tr>
               <th>Name</th>
@@ -463,6 +471,10 @@ async function copy(value: string) {
 .tablewrap {
   overflow-x: auto;
 }
+.staff {
+  table-layout: fixed; /* every store's table shares one column grid */
+  width: 100%;
+}
 .prow.off td {
   color: var(--muted);
 }
@@ -515,6 +527,8 @@ async function copy(value: string) {
 .secret-value {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 20px;
+  overflow-wrap: anywhere;
+  min-width: 0;
   letter-spacing: 0.08em;
   padding: 8px 12px;
   border: var(--line-w) solid var(--line-strong);

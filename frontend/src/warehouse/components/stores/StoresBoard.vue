@@ -303,7 +303,7 @@ async function reopen(row: StoreRow) {
         </div>
       </div>
       <p v-if="editingCode === null" class="muted note">
-        Saving creates the store's warehouse, cost centre, POS profile (a copy of {{ data?.template_store || 'the head-office store' }}'s, so payments and price list match the chain), tax template and in-transit warehouse. Staff are added on the till's Settings screen.
+        Saving creates the store's warehouse, cost centre, POS profile (a copy of {{ data?.template_store || 'the head-office store' }}'s, so payments and price list match the chain), tax template and in-transit warehouse. Add its people under Staff.
       </p>
       <template #footer>
         <button class="btn btn-ghost" @click="editing = null">Cancel</button>

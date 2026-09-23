@@ -156,6 +156,9 @@ describe('v1.4 — staff draft and mock rules', () => {
     expect(groups.some((g) => g.title === 'CloudChaserz Montrose')).toBe(true)
     expect(lastSeen(list.staff.find((p) => p.user === 'hq@cloudchaserz.example')!)).toBe('2026-08-24 08:12')
     expect(lastSeen({ ...list.staff[0], last_login: null, last_active: null })).toBe('never signed in')
+    // the owner seat groups under head office whatever role it happens to carry
+    const withOwner = [...list.staff, { ...list.staff[1], user: 'owner@example.com', is_owner: true, boutique: null, boutique_name: null, role: 'Warehouse' as const, role_label: 'Owner' }]
+    expect(groupStaff(withOwner)[0].people.some((p) => p.user === 'owner@example.com')).toBe(true)
   })
 })
 

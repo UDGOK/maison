@@ -149,7 +149,7 @@ def _person(email: str) -> dict[str, Any]:
 		"boutique": a.boutique if a else None,
 		"boutique_name": store,
 		"role": role,
-		"role_label": ROLES[role]["label"] if role in ROLES else (role or "—"),
+		"role_label": "Owner" if "System Manager" in roles else (ROLES[role]["label"] if role in ROLES else (role or "—")),
 		"till_enabled": cint(a.enabled) if a else 0,
 		"pin_set": bool(a and a.pin_set_on),
 		"pin_locked": bool(a and cint(a.failed_pin_attempts) >= 5),
