@@ -13,6 +13,7 @@ function salonBrand(raw: unknown): Brand {
   return normalizeBrand((raw as Partial<Brand> | null | undefined) || null)
 }
 import { salonApi, type PlaylistPiece, type SalonClient, type SalonPreferences, type SalonSession, type SalonSettings, type SalonState } from '@/api/salon'
+import type { ScentSuggestion } from '@/perfume/profile'
 import { clientOf, initialModel, isStale, reduce, viewOf, type IdentifyMode, type ReceiptStage, type SalonEvent, type SalonModel, type SalonView } from './reducer'
 import { connectSalonRealtime, POLL_MS, type Unsubscribe } from './transport'
 import { SALON_DEVICE_KEY, SALON_TOKEN_KEY, normalizeCode } from './pairing'
@@ -36,6 +37,9 @@ interface SalonStoreState {
   feedbackDone: boolean
   inviteAnswer: 0 | 1 | null
   prefsSaved: string[]
+  /** v1.6 — the perfumery's Concierge: the associate's line and what to bring to try */
+  prefsSummary: string
+  prefsSuggestions: ScentSuggestion[]
 }
 
 let unsub: Unsubscribe | null = null
@@ -72,7 +76,9 @@ export const useSalonStore = defineStore('salonDevice', {
     emailMasked: null,
     feedbackDone: false,
     inviteAnswer: null,
-    prefsSaved: []
+    prefsSaved: [],
+    prefsSummary: '',
+    prefsSuggestions: []
   }),
   getters: {
     view: (s): SalonView => viewOf(s.model),
@@ -86,6 +92,11 @@ export const useSalonStore = defineStore('salonDevice', {
     programName: (s): string => s.settings?.rewards_program_name || salonBrand(s.settings?.brand).rewards_program_name,
     storeNoun: (s): string => s.settings?.brand?.store_noun || 'store',
     brandLogo: (s): string | null => salonBrand(s.settings?.brand).brand_logo ?? null,
+    /** v1.6 — the tenant's trade decides what the Concierge asks (a perfumery never asks a ring size) */
+    vertical: (s): string => salonBrand(s.settings?.brand).vertical,
+    isPerfume(): boolean {
+      return this.vertical === 'Perfume'
+    },
     minimumAge: (s): number => s.model.remote.age?.minimum_age || s.settings?.minimum_age || 21,
     // --- end v0.6 N ---
     boutiqueName(s): string {
@@ -114,6 +125,8 @@ export const useSalonStore = defineStore('salonDevice', {
         this.feedbackDone = false
         this.inviteAnswer = null
         this.prefsSaved = []
+        this.prefsSummary = ''
+        this.prefsSuggestions = []
         this.error = ''
       }
     },
@@ -353,6 +366,8 @@ export const useSalonStore = defineStore('salonDevice', {
       try {
         const r = await salonApi.preferences(this.token, answers)
         this.prefsSaved = r.saved
+        this.prefsSummary = r.summary || ''
+        this.prefsSuggestions = r.suggestions || []
         return true
       } catch (e) {
         this.error = (e as Error).message

@@ -54,6 +54,9 @@ interface SalonPosState {
   consentStep: 'capture' | 'done' | 'unavailable' | null
   consentCaptured: number
   focusLine: string | null
+  /** v1.6 — bumps when the Concierge saves answers, so the client's panel on the till reloads */
+  preferencesSeq: number
+  preferencesCustomer: string | null
 }
 
 let unsub: Unsubscribe | null = null
@@ -106,7 +109,9 @@ export const useSalonPosStore = defineStore('salon', {
     virtualOpen: false,
     consentStep: null,
     consentCaptured: 0,
-    focusLine: null
+    focusLine: null,
+    preferencesSeq: 0,
+    preferencesCustomer: null
   }),
   getters: {
     paired: (s) => !!s.session && s.session.status === 'Paired',
@@ -299,9 +304,16 @@ export const useSalonPosStore = defineStore('salon', {
         case 'email_receipt':
           sync.notify('good', 'Receipt e-mailed', m.email_masked || undefined)
           break
-        case 'preferences':
-          sync.notify('good', 'Concierge answers saved', (m.fields || []).join(', '))
+        case 'preferences': {
+          this.preferencesCustomer = (m.customer as string) || null
+          this.preferencesSeq += 1
+          // v1.6 — a perfumery's Concierge says who it is for, what they love, and what to bring to try
+          const tries = (m.suggestions || []).map((x) => x.item_name).join(', ')
+          // long enough to read and walk to the shelf (it is also on the client's timeline)
+          if (m.summary || tries) sync.notify('good', tries ? 'Concierge — bring to try' : 'Concierge answers saved', [tries, m.summary].filter(Boolean).join(' — '), undefined, undefined, 20000)
+          else sync.notify('good', 'Concierge answers saved', (m.fields || []).join(', '))
           break
+        }
       }
     },
     /** The client agreed on the Salon; the POS owns the camera → capture 3 samples and enrol. */

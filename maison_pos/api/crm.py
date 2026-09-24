@@ -25,6 +25,13 @@ PROFILE_FIELDS = (
 	"anniversary",
 	"spouse_name",
 	"style_notes",
+	# v1.6 — the perfumery's fragrance profile (Concierge on the client display, or the till)
+	"scent_families",
+	"scent_avoid",
+	"signature_scent",
+	"scent_intensity",
+	"scent_forms",
+	"scent_moments",
 	"preferred_associate",
 	"preferred_boutique",
 	"do_not_email",
@@ -32,6 +39,21 @@ PROFILE_FIELDS = (
 	"do_not_phone",
 )
 MANAGER_ONLY_FIELDS = ("vip_tier_override",)
+
+
+def _perfume_list_fields() -> dict[str, tuple[tuple[str, ...], int]]:
+	from maison_pos.perfume import SCENT_AVOID, SCENT_FAMILIES, SCENT_FORMS, SCENT_MOMENTS
+
+	return {
+		"scent_families": (tuple(SCENT_FAMILIES), 3),
+		"scent_avoid": (tuple(SCENT_AVOID), 4),
+		"scent_forms": (tuple(SCENT_FORMS), 3),
+		"scent_moments": (SCENT_MOMENTS, 4),
+	}
+
+
+#: v1.6 — the fragrance-profile fields that hold a comma list: field → (allowed words, at most)
+PERFUME_LIST_FIELDS = _perfume_list_fields()
 INTERACTION_TYPES = ("Note", "Call", "Email", "SMS", "Visit", "Follow-up", "Wishlist match", "Birthday")
 WISHLIST_ALERT_COOLDOWN_DAYS = 30
 
@@ -246,6 +268,19 @@ def update_profile(customer: str, values: Any) -> dict[str, Any]:
 			frappe.throw(_("Associate {0} not found").format(v), frappe.DoesNotExistError)
 		elif k == "preferred_boutique" and v and not frappe.db.exists("AWANZ Store", v):
 			frappe.throw(_("Boutique {0} not found").format(v), frappe.DoesNotExistError)
+		elif k in PERFUME_LIST_FIELDS:
+			# v1.6 — the till sends a list or a comma string; only the perfumery's own words are kept
+			from maison_pos.perfume import pick, split_list
+
+			items = v if isinstance(v, (list, tuple)) else split_list(v)
+			v = ", ".join(pick(items, PERFUME_LIST_FIELDS[k][0], PERFUME_LIST_FIELDS[k][1])) or None
+		elif k == "scent_intensity" and v:
+			from maison_pos.perfume import SCENT_INTENSITY
+
+			if v not in SCENT_INTENSITY:
+				frappe.throw(_("Unknown intensity {0}").format(v), frappe.ValidationError)
+		elif k == "signature_scent":
+			v = (v or "").strip()[:80] or None
 		doc.set(k, v)
 	doc.flags.ignore_permissions = True
 	doc.save()

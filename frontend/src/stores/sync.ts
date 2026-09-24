@@ -198,10 +198,10 @@ export const useSyncStore = defineStore('sync', {
     async countUploads() {
       this.uploadsPending = await db.uploads.count()
     },
-    notify(kind: SyncNotice['kind'], title: string, detail?: string, offline_uuid?: string, action?: SyncNotice['action']) {
+    notify(kind: SyncNotice['kind'], title: string, detail?: string, offline_uuid?: string, action?: SyncNotice['action'], ms?: number) {
       const id = ++noticeSeq
       this.notices.push({ id, kind, title, detail, offline_uuid, action })
-      setTimeout(() => this.dismiss(id), kind === 'crit' ? 12000 : action ? 9000 : 5000)
+      setTimeout(() => this.dismiss(id), ms ?? (kind === 'crit' ? 12000 : action ? 9000 : 5000))
     },
     dismiss(id: number) {
       this.notices = this.notices.filter((n) => n.id !== id)

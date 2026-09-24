@@ -833,9 +833,16 @@ STYLE_CARDS = ("Minimal", "Statement", "Heritage", "Modern", "Everyday", "Bridal
 OCCASIONS = ("Anniversary", "Birthday", "Engagement", "Wedding", "Gift", "Milestone", "Just because")
 
 
+#: v1.6 — any of these in the answers means the perfumery's Concierge sent them
+PERFUME_ANSWER_KEYS = ("shopping_for", "scent_families", "scent_avoid", "scent_intensity", "scent_forms", "scent_moments", "signature_scent")
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def preferences(token: str, answers: Any) -> dict[str, Any]:
-	"""Guest (Concierge mode): ring / wrist size, metal, style cards, occasions → AWANZ Client Profile."""
+	"""Guest (Concierge mode) → AWANZ Client Profile. A jeweller's Concierge sends ring / wrist
+	size, metal, style cards and occasions; the perfumery's (v1.6) sends who it is for, the scent
+	families loved and avoided, how it should wear, when, and what they wear now — and gets back
+	what on this store's shelf fits (``_perfume_preferences``)."""
 	_rate_limit("preferences", 20)
 	doc = get_session(token)
 	if not doc.customer:
@@ -843,6 +850,8 @@ def preferences(token: str, answers: Any) -> dict[str, Any]:
 	data = _loads(answers, {}) or {}
 	if not isinstance(data, dict):
 		frappe.throw(_("answers must be an object"), frappe.ValidationError)
+	if any(k in data for k in PERFUME_ANSWER_KEYS):
+		return _perfume_preferences(doc, data)
 	values: dict[str, Any] = {}
 	for k in PREFERENCE_FIELDS:
 		if data.get(k) not in (None, ""):
@@ -873,6 +882,105 @@ def preferences(token: str, answers: Any) -> dict[str, Any]:
 	_log_interaction(doc, doc.customer, "Note", "Concierge: " + (" · ".join(note_bits) if note_bits else ", ".join(f"{k} {v}" for k, v in values.items())))
 	_push_inbox(doc, "preferences", {"customer": doc.customer, "fields": sorted(values), "styles": styles, "occasions": occasions})
 	return {"ok": True, "saved": sorted(values), "styles": styles, "occasions": occasions}
+
+
+def _perfume_preferences(doc, data: dict[str, Any]) -> dict[str, Any]:
+	"""v1.6 — the perfumery's Concierge.
+
+	For the client themselves the answers become their fragrance profile (and a birthday feeds the
+	birthday coupon). **For a gift they describe somebody else**, so nothing lands on the client's
+	profile but the anniversary they share: the answers go to the associate (till notice and the
+	client's timeline) and drive the suggestions. Either way the associate is told what to bring
+	to the counter — up to three things on this store's shelf that fit.
+	"""
+	from maison_pos import perfume as P
+
+	who = data.get("shopping_for") if data.get("shopping_for") in P.SHOPPING_FOR else "Myself"
+	intensity = data.get("scent_intensity") if data.get("scent_intensity") in P.SCENT_INTENSITY else None
+	answers: dict[str, Any] = {
+		"shopping_for": who,
+		"scent_families": P.pick(data.get("scent_families"), P.SCENT_FAMILIES, 3),
+		"scent_avoid": P.pick(data.get("scent_avoid"), P.SCENT_AVOID, 4),
+		"scent_intensity": intensity,
+		"scent_forms": P.pick(data.get("scent_forms"), P.SCENT_FORMS, 3),
+		"scent_moments": P.pick(data.get("scent_moments"), P.SCENT_MOMENTS, 4),
+		"signature_scent": str(data.get("signature_scent") or "").strip()[:80] or None,
+		"occasions": P.pick(data.get("occasions"), P.SCENT_OCCASIONS, 4),
+	}
+	values: dict[str, Any] = {}
+	if who == "Myself":
+		for k in ("scent_families", "scent_avoid", "scent_forms", "scent_moments"):
+			if answers[k]:
+				values[k] = ", ".join(answers[k])
+		if intensity:
+			values["scent_intensity"] = intensity
+		if answers["signature_scent"]:
+			values["signature_scent"] = answers["signature_scent"]
+		if data.get("birthday") and "Birthday" in answers["occasions"]:
+			values["birthday"] = data["birthday"]
+	if data.get("anniversary") and "Anniversary" in answers["occasions"]:
+		values["anniversary"] = data["anniversary"]
+	line = P.summary(answers)
+	suggestions = _perfume_suggestions(doc.boutique, answers)
+	if line:
+		from maison_pos.api.crm import get_or_create_profile
+
+		prof = get_or_create_profile(doc.customer)
+		entry = f"[Salon {now_datetime().strftime('%Y-%m-%d')}] {line}"
+		existing = (prof.style_notes or "").strip()
+		values["style_notes"] = (existing + "\n" + entry).strip()[:4000] if existing else entry
+	if values:
+		_save_profile(doc.customer, values)
+	try_line = ", ".join(x["item_name"] for x in suggestions)
+	_log_interaction(doc, doc.customer, "Note", "Concierge: " + (line or "no preferences given") + (f" · To try: {try_line}" if try_line else ""))
+	_push_inbox(
+		doc,
+		"preferences",
+		{
+			"customer": doc.customer,
+			"fields": sorted(k for k in values if k != "style_notes"),
+			"summary": line,
+			"shopping_for": who,
+			"suggestions": [{"item_code": x["item_code"], "item_name": x["item_name"]} for x in suggestions],
+		},
+	)
+	return {"ok": True, "saved": sorted(values), "styles": [], "occasions": answers["occasions"], "summary": line, "suggestions": suggestions}
+
+
+def _perfume_suggestions(boutique: Optional[str], answers: dict[str, Any], limit: int = 3) -> list[dict[str, Any]]:
+	"""What on this store's shelf fits the answers (``perfume.suggest``): in stock here, for sale,
+	not a tester. Nothing is priced on the client display — the associate brings them to try."""
+	from maison_pos import perfume as P
+
+	if not boutique or not answers.get("scent_families"):
+		return []
+	warehouse = frappe.db.get_value("AWANZ Store", boutique, "warehouse")
+	meta = frappe.get_meta("Item")
+	if not warehouse or not meta.has_field("maison_fragrance_family"):
+		return []
+	cols = ["i.name as item_code", "i.item_name", "i.image", "b.actual_qty as on_hand", "i.maison_fragrance_family as family"]
+	for f, alias in (("maison_concentration", "concentration"), ("maison_gender", "gender"), ("maison_image_url", "image_url"), ("maison_size", "size")):
+		cols.append(f"i.{f} as {alias}" if meta.has_field(f) else f"null as {alias}")
+	tester = "and ifnull(i.maison_tester, 0) = 0" if meta.has_field("maison_tester") else ""
+	rows = frappe.db.sql(
+		f"""select {", ".join(cols)} from `tabItem` i join `tabBin` b on b.item_code = i.name and b.warehouse = %s
+		    where i.disabled = 0 and i.is_sales_item = 1 and b.actual_qty > 0 {tester}""",
+		(warehouse,),
+		as_dict=True,
+	)
+	for r in rows:
+		r["is_gift_set"] = (r.get("concentration") or "") == "Gift Set"
+	return [
+		{
+			"item_code": r["item_code"],
+			"item_name": r["item_name"],
+			"image": r.get("image_url") or r.get("image"),
+			"family": r.get("family"),
+			"concentration": r.get("concentration"),
+			"size": r.get("size"),
+		}
+		for r in P.suggest(rows, answers, limit)
+	]
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

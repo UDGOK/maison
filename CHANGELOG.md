@@ -5,6 +5,56 @@ All notable changes to AWANZ POS. Versions follow the `SPEC*.md` contracts; the 
 every release**. Frappe Cloud reads `maison_pos.__version__` to decide whether an update migrates the
 site or only pulls its assets, so leaving it behind means the release's patches never run (see 1.0.0).
 
+## 1.6.0 — 2026-09-23 — Concierge mode for a perfumery
+
+The client-display Concierge was written for a jeweller — ring sizer, wrist, metal, style cards.
+A perfumery now gets a fragrance consultation instead (`SalonConciergePerfume.vue`, picked by the
+tenant's vertical; the jeweller's flow is unchanged for every other trade). Asked for by the
+Scents of Arabia owner: *"I don't want it to ask ring size — this is a perfume shop."*
+
+### On the client display (`/salon`, started from the till's Concierge button)
+
+Six skippable questions, the way a perfumer would ask them while the client waits:
+
+* **Who is it for** — me, a gift for him, a gift for her, a gift (not sure yet). The rest of the
+  copy follows: "Which scents draw you in?" / "Which scents might they love?"
+* **Scent families** (up to three), each with its colour swatch — Oud & Woods, Amber & Spice,
+  Rose & Florals, Musk & Powder, Fresh & Citrus, Aquatic & Green, Sweet & Gourmand, Leather & Smoke.
+* **Rather not wear** — too sweet, heavy oud, smoky, strong florals, powdery, too fresh or soapy.
+* **How it wears** — close to the skin, noticed nearby, leaves a trail (drawn as sillage rings);
+  **in what form** — spray, perfume oil (attar, alcohol-free), body mist, bakhoor.
+* **When** — every day, work, evenings out, date night, weddings, Eid & Jumu'ah, summer, winter —
+  and **what they wear now**.
+* **Coming up** — birthday (their own date feeds the birthday coupon), anniversary, Eid, wedding,
+  graduation, Mother's / Father's / Valentine's Day, just because.
+
+It ends with **"A few to try"**: up to three things **on this store's shelf, in stock** that fit —
+loved families decide, anything they avoid is ruled out, a gift for him or her stays on that side
+of the shelf (unisex allowed), form and intensity break ties (`maison_pos/perfume.py`). No prices.
+
+### On the till
+
+* The associate is told at once, for 20 seconds: *"Concierge — bring to try: …"* with the
+  one-line summary (who for, loves, avoids, how, when, signature). The client's Client panel
+  reloads with the answers; the same line is on their timeline.
+* **The Client panel is a fragrance profile for a perfumery** — Loves, Avoids, Wears it, For,
+  Signature — and its editor uses the same chips. The jeweller's Ring / Wrist / Metal stay for
+  every other trade.
+
+### Where the answers go
+
+* New **Fragrance profile** section on `AWANZ Client Profile` — `scent_families`, `scent_avoid`,
+  `signature_scent`, `scent_intensity`, `scent_forms`, `scent_moments` — editable through
+  `crm.update_profile` (only the perfumery's own words are kept).
+* **For a gift, nothing lands on the client's own profile** except a shared anniversary: the
+  answers describe somebody else. They go to the associate and drive the suggestions.
+
+### Tests
+
+* `maison_pos/tests/test_v1_6_perfume_concierge.py` and `frontend/src/tests/v16_perfume_concierge.test.ts`
+  pin the same vocabulary, the shelf matching and the summary line on both sides, and the mock's
+  gift rule.
+
 ## 1.5.2 — 2026-09-23 — The operator's session survives a step run as Administrator
 
 * **`scoping.as_administrator()`** — every endpoint that posts on the operator's behalf (a

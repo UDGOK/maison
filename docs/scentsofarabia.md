@@ -193,6 +193,16 @@ Both are sections of `/warehouse`, open to head office and the warehouse admin:
 * **Promotions** (`/warehouse → Promotions`): rewards and tiers, coupons, giveaways (drawn by the
   audited draw), sales the till applies by itself, and the monthly calendar sent to members.
 
+## 5d. Concierge mode — a fragrance consultation (v1.6)
+
+On the client display, the till's **Concierge** button starts six skippable questions: who it is
+for (me / a gift for him / for her / not sure), the scent families they love and avoid, how it
+should wear and in what form (spray, alcohol-free oil, mist, bakhoor), when they wear it and what
+they wear now, and anything coming up. It ends with up to three things **in stock at this store**
+to try; the till shows the same list and a one-line summary, and the client's Client panel
+becomes their fragrance profile. For a gift the answers stay with the associate — they describe
+someone else.
+
 ## 6. Open questions for the client
 
 1. **Order 1** — the ~$11,995 invoice before 99139.

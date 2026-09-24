@@ -21,6 +21,8 @@ import SalonFeedback from './SalonFeedback.vue'
 import SalonInvite from './SalonInvite.vue'
 import SalonConsent from './SalonConsent.vue'
 import SalonConcierge from './SalonConcierge.vue'
+// v1.6 — a perfumery's Concierge is a fragrance consultation, not a ring sizer
+import SalonConciergePerfume from './SalonConciergePerfume.vue'
 import SalonIdCheck from './SalonIdCheck.vue' // v0.6 N
 import { clockHM } from '@/utils/time' // v0.6 R
 
@@ -46,7 +48,7 @@ const views = {
   concierge: SalonConcierge,
   unpaired: SalonPair
 } as const
-const current = computed(() => views[salon.view])
+const current = computed(() => (salon.view === 'concierge' && salon.isPerfume ? SalonConciergePerfume : views[salon.view]))
 const dimmed = computed(() => salon.view !== 'ambient' && salon.view !== 'pair')
 const clock = computed(() => clockHM(new Date(salon.now))) // v0.6 R — the boutique's clock
 

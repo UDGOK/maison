@@ -13,6 +13,7 @@ import { ApiError, type Customer } from './types'
 import { CUSTOMERS, ITEMS, PRICES } from './seed'
 import { stripHtml } from '@/utils/text'
 import { firstName, maskClientNumber, maskEmail, maskPhone, sanitizeState } from '@/salon/mask'
+import { summary as perfumeSummary, suggest as perfumeSuggest, type PerfumeAnswers, type ScentSuggestion, type ShelfItem } from '@/perfume/profile'
 
 // ---------------------------------------------------------------------------------------------
 // types
@@ -198,6 +199,10 @@ export interface SalonMessage {
   fields?: string[]
   styles?: string[]
   occasions?: string[]
+  // v1.6 — the perfumery's Concierge: the line the associate reads, and what to bring to try
+  summary?: string
+  shopping_for?: string
+  suggestions?: { item_code: string; item_name: string }[]
   [key: string]: unknown
 }
 
@@ -211,7 +216,8 @@ export interface PairingCode {
   pos_device_id: string
 }
 
-export interface SalonPreferences {
+export interface SalonPreferences extends PerfumeAnswers {
+  // a jeweller's Concierge
   ring_size?: string
   wrist_size?: string
   metal_preference?: string
@@ -220,6 +226,17 @@ export interface SalonPreferences {
   anniversary?: string
   birthday?: string
   notes?: string
+}
+
+/** What `salon.preferences` answers. v1.6: the perfumery also gets a one-line summary and what on
+ *  this store's shelf fits the answers. */
+export interface SalonPreferencesResult {
+  ok: boolean
+  saved: string[]
+  styles: string[]
+  occasions: string[]
+  summary?: string
+  suggestions?: ScentSuggestion[]
 }
 
 export interface SalonApi {
@@ -242,7 +259,7 @@ export interface SalonApi {
   feedback(token: string, rating: number, comment?: string): Promise<{ ok: boolean; duplicate?: boolean; feedback?: string }>
   invite(token: string, wants_invitation: 0 | 1): Promise<{ ok: boolean; wants_invitation: 0 | 1 }>
   email_receipt(token: string, email?: string): Promise<{ ok: boolean; email_masked: string | null; sent: boolean; queued: boolean }>
-  preferences(token: string, answers: SalonPreferences): Promise<{ ok: boolean; saved: string[]; styles: string[]; occasions: string[] }>
+  preferences(token: string, answers: SalonPreferences): Promise<SalonPreferencesResult>
   unpair(token: string): Promise<{ ok: boolean; unpaired: boolean }>
 }
 
@@ -467,6 +484,20 @@ function attach(s: MockServer, sess: MockSession, c: Customer, how: 'identify' |
   save(s)
   return { ok: true, client, created, message_seq: msg.seq }
 }
+
+// v1.6 — the perfumery's Concierge in the mock: any of these keys means perfume answers
+const PERFUME_KEYS: (keyof PerfumeAnswers)[] = ['shopping_for', 'scent_families', 'scent_avoid', 'scent_intensity', 'scent_forms', 'scent_moments', 'signature_scent']
+/** a small Scents of Arabia shelf for the mock suggestions */
+const MOCK_SHELF: ShelfItem[] = [
+  { item_code: 'ARB-002', item_name: 'Lattafa His Confession EDP 3.4 oz', family: 'Woody Spicy', concentration: 'EDP', gender: 'Men', on_hand: 4 },
+  { item_code: 'ARB-007', item_name: 'Swiss Arabian Essence of Casablanca Extrait', family: 'Oriental Woody', concentration: 'Extrait de Parfum', gender: 'Unisex', on_hand: 3 },
+  { item_code: 'ARB-006', item_name: 'Lattafa Ana Abiyedh Coral EDP', family: 'Floral Musky', concentration: 'EDP', gender: 'Women', on_hand: 2 },
+  { item_code: 'OIL-001', item_name: 'Arabian Perfume Oil — Assorted Roll-On', family: 'Oud / Attar', concentration: 'Perfume Oil', gender: 'Unisex', on_hand: 40 },
+  { item_code: 'ARB-005', item_name: 'Arabiyat Prestige Nyla Sherbet EDP', family: 'Fruity Gourmand', concentration: 'EDP', gender: 'Women', on_hand: 5 },
+  { item_code: 'DSG-003', item_name: 'Dior Sauvage EDT 3.4 oz', family: 'Fresh Aromatic', concentration: 'EDT', gender: 'Men', on_hand: 2 },
+  { item_code: 'GFT-020', item_name: 'Armaf Club de Nuit Iconic Gift Set', family: 'Aromatic Fougere', concentration: 'Gift Set', gender: 'Men', on_hand: 2 }
+]
+export type { ScentSuggestion }
 
 export const mockSalon: SalonApi = {
   async pairing_code(boutique, pos_device_id) {
@@ -707,6 +738,46 @@ export const mockSalon: SalonApi = {
     const s = load()
     const sess = sessionOr403(s, token)
     if (!sess.customer) throw new ApiError('Identify or join first', 'ValidationError', 417)
+    // v1.6 — the perfumery's Concierge (mirror of `salon._perfume_preferences`)
+    if (PERFUME_KEYS.some((k) => k in answers)) {
+      const who = answers.shopping_for || 'Myself'
+      const line = perfumeSummary(answers)
+      const suggestions = perfumeSuggest(MOCK_SHELF, answers)
+      const p = { ...(s.profiles[sess.customer] || {}) } as Record<string, unknown>
+      const saved: string[] = []
+      if (who === 'Myself') {
+        for (const k of ['scent_families', 'scent_avoid', 'scent_forms', 'scent_moments'] as const) {
+          if (answers[k]?.length) {
+            p[k] = answers[k]!.join(', ')
+            saved.push(k)
+          }
+        }
+        for (const k of ['scent_intensity', 'signature_scent'] as const) {
+          if (answers[k]) {
+            p[k] = answers[k]
+            saved.push(k)
+          }
+        }
+        if (answers.birthday && answers.occasions?.includes('Birthday')) {
+          p.birthday = answers.birthday
+          saved.push('birthday')
+        }
+      }
+      if (answers.anniversary && answers.occasions?.includes('Anniversary')) {
+        p.anniversary = answers.anniversary
+        saved.push('anniversary')
+      }
+      if (line) {
+        p.style_notes = ((p.style_notes as string) ? (p.style_notes as string) + '\n' : '') + `[Salon ${new Date().toISOString().slice(0, 10)}] ` + line
+        saved.push('style_notes')
+      }
+      s.profiles[sess.customer] = p
+      const tryLine = suggestions.map((x) => x.item_name).join(', ')
+      s.interactions.push({ customer: sess.customer, type: 'Note', note: 'Concierge: ' + (line || 'no preferences given') + (tryLine ? ` · To try: ${tryLine}` : ''), ts: new Date().toISOString(), boutique: sess.boutique })
+      pushInbox(sess, 'preferences', { customer: sess.customer, fields: saved.filter((k) => k !== 'style_notes').sort(), summary: line, shopping_for: who, suggestions: suggestions.map((x) => ({ item_code: x.item_code, item_name: x.item_name })) })
+      save(s)
+      return { ok: true, saved: saved.sort(), styles: [], occasions: answers.occasions || [], summary: line, suggestions }
+    }
     const saved: string[] = []
     const p = { ...(s.profiles[sess.customer] || {}) } as Record<string, unknown>
     for (const k of ['ring_size', 'wrist_size', 'metal_preference', 'birthday', 'anniversary'] as const) {

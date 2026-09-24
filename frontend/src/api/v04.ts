@@ -14,6 +14,13 @@ export interface ClientProfileFields {
   ring_size?: string | null
   wrist_size?: string | null
   metal_preference?: string | null
+  // v1.6 — a perfumery's fragrance profile (lists comma-separated, as stored)
+  scent_families?: string | null
+  scent_avoid?: string | null
+  signature_scent?: string | null
+  scent_intensity?: string | null
+  scent_forms?: string | null
+  scent_moments?: string | null
   birthday?: string | null
   anniversary?: string | null
   spouse_name?: string | null

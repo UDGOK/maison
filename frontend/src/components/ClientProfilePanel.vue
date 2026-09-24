@@ -18,6 +18,10 @@ import { fmtMoney } from '@/utils/money'
 import { fmtDate } from '@/utils/device'
 import TierProgress from './TierProgress.vue'
 import Modal from './Modal.vue'
+// v1.6 — a perfumery's client has a fragrance profile, not a ring size
+import { useBrand } from '@/stores/brand'
+import { useSalonPosStore } from '@/stores/salon'
+import { AVOID_NAMES, FAMILY_NAMES, FORM_NAMES, INTENSITY_NAMES, SCENT_MOMENTS, joinList, splitList, toggle } from '@/perfume/profile'
 
 const props = defineProps<{ customer: Customer }>()
 const emit = defineEmits<{ tier: [tier: string | null] }>()
@@ -47,6 +51,10 @@ const logDate = ref('')
 const busy = ref(false)
 
 const METALS = ['', 'Yellow Gold', 'White Gold', 'Rose Gold', 'Platinum', 'Mixed']
+const brand = useBrand()
+const salonPos = useSalonPosStore()
+/** v1.6 — the fragrance lists being edited (stored comma-separated on the profile) */
+const scent = ref<{ families: string[]; avoid: string[]; forms: string[]; moments: string[] }>({ families: [], avoid: [], forms: [], moments: [] })
 const TIERS = computed(() => ['', ...(profile.value?.loyalty.tiers.map((t) => t.tier) || catalog.loyalty?.tiers.map((t) => t.tier) || [])])
 const INTERACTIONS: InteractionType[] = ['Note', 'Call', 'Email', 'SMS', 'Visit', 'Follow-up']
 
@@ -86,9 +94,18 @@ async function load(force = false) {
 }
 onMounted(() => void load())
 watch(() => props.customer.name, () => void load())
+// v1.6 — the Concierge on the client display just saved this client's answers: show them
+watch(
+  () => salonPos.preferencesSeq,
+  () => {
+    if (salonPos.preferencesCustomer === props.customer.name && !editing.value) void load()
+  }
+)
 
 function startEdit() {
   form.value = { ...(profile.value?.profile || {}) }
+  const p = profile.value?.profile
+  scent.value = { families: splitList(p?.scent_families), avoid: splitList(p?.scent_avoid), forms: splitList(p?.scent_forms), moments: splitList(p?.scent_moments) }
   editing.value = true
 }
 async function saveProfile() {
@@ -98,6 +115,18 @@ async function saveProfile() {
   try {
     const values: Partial<ClientProfileFields> = { ...form.value }
     delete values.preferred_associate_name
+    if (brand.isPerfume) {
+      values.scent_families = joinList(scent.value.families)
+      values.scent_avoid = joinList(scent.value.avoid)
+      values.scent_forms = joinList(scent.value.forms)
+      values.scent_moments = joinList(scent.value.moments)
+      // the jeweller's sizes are not a perfumery's to change
+      delete values.ring_size
+      delete values.wrist_size
+      delete values.metal_preference
+    } else {
+      for (const k of ['scent_families', 'scent_avoid', 'scent_forms', 'scent_moments', 'scent_intensity', 'signature_scent'] as const) delete values[k]
+    }
     if (!profile.value.can_edit_tier) delete values.vip_tier_override
     profile.value = { ...profile.value, ...(await v04.crm.update_profile(props.customer.name, values)) }
     await setSetting(`profile:${props.customer.name}`, JSON.parse(JSON.stringify(profile.value)))
@@ -205,9 +234,18 @@ const dash = (v: unknown) => (v === null || v === undefined || v === '' ? '—' 
         </div>
         <template v-if="!editing">
           <dl class="facts">
-            <dt>Ring</dt><dd>{{ dash(profile.profile.ring_size) }}</dd>
-            <dt>Wrist</dt><dd>{{ profile.profile.wrist_size ? profile.profile.wrist_size + ' cm' : '—' }}</dd>
-            <dt>Metal</dt><dd>{{ dash(profile.profile.metal_preference) }}</dd>
+            <template v-if="brand.isPerfume">
+              <dt>Loves</dt><dd data-testid="cp-loves">{{ dash(profile.profile.scent_families) }}</dd>
+              <dt>Avoids</dt><dd>{{ dash(profile.profile.scent_avoid) }}</dd>
+              <dt>Wears it</dt><dd>{{ dash([profile.profile.scent_intensity, profile.profile.scent_forms].filter(Boolean).join(' · ')) }}</dd>
+              <dt>For</dt><dd>{{ dash(profile.profile.scent_moments) }}</dd>
+              <dt>Signature</dt><dd>{{ dash(profile.profile.signature_scent) }}</dd>
+            </template>
+            <template v-else>
+              <dt>Ring</dt><dd>{{ dash(profile.profile.ring_size) }}</dd>
+              <dt>Wrist</dt><dd>{{ profile.profile.wrist_size ? profile.profile.wrist_size + ' cm' : '—' }}</dd>
+              <dt>Metal</dt><dd>{{ dash(profile.profile.metal_preference) }}</dd>
+            </template>
             <dt>Birthday</dt><dd>{{ profile.profile.birthday ? fmtDate(profile.profile.birthday) : '—' }}</dd>
             <dt>Anniversary</dt><dd>{{ profile.profile.anniversary ? fmtDate(profile.profile.anniversary) : '—' }}</dd>
             <dt>Partner</dt><dd>{{ dash(profile.profile.spouse_name) }}</dd>
@@ -229,17 +267,52 @@ const dash = (v: unknown) => (v === null || v === undefined || v === '' ? '—' 
           </div>
         </template>
         <form v-else class="edit stack" @submit.prevent="saveProfile">
-          <div class="row">
-            <div class="field" style="flex: 1"><label class="label">Ring size</label><input v-model="form.ring_size" class="input" inputmode="decimal" /></div>
-            <div class="field" style="flex: 1"><label class="label">Wrist (cm)</label><input v-model="form.wrist_size" class="input" inputmode="decimal" /></div>
-          </div>
-          <div class="field"><label class="label">Metal preference</label><select v-model="form.metal_preference" class="input"><option v-for="m in METALS" :key="m" :value="m">{{ m || '—' }}</option></select></div>
+          <template v-if="brand.isPerfume">
+            <div class="field">
+              <label class="label">Loves (up to three)</label>
+              <div class="chips">
+                <button v-for="f in FAMILY_NAMES" :key="f" type="button" class="chip" :class="{ active: scent.families.includes(f) }" :data-testid="`cp-family-${f}`" @click="scent.families = toggle(scent.families, f, 3)">{{ f }}</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Avoids</label>
+              <div class="chips">
+                <button v-for="a in AVOID_NAMES" :key="a" type="button" class="chip" :class="{ active: scent.avoid.includes(a) }" @click="scent.avoid = toggle(scent.avoid, a, 4)">{{ a }}</button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field" style="flex: 1">
+                <label class="label">Wears it</label>
+                <select v-model="form.scent_intensity" class="input"><option :value="null">—</option><option v-for="i in INTENSITY_NAMES" :key="i" :value="i">{{ i }}</option></select>
+              </div>
+              <div class="field" style="flex: 1"><label class="label">Signature scent</label><input v-model="form.signature_scent" class="input" maxlength="80" placeholder="What they wear now" /></div>
+            </div>
+            <div class="field">
+              <label class="label">Prefers</label>
+              <div class="chips">
+                <button v-for="f in FORM_NAMES" :key="f" type="button" class="chip" :class="{ active: scent.forms.includes(f) }" @click="scent.forms = toggle(scent.forms, f, 3)">{{ f }}</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Wears it for</label>
+              <div class="chips">
+                <button v-for="m in SCENT_MOMENTS" :key="m" type="button" class="chip" :class="{ active: scent.moments.includes(m) }" @click="scent.moments = toggle(scent.moments, m, 4)">{{ m }}</button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="row">
+              <div class="field" style="flex: 1"><label class="label">Ring size</label><input v-model="form.ring_size" class="input" inputmode="decimal" /></div>
+              <div class="field" style="flex: 1"><label class="label">Wrist (cm)</label><input v-model="form.wrist_size" class="input" inputmode="decimal" /></div>
+            </div>
+            <div class="field"><label class="label">Metal preference</label><select v-model="form.metal_preference" class="input"><option v-for="m in METALS" :key="m" :value="m">{{ m || '—' }}</option></select></div>
+          </template>
           <div class="row">
             <div class="field" style="flex: 1"><label class="label">Birthday</label><input v-model="form.birthday" class="input" type="date" /></div>
             <div class="field" style="flex: 1"><label class="label">Anniversary</label><input v-model="form.anniversary" class="input" type="date" /></div>
           </div>
           <div class="field"><label class="label">Partner</label><input v-model="form.spouse_name" class="input" /></div>
-          <div class="field"><label class="label">Style notes</label><textarea v-model="form.style_notes" class="input" rows="3"></textarea></div>
+          <div class="field"><label class="label">{{ brand.isPerfume ? 'Notes' : 'Style notes' }}</label><textarea v-model="form.style_notes" class="input" rows="3"></textarea></div>
           <div class="row flags">
             <label class="flag"><input v-model="form.do_not_email" type="checkbox" :true-value="1" :false-value="0" /> No email</label>
             <label class="flag"><input v-model="form.do_not_sms" type="checkbox" :true-value="1" :false-value="0" /> No SMS</label>
@@ -478,6 +551,7 @@ const dash = (v: unknown) => (v === null || v === undefined || v === '' ? '—' 
   background: var(--surface-2);
 }
 .chips {
+  display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }

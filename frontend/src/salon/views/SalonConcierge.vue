@@ -2,6 +2,9 @@
 /**
  * v0.5 K — Concierge mode (started by the associate): a guided Q&A that turns waiting time into
  * clienteling data — ring size on the sizer, wrist size, metal, style cards, occasions → Client Profile.
+ *
+ * v1.6 — this is the **jeweller's** Concierge. A perfumery gets `SalonConciergePerfume.vue` (who it
+ * is for, scent families, how it wears, when) — `SalonApp` picks by the tenant's vertical.
  */
 import { computed, ref } from 'vue'
 import { useSalonStore } from '../store'
